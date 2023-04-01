@@ -220,7 +220,7 @@ GroupObject::Draw( Renderer& renderer ) const
 
 		const BitmapMask *mask = GetMask();
 
-		if ( mask )
+		if ( mask && !fMask->GetOnlyForHitTests() )
 		{
 			Texture *texture = const_cast< BitmapPaint * >( mask->GetPaint() )->GetTexture();
 			Uniform *uniform = const_cast< Self * >( this )->GetMaskUniform();
@@ -239,7 +239,7 @@ GroupObject::Draw( Renderer& renderer ) const
 			}
 		}
 
-		if ( mask )
+		if ( mask && !fMask->GetOnlyForHitTests() )
 		{
 			renderer.PopMask();
 		}
