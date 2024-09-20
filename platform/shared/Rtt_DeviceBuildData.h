@@ -51,7 +51,7 @@ class DeviceBuildData
 				bool liveBuild,
 				int debugBuildProcess);
 
-		void SetBuild( int buildYear, int buildRevision );
+		void SetBuild( int buildYear, const char* buildRevision );
 
 	private:
 		void PushCoronaPluginMetadata( lua_State *L );
@@ -80,7 +80,7 @@ class DeviceBuildData
 		String fBuildQueue;
 		String fBuildBucket;
 		int fBuildYear;
-		int fBuildRevision;
+		String fBuildRevision;
 		int fDebugBuildProcess;
 #ifdef AUTO_INCLUDE_MONETIZATION_PLUGIN
 		String fFuseStagingSuffix;

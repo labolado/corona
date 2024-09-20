@@ -48,7 +48,7 @@ int DownloadPluginsMain::Run(int argc, const char* args[])
 	}
 	lua_pushnil(L);
 	lua_pushinteger(L, Rtt_BUILD_YEAR);
-	lua_pushinteger(L, Rtt_BUILD_REVISION);
+	lua_pushstring(L, Rtt_MACRO_TO_STRING(Rtt_BUILD_REVISION));
 
 	lua_call(L, 4, 1);
 	int ret = -1;

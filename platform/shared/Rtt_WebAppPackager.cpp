@@ -290,7 +290,7 @@ int WebAppPackager::Build(AppPackagerParams* params, const char* tmpDirBase)
 		lua_pushinteger(L, Rtt_BUILD_YEAR);
 		lua_setfield(L, -2, "buildYear");
 
-		lua_pushinteger(L, Rtt_BUILD_REVISION);
+		lua_pushstring(L, Rtt_MACRO_TO_STRING(Rtt_BUILD_REVISION));
 		lua_setfield(L, -2, "buildRevision");
 
 		lua_pushinteger(L, debugBuildProcess);
