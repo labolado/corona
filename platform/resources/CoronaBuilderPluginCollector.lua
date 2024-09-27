@@ -115,7 +115,7 @@ end
 
 local function getBuildNumber(buildRevision)
     if type(buildRevision) == "string" then
-        local build = buildRevision:match("(%d+).")
+        local build = buildRevision:match("(%d+).?")
         return tonumber(build)
     else
         return tonumber(buildRevision)
