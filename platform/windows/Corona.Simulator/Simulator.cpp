@@ -343,7 +343,7 @@ BOOL CSimulatorApp::InitInstance()
 	AddDocTemplate(pDocTemplate);
 
     // Do this before any of the ways app can exit (including not authorized)
-	printf("\nSolar2D Simulator %d.%d (%s %s)\n\n", Rtt_BUILD_YEAR, Rtt_BUILD_REVISION, __DATE__, __TIME__);
+	printf("\nSolar2D Simulator %d.%s (%s %s)\n\n", Rtt_BUILD_YEAR, Rtt_MACRO_TO_STRING(Rtt_BUILD_REVISION), __DATE__, __TIME__);
 
 	// Load user preferences from registry
     // Initialize member variables used to write out preferences
