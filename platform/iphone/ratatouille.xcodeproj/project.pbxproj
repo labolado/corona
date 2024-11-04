@@ -47,6 +47,8 @@
 		078DA95B176FD45500A5193E /* Rtt_AppleTextAlignment.mm in Sources */ = {isa = PBXBuildFile; fileRef = 078DA955176FD1EE00A5193E /* Rtt_AppleTextAlignment.mm */; };
 		0795D2481886008F00B3F4B7 /* Rtt_IPhoneVideoObject.mm in Sources */ = {isa = PBXBuildFile; fileRef = A46936E6169DED9200723568 /* Rtt_IPhoneVideoObject.mm */; };
 		0795D25A18861C6600B3F4B7 /* Rtt_IPhoneDisplayObject.mm in Sources */ = {isa = PBXBuildFile; fileRef = A46936C8169DED9200723568 /* Rtt_IPhoneDisplayObject.mm */; };
+		4188F1C52CD8ACE5006543F8 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4188F1882CD8ACE5006543F8 /* PhotosUI.framework */; };
+		4188F1C62CD8ADC9006543F8 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4188F1882CD8ACE5006543F8 /* PhotosUI.framework */; };
 		A40D2F5D1887699100B4A354 /* CoronaViewPluginContext.h in Headers */ = {isa = PBXBuildFile; fileRef = A40D2F5B1887699100B4A354 /* CoronaViewPluginContext.h */; };
 		A40D2F5E1887699100B4A354 /* CoronaViewPluginContext.mm in Sources */ = {isa = PBXBuildFile; fileRef = A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */; };
 		A40D2F6818876D5200B4A354 /* CoronaViewPluginContext.mm in Sources */ = {isa = PBXBuildFile; fileRef = A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */; };
@@ -1497,6 +1499,7 @@
 		07BB15CC17614EBE00F55D34 /* Rtt_AppleTextAlignment.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleTextAlignment.h; sourceTree = "<group>"; };
 		28AD733E0D9D9553002E5188 /* MainWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainWindow.xib; sourceTree = "<group>"; };
 		32CA4F630368D1EE00C91783 /* Rtt_Player.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_Player.pch; sourceTree = "<group>"; };
+		4188F1882CD8ACE5006543F8 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
 		A40D2F5B1887699100B4A354 /* CoronaViewPluginContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CoronaViewPluginContext.h; path = platform/iphone/CoronaViewPluginContext.h; sourceTree = "<group>"; };
 		A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CoronaViewPluginContext.mm; path = platform/iphone/CoronaViewPluginContext.mm; sourceTree = "<group>"; };
 		A40D2F721889151E00B4A354 /* CoronaCardsTest-Ad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CoronaCardsTest-Ad.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1743,6 +1746,7 @@
 			files = (
 				A46935B8169D62DA00723568 /* libobjc.dylib in Frameworks */,
 				A47098E4169EAB5C00D31091 /* libplayer.a in Frameworks */,
+				4188F1C52CD8ACE5006543F8 /* PhotosUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1824,6 +1828,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F5C36CDB24FAB5E500775C6E /* libplayer-angle.a in Frameworks */,
+				4188F1C62CD8ADC9006543F8 /* PhotosUI.framework in Frameworks */,
 				F50E7EBA24FA923B009F165B /* libobjc.dylib in Frameworks */,
 				F5C36AF324FA93A700775C6E /* MetalANGLE.framework in Frameworks */,
 			);
@@ -2107,6 +2112,7 @@
 		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				4188F1882CD8ACE5006543F8 /* PhotosUI.framework */,
 				000DCED912B0824800042A5E /* libobjc.dylib */,
 				A4EF76F61A352B43002D3BEF /* CoronaCards.framework */,
 			);

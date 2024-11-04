@@ -52,8 +52,8 @@
 	branch = master
 [submodule "subrepos/enterprise"]
 	path = subrepos/enterprise
-	url = https://github.com/coronalabs/submodule-native.git
-	branch = master
+	url = https://github.com/labolado/submodule-native.git
+	branch = labolado_dev
 [submodule "subrepos/easing"]
 	path = subrepos/easing
 	url = https://github.com/coronalabs/framework-easing.git
