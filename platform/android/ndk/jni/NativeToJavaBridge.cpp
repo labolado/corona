@@ -1314,6 +1314,25 @@ NativeToJavaBridge::ShowImagePicker( int imageSourceType, const char *destinatio
 	}
 }
 
+void
+NativeToJavaBridge::ShowMultiImagePicker( int imageSourceType, const char *destinationFilePath, int maxSelection )
+{
+	NativeTrace trace( "NativeToJavaBridge::ShowMultiImagePicker" );
+
+	jclassInstance bridge( GetJNIEnv(), kNativeToJavaBridge );
+	if ( bridge.isValid() )
+	{
+		jmethodID mid = bridge.getEnv()->GetStaticMethodID(
+							   bridge.getClass(), "callShowMultiImagePicker", "(Lcom/ansca/corona/CoronaRuntime;ILjava/lang/String;I)V" );
+		if ( mid != NULL )
+		{
+			jstringParam destinationFilePathJ( bridge.getEnv(), destinationFilePath );
+			bridge.getEnv()->CallStaticVoidMethod( bridge.getClass(), mid, fCoronaRuntime, imageSourceType, destinationFilePathJ.getValue(), maxSelection );
+			HandleJavaException();
+		}
+	}
+}
+
 void 
 NativeToJavaBridge::ShowVideoPicker( int videoSourceType, int maxTime, int quality )
 {

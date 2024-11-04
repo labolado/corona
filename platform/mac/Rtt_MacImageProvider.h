@@ -40,6 +40,7 @@ class MacImageProvider : public PlatformImageProvider
 	public:
 		virtual bool Supports( int source ) const;
 		virtual bool Show( int source, const char* filePath, lua_State* L );
+		virtual bool ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State* L );
 	
 	protected:
 		MacPickerControllerDelegate* fPickerControllerDelegate; // internal Obj-C delegate for callbacks

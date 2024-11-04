@@ -1421,7 +1421,7 @@ JavaToNativeBridge::AdsRequestEvent( bool isError )
 }
 
 void
-JavaToNativeBridge::ImagePickerEvent( JNIEnv *env, jstring selectedImageFileName )
+JavaToNativeBridge::ImagePickerEvent( JNIEnv *env, jstring selectedImageFileName, jint multipleFilesCount )
 {
 	if (fPlatform && fRuntime && env)
 	{
@@ -1429,7 +1429,7 @@ JavaToNativeBridge::ImagePickerEvent( JNIEnv *env, jstring selectedImageFileName
 		if (imageProviderPointer)
 		{
 			jstringResult selectedImageFileNameResult( env, selectedImageFileName );
-			imageProviderPointer->CloseWithResult(selectedImageFileNameResult.getUTF8());
+			imageProviderPointer->CloseWithResult(selectedImageFileNameResult.getUTF8(), multipleFilesCount);
 		}
 	}
 }

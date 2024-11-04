@@ -100,7 +100,7 @@ class JavaToNativeBridge
 		void WebViewHistoryUpdated( JNIEnv * env, int id, jboolean canGoBack, jboolean canGoForward );
 		void WebViewClosed( JNIEnv * env, int id );
 		void AdsRequestEvent(bool isError);
-		void ImagePickerEvent(JNIEnv *env, jstring selectedImageFileName);
+		void ImagePickerEvent(JNIEnv *env, jstring selectedImageFileName, jint multipleFilesCount);
 		void AbortShowingImageProvider();
 		void VideoPickerEvent(JNIEnv *env, jstring selectedVideoFileName, jint duration, jlong size);
 		void AbortShowingVideoProvider();

@@ -449,7 +449,7 @@ JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeAdsRequestEv
  * Signature: (ILjava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeImagePickerEvent
-  (JNIEnv *, jclass, jlong, jstring);
+  (JNIEnv *, jclass, jlong, jstring, jint);
 
 JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeVideoPickerEvent
   (JNIEnv *, jclass, jlong, jstring, jint, jlong);

@@ -1670,7 +1670,12 @@ public class NativeToJavaBridge {
 
 	protected static void callShowImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath)
 	{
-		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath);
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, 1);
+	}
+
+	protected static void callShowMultiImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath, int maxSelection)
+	{
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, maxSelection);
 	}
 
 	protected static void callShowVideoPicker(CoronaRuntime runtime, int videoSourceType, int maxTime, int quality)

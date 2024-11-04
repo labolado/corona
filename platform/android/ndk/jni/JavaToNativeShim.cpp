@@ -512,9 +512,9 @@ Java_com_ansca_corona_JavaToNativeShim_nativeAdsRequestEvent(JNIEnv * env, jclas
 }
 
 JNIEXPORT void JNICALL
-Java_com_ansca_corona_JavaToNativeShim_nativeImagePickerEvent(JNIEnv * env, jclass cd, jlong bridgeAddress, jstring selectedImageFileName )
+Java_com_ansca_corona_JavaToNativeShim_nativeImagePickerEvent(JNIEnv * env, jclass cd, jlong bridgeAddress, jstring selectedImageFileName, jint multipleFilesCount)
 {
-	JavaToNativeBridgeFromMemoryAddress(bridgeAddress)->ImagePickerEvent(env, selectedImageFileName);
+	JavaToNativeBridgeFromMemoryAddress(bridgeAddress)->ImagePickerEvent(env, selectedImageFileName, multipleFilesCount);
 }
 
 JNIEXPORT void JNICALL

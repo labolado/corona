@@ -143,6 +143,7 @@ class NativeToJavaBridge
 		bool HasMediaSource( int mediaSourceType );
 		bool HasAccessToMediaSource( int mediaSourceType );
 		void ShowImagePicker( int imageSourceType, const char *destinationFilePath );
+		void ShowMultiImagePicker( int imageSourceType, const char *destinationFilePath, int maxSelection );
 		void ShowVideoPicker( int videoSourceType, int maxTime, int quality );
 		bool CanShowPopup( const char *name );
 		void ShowSendMailPopup( NativeToJavaBridge::DictionaryRef dictionaryOfSettings, Rtt::LuaResource *resource );
