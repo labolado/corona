@@ -2403,10 +2403,8 @@ public class CoronaActivity extends Activity {
 					for(int i = 0; i < data.getClipData().getItemCount(); i++) {
 						selectUris.add(data.getClipData().getItemAt(i).getUri());
 					}
-					Log.d("Corona", "SelectMediaActivityResultHandler, data.getClipData().getItemCount() = " + data.getClipData().getItemCount());
 				} else {
 					selectUris.add(data.getData());
-					Log.d("Corona", "SelectMediaActivityResultHandler, data.getData() = " + data.getData());
 				}
 			}
 			// final android.net.Uri finalUri = uri;
