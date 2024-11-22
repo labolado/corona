@@ -244,7 +244,18 @@ DisplayObjectExtensions::applyAngularImpulse( lua_State *L )
 	{
 		Self *extensions = o->GetExtensions();
 		b2Body *fBody = extensions->GetBody();
-		fBody->ApplyTorque( lua_tonumber( L, 2 ), true );
+		// TODO: To be removed in future versions
+		// This maintains backwards compatibility while fixing incorrect usage of ApplyTorque.
+		// If there is third parameter, use ApplyAngularImpulse (correct behavior)
+		// Otherwise fallback to old ApplyTorque behavior for compatibility
+		if ( lua_isnoneornil( L, 3 ) )
+		{
+			fBody->ApplyTorque( lua_tonumber( L, 2 ), true );
+		}
+		else
+		{
+			fBody->ApplyAngularImpulse( lua_tonumber( L, 2 ), true );
+		}
 	}
 
 	return 0;
