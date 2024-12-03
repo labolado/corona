@@ -3393,7 +3393,7 @@ static const char * ParticleSystemObject_keys[] =
 static StringHash*
 GetParticleSystemObjectHash( lua_State *L )
 {
-    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 19, 28, 2, __FILE__, __LINE__ );
+    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 18, 29, 2, __FILE__, __LINE__ );
     return &sHash;
 }
 
