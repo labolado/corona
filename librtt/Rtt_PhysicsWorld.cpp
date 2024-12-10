@@ -563,7 +563,10 @@ PhysicsWorld::StepEvents() {
 	for ( int i = 0; i < contactEvents.endCount; ++i )
 	{
 		b2ContactEndTouchEvent event = contactEvents.endEvents[i];
-		fWorldContactListener->EndContact( event.shapeIdA, event.shapeIdB );
+		if ( b2Shape_IsValid( event.shapeIdA ) && b2Shape_IsValid( event.shapeIdB ) )
+		{
+			fWorldContactListener->EndContact( event.shapeIdA, event.shapeIdB );
+		}
 	}
 
 	for ( int i = 0; i < contactEvents.hitCount; ++i )
@@ -582,7 +585,10 @@ PhysicsWorld::StepEvents() {
 	for ( int i = 0; i < sensorEvents.endCount; ++i )
 	{
 		b2SensorEndTouchEvent event = sensorEvents.endEvents[i];
-		fWorldContactListener->EndContact( event.sensorShapeId, event.visitorShapeId );
+		if ( b2Shape_IsValid( event.visitorShapeId ) )
+		{
+			fWorldContactListener->EndContact( event.sensorShapeId, event.visitorShapeId );
+		}
 	}
 }
 

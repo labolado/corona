@@ -24,7 +24,7 @@ ifeq ($(config),Debug)
   # TARGETDIR  = ../../../Build/gmake/bin/Debug
   TARGETDIR  = obj/Debug
   TARGET     = $(TARGETDIR)/libRenderer.a
-  DEFINES   += -DRtt_DEBUG -DLUA_USE_APICHECK -DRtt_EMSCRIPTEN_ENV
+  DEFINES   += -DRtt_DEBUG -DLUA_USE_APICHECK -DRtt_EMSCRIPTEN_ENV -DCORONABUILDER_NO_PHYSICS
   INCLUDES  += -I../../../librtt -I../system/include
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
   ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -g
@@ -48,7 +48,7 @@ ifeq ($(config),Release)
   # TARGETDIR  = ../../../Build/gmake/bin/Release
   TARGETDIR  = obj/Release
   TARGET     = $(TARGETDIR)/libRenderer.a
-  DEFINES   += -DNDEBUG -DRtt_EMSCRIPTEN_ENV
+  DEFINES   += -DNDEBUG -DRtt_EMSCRIPTEN_ENV -DCORONABUILDER_NO_PHYSICS
   INCLUDES  += -I../../../librtt -I../system/include
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
   ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -O2
@@ -70,6 +70,7 @@ endif
 OBJECTS := \
 	$(OBJDIR)/Rtt_CommandBuffer.o \
 	$(OBJDIR)/Rtt_CPUResource.o \
+	$(OBJDIR)/Rtt_FormatExtensionList.o \
 	$(OBJDIR)/Rtt_FrameBufferObject.o \
 	$(OBJDIR)/Rtt_Matrix_Renderer.o \
 	$(OBJDIR)/Rtt_GeometryPool.o \
@@ -157,6 +158,10 @@ $(OBJDIR)/Rtt_CommandBuffer.o: ../../../librtt/Renderer/Rtt_CommandBuffer.cpp
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 
 $(OBJDIR)/Rtt_CPUResource.o: ../../../librtt/Renderer/Rtt_CPUResource.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
+
+$(OBJDIR)/Rtt_FormatExtensionList.o: ../../../librtt/Renderer/Rtt_FormatExtensionList.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 

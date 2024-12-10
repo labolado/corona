@@ -783,8 +783,26 @@ common_ray_cast( lua_State *L,
 	// Exception: For SortedHitsAlongRay, the results are accumulated
 	// so they can be sorted before they're pushed to the Lua stack.
 	int top_index_before_RayCast = lua_gettop( L );
-	// world->RayCast( callback, from_in_meters, to_in_meters );
-	b2World_CastRay(physics.GetWorldId(), from_in_meters, to_in_meters - from_in_meters, b2DefaultQueryFilter(), callback, context);
+
+	b2QueryFilter filter = b2DefaultQueryFilter();
+	filter.categoryBits = UINT64_MAX;
+	if ( lua_istable( L, 6 ) )
+	{
+		lua_getfield( L, 6, "categoryBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			filter.categoryBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, 6, "maskBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			filter.maskBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+	b2World_CastRay(physics.GetWorldId(), from_in_meters, to_in_meters - from_in_meters, filter, callback, context);
 
 	// Any hits returned by RayCast() are pushed into a table that's
 	// on the stack. We want to return true if we're returning a result.
@@ -1099,11 +1117,22 @@ QueryRegion( lua_State *L )
 		// world->QueryAABB( &callback, aabb );
 
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		if ( lua_isnumber( L, 5 ) ) {
-			filter.categoryBits = lua_tonumber( L, 5 );
-		}
-		if ( lua_isnumber( L, 6 ) ) {
-			filter.maskBits = lua_tonumber( L, 6 );
+		filter.categoryBits = UINT64_MAX;
+		if ( lua_istable( L, 5 ) )
+		{
+			lua_getfield( L, 5, "categoryBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.categoryBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 5, "maskBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.maskBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
 		}
 		b2World_OverlapAABB( physics.GetWorldId(), aabb, filter, query_callback, &context );
 
@@ -1152,11 +1181,22 @@ QueryCircle( lua_State *L )
 		int top_index_before_query = lua_gettop( L );
 
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		if ( lua_isnumber( L, 4 ) ) {
-			filter.categoryBits = lua_tonumber( L, 4 );
-		}
-		if ( lua_isnumber( L, 5 ) ) {
-			filter.maskBits = lua_tonumber( L, 5 );
+		filter.categoryBits = UINT64_MAX;
+		if ( lua_istable( L, 4 ) )
+		{
+			lua_getfield( L, 4, "categoryBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.categoryBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 4, "maskBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.maskBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
 		}
 		b2World_OverlapCircle ( physics.GetWorldId(), &circle, b2Transform_identity, filter, query_callback, &context );
 
@@ -1194,11 +1234,22 @@ QueryBody( lua_State *L )
 			int top_index_before_query = lua_gettop( L );
 
 			b2QueryFilter filter = b2DefaultQueryFilter();
-			if ( lua_isnumber( L, 2 ) ) {
-				filter.categoryBits = lua_tonumber( L, 2 );
-			}
-			if ( lua_isnumber( L, 3 ) ) {
-				filter.maskBits = lua_tonumber( L, 3 );
+			filter.categoryBits = UINT64_MAX;
+			if ( lua_istable( L, 2 ) )
+			{
+				lua_getfield( L, 2, "categoryBits" );
+				if ( lua_isnumber( L, -1 ) )
+				{
+					filter.categoryBits = lua_tonumber( L, -1 );
+				}
+				lua_pop( L, 1 );
+
+				lua_getfield( L, 2, "maskBits" );
+				if ( lua_isnumber( L, -1 ) )
+				{
+					filter.maskBits = lua_tonumber( L, -1 );
+				}
+				lua_pop( L, 1 );
 			}
 			b2BodyId bodyId = o->GetExtensions()->GetBody();
 			b2Transform transform = b2Body_GetTransform( bodyId );
@@ -2036,6 +2087,28 @@ static void _SegmentsShapeCreator( b2BodyId bodyId,
 	}
 }
 
+static void _GenerateGhostVerticesForSmoothChain( b2Vec2Vector &oldVertexList,
+													b2Vec2Vector &newVertexList )
+{
+	unsigned int numOldVertices = oldVertexList.size();
+	unsigned int numNewVertices = numOldVertices + 2;
+	newVertexList.resize( numNewVertices );
+	for ( int i = 0; i < numOldVertices; i++ )
+	{
+		newVertexList[ i + 1 ] = oldVertexList[ i ];
+	}
+	b2Vec2 ab = oldVertexList[ 0 ] - oldVertexList[ 1 ];
+	float length;
+	b2Vec2 normal = b2GetLengthAndNormalize( &length, ab );
+	length = b2ClampFloat( length, 100.0,  256.0 );
+	newVertexList[ 0 ] = oldVertexList[ 0 ] + normal * length;
+
+	ab = oldVertexList[ numOldVertices - 1 ] - oldVertexList[ numOldVertices - 2 ];
+	normal = b2GetLengthAndNormalize( &length, ab );
+	length = b2ClampFloat( length, 100.0,  256.0 );
+	newVertexList[ numNewVertices - 1 ] = oldVertexList[ numOldVertices - 1 ] + normal * length;
+}
+
 static void _CapsuleShapeCreator( b2BodyId bodyId,
 									b2ShapeDef *shapeDef,
 									b2Capsule *capsule,
@@ -2587,6 +2660,23 @@ InitializeFixtureUsing_Chain( lua_State *L,
 											lua_toboolean( L, -1 ) );
 	lua_pop( L, 1 );
 
+	bool useSmoothChain = false;
+	bool autoGenerateGhostVertices = true;
+	if ( ! connectFirstAndLastChainVertex )
+	{
+		lua_getfield( L, lua_arg_index, "useSmoothChain" );
+		useSmoothChain = ( lua_isboolean( L, -1 ) &&
+												lua_toboolean( L, -1 ) );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, lua_arg_index, "autoGenerateGhostVertices" );
+		if ( lua_isboolean( L, -1 ) )
+		{
+			autoGenerateGhostVertices = lua_toboolean( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+
 	lua_getfield( L, lua_arg_index, "chain" );
 	if ( lua_istable( L, -1 ) )
 	{
@@ -2616,8 +2706,6 @@ InitializeFixtureUsing_Chain( lua_State *L,
 		{
 			if( vertexList.size() >= 3 )
 			{
-				// chainDef.CreateLoop( &vertexList[ 0 ],
-				// 						(int)vertexList.size() );
 				b2ChainDef chainDef = b2DefaultChainDef();
 				chainDef.friction = shapeDef.friction;
 				chainDef.restitution = shapeDef.restitution;
@@ -2631,7 +2719,7 @@ InitializeFixtureUsing_Chain( lua_State *L,
 			}
 			else
 			{
-				CoronaLuaError( L, "physics.addBody() with a \"chain\" requires at least 3 vertices." );
+				CoronaLuaError( L, "physics.addBody() with a \"loop smooth chain\" requires at least 3 vertices." );
 
 				lua_pop( L, 1 );
 				// true: No one else should handle this because
@@ -2641,24 +2729,58 @@ InitializeFixtureUsing_Chain( lua_State *L,
 		}
 		else
 		{
-			if( vertexList.size() >= 2 )
+			if ( useSmoothChain )
 			{
-				// chainDef.CreateChain( &vertexList[ 0 ],
-				// 						(int)vertexList.size() );
-				_SegmentsShapeCreator( bodyId,
-										&shapeDef,
-										&vertexList[ 0 ],
-										(int32_t)vertexList.size(),
+				int numNeeded = autoGenerateGhostVertices ? 2 : 4;
+				if( vertexList.size() >= numNeeded )
+				{
+					b2Vec2Vector newVertexList;
+					b2ChainDef chainDef = b2DefaultChainDef();
+					if (autoGenerateGhostVertices)
+					{
+						_GenerateGhostVerticesForSmoothChain( vertexList, newVertexList );
+						chainDef.points = &newVertexList[ 0 ];
+						chainDef.count = (int32_t)newVertexList.size();
+					}
+					else
+					{
+						chainDef.points = &vertexList[ 0 ];
+						chainDef.count = (int32_t)vertexList.size();
+					}
+					chainDef.friction = shapeDef.friction;
+					chainDef.restitution = shapeDef.restitution;
+					chainDef.filter = shapeDef.filter;
+					chainDef.isLoop = false;
+					_ChainCreator( bodyId,
+										&chainDef,
 										fixtureIndex );
+				}
+				else
+				{
+					CoronaLuaError( L, "physics.addBody() with \"one-sided collision smooth chain\" requires at least 3 vertices." );
+					lua_pop( L, 1 );
+					return true;
+				}
 			}
 			else
 			{
-				CoronaLuaError( L, "physics.addBody() with a \"chain\" requires at least 3 vertices." );
+				if( vertexList.size() >= 2 )
+				{
+					_SegmentsShapeCreator( bodyId,
+											&shapeDef,
+											&vertexList[ 0 ],
+											(int32_t)vertexList.size(),
+											fixtureIndex );
+				}
+				else
+				{
+					CoronaLuaError( L, "physics.addBody() with \"two-sided collision chain segments\" requires at least 3 vertices." );
 
-				lua_pop( L, 1 );
-				// true: No one else should handle this because
-				// this is ONLY meant to be a "chain".
-				return true;
+					lua_pop( L, 1 );
+					// true: No one else should handle this because
+					// this is ONLY meant to be a "chain".
+					return true;
+				}
 			}
 		}
 
@@ -3677,8 +3799,7 @@ LuaLibPhysics::Open( lua_State *L )
 					b2GetVersion().major,
 					b2GetVersion().minor,
 					b2GetVersion().revision,
-					"LiquidFun not support" );
-					// b2_liquidFunVersionString );
+					b2_liquidFunVersionString );
 
 		lua_pushstring( L, s );
 		lua_setfield( L, -2, "engineVersion" );

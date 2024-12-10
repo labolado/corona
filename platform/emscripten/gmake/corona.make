@@ -34,7 +34,7 @@ ifeq ($(config),Debug)
   ALL_LDFLAGS   += $(LDFLAGS) -L../../../Build/gmake/bin/Debug
 #  LDDEPS    += obj/Debug/libBox2D.a obj/Debug/libRenderer.a obj/Debug/liblfs.a obj/Debug/liblpeg.a obj/Debug/liblua.a obj/Debug/libratatouille.a obj/Debug/librtt.a obj/Debug/libz.a obj/Debug/libjpeg.a obj/Debug/libpng.a
 #  LIBS      += $(LDDEPS)
-  LINKCMD    = $(AR) -rcs $(TARGET) obj/Debug/libBox2D.a obj/Debug/libRenderer.a obj/Debug/liblfs.a obj/Debug/liblpeg.a obj/Debug/liblua.a obj/Debug/libratatouille.a obj/Debug/librtt.a obj/Debug/libz.a obj/Debug/libjpeg.a obj/Debug/libpng.a
+  LINKCMD    = $(AR) -rcs $(TARGET) obj/Debug/enkiTS.a obj/Debug/libBox2D.a obj/Debug/libBox2Dv3.a obj/Debug/libRenderer.a obj/Debug/liblfs.a obj/Debug/liblpeg.a obj/Debug/liblua.a obj/Debug/libratatouille.a obj/Debug/librtt.a obj/Debug/libz.a obj/Debug/libjpeg.a obj/Debug/libpng.a
   #LINKCMD    = $(CXX) -g -o $(TARGET) $(RESOURCES) $(ARCH) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
@@ -58,9 +58,9 @@ ifeq ($(config),Release)
   ALL_CXXFLAGS  += $(CXXFLAGS) $(ALL_CFLAGS) -fno-exceptions -fno-rtti
   ALL_RESFLAGS  += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   ALL_LDFLAGS   += $(LDFLAGS) -L../../../Build/gmake/bin/Release -Wl,-x
-#  LDDEPS    += obj/Debug/libBox2D.a obj/Debug/libRenderer.a obj/Debug/liblfs.a obj/Debug/liblpeg.a obj/Debug/liblua.a obj/Debug/libratatouille.a obj/Debug/librtt.a obj/Debug/libz.a obj/Debug/libjpeg.a obj/Debug/libpng.a
+#  LDDEPS    += obj/Debug/libBox2D.a obj/Debug/libBox2Dv3.a obj/Debug/libRenderer.a obj/Debug/liblfs.a obj/Debug/liblpeg.a obj/Debug/liblua.a obj/Debug/libratatouille.a obj/Debug/librtt.a obj/Debug/libz.a obj/Debug/libjpeg.a obj/Debug/libpng.a
 #  LIBS      += $(LDDEPS)
-  LINKCMD    = $(AR) -rcs $(TARGET) obj/Release/libBox2D.a obj/Release/libRenderer.a obj/Release/liblfs.a obj/Release/liblpeg.a obj/Release/liblua.a obj/Release/libratatouille.a obj/Release/librtt.a obj/Release/libz.a obj/Release/libjpeg.a obj/Release/libpng.a
+  LINKCMD    = $(AR) -rcs $(TARGET) obj/Release/enkiTS.a obj/Release/libBox2D.a obj/Release/libBox2Dv3.a obj/Release/libRenderer.a obj/Release/liblfs.a obj/Release/liblpeg.a obj/Release/liblua.a obj/Release/libratatouille.a obj/Release/librtt.a obj/Release/libz.a obj/Release/libjpeg.a obj/Release/libpng.a
   #LINKCMD    = $(CXX) -O2 -o $(TARGET) $(RESOURCES) $(ARCH) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef

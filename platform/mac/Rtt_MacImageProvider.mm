@@ -293,6 +293,148 @@ MacImageProvider::Show( int source, const char* filePath, lua_State* L )
 
 	return result;
 }
+
+bool
+MacImageProvider::ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection options, lua_State* L )
+{
+	bool result = Supports( source );
+
+	if (options.filePath != NULL )
+	{
+		fDstPath = strdup( options.filePath );
+	}
+	else
+	{
+		fDstPath = NULL;
+	}
+
+	if ( result )
+	{
+		if ( fInterfaceIsUp )
+		{
+			Rtt_TRACE_SIM( ( "Can't show while already showing" ) );
+			return false;
+
+		}
+
+		NSOpenPanel* panel = [NSOpenPanel openPanel];
+
+		[panel setAllowsMultipleSelection:YES];
+		[panel setCanChooseDirectories:NO];
+		[panel setCanChooseFiles:YES];
+		// Pull the user's last folder from user defaults for their convenience
+		NSString* start_directory = [[NSUserDefaults standardUserDefaults] stringForKey:kImageFolderPath];
+		if(nil != start_directory)
+		{
+			Rtt_ASSERT( [start_directory isAbsolutePath] );
+			[panel setDirectoryURL:[NSURL fileURLWithPath:start_directory]];
+		}
+		AppleFileBitmap* bitmap = NULL;
+		AppleData* data = NULL;
+
+		[panel setAllowedFileTypes:[NSArray arrayWithObjects:@"jpeg", @"jpg", @"png", nil]];
+
+		if ( NSOKButton == [panel runModal] )
+		{
+			NSArray* fileURLs = [panel URLs];
+			[[NSUserDefaults standardUserDefaults] setObject:[[panel directoryURL] path] forKey:kImageFolderPath];
+
+			if ( fDstPath )
+			{
+				int count = [fileURLs count];
+				count = options.maxSelection < count ? options.maxSelection : count;
+				NSString* dstPath = [NSString stringWithUTF8String:fDstPath];
+				NSString* dstPathName = [dstPath stringByDeletingPathExtension];
+				NSString* extn = [dstPath pathExtension];
+				for (int i = 0; i < count; i++)
+				{
+					// Copy picked file to destination path
+					NSURL* srcURL = [fileURLs objectAtIndex:i];
+					NSString* srcExtn = [[[srcURL path] pathExtension] lowercaseString];
+
+					NSURL* dstURL;
+					if (i == 0)
+					{
+						dstURL = [NSURL fileURLWithPath:[[NSFileManager defaultManager] stringWithFileSystemRepresentation:fDstPath length:strlen(fDstPath)]];
+					}
+					else
+					{
+						NSString *suffix = [NSString stringWithFormat:@"_%d", i + 1];
+						dstPath = [[dstPathName stringByAppendingString:suffix] stringByAppendingPathExtension:extn];
+						dstURL = [NSURL fileURLWithPath:dstPath];
+					}
+					CoronaLuaLog(L, "media.selectMultiplePhotos saved dst: %s", [[dstURL path] UTF8String]);
+
+					// If the source and destination have the same image types (i.e. the same extension), just
+					// copy the files otherwise we have to convert the image format
+					NSString* destExtn = [[[dstURL path] pathExtension] lowercaseString];
+
+					if ([destExtn isEqualToString:srcExtn])
+					{
+						// Same image types: just copy the files
+
+						NSError *error = nil;
+
+						// We only do this so copyItemAtURL: doesn't fail if the item already exists
+						// so no need to report any error
+						[[NSFileManager defaultManager] removeItemAtURL:dstURL error:&error];
+
+						error = nil;
+						[[NSFileManager defaultManager] copyItemAtURL:srcURL toURL:dstURL error:&error];
+
+						if (error != nil)
+						{
+							CoronaLuaWarning(L, "media.selectMultiplePhotos cannot copy image from %s (%s)", [[srcURL path] UTF8String], [[error description] UTF8String]);
+						}
+					}
+					else
+					{
+						// Different image types: convert the format
+
+						NSImage *img = [[[NSImage alloc] initWithContentsOfURL:srcURL] autorelease];
+
+						if (img != nil)
+						{
+							NSString *filePath = [NSString stringWithUTF8String:fDstPath];
+							NSString *lowercase = [filePath lowercaseString];
+							if ([lowercase hasSuffix:@"png"] )
+							{
+								[img saveImageToFile:filePath imageType:NSPNGFileType];
+							}
+							else if ( [lowercase hasSuffix:@"jpg"] || [lowercase hasSuffix:@"jpeg"] )
+							{
+								[img saveImageToFile:filePath imageType:NSJPEGFileType];
+							}
+						}
+						else
+						{
+							CoronaLuaWarning(L, "media.selectMultiplePhotos cannot load an image from %s", [[srcURL path] UTF8String]);
+						}
+					}
+				}
+
+				free(fDstPath);
+				fDstPath = NULL;
+
+				PlatformImageProvider::Parameters params( NULL, NULL );
+				params.multipleFilesCount = count;
+				params.wasCompleted = TRUE;
+				params.multipleFilesBaseName = options.fileName;
+				Super::DidDismiss( PlatformImageProvider::AddPropertiesForMultiSelection, & params );
+			}
+		}
+		else
+		{
+			DidDismiss( nil, FALSE );
+		}
+	}
+	else
+	{
+		EndSession();
+	}
+
+	return result;
+}
 	
 void
 MacImageProvider::DidDismiss( NSImage* image, bool completed )

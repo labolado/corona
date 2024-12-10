@@ -29,6 +29,8 @@
 #include "Core/Rtt_String.h"
 
 #include <string.h>
+#include <chrono>
+#include <random>
 
 #include "CoronaLua.h"
 
@@ -325,6 +327,28 @@ showImageUI(int source, const char *path, lua_State *L, int listenerRef)
 }
 
 static int
+showMultiSelectImageUI(int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State *L, int listenerRef)
+{
+	Runtime& runtime = * LuaContext::GetRuntime( L );
+	const MPlatform& platform = runtime.Platform();
+	PlatformImageProvider* provider = platform.GetImageProvider( runtime.VMContext().LuaState() );
+	if (listenerRef != LUA_NOREF)
+	{
+		provider->RawSetListenerRef( listenerRef );
+	}
+
+	// BeginSession causes the runtime to suspend which puts the audio system into a hibernation mode.
+	// We don't want the audio system to suspend when the picker is displayed.
+	// Note: This flag is never cleared.
+	provider->SetProperty( PlatformModalInteraction::kDoNotSuspend, true );
+
+	provider->BeginSession( runtime );
+	provider->ShowMulti( source, params, L );
+
+	return 0;
+}
+
+static int
 showVideoUI(int source, lua_State *L, int listenerRef, int maxTime, int quality)
 {
 	Runtime& runtime = * LuaContext::GetRuntime( L );
@@ -578,6 +602,146 @@ selectPhoto( lua_State *L )
 	}
 
 	showImageUI( source, path, L, listener );
+
+	lua_settop( L, top );
+
+	return 0;
+}
+
+static std::string generateRandomFileName(const std::string& prefix = "",
+                                   const std::string& suffix = ".tmp",
+                                   size_t length = 8) {
+    std::mt19937 generator(std::chrono::system_clock::now().time_since_epoch().count());
+    std::uniform_int_distribution<int> distribution('a', 'z');
+
+    std::string fileName;
+    fileName.reserve(prefix.size() + suffix.size() + length);
+
+    fileName += prefix;
+    for (size_t i = 0; i < length; ++i) {
+        fileName += distribution(generator);
+    }
+    fileName += suffix;
+
+    return fileName;
+}
+
+/*
+media.selectMultiplePhotos
+({
+	maxSelection = number -- max of multiple selection, default is 16
+	destination = {basedir = ..., filename = ...} -- location of where to save the file, if not specified, random filename will be generated.
+	listener = myListener -- callback to get the name of the saved file
+	mediaSource = source -- only applicable to iOS because it can be from 2 sources, the PhotoLibrary or the SavedPhotosAlbum which don't exist on Android
+})
+*/
+static int
+selectMultiplePhotos( lua_State *L )
+{
+	int top = lua_gettop(L);
+
+	if ( lua_type( L, 1 ) == LUA_TTABLE )
+	{
+		U32 source = PlatformImageProvider::kPhotoLibrary;
+		const char *path = NULL;
+		int listener = LUA_NOREF;
+
+		PlatformImageProvider::ParametersForMultiSelection params;
+		lua_getfield( L, 1, "mediaSource" );
+		if ( lua_islightuserdata(L, -1) )
+		{
+			source = EnumForUserdata(
+			kMediaSources,
+			lua_touserdata( L, -1 ),
+			PlatformImageProvider::kNumSources,
+			PlatformImageProvider::kPhotoLibrary );
+		}
+		lua_pop( L, 1);
+
+		lua_getfield( L, 1, "destination" );
+		const char* fileName = NULL;
+		void* baseDir = NULL;
+		std::string tmpName;
+		if ( lua_type( L, -1 ) == LUA_TTABLE )
+		{
+			lua_getfield( L, -1, "filename" );
+			if ( lua_isstring( L, -1 ) )
+			{
+				fileName = lua_tostring( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, -1, "baseDir" );
+			if ( lua_islightuserdata( L, -1 ) )
+			{
+				baseDir = lua_touserdata( L, -1 );
+			}
+			lua_pop( L, 1 );
+		}
+		// if destination not specified, random filename will be generated.
+		if ( lua_type( L, -1 ) != LUA_TTABLE || fileName == NULL || baseDir == NULL )
+		{
+			lua_pop( L , 1 );
+			lua_newtable( L );
+			if ( fileName == NULL )
+			{
+				tmpName = generateRandomFileName( "picture_", ".jpg", 16 );
+				fileName = tmpName.c_str();
+				lua_pushstring( L, fileName );
+				CoronaLuaLog( L, "media.selectMultiplePhotos() generateRandomFileName: %s", fileName );
+				lua_setfield( L, -2, "filename" );
+			}
+			else
+			{
+				lua_pushstring( L, fileName );
+				lua_setfield( L, -2, "filename" );
+			}
+			if ( baseDir == NULL )
+			{
+				LuaLibSystem::PushDirectory( L, MPlatform::kDocumentsDir );
+				lua_setfield( L, -2, "baseDir" );
+			}
+			else
+			{
+				lua_pushlightuserdata( L, baseDir );
+				lua_setfield( L, -2, "baseDir" );
+			}
+		}
+		if ( lua_type( L, -1 ) == LUA_TTABLE )
+		{
+			LuaLibSystem::FileType fileType;
+			int numResults = LuaLibSystem::PathForTable( L, -1, fileType );
+			if ( numResults > 0 )
+			{
+				path = lua_tostring( L, -1 );
+			}
+			lua_pop( L, numResults );
+		}
+		lua_pop( L, 1);
+
+		lua_getfield( L, 1, "maxSelection" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			params.maxSelection = lua_tointeger( L, -1 );
+		}
+		lua_pop( L, 1);
+
+		lua_getfield( L, 1, "listener" );
+		if ( Lua::IsListener( L, -1, CompletionEvent::kName ) )
+		{
+			//luaL_ref already pops the value off the stack
+			listener = luaL_ref( L, LUA_REGISTRYINDEX );
+		}
+		else
+		{
+			lua_pop( L, 1 );
+		}
+
+		CoronaLuaLog( L, "media.selectMultiplePhotos() fileName: %s, filePath: %s", fileName, path );
+		params.fileName = fileName;
+		params.filePath = path;
+		showMultiSelectImageUI( source, params, L, listener );
+	}
 
 	lua_settop( L, top );
 
@@ -861,6 +1025,7 @@ LuaLibMedia::Initialize( lua_State *L )
 		{ "selectPhoto", selectPhoto },
 		{ "selectVideo", selectVideo },
 		{ "newRecording", newAudioRecorder },
+		{ "selectMultiplePhotos", selectMultiplePhotos },
 
 		{ NULL, NULL }
 	};

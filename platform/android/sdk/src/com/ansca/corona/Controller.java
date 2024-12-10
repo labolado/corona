@@ -1639,7 +1639,7 @@ public class Controller {
 	 *                            It is okay to set this to null or empty string. For camera shots, a file name will be automatically
 	 *                            generated and saved to the cache directory.
 	 */
-	public void showImagePickerWindow(final int imageSourceType, final String destinationFilePath) {
+	public void showImagePickerWindow(final int imageSourceType, final String destinationFilePath, int maxSelection) {
 		// Display the requested window for image selection via the UI thread.
 		myHandler.post( new Runnable() {
 			public void run() {
@@ -1653,7 +1653,7 @@ public class Controller {
 					switch (imageSourceType) {
 						case IMAGE_SOURCE_PHOTO_LIBRARY:
 						case IMAGE_SOURCE_SAVED_PHOTOS_ALBUM:
-							myCoronaShowApiListener.showSelectImageWindowUsing(destinationFilePath);
+							myCoronaShowApiListener.showSelectImageWindowUsing(destinationFilePath, maxSelection);
 							break;
 							
 						case IMAGE_SOURCE_CAMERA:

@@ -22,6 +22,7 @@
 
 #include "Display/Rtt_TextureResourceBitmap.h"
 #include "Display/Rtt_TextureResourceCanvas.h"
+#include "Display/Rtt_TextureResourceCapture.h"
 #include "Display/Rtt_TextureResourceExternal.h"
 
 #include "Rtt_FilePath.h"
@@ -182,14 +183,14 @@ SharedPtr< TextureResource >
 TextureFactory::CreateAndAdd( const std::string& key,
 								PlatformBitmap *bitmap,
 								bool useCache,
-								bool isRetina )
+								bool isRetina, bool onlyForHitTests )
 {
 	TextureResource *resource = TextureResourceBitmap::Create( * this, bitmap, isRetina );
 	SharedPtr< TextureResource > result = SharedPtr< TextureResource >( resource );
 
 	bool shouldPreload = fDisplay.GetDefaults().ShouldPreloadTextures();
 
-	if ( shouldPreload )
+	if ( shouldPreload && !onlyForHitTests )
 	{
 		// Add to create queue
 		AddToPreloadQueue( result );
@@ -234,7 +235,7 @@ TextureFactory::FindOrCreate(
 	const char *filename,
 	MPlatform::Directory baseDir,
 	U32 flags,
-	bool isMask )
+	bool isMask, bool onlyForHitTests )
 {
 	SharedPtr< TextureResource > result;
 	
@@ -277,7 +278,7 @@ TextureFactory::FindOrCreate(
 	if ( result.IsNull() )
 	{
 		PlatformBitmap *bitmap = CreateBitmap( filePath.GetString(), flags, isMask );
-		result = CreateAndAdd( key, bitmap, true, isRetina );
+		result = CreateAndAdd( key, bitmap, true, isRetina, onlyForHitTests );
 	}
 
 	return result;
@@ -560,7 +561,29 @@ TextureFactory::FindOrCreateCanvas(const std::string &cacheKey,
 	return result;
 }
 
+SharedPtr< TextureResource >
+TextureFactory::FindOrCreateCapture(
+		const std::string &cacheKey,
+		Real w, Real h,
+		int pixelW, int pixelH )
+{
+	SharedPtr< TextureResource > result = Find(cacheKey);
+	if (result.NotNull())
+	{
+		return result;
+	}
 	
+	TextureResourceCapture *resource = TextureResourceCapture::Create( * this, w, h, pixelW, pixelH );
+	result = SharedPtr< TextureResource >( resource );
+	
+	resource->SetWeakResource( result );
+	
+	fCache[cacheKey] = CacheEntry( result );
+	result->SetCacheKey(cacheKey);
+	
+	
+	return result;	
+}
 	
 SharedPtr< TextureResource >
 TextureFactory::FindOrCreateExternal(const std::string &cacheKey,

@@ -456,6 +456,55 @@ DisplayObjectExtensions::setPreSolveEventsEnabled( lua_State* L )
 	return setBodyStateWithShapeIndex( L, b2Shape_EnablePreSolveEvents );
 }
 
+int
+DisplayObjectExtensions::setFilter( lua_State* L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if (o)
+	{
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+
+		if ( lua_istable( L, 2 ) )
+		{
+			b2Filter filter = b2DefaultFilter();
+			lua_getfield( L, 2, "categoryBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.categoryBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 2, "maskBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.maskBits = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 2, "groupIndex" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.groupIndex = lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			int count = b2Body_GetShapeCount( bodyId );
+			b2ShapeId* shapeArray = new b2ShapeId[ count ];
+			b2Body_GetShapes( bodyId, shapeArray, count );
+			for ( int i = 0; i < count; ++i ) {
+				b2Shape_SetFilter( shapeArray[ i ], filter );
+			}
+			delete[] shapeArray;
+		}
+	}
+
+	return 0;
+}
+
+
 #endif // Rtt_PHYSICS
 
 
@@ -506,9 +555,10 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			"setContactEventsEnabled",          // 26
 			"setSensorEventsEnabled",           // 27
 			"setPreSolveEventsEnabled",         // 28
+			"setFilter",                        // 29
 		};
 		static const int numKeys = sizeof( keys ) / sizeof( const char * );
-		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 29, 26, 14, __FILE__, __LINE__ );
+		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 30, 28, 14, __FILE__, __LINE__ );
 		StringHash *hash = &sHash;
 
 		int index = hash->Lookup( key );
@@ -669,6 +719,11 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 		case 28:
 			{
 				lua_pushcfunction(L, Self::setPreSolveEventsEnabled);
+			}
+			break;
+		case 29:
+			{
+				lua_pushcfunction(L, Self::setFilter);
 			}
 			break;
 		default:

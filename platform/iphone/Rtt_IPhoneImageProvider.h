@@ -17,6 +17,7 @@
 
 @class IPhoneMediaProvider;
 @class IPhoneImagePickerControllerDelegate;
+@class IPhonePHPickerControllerDelegate;
 @class NSDictionary;
 @class NSString;
 @class UIImage;
@@ -46,10 +47,12 @@ class IPhoneImageProvider : public PlatformImageProvider
 		virtual bool Supports( int source ) const;
 		virtual bool HasAccessTo( int source ) const;
 		virtual bool Show( int source, const char* filePath, lua_State* L );
+		virtual bool ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State* L );
 //		virtual void SetProperty( U32 mask, bool newValue );
 
 	public:
 		void DidDismiss( UIImage* image, NSDictionary* editingInfo );
+        void DidDismissForMultipleSelection( NSArray<PHPickerResult *>* result );
 		// Needed internally for Obj-C callback to dismiss popover on iPad
 		void DismissPopoverController();
 
@@ -59,6 +62,8 @@ class IPhoneImageProvider : public PlatformImageProvider
 	private:
 		IPhoneMediaProvider* fMediaProvider;
 		IPhoneImagePickerControllerDelegate* fDelegate;
+        IPhonePHPickerControllerDelegate* fDelegateForMulti;
+        NSString *fDstBaseName;
 		NSString *fDstPath;
 		bool iOS5statusBarHidden; // workaround for statusbar coming back in iOS 5.0 when hidden
 };

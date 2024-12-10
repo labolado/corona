@@ -95,8 +95,9 @@ public class JavaToNativeShim {
     private static native void nativeWebViewFinishedLoadUrl( long bridgeAddress, int id, String url );
     private static native void nativeWebViewDidFailLoadUrl( long bridgeAddress, int id, String url, String msg, int code );
     private static native void nativeWebViewHistoryUpdated( long bridgeAddress, int id, boolean canGoBack, boolean canGoForward );
+	private static native void nativeWebViewJSInterfaceCommonEvent( long bridgeAddress, int id, String type, String data, boolean noResult );
     private static native void nativeWebViewClosed( long bridgeAddress, int id );
-    private static native void nativeImagePickerEvent( long bridgeAddress, String selectedImageFileName );
+    private static native void nativeImagePickerEvent( long bridgeAddress, String selectedImageFileName, int multipleFilesCount );
 	private static native void nativeAbortShowingImageProvider( long bridgeAddress );
 	private static native void nativeVideoPickerEvent( long bridgeAddress, String selectedVideoFileName, int duration, long size );
 	private static native void nativeAbortShowingVideoProvider( long bridgeAddress );
@@ -620,7 +621,14 @@ public class JavaToNativeShim {
 		}
 		nativeWebViewHistoryUpdated( runtime.getJavaToNativeBridgeAddress(), id, canGoBack, canGoForward );
 	}
-	
+
+	public static void webViewJSInterfaceCommonEvent( CoronaRuntime runtime, int id, String type, String data, boolean noResult ) {
+		if (runtime == null || runtime.wasDisposed()) {
+			return;
+		}
+		nativeWebViewJSInterfaceCommonEvent( runtime.getJavaToNativeBridgeAddress(), id, type, data, noResult );
+	}
+
 	public static void webViewClosed( CoronaRuntime runtime, int id ) {
 		if (runtime == null || runtime.wasDisposed()) {
 			return;
@@ -628,7 +636,7 @@ public class JavaToNativeShim {
 		nativeWebViewClosed( runtime.getJavaToNativeBridgeAddress(), id );
 	}
 	
-	public static void imagePickerEvent( CoronaRuntime runtime, String selectedImageFileName )
+	public static void imagePickerEvent( CoronaRuntime runtime, String selectedImageFileName, int multipleFilesCount )
 	{
 		if (selectedImageFileName == null) {
 			selectedImageFileName = "";
@@ -636,7 +644,7 @@ public class JavaToNativeShim {
 		if (runtime == null || runtime.wasDisposed()) {
 			return;
 		}
-		nativeImagePickerEvent( runtime.getJavaToNativeBridgeAddress(), selectedImageFileName );
+		nativeImagePickerEvent( runtime.getJavaToNativeBridgeAddress(), selectedImageFileName, multipleFilesCount );
 	}
 
 	public static void abortShowingImageProvider( CoronaRuntime runtime )

@@ -63,6 +63,7 @@ class DisplayObjectExtensions : public LuaProxyVTable
 		static int setContactEventsEnabled( lua_State* L );
 		static int setSensorEventsEnabled( lua_State* L );
 		static int setPreSolveEventsEnabled( lua_State* L );
+		static int setFilter( lua_State* L );
 
 #endif // Rtt_PHYSICS
 

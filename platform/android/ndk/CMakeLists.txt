@@ -358,6 +358,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Corona/CoronaVersion.c
 		${CORONA_ROOT}/librtt/Corona/CoronaGraphics.cpp
 		${CORONA_ROOT}/librtt/Corona/CoronaMemory.cpp
+		${CORONA_ROOT}/librtt/Corona/CoronaObjects.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_BitmapMask.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_BitmapPaint.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_BitmapPaintAdapter.cpp
@@ -386,6 +387,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_LineObject.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_LuaLibDisplay.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_LuaLibGraphics.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_ObjectHandle.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_OpenPath.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_Paint.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_PaintAdapter.cpp
@@ -435,6 +437,8 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceBitmapAdapter.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceCanvas.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceCanvasAdapter.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceCapture.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceCaptureAdapter.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceExternal.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceExternalAdapter.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_VertexCache.cpp
@@ -626,6 +630,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GL.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GLCommandBuffer.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GLFrameBufferObject.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_FormatExtensionList.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GLGeometry.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GLProgram.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_GLRenderer.cpp

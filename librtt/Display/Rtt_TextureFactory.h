@@ -57,14 +57,14 @@ class TextureFactory
 		SharedPtr< TextureResource > CreateAndAdd( const std::string& key,
 													PlatformBitmap *bitmap,
 													bool useCache,
-													bool isRetina );
+													bool isRetina, bool onlyForHitTests = false );
 	// Cached texture resources
 	public:
 		SharedPtr< TextureResource > FindOrCreate(
 			const char *filename,
 			MPlatform::Directory baseDir,
 			U32 flags,
-			bool isMask );
+			bool isMask, bool onlyForHitTests = false );
 
 		SharedPtr< TextureResource > FindOrCreate(
 			const FilePath& filePath,
@@ -79,6 +79,11 @@ class TextureFactory
 			const std::string &cacheKey,
 			Real w, Real h,
 			int pixelW, int pixelH, bool isMask );
+
+		SharedPtr< TextureResource > FindOrCreateCapture(
+			const std::string &cacheKey,
+			Real w, Real h,
+			int pixelW, int pixelH );
 	
 		SharedPtr< TextureResource > FindOrCreateExternal(
 			const std::string &cacheKey,

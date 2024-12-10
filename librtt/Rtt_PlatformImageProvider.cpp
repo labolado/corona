@@ -48,6 +48,8 @@ PlatformImageProvider::Parameters::Parameters( PlatformBitmap* aBitmap, Platform
 	data( aData )
 {
 	wasCompleted = (bitmap || data);
+	multipleFilesBaseName = NULL;
+	multipleFilesCount = 0;
 }
 
 PlatformImageProvider::Parameters::~Parameters()
@@ -84,6 +86,63 @@ PlatformImageProvider::AddProperties( lua_State *L, void* userdata )
 		params->bitmap = NULL;
 		params->data = NULL;
 	}
+	lua_pushboolean( L, params->wasCompleted ? 1 : 0 );
+	lua_setfield( L, -2, "completed" );
+}
+
+bool
+PlatformImageProvider::ShowMulti( int source, ParametersForMultiSelection params, lua_State* L )
+{
+	Rtt_LogException("Select multiple photos not supported.\n");
+	Rtt_ASSERT_NOT_IMPLEMENTED();
+	return false;
+}
+
+void
+PlatformImageProvider::AddPropertiesForMultiSelection( lua_State *L, void* userdata )
+{
+	Parameters* params = (Parameters*)userdata;
+	if (params->multipleFilesBaseName != NULL && params->multipleFilesCount > 1)
+	{
+		lua_newtable( L );
+
+		const char* filename = params->multipleFilesBaseName;
+		const char* ext = "";
+		const char* dot = strrchr(filename, '.');
+		char* basePathName = strdup(filename);
+		if (dot != NULL && dot != filename)
+		{
+			ext = dot;
+
+			char* extension = basePathName + strlen(filename) - strlen(dot);
+			if (extension != NULL) {
+				*extension = '\0';
+			}
+		}
+		Rtt_Log( "AddPropertiesForMultiSelection: %s", ext );
+		for ( int i = 0; i < params->multipleFilesCount; i++ )
+		{
+			if ( i > 0 )
+			{
+				char id[8];
+				snprintf( id, sizeof(id), "_%d", i + 1 );
+				String filePath(basePathName);
+				filePath.Append( id );
+				filePath.Append( ext );
+				lua_pushstring( L, filePath.GetString() );
+			}
+			else
+			{
+				lua_pushstring( L, params->multipleFilesBaseName );
+			}
+			lua_rawseti( L, -2, i + 1);
+		}
+		lua_setfield( L, -2, "files" );
+
+		free(basePathName);
+	}
+	lua_pushinteger( L, params->multipleFilesCount );
+	lua_setfield( L, -2, "filesCount" );
 	lua_pushboolean( L, params->wasCompleted ? 1 : 0 );
 	lua_setfield( L, -2, "completed" );
 }
