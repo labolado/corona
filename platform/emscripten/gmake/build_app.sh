@@ -87,10 +87,20 @@ mkdir -p `dirname "$OUTPUT_HTML"`
 
 if [ -z "$TMP_DIR" ]
 then
-	TMP_DIR=`mktemp -d /tmp/CoronaWeb-XXXXXXXX`
+	# Use RAM disk for temporary files
+	if [ -d "/dev/shm" ]; then
+		TMP_DIR=`mktemp -d /dev/shm/CoronaWeb-XXXXXXXX`
+	else
+		TMP_DIR=`mktemp -d /tmp/CoronaWeb-XXXXXXXX`
+	fi
 	checkError
 fi
 echo "\t Tmp dir = '$TMP_DIR'"
+
+# Set optimal compilation environment
+export EMCC_CORES=$(getconf _NPROCESSORS_ONLN)
+export EMCC_MEMORY_GROWTH_LINEAR_STEP=64MB
+export EMCC_CACHE_DIR="$HOME/.emscripten_cache"
 
 # -----------------------------------------------------------------------------
 
@@ -99,8 +109,8 @@ pushd $path > /dev/null
 	echo " "
 	echo "Building Corona libraries:"
 
-	echo '\t' make AR=emar CC=emcc CXX=em++ verbose=1 config="$CONFIG" CXXFLAGS="-s LEGACY_VM_SUPPORT=1 -s USE_SDL=2"
-	make AR=emar CC=emcc CXX=em++ verbose=1 config="$CONFIG" CXXFLAGS="-s LEGACY_VM_SUPPORT=1 -s USE_SDL=2 -I\"$path/hack_includes\""
+	echo '\t' make AR=emar CC=emcc CXX=em++ verbose=1 config="$CONFIG" -j$EMCC_CORES CXXFLAGS="-s LEGACY_VM_SUPPORT=1 -s USE_SDL=2"
+	make AR=emar CC=emcc CXX=em++ verbose=1 config="$CONFIG" -j$EMCC_CORES CXXFLAGS="-s LEGACY_VM_SUPPORT=1 -s USE_SDL=2 -I\"$path/hack_includes\""
 	checkError
 
 	echo " "
@@ -124,8 +134,11 @@ pushd $path > /dev/null
 
 	echo " "
 	echo "Building HTML:"
-	echo '\t' emcc obj/"$CONFIG"/libratatouille.a obj/"$CONFIG"/librtt.a obj/"$CONFIG"/enkiTS.a $CC_FLAGS obj/"$CONFIG"/libBox2Dv3.a $CC_FLAGS obj/"$CONFIG"/liblua.a $CC_FLAGS obj/"$CONFIG"/libpng.a $CC_FLAGS obj/"$CONFIG"/libjpeg.a $CC_FLAGS obj/"$CONFIG"/libz.a $CC_FLAGS obj/"$CONFIG"/liblfs.a $CC_FLAGS obj/"$CONFIG"/liblpeg.a $CC_FLAGS obj/"$CONFIG"/libRenderer.a -s LEGACY_VM_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -O3 -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 --js-library ../Rtt_PlatformWebAudioPlayer.js --js-library ../Rtt_EmscriptenPlatform.js --js-library ../Rtt_EmscriptenVideo.js --preload-file "$TMP_DIR"@/ -o "$OUTPUT_HTML"
-	emcc obj/"$CONFIG"/libratatouille.a obj/"$CONFIG"/librtt.a obj/"$CONFIG"/enkiTS.a $CC_FLAGS obj/"$CONFIG"/libBox2Dv3.a $CC_FLAGS obj/"$CONFIG"/liblua.a $CC_FLAGS obj/"$CONFIG"/libpng.a $CC_FLAGS obj/"$CONFIG"/libjpeg.a $CC_FLAGS obj/"$CONFIG"/libz.a $CC_FLAGS obj/"$CONFIG"/liblfs.a $CC_FLAGS obj/"$CONFIG"/liblpeg.a $CC_FLAGS obj/"$CONFIG"/libRenderer.a -s LEGACY_VM_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -O3 -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 --js-library ../Rtt_PlatformWebAudioPlayer.js --js-library ../Rtt_EmscriptenPlatform.js --js-library ../Rtt_EmscriptenVideo.js -lidbfs.js --preload-file "$TMP_DIR"@/ -o "$OUTPUT_HTML"
+	EMCC_COMMON_FLAGS="$CC_FLAGS -s LEGACY_VM_SUPPORT=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\"] -O3 -s USE_SDL=2 -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s BINARYEN_METHOD=native-wasm -s ASSERTIONS=0 -s DISABLE_EXCEPTION_CATCHING=1 -s TOTAL_MEMORY=268435456"
+	
+	echo '\t' emcc obj/"$CONFIG"/libratatouille.a obj/"$CONFIG"/librtt.a obj/"$CONFIG"/enkiTS.a $EMCC_COMMON_FLAGS obj/"$CONFIG"/libBox2Dv3.a obj/"$CONFIG"/liblua.a obj/"$CONFIG"/libpng.a obj/"$CONFIG"/libjpeg.a obj/"$CONFIG"/libz.a obj/"$CONFIG"/liblfs.a obj/"$CONFIG"/liblpeg.a obj/"$CONFIG"/libRenderer.a --js-library ../Rtt_PlatformWebAudioPlayer.js --js-library ../Rtt_EmscriptenPlatform.js --js-library ../Rtt_EmscriptenVideo.js -lidbfs.js --preload-file "$TMP_DIR"@/ -o "$OUTPUT_HTML"
+	
+	emcc obj/"$CONFIG"/libratatouille.a obj/"$CONFIG"/librtt.a obj/"$CONFIG"/enkiTS.a $EMCC_COMMON_FLAGS obj/"$CONFIG"/libBox2Dv3.a obj/"$CONFIG"/liblua.a obj/"$CONFIG"/libpng.a obj/"$CONFIG"/libjpeg.a obj/"$CONFIG"/libz.a obj/"$CONFIG"/liblfs.a obj/"$CONFIG"/liblpeg.a obj/"$CONFIG"/libRenderer.a --js-library ../Rtt_PlatformWebAudioPlayer.js --js-library ../Rtt_EmscriptenPlatform.js --js-library ../Rtt_EmscriptenVideo.js -lidbfs.js --preload-file "$TMP_DIR"@/ -o "$OUTPUT_HTML"
 	checkError
 
 
@@ -140,4 +153,3 @@ pushd $path > /dev/null
 	# echo '\t' "\"$EMSCRIPTEN_ROOT/emrun\" \"$FULL_OUTPUT_PATH\""
 
 popd $path > /dev/null
-

@@ -4,12 +4,14 @@ path=`dirname $0`
 
 CLEAN=true
 config=Release
+PARALLEL=true
 
 while test $# != 0
 do
     case "$1" in
     -nc) CLEAN=false ;;
-	-d) config=Debug
+    -np) PARALLEL=false ;;
+    -d) config=Debug ;;
     esac
     shift
 done
@@ -18,18 +20,34 @@ if [ "$CLEAN" = true ] ; then
     make clean config=$config
 fi
 
+# Use RAM disk for temporary files if available
+if [ -d "/dev/shm" ]; then
+    export TMPDIR="/dev/shm"
+fi
+
 rm -rf "$path/webtemplate_build"
 
+# Create assets folder in memory if possible
+if [ -d "/dev/shm" ]; then
+    ASSETS_DIR="/dev/shm/assetsFolder-$$"
+else
+    ASSETS_DIR="$path/assetsFolder"
+fi
 
-rm -rf "$path/assetsFolder"
-mkdir -p "$path/assetsFolder"
-touch "$path/assetsFolder/CORONA_FILE_PLACEHOLDER"
-mkdir -p "$path/assetsFolder/CORONA_FOLDER_PLACEHOLDER"
-touch  "$path/assetsFolder/CORONA_FOLDER_PLACEHOLDER/zzz"
+rm -rf "$ASSETS_DIR"
+mkdir -p "$ASSETS_DIR"
+touch "$ASSETS_DIR/CORONA_FILE_PLACEHOLDER"
+mkdir -p "$ASSETS_DIR/CORONA_FOLDER_PLACEHOLDER"
+touch  "$ASSETS_DIR/CORONA_FOLDER_PLACEHOLDER/zzz"
 
-"$path"/build_app.sh "$path/assetsFolder" "$path/webtemplate_build/coronaHtml5App.html" $config
+# Set optimal compilation environment
+if [ "$PARALLEL" = true ] && [ -z "$EMCC_CORES" ]; then
+    export EMCC_CORES=$(getconf _NPROCESSORS_ONLN)
+fi
 
-rm -rf "$path/assetsFolder"
+"$path"/build_app.sh "$ASSETS_DIR" "$path/webtemplate_build/coronaHtml5App.html" $config
+
+rm -rf "$ASSETS_DIR"
 
 
 pushd "$path/webtemplate_build" > /dev/null

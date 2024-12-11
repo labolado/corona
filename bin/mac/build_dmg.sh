@@ -203,8 +203,8 @@ xcrun SetFile -a E "$TMPPATH/${PRODUCT_DIR}/Documentation.html" # hide extension
 		done
 
 
-		codesign --timestamp --deep --force --options runtime --strict --sign 'Developer ID Application: Corona Labs Inc' "${LIBRARIES[@]}"
-		codesign --timestamp --deep --force --options runtime --strict --sign 'Developer ID Application: Corona Labs Inc' --entitlements "$ENTITLEMENTS"  "${EXECUTABLES[@]}"
+		codesign --timestamp --deep --force --options runtime --strict --sign 'Developer ID Application: Labo Lado Inc' "${LIBRARIES[@]}"
+		codesign --timestamp --deep --force --options runtime --strict --sign 'Developer ID Application: Labo Lado Inc' --entitlements "$ENTITLEMENTS"  "${EXECUTABLES[@]}"
 	)
 	}
 
@@ -291,6 +291,6 @@ rm -rf "$TMPPATH"		# Remove tmp folder
 # "$TOOLSPATH/AddLicense" "$DSTBASE/$DMG_FILE" English "$SRCROOT/sdk/dmg/Corona_License.rtf"
 # hdiutil flatten "$DSTBASE/$DMG_FILE"
 
-codesign --timestamp --deep --force --options runtime --strict --sign "Developer ID Application: Corona Labs Inc" "$DSTBASE/$DMG_FILE"
+codesign --timestamp --deep --force --options runtime --strict --sign "Developer ID Application: Labo Lado Inc" "$DSTBASE/$DMG_FILE"
 mkdir -p "$SRCROOT/output"
 cp "$DSTBASE/$DMG_FILE" "$SRCROOT/output"
