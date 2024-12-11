@@ -1,4 +1,4 @@
-﻿//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 //
 // This file is part of the Corona game engine.
 // For overview and more information on licensing please refer to README.md 
@@ -588,22 +588,58 @@ var platformLibrary =
 		var pix = img.data;		// byte array, rgba
 		Module.isSafari = (pix[3] != 0);	// alpha in Safari is not zero
 
-		window.refreshNativeObject = function (id) {
+		window.updateViewport = function(canvas, viewPort, gl) {
+			const devicePixelRatio = window.devicePixelRatio || 1;
+			
+			// Set logical (CSS) dimensions
+			canvas.style.width = viewPort.width + "px";
+			canvas.style.height = viewPort.height + "px";
+			
+			// Calculate physical dimensions
+			const displayWidth = Math.floor(viewPort.width * devicePixelRatio);
+			const displayHeight = Math.floor(viewPort.height * devicePixelRatio);
+			
+			// Update if dimensions changed
+			if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+				canvas.width = displayWidth;
+				canvas.height = displayHeight;
+				
+				if (gl) {
+					gl.viewport(0, 0, displayWidth, displayHeight);
+				}
+				return true; // dimensions changed
+			}
+			return false; // no change
+		};
+
+		window.calculateScale = function(viewPort, Module) {
+			const devicePixelRatio = window.devicePixelRatio || 1;
+			const effectiveWidth = Module.appContentWidth > 0 ? 
+				Module.appContentWidth : Module.appInitWidth;
+			
+			// Single, clear scale calculation
+			return viewPort.width / (effectiveWidth * devicePixelRatio);
+		};
+
+		window.refreshNativeObject = function(id) {
+			const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+			const viewPort = canvas.getBoundingClientRect();
+			const dimensionsChanged = window.updateViewport(canvas, viewPort, gl);
+			const scale = window.calculateScale(viewPort, Module);
+			const devicePixelRatio = window.devicePixelRatio || 1;
 			var obj = document.getElementById(id);
 			if (obj) {
-				var viewPort = canvas.getBoundingClientRect();
-				var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-				var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-				var scale = viewPort.width / Module.appInitWidth;
-				scale *= (Module.appContentWidth > 0) ? Module.appInitWidth / Module.appContentWidth : 0.5;
-
-				var left = scrollLeft + viewPort.left + Math.ceil((obj.x + obj.w / 2) * scale);
-				var top = scrollTop + viewPort.top + Math.ceil((obj.y + obj.h / 2) * scale);
+				var left = viewPort.left + Math.ceil((obj.x + obj.w / 2) * scale);
+				var top = viewPort.top + Math.ceil((obj.y + obj.h / 2) * scale);
 				obj.style.left = left + 'px';
 				obj.style.top = top + 'px';
 				obj.style.transform = "translate(-50%, -50%) " + "scale(" + scale + ")";
 			}
+			return {
+				scale,
+				dimensionsChanged,
+				devicePixelRatio
+			};
 		};
 
 		window.addEventListener("click", function (e) {
@@ -653,17 +689,21 @@ var platformLibrary =
 	},
 
 	jsContextResizeNativeObjects: function () {
-//		var fullscreenElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-//		if (fullscreenElement == null) {
-			var parent = canvas.parentNode.childNodes;
-			for (var item in parent) {
-				var obj = parent[item];
-				if (parseInt(obj.id, 10) > 0)		// native object ?
-				{
-					window.refreshNativeObject(obj.id);
-				}
+		const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+		const viewPort = canvas.getBoundingClientRect();
+		
+		// Use the new viewport management system
+		const result = window.refreshNativeObject();
+		
+		// Update all native objects if dimensions changed
+		if (result.dimensionsChanged) {
+			var objs = document.getElementsByClassName('coronaNativeObject');
+			for (var i = 0; i < objs.length; i++) {
+				window.refreshNativeObject(objs[i].id);
 			}
-//		}
+		}
+		
+		return result.scale;
 	},
 
 	jsContextMountFS: function () {
@@ -716,7 +756,6 @@ var platformLibrary =
 		var xml = new XMLHttpRequest();
 		xml.url = url;		// save for callback
 		xml.responseType = "arraybuffer";
-
 
 		// http event handler
 		xml.onreadystatechange = function () {
@@ -930,8 +969,8 @@ var platformLibrary =
 		// last line
 		ctx.fillText(line, x, y);
 
-		hh = h > 0 ? h : y + lineHeight;
-		ww = w > 0 ? w : 1;
+		hh = h > 0 ? Math.max(h, 1) : Math.max(y + lineHeight, 1);
+		ww = w > 0 ? Math.max(w, 1) : 1;
 
 		// it's needs for corona ?
 		if ((ww & 0x3) != 0) {
