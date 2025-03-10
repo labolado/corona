@@ -3,25 +3,23 @@ name: Daily Build
 on:
   push:
     tags:
-      - '*'
+      - "*"
   workflow_dispatch:
     inputs:
       buildNumber:
-        description: 'Build Number'
+        description: "Build Number"
         required: true
-        default: '9999'
+        default: "9999"
       buildYear:
-        description: 'Build Year'
+        description: "Build Year"
         required: true
-        default: '2100'
-
+        default: "2100"
 
 env:
   WORKSPACE: ${{ github.workspace }}
   DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
   BUILD_NUMBER: ${{ github.event.inputs.buildNumber }}
   YEAR: ${{ github.event.inputs.buildYear }}
-
 
 jobs:
   source-code:
@@ -40,7 +38,6 @@ jobs:
         with:
           name: SourceCode
           path: ./output
-
 
   native:
     needs: source-code
@@ -109,7 +106,6 @@ jobs:
           name: Templates-${{ matrix.platform }}-${{ matrix.xcode }}-${{ matrix.target }}
           path: ./output
 
-
   Xcode-template-matrix-13:
     strategy:
       matrix:
@@ -152,7 +148,6 @@ jobs:
           name: Templates-${{ matrix.platform }}-${{ matrix.xcode }}-${{ matrix.target }}
           path: ./output
 
-
   collect-ios-templates:
     needs:
       - Xcode-template-matrix-13
@@ -177,7 +172,6 @@ jobs:
         with:
           name: Collected-ios-templates
           path: ./output
-
 
   webtemplate:
     needs:
@@ -286,7 +280,6 @@ jobs:
           name: CoronaCards-Android
           path: ./output
 
-
   CoronaCards-iOS:
     needs: source-code
     runs-on: macos-14
@@ -312,7 +305,6 @@ jobs:
         with:
           name: CoronaCards-iOS
           path: ./output
-
 
   CoronaCards-iOS-angle:
     needs: source-code
@@ -508,7 +500,9 @@ jobs:
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
           devenv "Corona.SDK.sln" /rebuild "Release|x86"
         env:
-          WIN_CERT_PASSWORD: ${{ secrets.WinCertPassword }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       - name: Copy Simulator
         run: |
           mkdir output
