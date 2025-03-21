@@ -318,10 +318,12 @@ DisplayObject::UpdateSelfBounds( Rect& rRect ) const
 {
     // If restricting to masked region, then intersect object's self bounds
     // with mask's self bounds before applying transform
-    if ( IsHitTestMasked() )
+    if ( IsHitTestMasked() && !fMask->GetOnlyForHitTests() )
     {
         Rect maskBounds;
+        fMask->GetSelfBounds( maskBounds );
 
+        /*
         if ( fMask->GetOnlyForHitTests() && !fMask->GetPaint() )
         {
             if ( !ShapeObject::IsShapeObject( *this ) )
@@ -346,7 +348,7 @@ DisplayObject::UpdateSelfBounds( Rect& rRect ) const
         {
             fMask->GetSelfBounds( maskBounds );
         }
-
+        */
         rRect.Intersect( maskBounds );
     }
 }
