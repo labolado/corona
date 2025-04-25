@@ -486,7 +486,6 @@ jobs:
     needs:
       - Windows-Simulator
       - macOS-Simulator
-      # - linux
       - CoronaCards-Android
       - CoronaCards-iOS
       - CoronaCards-iOS-angle
@@ -519,6 +518,7 @@ jobs:
           name: Native
           path: Native
       - uses: actions/download-artifact@v4
+        if: false
         with:
           name: Snap
           path: Snap
