@@ -455,7 +455,7 @@ namespace Rtt
 			int w = skin->screenWidth;
 			int h = skin->screenHeight;
 
-			if (DeviceOrientation::IsSideways(fContext->GetOrientation()))
+			if (orientation == DeviceOrientation::kSidewaysRight || orientation == DeviceOrientation::kSidewaysLeft)
 			{
 				std::swap(w, h);
 			}
