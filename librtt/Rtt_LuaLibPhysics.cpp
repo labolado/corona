@@ -2318,7 +2318,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 	// might be more appropriate if we wanted fine-grained control.
 	DisplayDefaults & defaults = LuaContext::GetRuntime( L )->GetDisplay().GetDefaults();
 	bool isTrimCorrected = defaults.IsImageSheetFrameTrimCorrected();
-	
+
 	if ( isTrimCorrected && display_object->AsGroupObject() )
 	{
 		Rect bounds;
@@ -2329,7 +2329,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		center_in_pixels.x += center.x;
 		center_in_pixels.y += center.y;
 	}
-	
+
 	b2World *world = physics.GetWorld();
 	b2Body *body = CreateBody( physics, display_object );
 
@@ -2504,10 +2504,13 @@ add_b2Body_to_DisplayObject( lua_State *L,
 //					- halfWidth (required)
 //					- halfHeight (required)
 //					- x, y, angle (optional)
+//				+ circle: table:
+//					- radius (required)
+//					- x, y (optional)
 //				+ radius: number > 0
 // Note:
 //	* If no shape definition is supplied then the shape defaults to DisplayObject's bounding box.
-//	* If supplied, then the precedence order is: 'shape', 'box', 'radius'
+//	* If supplied, then the precedence order is: 'circle', 'shape', 'box', 'radius'
 //
 static int
 addBody( lua_State *L )
