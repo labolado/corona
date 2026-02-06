@@ -758,7 +758,6 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/manifold.c
 		${CORONA_ROOT}/external/box2d_v3/src/math_functions.c
 		${CORONA_ROOT}/external/box2d_v3/src/motor_joint.c
-		${CORONA_ROOT}/external/box2d_v3/src/mouse_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/prismatic_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/revolute_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/sensor.c
@@ -770,7 +769,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/types.c
 		${CORONA_ROOT}/external/box2d_v3/src/weld_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/wheel_joint.c
-		${CORONA_ROOT}/external/box2d_v3/src/world.c
+		${CORONA_ROOT}/external/box2d_v3/src/physics_world.c
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/block_allocator.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/free_list.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/liquid_shape.cpp

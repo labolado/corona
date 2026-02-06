@@ -61,7 +61,6 @@
 		41DC1BFD2C9C2D94000E52D2 /* manifold.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B942C9C2D94000E52D2 /* manifold.c */; };
 		41DC1BFE2C9C2D94000E52D2 /* math_functions.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B952C9C2D94000E52D2 /* math_functions.c */; };
 		41DC1BFF2C9C2D94000E52D2 /* motor_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B962C9C2D94000E52D2 /* motor_joint.c */; };
-		41DC1C002C9C2D94000E52D2 /* mouse_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B972C9C2D94000E52D2 /* mouse_joint.c */; };
 		41DC1C012C9C2D94000E52D2 /* prismatic_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B982C9C2D94000E52D2 /* prismatic_joint.c */; };
 		41DC1C022C9C2D94000E52D2 /* revolute_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B992C9C2D94000E52D2 /* revolute_joint.c */; };
 		41DC1C032C9C2D94000E52D2 /* shape.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B9A2C9C2D94000E52D2 /* shape.c */; };
@@ -72,7 +71,7 @@
 		41DC1C092C9C2D94000E52D2 /* types.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA52C9C2D94000E52D2 /* types.c */; };
 		41DC1C0A2C9C2D94000E52D2 /* weld_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA62C9C2D94000E52D2 /* weld_joint.c */; };
 		41DC1C0B2C9C2D94000E52D2 /* wheel_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA72C9C2D94000E52D2 /* wheel_joint.c */; };
-		41DC1C0C2C9C2D94000E52D2 /* world.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA82C9C2D94000E52D2 /* world.c */; };
+		41DC1C0C2C9C2D94000E52D2 /* physics_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA82C9C2D94000E52D2 /* physics_world.c */; };
 		41DC1C512C9C2E52000E52D2 /* TaskScheduler_c.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1C322C9C2E52000E52D2 /* TaskScheduler_c.cpp */; };
 		41DC1C522C9C2E52000E52D2 /* TaskScheduler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1C342C9C2E52000E52D2 /* TaskScheduler.cpp */; };
 		41FC45E52DB5FB6000383E06 /* mover.c in Sources */ = {isa = PBXBuildFile; fileRef = 41FC45E42DB5FB6000383E06 /* mover.c */; };
@@ -1662,7 +1661,6 @@
 		41DC1B942C9C2D94000E52D2 /* manifold.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = manifold.c; sourceTree = "<group>"; };
 		41DC1B952C9C2D94000E52D2 /* math_functions.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = math_functions.c; sourceTree = "<group>"; };
 		41DC1B962C9C2D94000E52D2 /* motor_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motor_joint.c; sourceTree = "<group>"; };
-		41DC1B972C9C2D94000E52D2 /* mouse_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mouse_joint.c; sourceTree = "<group>"; };
 		41DC1B982C9C2D94000E52D2 /* prismatic_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = prismatic_joint.c; sourceTree = "<group>"; };
 		41DC1B992C9C2D94000E52D2 /* revolute_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = revolute_joint.c; sourceTree = "<group>"; };
 		41DC1B9A2C9C2D94000E52D2 /* shape.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = shape.c; sourceTree = "<group>"; };
@@ -1677,8 +1675,8 @@
 		41DC1BA52C9C2D94000E52D2 /* types.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = types.c; sourceTree = "<group>"; };
 		41DC1BA62C9C2D94000E52D2 /* weld_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = weld_joint.c; sourceTree = "<group>"; };
 		41DC1BA72C9C2D94000E52D2 /* wheel_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = wheel_joint.c; sourceTree = "<group>"; };
-		41DC1BA82C9C2D94000E52D2 /* world.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = world.c; sourceTree = "<group>"; };
-		41DC1BA92C9C2D94000E52D2 /* world.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = world.h; sourceTree = "<group>"; };
+		41DC1BA82C9C2D94000E52D2 /* physics_world.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = physics_world.c; sourceTree = "<group>"; };
+		41DC1BA92C9C2D94000E52D2 /* physics_world.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = physics_world.h; sourceTree = "<group>"; };
 		41DC1C312C9C2E52000E52D2 /* LockLessMultiReadPipe.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LockLessMultiReadPipe.h; sourceTree = "<group>"; };
 		41DC1C322C9C2E52000E52D2 /* TaskScheduler_c.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TaskScheduler_c.cpp; sourceTree = "<group>"; };
 		41DC1C332C9C2E52000E52D2 /* TaskScheduler_c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TaskScheduler_c.h; sourceTree = "<group>"; };
@@ -2917,7 +2915,6 @@
 				41DC1B942C9C2D94000E52D2 /* manifold.c */,
 				41DC1B952C9C2D94000E52D2 /* math_functions.c */,
 				41DC1B962C9C2D94000E52D2 /* motor_joint.c */,
-				41DC1B972C9C2D94000E52D2 /* mouse_joint.c */,
 				41DC1B982C9C2D94000E52D2 /* prismatic_joint.c */,
 				41DC1B992C9C2D94000E52D2 /* revolute_joint.c */,
 				41DC1B9A2C9C2D94000E52D2 /* shape.c */,
@@ -2932,8 +2929,8 @@
 				41DC1BA52C9C2D94000E52D2 /* types.c */,
 				41DC1BA62C9C2D94000E52D2 /* weld_joint.c */,
 				41DC1BA72C9C2D94000E52D2 /* wheel_joint.c */,
-				41DC1BA82C9C2D94000E52D2 /* world.c */,
-				41DC1BA92C9C2D94000E52D2 /* world.h */,
+				41DC1BA82C9C2D94000E52D2 /* physics_world.c */,
+				41DC1BA92C9C2D94000E52D2 /* physics_world.h */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -5619,7 +5616,6 @@
 				41DC1C082C9C2D94000E52D2 /* timer.c in Sources */,
 				41DC1BD42C9C2D94000E52D2 /* voronoi_diagram.cpp in Sources */,
 				41DC1C092C9C2D94000E52D2 /* types.c in Sources */,
-				41DC1C002C9C2D94000E52D2 /* mouse_joint.c in Sources */,
 				41DC1BFB2C9C2D94000E52D2 /* island.c in Sources */,
 				41DC1BCA2C9C2D94000E52D2 /* liquid_callbacks.cpp in Sources */,
 				41DC1BFE2C9C2D94000E52D2 /* math_functions.c in Sources */,
@@ -5635,7 +5631,7 @@
 				41DC1BFF2C9C2D94000E52D2 /* motor_joint.c in Sources */,
 				41DC1BF82C9C2D94000E52D2 /* geometry.c in Sources */,
 				41DC1C012C9C2D94000E52D2 /* prismatic_joint.c in Sources */,
-				41DC1C0C2C9C2D94000E52D2 /* world.c in Sources */,
+				41DC1C0C2C9C2D94000E52D2 /* physics_world.c in Sources */,
 				414D6BC32D8D53CC008B70EF /* sensor.c in Sources */,
 				414D6BC42D8D53CC008B70EF /* arena_allocator.c in Sources */,
 				41DC1C0A2C9C2D94000E52D2 /* weld_joint.c in Sources */,

@@ -95,10 +95,10 @@ static void FinishTask( void* taskPtr, void* userContext )
 	}
 }
 
-static bool PreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context )
+static bool PreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, void* context )
 {
 	PhysicsContactListener* contactListener = (PhysicsContactListener*) context;
-	return contactListener->PreSolve( shapeIdA, shapeIdB, manifold );
+	return contactListener->PreSolve( shapeIdA, shapeIdB, point, normal );
 }
 
 PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
@@ -114,7 +114,6 @@ PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
 	// fWorldId( b2_nullWorldId ),
 	fPixelsPerMeter( 30.0f ), // default on iPhone
 	// fGroundBody( NULL ),
-	fGroundBodyId( b2_nullBodyId ),
 	fSubStepCount( kSubStepCount ),
 	fVelocityIterations( kVelocityIterations ),
 	fPositionIterations( kPositionIterations ),
@@ -125,6 +124,7 @@ PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
 	fTimeRemainder( 0.0f ),
 	fNumSteps(1)
 {
+	fMouseBodys.reserve( estimateMaxMouseBodys );
 	fWorkerCount = b2MinInt( 8, b2MaxInt((int)enki::GetNumHardwareThreads() / 2, 1) );
 #if defined ( Rtt_APPLE_ENV )
 	if ( fWorkerCount == 1 ) { fWorkerCount = 2; }
@@ -213,32 +213,33 @@ PhysicsWorld::StartWorld( Runtime& runtime, bool noSleep )
 
 		fWorldDebugDraw = Rtt_NEW( Allocator(), b2GLESDebugDraw( runtime.GetDisplay() ) );
 
-// 		uint32 debugFlags =
-// 			b2Draw::e_shapeBit |
-// 			b2Draw::e_jointBit |
-// //			b2Draw::e_aabbBit |
-// 			b2Draw::e_pairBit |
-// 			b2Draw::e_centerOfMassBit |
-// 			b2Draw::e_particleBit;
-// 		fWorldDebugDraw->AppendFlags( debugFlags );
+		// uint32 debugFlags =
+		// 	b2Draw::e_shapeBit |
+		// 	b2Draw::e_jointBit |
+		// 	// b2Draw::e_aabbBit |
+		// 	b2Draw::e_pairBit |
+		// 	b2Draw::e_centerOfMassBit |
+		// 	b2Draw::e_particleBit;
+		// fWorldDebugDraw->AppendFlags( debugFlags );
 
 		// fWorld->SetDebugDraw( fWorldDebugDraw );
 
 		// Initialize a ground body, so that joints can be attached to "the world"
 		// b2BodyDef bd;
-		// bd.userData = const_cast< void* >( LuaLibPhysics::GetGroundBodyUserdata() );
+		// bd.userData = const_cast< void* >( LuaLibPhysics::GeGetMouseBodyIdtGroundBodyUserdata() );
 		// fGroundBody = fWorld->CreateBody(&bd);
-		b2BodyDef bd = b2DefaultBodyDef();
-		bd.type = b2_staticBody;
-		bd.userData = const_cast< void* >( LuaLibPhysics::GetGroundBodyUserdata() );
-		fGroundBodyId = b2CreateBody( fWorld->GetWorldId(), &bd );
-		b2ShapeDef shapeDef = b2DefaultShapeDef();
-		shapeDef.filter = { 1, 0, 0 };
-		shapeDef.isSensor = true;
-		shapeDef.enableContactEvents = false;
-		shapeDef.enablePreSolveEvents = false;
-		b2Segment segment = { {-20.0f, 0.0f}, {20.0f, 0.0f} };
-		b2CreateSegmentShape( fGroundBodyId, &shapeDef, &segment );
+		// b2BodyDef bd = b2DefaultBodyDef();
+		// bd.type = b2_kinematicBody;
+		// bd.enableSleep = false;
+		// bd.userData = const_cast< void* >( LuaLibPhysics::GetGroundBodyUserdata() );
+		// fMouseBodyId = b2CreateBody( fWorld->GetWorldId(), &bd );
+		// b2ShapeDef shapeDef = b2DefaultShapeDef();
+		// shapeDef.filter = { 1, 0, 0 };
+		// shapeDef.isSensor = true;
+		// shapeDef.enableContactEvents = false;
+		// shapeDef.enablePreSolveEvents = false;
+		// b2Segment segment = { {-20.0f, 0.0f}, {20.0f, 0.0f} };
+		// b2CreateSegmentShape( fMouseBodyId, &shapeDef, &segment );
 
 		b2World_SetPreSolveCallback( fWorld->GetWorldId(), PreSolveCallbackFunction, fWorldContactListener );
 	}
@@ -565,13 +566,16 @@ PhysicsWorld::StepEvents() {
 	for ( int i = 0; i < contactEvents.beginCount; ++i )
 	{
 		b2ContactBeginTouchEvent event = contactEvents.beginEvents[i];
-		fWorldContactListener->BeginContact( event.shapeIdA, event.shapeIdB, event.manifold );
+		if ( b2Contact_IsValid( event.contactId ) )
+		{
+			fWorldContactListener->BeginContact( event.shapeIdA, event.shapeIdB, event.contactId );
+		}
 	}
 
 	for ( int i = 0; i < contactEvents.endCount; ++i )
 	{
 		b2ContactEndTouchEvent event = contactEvents.endEvents[i];
-		if ( b2Shape_IsValid( event.shapeIdA ) && b2Shape_IsValid( event.shapeIdB ) )
+		if ( b2Shape_IsValid( event.shapeIdA ) && b2Shape_IsValid( event.shapeIdB ))
 		{
 			fWorldContactListener->EndContact( event.shapeIdA, event.shapeIdB );
 		}
@@ -587,7 +591,7 @@ PhysicsWorld::StepEvents() {
 	for ( int i = 0; i < sensorEvents.beginCount; ++i )
 	{
 		b2SensorBeginTouchEvent event = sensorEvents.beginEvents[i];
-		fWorldContactListener->BeginContact( event.sensorShapeId, event.visitorShapeId, { 0 } );
+		fWorldContactListener->BeginContact( event.sensorShapeId, event.visitorShapeId, b2_nullContactId );
 	}
 
 	for ( int i = 0; i < sensorEvents.endCount; ++i )
@@ -598,6 +602,28 @@ PhysicsWorld::StepEvents() {
 			fWorldContactListener->EndContact( event.sensorShapeId, event.visitorShapeId );
 		}
 	}
+}
+
+b2BodyId PhysicsWorld::FetchUsableMouseBodyId() {
+	b2BodyId foundMouseBodyId = b2_nullBodyId;
+	int foundIndex = -1;
+	for (int i = 0; i < fMouseBodys.size(); ++i) {
+		if ( b2Body_GetJointCount( fMouseBodys[i] ) == 0 ) {
+			foundMouseBodyId = fMouseBodys[i];
+			foundIndex = i;
+			break;
+		}
+	}
+	// Rtt_Log( "FetchUsableMouseBodyId %d", foundIndex );
+	if ( ! b2Body_IsValid( foundMouseBodyId ) ) {
+		b2BodyDef bd = b2DefaultBodyDef();
+		bd.type = b2_kinematicBody;
+		bd.enableSleep = false;
+		bd.userData = const_cast< void* >( LuaLibPhysics::GetGroundBodyUserdata() );
+		foundMouseBodyId = b2CreateBody( fWorld->GetWorldId(), &bd );
+		fMouseBodys.emplace_back( foundMouseBodyId );
+	}
+	return foundMouseBodyId;
 }
 
 void PhysicsWorld::SetWorkerCount( int newValue )

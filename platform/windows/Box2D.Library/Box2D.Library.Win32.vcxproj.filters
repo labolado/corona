@@ -55,7 +55,7 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\table.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\external\box2d_v3\src\world.h">
+    <ClInclude Include="..\..\..\external\box2d_v3\src\physics_world.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\broad_phase.h">
@@ -200,7 +200,7 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\solver_set.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\external\box2d_v3\src\world.c">
+    <ClCompile Include="..\..\..\external\box2d_v3\src\physics_world.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\broad_phase.c">
@@ -240,9 +240,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\types.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\external\box2d_v3\src\mouse_joint.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\distance.c">

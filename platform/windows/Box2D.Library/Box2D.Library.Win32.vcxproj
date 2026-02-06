@@ -60,7 +60,7 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\solver.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\solver_set.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\table.h" />
-    <ClInclude Include="..\..\..\external\box2d_v3\src\world.h" />
+    <ClInclude Include="..\..\..\external\box2d_v3\src\physics_world.h" />
     <ClInclude Include="..\..\..\external\enkiTS\src\LockLessMultiReadPipe.h" />
     <ClInclude Include="..\..\..\external\enkiTS\src\TaskScheduler.h" />
     <ClInclude Include="..\..\..\external\enkiTS\src\TaskScheduler_c.h" />
@@ -101,7 +101,6 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\manifold.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\math_functions.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\motor_joint.c" />
-    <ClCompile Include="..\..\..\external\box2d_v3\src\mouse_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\prismatic_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\revolute_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\sensor.c" />
@@ -113,7 +112,7 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\types.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\weld_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\wheel_joint.c" />
-    <ClCompile Include="..\..\..\external\box2d_v3\src\world.c" />
+    <ClCompile Include="..\..\..\external\box2d_v3\src\physics_world.c" />
     <ClCompile Include="..\..\..\external\enkiTS\src\TaskScheduler.cpp" />
     <ClCompile Include="..\..\..\external\enkiTS\src\TaskScheduler_c.cpp" />
   </ItemGroup>

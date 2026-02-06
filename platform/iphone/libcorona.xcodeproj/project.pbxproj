@@ -422,7 +422,6 @@
 		41B9ADCA2C5B9B61000F59B1 /* manifold.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD382C5B9B5C000F59B1 /* manifold.c */; };
 		41B9ADCB2C5B9B61000F59B1 /* math_functions.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD392C5B9B5C000F59B1 /* math_functions.c */; };
 		41B9ADCC2C5B9B61000F59B1 /* motor_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD3A2C5B9B5C000F59B1 /* motor_joint.c */; };
-		41B9ADCD2C5B9B61000F59B1 /* mouse_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD3B2C5B9B5C000F59B1 /* mouse_joint.c */; };
 		41B9ADCE2C5B9B61000F59B1 /* prismatic_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD3C2C5B9B5C000F59B1 /* prismatic_joint.c */; };
 		41B9ADCF2C5B9B61000F59B1 /* revolute_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD3D2C5B9B5C000F59B1 /* revolute_joint.c */; };
 		41B9ADD02C5B9B61000F59B1 /* shape.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD3E2C5B9B5C000F59B1 /* shape.c */; };
@@ -437,8 +436,8 @@
 		41B9ADDB2C5B9B62000F59B1 /* types.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD492C5B9B5C000F59B1 /* types.c */; };
 		41B9ADDC2C5B9B62000F59B1 /* weld_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD4A2C5B9B5C000F59B1 /* weld_joint.c */; };
 		41B9ADDD2C5B9B62000F59B1 /* wheel_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD4B2C5B9B5C000F59B1 /* wheel_joint.c */; };
-		41B9ADDE2C5B9B62000F59B1 /* world.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD4C2C5B9B5C000F59B1 /* world.c */; };
-		41B9ADDF2C5B9B62000F59B1 /* world.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B9AD4D2C5B9B5C000F59B1 /* world.h */; };
+		41B9ADDE2C5B9B62000F59B1 /* physics_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B9AD4C2C5B9B5C000F59B1 /* physics_world.c */; };
+		41B9ADDF2C5B9B62000F59B1 /* physics_world.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B9AD4D2C5B9B5C000F59B1 /* physics_world.h */; };
 		41DC1A632C9ADC18000E52D2 /* liquid_callbacks.h in Headers */ = {isa = PBXBuildFile; fileRef = 41DC1A612C9ADC18000E52D2 /* liquid_callbacks.h */; };
 		41DC1A642C9ADC18000E52D2 /* liquid_callbacks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1A622C9ADC18000E52D2 /* liquid_callbacks.cpp */; };
 		41FC45E22DB5FA1200383E06 /* mover.c in Sources */ = {isa = PBXBuildFile; fileRef = 41FC45E12DB5FA1200383E06 /* mover.c */; };
@@ -1344,7 +1343,6 @@
 		41B9AD382C5B9B5C000F59B1 /* manifold.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = manifold.c; sourceTree = "<group>"; };
 		41B9AD392C5B9B5C000F59B1 /* math_functions.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = math_functions.c; sourceTree = "<group>"; };
 		41B9AD3A2C5B9B5C000F59B1 /* motor_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motor_joint.c; sourceTree = "<group>"; };
-		41B9AD3B2C5B9B5C000F59B1 /* mouse_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mouse_joint.c; sourceTree = "<group>"; };
 		41B9AD3C2C5B9B5C000F59B1 /* prismatic_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = prismatic_joint.c; sourceTree = "<group>"; };
 		41B9AD3D2C5B9B5C000F59B1 /* revolute_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = revolute_joint.c; sourceTree = "<group>"; };
 		41B9AD3E2C5B9B5C000F59B1 /* shape.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = shape.c; sourceTree = "<group>"; };
@@ -1359,8 +1357,8 @@
 		41B9AD492C5B9B5C000F59B1 /* types.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = types.c; sourceTree = "<group>"; };
 		41B9AD4A2C5B9B5C000F59B1 /* weld_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = weld_joint.c; sourceTree = "<group>"; };
 		41B9AD4B2C5B9B5C000F59B1 /* wheel_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = wheel_joint.c; sourceTree = "<group>"; };
-		41B9AD4C2C5B9B5C000F59B1 /* world.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = world.c; sourceTree = "<group>"; };
-		41B9AD4D2C5B9B5C000F59B1 /* world.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = world.h; sourceTree = "<group>"; };
+		41B9AD4C2C5B9B5C000F59B1 /* physics_world.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = physics_world.c; sourceTree = "<group>"; };
+		41B9AD4D2C5B9B5C000F59B1 /* physics_world.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = physics_world.h; sourceTree = "<group>"; };
 		41B9AD5E2C5B9B5C000F59B1 /* CMakeLists.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		41DC1A612C9ADC18000E52D2 /* liquid_callbacks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = liquid_callbacks.h; sourceTree = "<group>"; };
 		41DC1A622C9ADC18000E52D2 /* liquid_callbacks.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = liquid_callbacks.cpp; sourceTree = "<group>"; };
@@ -2551,7 +2549,6 @@
 				41B9AD382C5B9B5C000F59B1 /* manifold.c */,
 				41B9AD392C5B9B5C000F59B1 /* math_functions.c */,
 				41B9AD3A2C5B9B5C000F59B1 /* motor_joint.c */,
-				41B9AD3B2C5B9B5C000F59B1 /* mouse_joint.c */,
 				41B9AD3C2C5B9B5C000F59B1 /* prismatic_joint.c */,
 				41B9AD3D2C5B9B5C000F59B1 /* revolute_joint.c */,
 				41B9AD3E2C5B9B5C000F59B1 /* shape.c */,
@@ -2566,8 +2563,8 @@
 				41B9AD492C5B9B5C000F59B1 /* types.c */,
 				41B9AD4A2C5B9B5C000F59B1 /* weld_joint.c */,
 				41B9AD4B2C5B9B5C000F59B1 /* wheel_joint.c */,
-				41B9AD4C2C5B9B5C000F59B1 /* world.c */,
-				41B9AD4D2C5B9B5C000F59B1 /* world.h */,
+				41B9AD4C2C5B9B5C000F59B1 /* physics_world.c */,
+				41B9AD4D2C5B9B5C000F59B1 /* physics_world.h */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -3021,7 +3018,7 @@
 				41B9ADB72C5B9B60000F59B1 /* constraint_graph.h in Headers */,
 				41B9ADBE2C5B9B61000F59B1 /* ctz.h in Headers */,
 				417D57042C8705C1005C9DAD /* particle_group.h in Headers */,
-				41B9ADDF2C5B9B62000F59B1 /* world.h in Headers */,
+				41B9ADDF2C5B9B62000F59B1 /* physics_world.h in Headers */,
 				41B9ADB92C5B9B60000F59B1 /* contact_solver.h in Headers */,
 				417D570C2C8705C1005C9DAD /* stack_queue.h in Headers */,
 				41B9ADD32C5B9B61000F59B1 /* solver_set.h in Headers */,
@@ -3612,8 +3609,7 @@
 				417D57102C8705C1005C9DAD /* voronoi_diagram.cpp in Sources */,
 				41DC1A642C9ADC18000E52D2 /* liquid_callbacks.cpp in Sources */,
 				417D57052C8705C1005C9DAD /* particle_system.cpp in Sources */,
-				41B9ADCD2C5B9B61000F59B1 /* mouse_joint.c in Sources */,
-				41B9ADDE2C5B9B62000F59B1 /* world.c in Sources */,
+				41B9ADDE2C5B9B62000F59B1 /* physics_world.c in Sources */,
 				41B9ADD02C5B9B61000F59B1 /* shape.c in Sources */,
 				41B9ADAE2C5B9B60000F59B1 /* bitset.c in Sources */,
 			);

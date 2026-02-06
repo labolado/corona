@@ -103,7 +103,6 @@ OBJECTS := \
 	$(OBJDIR)/manifold.o \
 	$(OBJDIR)/math_functions.o \
 	$(OBJDIR)/motor_joint.o \
-	$(OBJDIR)/mouse_joint.o \
 	$(OBJDIR)/prismatic_joint.o \
 	$(OBJDIR)/revolute_joint.o \
 	$(OBJDIR)/sensor.o \
@@ -115,7 +114,7 @@ OBJECTS := \
 	$(OBJDIR)/types.o \
 	$(OBJDIR)/weld_joint.o \
 	$(OBJDIR)/wheel_joint.o \
-	$(OBJDIR)/world.o \
+	$(OBJDIR)/physics_world.o \
 
 RESOURCES := \
 
@@ -280,9 +279,6 @@ $(OBJDIR)/math_functions.o: ../../../external/box2d_v3/src/math_functions.c
 $(OBJDIR)/motor_joint.o: ../../../external/box2d_v3/src/motor_joint.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/mouse_joint.o: ../../../external/box2d_v3/src/mouse_joint.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/prismatic_joint.o: ../../../external/box2d_v3/src/prismatic_joint.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
@@ -316,7 +312,7 @@ $(OBJDIR)/weld_joint.o: ../../../external/box2d_v3/src/weld_joint.c
 $(OBJDIR)/wheel_joint.o: ../../../external/box2d_v3/src/wheel_joint.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/world.o: ../../../external/box2d_v3/src/world.c
+$(OBJDIR)/physics_world.o: ../../../external/box2d_v3/src/physics_world.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

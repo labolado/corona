@@ -628,7 +628,7 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			break;
 		case 4:
 			{
-				lua_pushboolean( L, b2Body_IsFixedRotation(fBodyId) );
+				lua_pushboolean( L, b2Body_GetMotionLocks(fBodyId).angularZ );
 			}
 			break;
 		case 5:
@@ -858,7 +858,8 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 			break;
 		case 4:
 			{
-				b2Body_SetFixedRotation( fBodyId, lua_toboolean( L, valueIndex ) );
+				bool isFixedRotation = lua_toboolean( L, valueIndex );
+				b2Body_SetMotionLocks( fBodyId, { false, false, isFixedRotation } );
 			}
 			break;
 		case 5:
@@ -1028,9 +1029,7 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 							}
 
 							b2ChainDef chainDef = b2DefaultChainDef();
-							b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
-							material.friction = b2Chain_GetFriction( chainId );
-							material.restitution = b2Chain_GetRestitution( chainId );;
+							b2SurfaceMaterial material = b2Chain_GetSurfaceMaterial( chainId, 1 );
 							chainDef.materials = &material;
 							chainDef.materialCount = 1;
 							chainDef.userData = b2Shape_GetUserData( segmentArray[0] );

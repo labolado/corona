@@ -44,6 +44,7 @@ class PhysicsTask : public enki::ITaskSet
 };
 
 static constexpr int32_t maxTasks = 64;
+static constexpr int32_t estimateMaxMouseBodys = 32;
 
 // ----------------------------------------------------------------------------
 
@@ -80,10 +81,12 @@ class PhysicsWorld
 		void StopWorld();
 		void onSuspended();
 		void onResumed();
+
+		b2BodyId FetchUsableMouseBodyId();
+
 		b2LiquidWorld* GetWorld() const { return fWorld; }
 		b2WorldId GetWorldId() const { return fWorld->GetWorldId(); }
 		// b2Body* GetGroundBody() const { return fGroundBody; }
-		b2BodyId GetGroundBodyId() const { return fGroundBodyId; }
 
 		bool IsWorldValid() const { return fWorld != NULL && b2World_IsValid(fWorld->GetWorldId()); }
 
@@ -149,7 +152,6 @@ class PhysicsWorld
 		b2LiquidWorld *fWorld;
 		Real fPixelsPerMeter;
 		// b2Body *fGroundBody;
-		b2BodyId fGroundBodyId;
 		S32 fSubStepCount;
 		S32 fVelocityIterations;
 		S32 fPositionIterations;
@@ -181,6 +183,8 @@ class PhysicsWorld
 		//! false: The point of contact reported is the first one reported by Box2D. The order is arbitrary.
 		//! true: The point of contact reported is the average of all contact points.
 		bool fAverageCollisionPositions;
+
+		std::vector<b2BodyId> fMouseBodys;
 
 	public:
 		int fWorkerCount;

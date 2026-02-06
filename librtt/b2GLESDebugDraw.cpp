@@ -115,7 +115,6 @@ void DrawStringFcn(b2Vec2 p, const char* s, b2HexColor color, void* context)
 void GetBodyTransformFcn( b2Transform* transform, void* bodyUserData, void* context )
 {
 	DisplayObject *o = static_cast<DisplayObject*>(bodyUserData);
-	b2Transform xf;
 
 	float metersPerPixel = static_cast<b2GLESDebugDraw*>(context)->GetMetersPerPixel();
 	if ( o && LuaLibPhysics::GetGroundBodyUserdata() != o )
@@ -176,25 +175,23 @@ b2GLESDebugDraw::b2GLESDebugDraw( Display &display )
 		fDebugDraw.DrawCircleFcn = DrawCircleFcn;
 		fDebugDraw.DrawSolidCircleFcn = DrawSolidCircleFcn;
 		fDebugDraw.DrawSolidCapsuleFcn = DrawSolidCapsuleFcn;
-		fDebugDraw.DrawSegmentFcn = DrawSegmentFcn;
+		fDebugDraw.DrawLineFcn = DrawSegmentFcn;
 		fDebugDraw.DrawTransformFcn = DrawTransformFcn;
 		fDebugDraw.DrawPointFcn = DrawPointFcn;
 		fDebugDraw.DrawStringFcn = DrawStringFcn;
 		fDebugDraw.GetBodyTransformFcn = GetBodyTransformFcn;
 		fDebugDraw.drawingBounds = bounds;
 
-		fDebugDraw.useDrawingBounds = false;
+		fDebugDraw.forceScale = 1.0f;
+		fDebugDraw.jointScale = 1.0f;
 		fDebugDraw.drawShapes = true;
 		fDebugDraw.drawJoints = true;
 		fDebugDraw.drawJointExtras = false;
 		fDebugDraw.drawBounds = false;
 		fDebugDraw.drawMass = true;
 		fDebugDraw.drawBodyNames = false;
-		fDebugDraw.drawContacts = false;
 		fDebugDraw.drawGraphColors = false;
 		fDebugDraw.drawContactNormals = false;
-		fDebugDraw.drawContactImpulses = false;
-		fDebugDraw.drawFrictionImpulses = false;
 
 		fDebugDraw.context = this;
 	}

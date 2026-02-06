@@ -1706,15 +1706,15 @@ newJoint( lua_State *L )
 			b2Vec2 point2 = { qx, qy };
 
 			jointDef.enableSpring = true;
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
-			jointDef.localAnchorA = b2Body_GetLocalPoint( body1, point1 );
-			jointDef.localAnchorB = b2Body_GetLocalPoint( body2, point2 );
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
+			jointDef.base.localFrameA.p = b2Body_GetLocalPoint( body1, point1 );
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint( body2, point2 );
 			jointDef.length = b2Length( point2 - point1 );
 
 			if ( lua_isboolean( L, 8 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 8 );
+				jointDef.base.collideConnected = lua_toboolean( L, 8 );
 			}
 			// CoronaLuaLog(L, "WARNING: distance joint collideConnected = %d!", lua_gettop(L));
 
@@ -1734,16 +1734,17 @@ newJoint( lua_State *L )
 			b2Vec2 point1 = { px, py };
 
 			// jointDef.Initialize( body1, body2, point1 );
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
-			jointDef.localAnchorA = b2Body_GetLocalPoint(body1, point1);
-			jointDef.localAnchorB = b2Body_GetLocalPoint(body2, point1);
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
+			jointDef.base.localFrameA.p = b2Body_GetLocalPoint(body1, point1);
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint(body2, point1);
 			b2Rot rotA = b2Body_GetRotation( body1 );
 			b2Rot rotB = b2Body_GetRotation( body2 );
-			jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
+			// jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
+			jointDef.base.localFrameA.q = b2InvMulRot( rotA, rotB );
 			if ( lua_isboolean( L, 6 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 6 );
+				jointDef.base.collideConnected = lua_toboolean( L, 6 );
 			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateRevoluteJoint( physics.GetWorldId(), &jointDef ) );
@@ -1757,18 +1758,18 @@ newJoint( lua_State *L )
 			b2MotorJointDef jointDef = b2DefaultMotorJointDef();
 
 			// jointDef.Initialize( body1, body2 );
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
 
-			jointDef.linearOffset = b2Body_GetLocalPoint( body1, b2Body_GetPosition(body2) );
+			// jointDef.linearOffset = b2Body_GetLocalPoint( body1, b2Body_GetPosition(body2) );
 
-			b2Rot rotA = b2Body_GetRotation( body1 );
-			b2Rot rotB = b2Body_GetRotation( body2 );
-			jointDef.angularOffset = b2RelativeAngle( rotB, rotA );
+			// b2Rot rotA = b2Body_GetRotation( body1 );
+			// b2Rot rotB = b2Body_GetRotation( body2 );
+			// jointDef.angularOffset = b2RelativeAngle( rotB, rotA );
 
 			if ( lua_isboolean( L, 4 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 4 );
+				jointDef.base.collideConnected = lua_toboolean( L, 4 );
 			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateMotorJoint( physics.GetWorldId(), &jointDef ) );
@@ -1792,17 +1793,22 @@ newJoint( lua_State *L )
 			b2Vec2 axis = b2Normalize({ axisX, axisY });
 
 			// jointDef.Initialize( body1, body2, anchor, axis );
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
-			jointDef.localAnchorA = b2Body_GetLocalPoint( body1, anchor );
-			jointDef.localAnchorB = b2Body_GetLocalPoint( body2, anchor );
-			jointDef.localAxisA = b2Body_GetLocalVector( body1, axis );
-			b2Rot rotA = b2Body_GetRotation( body1 );
-			b2Rot rotB = b2Body_GetRotation( body2 );
-			jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
+			b2Rot axisRot = b2MakeRotFromUnitVector( axis );
+			jointDef.base.localFrameA.p = b2Body_GetLocalPoint( body1, anchor );
+			// jointDef.base.localFrameA.q = b2MakeRotFromUnitVector( axis );
+			jointDef.base.localFrameA.q = b2InvMulRot( b2Body_GetRotation( body1 ), axisRot );
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint( body2, anchor );
+			// jointDef.base.localFrameB.q = b2MakeRotFromUnitVector( axis );
+			jointDef.base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( body2 ), axisRot );
+			// jointDef.localAxisA = b2Body_GetLocalVector( body1, axis );
+			// b2Rot rotA = b2Body_GetRotation( body1 );
+			// b2Rot rotB = b2Body_GetRotation( body2 );
+			// jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
 			if ( lua_isboolean( L, 8 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 8 );
+				jointDef.base.collideConnected = lua_toboolean( L, 8 );
 			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreatePrismaticJoint( physics.GetWorldId(), &jointDef ) );
@@ -1823,7 +1829,7 @@ newJoint( lua_State *L )
 		// 	jointDef.Initialize( body1, body2, point1 );
 		// 	if ( lua_isboolean( L, 6 ) )
 		// 	{
-		// 		jointDef.collideConnected = lua_toboolean( L, 6 );
+		// 		jointDef.base.collideConnected = lua_toboolean( L, 6 );
 		// 	}
 
 		// 	result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
@@ -1842,16 +1848,17 @@ newJoint( lua_State *L )
 			b2Vec2 point1 = { px, py };
 
 			// jointDef.Initialize( body1, body2, point1 );
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
-			jointDef.localAnchorA = b2Body_GetLocalPoint( body1, point1 );
-			jointDef.localAnchorB = b2Body_GetLocalPoint( body2, point1 );
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
+			jointDef.base.localFrameA.p = b2Body_GetLocalPoint( body1, point1 );
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint( body2, point1 );
 			b2Rot rotA = b2Body_GetRotation( body1 );
 			b2Rot rotB = b2Body_GetRotation( body2 );
-			jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
+			// jointDef.referenceAngle = b2RelativeAngle( rotB, rotA );
+			jointDef.base.localFrameA.q = b2InvMulRot( rotA, rotB );
 			if ( lua_isboolean( L, 6 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 6 );
+				jointDef.base.collideConnected = lua_toboolean( L, 6 );
 			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateWeldJoint( physics.GetWorldId(), &jointDef ) );
@@ -1863,8 +1870,8 @@ newJoint( lua_State *L )
 			b2BodyId body2 = e2->GetBody();
 
 			b2FilterJointDef jointDef = b2DefaultFilterJointDef();
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateFilterJoint( physics.GetWorldId(), &jointDef ) );
 		}
@@ -1889,14 +1896,16 @@ newJoint( lua_State *L )
 
 			// jointDef.Initialize( body1, body2, point, axis );
 			jointDef.enableSpring = true;
-			jointDef.bodyIdA = body1;
-			jointDef.bodyIdB = body2;
-			jointDef.localAnchorA = b2Body_GetLocalPoint(body1, point);
-			jointDef.localAnchorB = b2Body_GetLocalPoint(body2, point);
-			jointDef.localAxisA = b2Body_GetLocalVector(body1, axis);
+			jointDef.base.bodyIdA = body1;
+			jointDef.base.bodyIdB = body2;
+			jointDef.base.localFrameA.p = b2Body_GetLocalPoint( body1, point );
+			jointDef.base.localFrameA.q = b2MakeRotFromUnitVector( axis );
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint( body2, point );
+			jointDef.base.localFrameB.q = b2MakeRotFromUnitVector( axis );
+			// jointDef.localAxisA = b2Body_GetLocalVector(body1, axis);
 			if ( lua_isboolean( L, 8 ) )
 			{
-				jointDef.collideConnected = lua_toboolean( L, 8 );
+				jointDef.base.collideConnected = lua_toboolean( L, 8 );
 			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateWheelJoint( physics.GetWorldId(), &jointDef ) );
@@ -1936,7 +1945,7 @@ newJoint( lua_State *L )
 		// 	jointDef.Initialize( body1, body2, fixedAnchor1, fixedAnchor2, bodyAnchor1, bodyAnchor2, ratio );
 		// 	if ( lua_isboolean( L, 13 ) )
 		// 	{
-		// 		jointDef.collideConnected = lua_toboolean( L, 13 );
+		// 		jointDef.base.collideConnected = lua_toboolean( L, 13 );
 		// 	}
 
 		// 	result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
@@ -1947,7 +1956,7 @@ newJoint( lua_State *L )
 			float px = luaL_torealphysics( L, 3, scale );
 			float py = luaL_torealphysics( L, 4, scale );
 
-			b2MouseJointDef jointDef = b2DefaultMouseJointDef();
+			b2MotorJointDef jointDef = b2DefaultMotorJointDef();
 
 			b2Vec2 targetPoint = { px, py };
 
@@ -1956,13 +1965,17 @@ newJoint( lua_State *L )
 
 			b2BodyId body = e1->GetBody();
 
-			jointDef.bodyIdA = physics.GetGroundBodyId();
-			jointDef.bodyIdB = body;
-			jointDef.target = targetPoint;
-			jointDef.maxForce = 1000.f * b2Body_GetMass( body );
-			b2Body_SetAwake( body, true );
+			jointDef.base.bodyIdA = physics.FetchUsableMouseBodyId();
+			jointDef.base.bodyIdB = body;
+			// jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, targetPoint );
+			b2Body_SetTransform( jointDef.base.bodyIdA, targetPoint, b2Rot_identity );
+			jointDef.base.localFrameB.p = b2Body_GetLocalPoint( body, targetPoint );
+			jointDef.maxSpringForce = 1000.f * b2Body_GetMass( body );
+			jointDef.linearHertz = 7.5f;
+			jointDef.linearDampingRatio = 1.0f;
+			// b2Body_SetAwake( body, true );
 
-			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateMouseJoint( physics.GetWorldId(), &jointDef ) );
+			result = CreateAndPushJoint( luaStateHandle, physics, b2CreateMotorJoint( physics.GetWorldId(), &jointDef ) );
 		}
 
 		// else if ( strcmp( kGearJointType, jointType ) == 0 )
@@ -1981,7 +1994,7 @@ newJoint( lua_State *L )
 		// 	jointDef.ratio = luaL_toreal( L, 6 );
 		// 	if ( lua_isboolean( L, 7 ) )
 		// 	{
-		// 		jointDef.collideConnected = lua_toboolean( L, 7 );
+		// 		jointDef.base.collideConnected = lua_toboolean( L, 7 );
 		// 	}
 
 		// 	result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
@@ -2003,13 +2016,13 @@ newJoint( lua_State *L )
 		// 	jointDef.bodyA = body1;
 		// 	jointDef.bodyB = body2;
 
-		// 	jointDef.localAnchorA = b2Vec2( ax, ay );
-		// 	jointDef.localAnchorB = b2Vec2( bx, by );
+		// 	jointDef.base.localFrameA.p = b2Vec2( ax, ay );
+		// 	jointDef.base.localFrameB.p = b2Vec2( bx, by );
 
 		// 	jointDef.maxLength = (body1->GetPosition() - body2->GetPosition()).Length();
 		// 	if ( lua_isboolean( L, 8 ) )
 		// 	{
-		// 		jointDef.collideConnected = lua_toboolean( L, 8 );
+		// 		jointDef.base.collideConnected = lua_toboolean( L, 8 );
 		// 	}
 
 		// 	result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
