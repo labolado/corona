@@ -157,6 +157,52 @@ colorize(star12)
 addLabel(x, y + 40, "star(12pt)")
 i = i + 1
 
+-- ─── Stroke Tests ───
+local strokeTestY = GRID_START_Y + 5 * GRID_SPACING_Y
+local strokeCircle = sdf.newCircle(GRID_START_X + 0 * GRID_SPACING_X, strokeTestY, 25)
+strokeCircle:setFillColor(0.3, 0.7, 1.0)
+strokeCircle:setStrokeColor(1, 1, 0)
+strokeCircle.strokeWidth = 3
+addLabel(GRID_START_X + 0 * GRID_SPACING_X, strokeTestY + 40, "stroke")
+
+local strokeRect = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, strokeTestY, 50, 40, 8)
+strokeRect:setFillColor(0.3, 0.7, 1.0)
+strokeRect:setStrokeColor(1, 0.5, 0)
+strokeRect.strokeWidth = 2
+addLabel(GRID_START_X + 1 * GRID_SPACING_X, strokeTestY + 45, "strRect")
+
+local strokeStar = sdf.newStar(GRID_START_X + 2 * GRID_SPACING_X, strokeTestY, 25, 5, 12)
+strokeStar:setFillColor(0.3, 0.7, 1.0)
+strokeStar:setStrokeColor(1, 0, 0.5)
+strokeStar.strokeWidth = 3
+addLabel(GRID_START_X + 2 * GRID_SPACING_X, strokeTestY + 40, "strStar")
+
+-- Animated stroke width
+local dynCircle = sdf.newCircle(GRID_START_X + 3 * GRID_SPACING_X, strokeTestY, 25)
+dynCircle:setFillColor(0.3, 0.7, 1.0)
+dynCircle:setStrokeColor(0, 1, 0.5)
+local sw = 0
+timer.performWithDelay(50, function()
+    sw = (sw + 0.5) % 8
+    dynCircle.strokeWidth = sw
+end, 0)
+addLabel(GRID_START_X + 3 * GRID_SPACING_X, strokeTestY + 40, "anim")
+
+-- ─── Shadow Tests ───
+local shadowCircle = sdf.newCircle(GRID_START_X + 4 * GRID_SPACING_X, strokeTestY, 25)
+shadowCircle:setFillColor(0.3, 0.7, 1.0)
+shadowCircle.shadow = { offsetX = 3, offsetY = 3, blur = 6, color = {0,0,0,0.4} }
+addLabel(GRID_START_X + 4 * GRID_SPACING_X, strokeTestY + 40, "shadow")
+
+-- Combined stroke + shadow
+local shadowTestY = GRID_START_Y + 6 * GRID_SPACING_Y
+local combo = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, shadowTestY, 120, 50, 12)
+combo:setFillColor(1, 1, 1)
+combo:setStrokeColor(0.2, 0.5, 1.0)
+combo.strokeWidth = 2
+combo.shadow = { offsetX = 4, offsetY = 4, blur = 10, color = {0,0,0,0.3} }
+addLabel(GRID_START_X + 1 * GRID_SPACING_X, shadowTestY + 45, "stroke+shadow")
+
 -- Row 4, Col 5: removeSelf test (red circle, auto-remove after 2s)
 x, y = getGridPos(i)
 local testRemove = sdf.newCircle(x, y, 20)
