@@ -396,6 +396,45 @@ shaders.ring = {
     ]],
 }
 
+-- Composite shaders for gradient masking and boolean operations
+local compositeShaders = {}
+
+compositeShaders.gradientMask = {
+    category = "composite",
+    name     = "sdf_gradient_mask",
+    fragment = [[
+        P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
+            P_COLOR vec4 gradient = texture2D(CoronaSampler0, uv);
+            P_COLOR vec4 mask = texture2D(CoronaSampler1, uv);
+            return vec4(gradient.rgb * mask.a, mask.a);
+        }
+    ]],
+}
+
+compositeShaders.boolIntersect = {
+    category = "composite",
+    name     = "sdf_bool_intersect",
+    fragment = [[
+        P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
+            P_COLOR vec4 c1 = texture2D(CoronaSampler0, uv);
+            P_COLOR vec4 c2 = texture2D(CoronaSampler1, uv);
+            return vec4(c1.rgb, c1.a * c2.a);
+        }
+    ]],
+}
+
+compositeShaders.boolSubtract = {
+    category = "composite",
+    name     = "sdf_bool_subtract",
+    fragment = [[
+        P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
+            P_COLOR vec4 c1 = texture2D(CoronaSampler0, uv);
+            P_COLOR vec4 c2 = texture2D(CoronaSampler1, uv);
+            return vec4(c1.rgb, c1.a * (1.0 - c2.a));
+        }
+    ]],
+}
+
 -- ─────────────────────────────────────────────
 -- Star: dynamic shader (baked constants)
 -- ─────────────────────────────────────────────
@@ -467,6 +506,15 @@ function M.init()
         end
     end
 
+    for key, shader in pairs(compositeShaders) do
+        local ok, err = pcall(graphics.defineEffect, shader)
+        if not ok then
+            print("SDF Shapes: FAILED to register composite " .. key .. ": " .. tostring(err))
+        else
+            _registeredShaders["composite_" .. key] = true
+        end
+    end
+
     _initialized = true
 end
 
@@ -493,12 +541,13 @@ proxyMT.__index = function(t, k)
         return function(self)
             local g = rawget(self, "_group")
             if g then g:removeSelf() end
-            rawset(self, "_group",     nil)
-            rawset(self, "_fill",      nil)
-            rawset(self, "_stroke",    nil)
-            rawset(self, "_shadow",    nil)
-            rawset(self, "_shadowObj", nil)
-            rawset(self, "_params",    nil)
+            rawset(self, "_group",        nil)
+            rawset(self, "_fill",         nil)
+            rawset(self, "_stroke",       nil)
+            rawset(self, "_shadow",       nil)
+            rawset(self, "_shadowObj",    nil)
+            rawset(self, "_gradientSnap", nil)
+            rawset(self, "_params",       nil)
         end
     end
 
@@ -516,6 +565,65 @@ proxyMT.__index = function(t, k)
             local s = rawget(self, "_stroke")
             if s then s:setFillColor(...) end
             rawset(self, "_strokeColor", {...})
+        end
+    end
+
+    -- setFillGradient: applies a gradient fill masked by the SDF shape
+    -- Uses a snapshot with gradient background + SDF mask via multiply blend.
+    -- The SDF shader outputs vec4(a,a,a,a) * CoronaColorScale; with white fill
+    -- and multiply blend this becomes: gradient.rgb * alpha, gradient.a * alpha.
+    if k == "setFillGradient" then
+        return function(self, config)
+            -- Remove existing gradient
+            local oldSnap = rawget(self, "_gradientSnap")
+            if oldSnap then
+                oldSnap:removeSelf()
+                rawset(self, "_gradientSnap", nil)
+            end
+
+            if config == nil then
+                -- Restore original fill
+                local fill = rawget(self, "_fill")
+                if fill then fill.isVisible = true end
+                return
+            end
+
+            local p     = rawget(self, "_params")
+            local group = rawget(self, "_group")
+            local w, h  = p.width, p.height
+
+            -- Create snapshot containing gradient + SDF mask
+            local snap = display.newSnapshot(w, h)
+
+            -- Gradient background
+            local gradRect = display.newRect(0, 0, w, h)
+            gradRect.fill = {
+                type      = "gradient",
+                color1    = config.color1    or {1, 0, 0},
+                color2    = config.color2    or {0, 0, 1},
+                direction = config.direction or "down",
+            }
+            snap.group:insert(gradRect)
+
+            -- SDF shape as alpha mask (multiply blend against gradient)
+            local maskObj = createObject(w, h)
+            maskObj.fill.effect = p.effectName
+            applyShaderUniforms(maskObj, p)
+            maskObj:setFillColor(1, 1, 1)
+            maskObj.blendMode = "multiply"
+            snap.group:insert(maskObj)
+
+            snap:invalidate()
+
+            -- Hide original fill
+            local fill = rawget(self, "_fill")
+            if fill then fill.isVisible = false end
+
+            -- Insert gradient snap in group (after shadow if present)
+            local insertIdx = 1
+            if rawget(self, "_shadowObj") then insertIdx = insertIdx + 1 end
+            group:insert(insertIdx, snap)
+            rawset(self, "_gradientSnap", snap)
         end
     end
 
@@ -1030,6 +1138,130 @@ end
 function M.newPill(x, y, width, height)
     local proxy = M.newRoundedRect(x, y, width, height, height * 0.5)
     rawset(proxy, "_type", "pill")
+    return proxy
+end
+
+-- ─────────────────────────────────────────────
+-- Section 6: Boolean Operations
+-- ─────────────────────────────────────────────
+
+local GROUP_PROPS = {
+    x = true, y = true, alpha = true, isVisible = true,
+    rotation = true, xScale = true, yScale = true,
+    anchorX = true, anchorY = true,
+}
+
+local boolProxyMT = {}
+
+boolProxyMT.__index = function(self, key)
+    if key == "removeSelf" then
+        return function(obj)
+            local snap = rawget(obj, "_snapshot")
+            if snap then snap:removeSelf() end
+            local snaps = rawget(obj, "_snapshots")
+            if snaps then
+                for _, s in ipairs(snaps) do
+                    if s and s.removeSelf then s:removeSelf() end
+                end
+            end
+            rawset(obj, "_snapshot", nil)
+            rawset(obj, "_snapshots", nil)
+            rawset(obj, "_operands", nil)
+        end
+    end
+    -- Forward group props to snapshot
+    local snap = rawget(self, "_snapshot")
+    if snap and GROUP_PROPS[key] then
+        return snap[key]
+    end
+    return rawget(self, key)
+end
+
+boolProxyMT.__newindex = function(self, key, value)
+    local snap = rawget(self, "_snapshot")
+    if snap and GROUP_PROPS[key] then
+        snap[key] = value
+        return
+    end
+    rawset(self, key, value)
+end
+
+-- Union: combines two shapes by placing them both in one snapshot
+function M.union(a, b)
+    local aw, ah = a._params.width, a._params.height
+    local bw, bh = b._params.width, b._params.height
+    local w = MAX(aw, bw) + 40
+    local h = MAX(ah, bh) + 40
+
+    local snap = display.newSnapshot(w, h)
+    snap.group:insert(a._group)
+    snap.group:insert(b._group)
+    snap:invalidate()
+
+    local proxy = {
+        _snapshot = snap,
+        _snapshots = {},
+        _operands = {a, b},
+    }
+    setmetatable(proxy, boolProxyMT)
+    return proxy
+end
+
+-- Intersect: keeps only the overlapping region of two shapes.
+-- Uses multiply blend on the second shape so only pixels where both
+-- shapes have alpha will remain visible.
+function M.intersect(a, b)
+    local aw, ah = a._params.width, a._params.height
+    local bw, bh = b._params.width, b._params.height
+    local w = MAX(aw, bw) + 40
+    local h = MAX(ah, bh) + 40
+
+    local snap = display.newSnapshot(w, h)
+    snap.group:insert(a._group)
+    -- Multiply blend: output = src * dst; keeps color from a, masked by b's alpha
+    b._group.blendMode = "multiply"
+    snap.group:insert(b._group)
+    snap:invalidate()
+
+    local proxy = {
+        _snapshot = snap,
+        _snapshots = {},
+        _operands = {a, b},
+    }
+    setmetatable(proxy, boolProxyMT)
+    return proxy
+end
+
+-- Subtract: removes shape b from shape a.
+-- Uses custom blend equation: output = dst * (1 - src.alpha), erasing
+-- pixels from a wherever b is opaque.
+function M.subtract(a, b)
+    local aw, ah = a._params.width, a._params.height
+    local bw, bh = b._params.width, b._params.height
+    local w = MAX(aw, bw) + 40
+    local h = MAX(ah, bh) + 40
+
+    local snap = display.newSnapshot(w, h)
+    snap.group:insert(a._group)
+
+    -- Custom blend: zero out src contribution, keep dst * (1 - srcAlpha)
+    local bFill = rawget(b, "_fill")
+    if bFill then bFill:setFillColor(1, 1, 1) end
+    b._group.blendMode = {
+        srcColor = "zero",
+        srcAlpha = "zero",
+        dstColor = "oneMinusSrcAlpha",
+        dstAlpha = "oneMinusSrcAlpha",
+    }
+    snap.group:insert(b._group)
+    snap:invalidate()
+
+    local proxy = {
+        _snapshot = snap,
+        _snapshots = {},
+        _operands = {a, b},
+    }
+    setmetatable(proxy, boolProxyMT)
     return proxy
 end
 
