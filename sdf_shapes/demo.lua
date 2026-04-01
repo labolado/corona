@@ -154,4 +154,32 @@ local inter = sdf.intersect(iA, iB)
 inter.x, inter.y = x, y
 addLabel(x,y+LABEL_OFFSET,"intersect")
 
+-- ═══════════════════════════════════════════════
+-- Transition + event compatibility test
+-- ═══════════════════════════════════════════════
+x,y = pos(1.5, 8)
+local trTest = sdf.newCircle(x, y, 24)
+trTest:setFillColor(1, 0.8, 0)
+trTest.shadow = { offsetX=3, offsetY=3, blur=6, color={0,0,0,0.3} }
+transition.to(trTest, { x = x+80, time=1500, iterations=0, transition=easing.inOutSine })
+addLabel(x+40, y+LABEL_OFFSET, "transition.to")
+
+-- Tap event test
+local tapTest = sdf.newRoundedRect(x+180, y, 80, 36, 10)
+tapTest:setFillColor(0.2, 0.8, 0.4)
+tapTest:addEventListener("tap", function()
+    tapTest:setFillColor(math.random(), math.random(), math.random())
+end)
+addLabel(x+180, y+LABEL_OFFSET, "tap me")
+
+-- Auto-screenshot for verification
+timer.performWithDelay(500, function()
+    display.save(display.currentStage, {
+        filename = "sdf_demo_screenshot.png",
+        baseDir = system.TemporaryDirectory,
+        captureOffscreenArea = true,
+    })
+    print("Screenshot saved to: " .. system.pathForFile("sdf_demo_screenshot.png", system.TemporaryDirectory))
+end)
+
 print("SDF Shapes Demo loaded.")

@@ -561,31 +561,58 @@ end
 
 local proxyMT = {}
 
+-- Properties forwarded to _group for both read and write
+local GROUP_PROPS = {
+    x=true, y=true, alpha=true, isVisible=true,
+    rotation=true, xScale=true, yScale=true,
+    anchorX=true, anchorY=true,
+    -- content dimensions (read-only from group)
+    contentWidth=true, contentHeight=true,
+    contentBounds=true, localToContent=true, contentToLocal=true,
+    -- parent / numChildren
+    parent=true, numChildren=true,
+}
+
+-- Methods forwarded to _group (event system, insert, toFront/toBack)
+local GROUP_METHODS = {
+    addEventListener=true, removeEventListener=true, dispatchEvent=true,
+    toFront=true, toBack=true,
+}
+
 proxyMT.__index = function(t, k)
-    -- Group passthrough (position, transform, visibility)
-    if k == "x" or k == "y" or k == "alpha" or k == "isVisible"
-    or k == "rotation" or k == "xScale" or k == "yScale"
-    or k == "anchorX" or k == "anchorY" then
-        return rawget(t, "_group")[k]
+    local g = rawget(t, "_group")
+
+    -- Group property passthrough
+    if GROUP_PROPS[k] and g then
+        return g[k]
+    end
+
+    -- Group method passthrough (addEventListener, toFront, etc.)
+    if GROUP_METHODS[k] and g then
+        return function(self, ...)
+            return g[k](g, ...)
+        end
     end
 
     -- Size from params
     if k == "width"  then return rawget(t, "_params").width  end
     if k == "height" then return rawget(t, "_params").height end
 
+    -- _group accessor (for transition.to compatibility)
+    if k == "_group" then return g end
+
     -- removeSelf
     if k == "removeSelf" then
         return function(self)
-            local g = rawget(self, "_group")
             if g then g:removeSelf() end
-            rawset(self, "_group",        nil)
-            rawset(self, "_fill",         nil)
-            rawset(self, "_stroke",       nil)
+            rawset(self, "_group",          nil)
+            rawset(self, "_fill",           nil)
+            rawset(self, "_stroke",         nil)
             rawset(self, "_shadow",         nil)
             rawset(self, "_hasShadow",      nil)
             rawset(self, "_origEffectName", nil)
-            rawset(self, "_gradientSnap", nil)
-            rawset(self, "_params",       nil)
+            rawset(self, "_gradientSnap",   nil)
+            rawset(self, "_params",         nil)
         end
     end
 
@@ -670,10 +697,9 @@ end
 
 proxyMT.__newindex = function(t, k, v)
     -- Group passthrough
-    if k == "x" or k == "y" or k == "alpha" or k == "isVisible"
-    or k == "rotation" or k == "xScale" or k == "yScale"
-    or k == "anchorX" or k == "anchorY" then
-        rawget(t, "_group")[k] = v
+    if GROUP_PROPS[k] then
+        local g = rawget(t, "_group")
+        if g then g[k] = v end
         return
     end
 
@@ -1440,6 +1466,17 @@ function M.subtract(a, b)
     setmetatable(proxy, boolProxyMT)
     return proxy
 end
+
+-- ─────────────────────────────────────────────
+-- Transition compatibility
+-- ─────────────────────────────────────────────
+
+-- transition.to(proxy, params) works via metatable — __newindex catches x/y/alpha etc.
+-- But transition reads .x/.y FIRST to compute delta, which also goes through __index.
+-- So `transition.to(sdfObj, {x=300, alpha=0})` works out of the box.
+
+-- For cases where transition doesn't work (e.g. custom properties), use:
+-- transition.to(sdfObj._group, params)
 
 -- ─────────────────────────────────────────────
 -- Auto-initialize and export
