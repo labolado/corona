@@ -581,8 +581,9 @@ proxyMT.__index = function(t, k)
             rawset(self, "_group",        nil)
             rawset(self, "_fill",         nil)
             rawset(self, "_stroke",       nil)
-            rawset(self, "_shadow",       nil)
-            rawset(self, "_shadowObj",    nil)
+            rawset(self, "_shadow",         nil)
+            rawset(self, "_hasShadow",      nil)
+            rawset(self, "_origEffectName", nil)
             rawset(self, "_gradientSnap", nil)
             rawset(self, "_params",       nil)
         end
@@ -658,7 +659,7 @@ proxyMT.__index = function(t, k)
 
             -- Insert gradient snap in group (after shadow if present)
             local insertIdx = 1
-            if rawget(self, "_shadowObj") then insertIdx = insertIdx + 1 end
+            -- shadow is now part of _fill shader, no separate object
             group:insert(insertIdx, snap)
             rawset(self, "_gradientSnap", snap)
         end
@@ -770,63 +771,221 @@ local function updateStroke(self)
     end
 end
 
--- Shadow uses SDF smoothstep falloff, not true Gaussian blur.
--- For non-convex shapes (star, heart, crescent, cross) the shadow follows
--- SDF contours rather than spreading uniformly at concave regions.
--- Use Solar2D snapshot + blur filter for pixel-perfect shadows on those shapes.
+-- ─────────────────────────────────────────────
+-- Shadow: single-pass SDF shadow (zero extra objects)
+-- The SDF is evaluated twice in one shader: once for the shape, once offset for shadow.
+-- Shadow constants are baked into dynamically registered shader variants.
+-- ─────────────────────────────────────────────
+
+-- SDF function GLSL per shape type (takes vec2 p, reads u_UserData uniforms)
+local sdfGLSL = {
+    circle = [[P_UV float sdfFunc(P_UV vec2 p) {
+        return length(p) - u_UserData0;
+    }]],
+    ellipse = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p.x = p.x * u_UserData0;
+        return length(p) - u_UserData1;
+    }]],
+    rect = [[P_UV float sdfFunc(P_UV vec2 p) {
+        P_UV float asp = u_UserData0;
+        p.x = p.x * asp;
+        P_UV vec2 d = abs(p) - vec2(asp, 1.0);
+        return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+    }]],
+    roundedRect = [[P_UV float sdfFunc(P_UV vec2 p) {
+        P_UV float asp = u_UserData0;
+        P_UV float cr = u_UserData1;
+        p.x = p.x * asp;
+        P_UV vec2 b = vec2(asp, 1.0) - vec2(cr * 2.0);
+        P_UV vec2 q = abs(p) - b;
+        return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - cr;
+    }]],
+    hexagon = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p = abs(p);
+        return max(dot(vec2(1.73205080757, 1.0), p) / 2.0, p.x) - u_UserData0;
+    }]],
+    pentagon = [[P_UV float sdfFunc(P_UV vec2 p) {
+        P_UV float r = u_UserData0;
+        P_UV vec3 k = vec3(0.809016994, 0.587785252, 0.726542528);
+        p.y = -p.y;
+        p.x = abs(p.x);
+        p = p - 2.0 * min(dot(vec2(-k.x, k.y), p), 0.0) * vec2(-k.x, k.y);
+        p = p - 2.0 * min(dot(vec2( k.x, k.y), p), 0.0) * vec2( k.x, k.y);
+        p = p - vec2(clamp(p.x, -r * k.z, r * k.z), r);
+        return length(p) * sign(p.y);
+    }]],
+    octagon = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p = abs(p);
+        P_UV float d = dot(p, vec2(1.0, 0.414213562)) - u_UserData0 * 1.414213562;
+        d = max(d, p.x - u_UserData0);
+        d = max(d, p.y - u_UserData0);
+        return d;
+    }]],
+    triangle = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p.y = p.y + 0.35;
+        return max(abs(p.x) * 1.73205080757 + p.y, -p.y) - u_UserData0;
+    }]],
+    diamond = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p.x = p.x * u_UserData0;
+        return abs(p.x) + abs(p.y) - 1.0;
+    }]],
+    cross = [[P_UV float sdfFunc(P_UV vec2 p) {
+        P_UV float t = u_UserData0;
+        P_UV float h1 = length(vec2(max(abs(p.x) - 1.0, 0.0), max(abs(p.y) - t, 0.0)));
+        P_UV float h2 = length(vec2(max(abs(p.x) - t, 0.0), max(abs(p.y) - 1.0, 0.0)));
+        return min(h1, h2);
+    }]],
+    heart = [[P_UV float sdfFunc(P_UV vec2 p) {
+        p = p / u_UserData0;
+        p.y = -p.y + 0.5;
+        P_UV float px = abs(p.x);
+        P_UV float py = p.y;
+        P_UV vec2 d1 = vec2(px - 0.25, py - 0.75);
+        P_UV float r1 = length(d1) - 0.353553;
+        P_UV vec2 d2a = vec2(px, py - 1.0);
+        P_UV float da = dot(d2a, d2a);
+        P_UV float t = max(px + py, 0.0) * 0.5;
+        P_UV vec2 d2b = vec2(px - t, py - t);
+        P_UV float db = dot(d2b, d2b);
+        P_UV float r2 = sqrt(min(da, db)) * sign(px - py);
+        return mix(r2, r1, step(1.0, py + px));
+    }]],
+    crescent = [[P_UV float sdfFunc(P_UV vec2 p) {
+        P_UV float d1 = length(p) - u_UserData0;
+        P_UV float d2 = length(p - vec2(u_UserData1, 0.0)) - u_UserData0;
+        return max(d1, -d2);
+    }]],
+}
+
+-- Smoothness expression per shape (references u_UserData)
+local smoothExpr = {
+    circle = "u_UserData1", ellipse = "u_UserData2",
+    rect = "u_UserData1 / max(u_UserData0, 1.0)", roundedRect = "u_UserData2",
+    hexagon = "u_UserData1", pentagon = "u_UserData1",
+    octagon = "u_UserData1", triangle = "u_UserData1",
+    diamond = "u_UserData1", cross = "u_UserData1",
+    heart = "u_UserData1 / u_UserData0", crescent = "u_UserData2",
+}
+
+-- Generate a single-pass shadow+shape shader variant
+local function makeShadowShader(shapeType, shadowCfg, params)
+    local sdf = sdfGLSL[shapeType]
+    local sm  = smoothExpr[shapeType]
+    if not sdf or not sm then return nil end
+
+    local blur = shadowCfg.blur or 8
+    local ox   = shadowCfg.offsetX or 4
+    local oy   = shadowCfg.offsetY or 4
+    local col  = shadowCfg.color or {0, 0, 0, 0.3}
+    local sr, sg, sb, sa = col[1] or 0, col[2] or 0, col[3] or 0, col[4] or 0.3
+
+    -- Padding to fit shadow around shape
+    local pad = MAX(math.abs(ox), math.abs(oy)) + blur
+    local w, h = params.width, params.height
+    local tw, th = w + pad * 2, h + pad * 2
+    local scX, scY = w / tw, h / th
+
+    -- Convert offset & blur to SDF p-space (after scale correction)
+    local normOx = ox / (w * 0.5)
+    local normOy = oy / (h * 0.5)
+    local normBlur = blur / (MIN(w, h) * 0.5)
+
+    -- Build uniform declarations from base shader
+    local base = shaders[shapeType]
+    if not base then return nil end
+    local uDecl = ""
+    for _, u in ipairs(base.uniformData) do
+        uDecl = uDecl .. FORMAT("        uniform P_DEFAULT float u_UserData%d;\n", u.index)
+    end
+
+    local frag = FORMAT([[
+%s
+
+%s
+
+        P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            p.x = p.x / %.10f;
+            p.y = p.y / %.10f;
+
+            P_UV float dist = sdfFunc(p);
+            P_UV float sm = %s;
+            P_UV float shapeA = 1.0 - smoothstep(-sm, sm, dist);
+
+            P_UV vec2 sp = p - vec2(%.10f, %.10f);
+            P_UV float sdist = sdfFunc(sp);
+            P_UV float shadowA = (1.0 - smoothstep(%.10f, %.10f, sdist)) * %.10f;
+
+            P_UV vec4 shape = CoronaColorScale(vec4(shapeA, shapeA, shapeA, shapeA));
+            P_UV vec4 shadow = vec4(%.10f * shadowA, %.10f * shadowA, %.10f * shadowA, shadowA);
+            return shape + shadow * (1.0 - shapeA);
+        }
+    ]], uDecl, sdf, scX, scY, sm,
+        normOx, normOy, -normBlur, normBlur, sa,
+        sr, sg, sb)
+
+    local key = FORMAT("sdf_%s_sh_%d_%d_%d",
+        shapeType, math.floor(ox*10+0.5), math.floor(oy*10+0.5), math.floor(blur*10+0.5))
+
+    return {
+        category = "filter",
+        name = key,
+        uniformData = base.uniformData,
+        fragment = frag,
+    }, "filter.custom." .. key, pad
+end
+
 local function updateShadow(self)
     local params = rawget(self, "_params")
     local group  = rawget(self, "_group")
     local config = rawget(self, "_shadow")
-
-    local existingShadow = rawget(self, "_shadowObj")
+    local fill   = rawget(self, "_fill")
 
     if config == nil then
-        if existingShadow then
-            existingShadow:removeSelf()
-            rawset(self, "_shadowObj", nil)
+        -- Restore original: resize fill back, restore base shader
+        local origEffect = rawget(self, "_origEffectName")
+        if origEffect and fill then
+            fill.width  = params.width
+            fill.height = params.height
+            fill.fill.effect = origEffect
+            applyShaderUniforms(fill, params)
         end
+        rawset(self, "_hasShadow", false)
         return
     end
 
-    local blur    = config.blur    or 8
-    local offsetX = config.offsetX or 4
-    local offsetY = config.offsetY or 4
-    local color   = config.color   or {0, 0, 0, 0.3}
+    -- Ring/star: shadow not supported in single-pass (no SDF function table entry)
+    if not sdfGLSL[params.shapeType] then return end
 
-    local w = params.width  + blur * 2
-    local h = params.height + blur * 2
+    local shaderDef, effectName, pad = makeShadowShader(params.shapeType, config, params)
+    if not shaderDef then return end
 
-    local shadowObj = existingShadow
-    if not shadowObj then
-        shadowObj = createObject(w, h)
-        shadowObj.x, shadowObj.y = offsetX, offsetY
-        group:insert(1, shadowObj)
-        rawset(self, "_shadowObj", shadowObj)
-    else
-        shadowObj.width  = w
-        shadowObj.height = h
-        shadowObj.x = offsetX
-        shadowObj.y = offsetY
+    -- Register shader variant (cached by _registeredShaders)
+    if not _registeredShaders[shaderDef.name] then
+        local ok, err = pcall(graphics.defineEffect, shaderDef)
+        if not ok then
+            print("SDF shadow shader failed: " .. tostring(err))
+            return
+        end
+        _registeredShaders[shaderDef.name] = true
     end
 
-    shadowObj.fill.effect = params.effectName
-
-    -- Recalculate aspect for shadow dimensions
-    local overrideAspect = nil
-    if params.aspect ~= nil then
-        overrideAspect = w / h
+    -- Save original effect for restore
+    if not rawget(self, "_origEffectName") then
+        rawset(self, "_origEffectName", params.effectName)
     end
 
-    -- Shadow blur: larger smoothness = softer edges
-    local overrideSmoothness = nil
-    if params.shapeType ~= "ring" then
-        overrideSmoothness = blur / (MAX(w, h) * 0.5)
-    end
+    -- Resize fill to fit shape + shadow
+    local tw = params.width  + pad * 2
+    local th = params.height + pad * 2
+    fill.width  = tw
+    fill.height = th
 
-    applyShaderUniforms(shadowObj, params, overrideAspect, overrideSmoothness)
+    -- Apply shadow shader (includes both shape + shadow)
+    fill.fill.effect = effectName
+    applyShaderUniforms(fill, params)
 
-    shadowObj:setFillColor(unpack(color))
+    rawset(self, "_hasShadow", true)
 end
 
 local function newProxy(group, fill, params, shapeType)
@@ -834,8 +993,9 @@ local function newProxy(group, fill, params, shapeType)
     rawset(proxy, "_group",        group)
     rawset(proxy, "_fill",         fill)
     rawset(proxy, "_stroke",       nil)
-    rawset(proxy, "_shadow",       nil)
-    rawset(proxy, "_shadowObj",    nil)
+    rawset(proxy, "_shadow",         nil)
+    rawset(proxy, "_hasShadow",      false)
+    rawset(proxy, "_origEffectName", nil)
     rawset(proxy, "_params",       params)
     rawset(proxy, "_type",         shapeType)
     rawset(proxy, "_strokeWidth",  0)
