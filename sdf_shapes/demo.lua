@@ -1,264 +1,157 @@
 ------------------------------------------------------------------------------
 -- SDF Shapes Visual Demo
--- Tests all 15 shapes in a 5x4 grid layout
+-- Tests all 15 shapes + stroke + shadow + gradient + boolean ops
 ------------------------------------------------------------------------------
 
 local sdf = require("sdf_shapes")
 
 -- Background
-display.setDefault("background", 0.15, 0.15, 0.15)
+display.setDefault("background", 0.12, 0.12, 0.14)
 
--- Layout config
-local GRID_START_X = 60
-local GRID_START_Y = 80
-local GRID_SPACING_X = 70
-local GRID_SPACING_Y = 80
+-- Layout config — bigger shapes, more spacing
+local COL = 4
+local R = 38             -- default radius
+local SX, SY = 55, 90    -- grid start
+local DX, DY = 90, 100   -- grid spacing
+local LABEL_OFFSET = 48
 local SHAPE_COLOR = {0.3, 0.7, 1.0}
-local LABEL_COLOR = {1, 1, 1}
 
--- Helper: create label text below shape
 local function addLabel(x, y, text)
-    local label = display.newText(text, x, y, native.systemFont, 12)
-    label:setFillColor(LABEL_COLOR[1], LABEL_COLOR[2], LABEL_COLOR[3])
-    return label
+    local t = display.newText(text, x, y, native.systemFont, 10)
+    t:setFillColor(0.6, 0.6, 0.6)
 end
 
--- Helper: set fill color on shape
-local function colorize(shape)
+local function color(shape)
     shape:setFillColor(SHAPE_COLOR[1], SHAPE_COLOR[2], SHAPE_COLOR[3])
 end
 
--- Grid helper: compute (x, y) for position i (0-19)
-local function getGridPos(i)
-    local col = i % 5
-    local row = math.floor(i / 5)
-    return GRID_START_X + col * GRID_SPACING_X,
-           GRID_START_Y + row * GRID_SPACING_Y
+local function pos(col, row)
+    return SX + col * DX, SY + row * DY
 end
 
--- Row 1: circle, ellipse, rect, roundedRect, hexagon
-local i = 0
 local x, y
 
-x, y = getGridPos(i)
-local circle = sdf.newCircle(x, y, 25)
-colorize(circle)
-addLabel(x, y + 40, "circle")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 0: circle, ellipse, rect, roundedRect
+-- ═══════════════════════════════════════════════
+x,y = pos(0,0); local c = sdf.newCircle(x,y,R); color(c); addLabel(x,y+LABEL_OFFSET,"circle")
+x,y = pos(1,0); local e = sdf.newEllipse(x,y,72,48); color(e); addLabel(x,y+LABEL_OFFSET,"ellipse")
+x,y = pos(2,0); local r = sdf.newRect(x,y,68,50); color(r); addLabel(x,y+LABEL_OFFSET,"rect")
+x,y = pos(3,0); local rr = sdf.newRoundedRect(x,y,68,50,12); color(rr); addLabel(x,y+LABEL_OFFSET,"roundedRect")
 
-x, y = getGridPos(i)
-local ellipse = sdf.newEllipse(x, y, 50, 35)
-colorize(ellipse)
-addLabel(x, y + 45, "ellipse")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 1: hexagon, pentagon, octagon, triangle
+-- ═══════════════════════════════════════════════
+x,y = pos(0,1); local hex = sdf.newHexagon(x,y,R); color(hex); addLabel(x,y+LABEL_OFFSET,"hexagon")
+x,y = pos(1,1); local pen = sdf.newPentagon(x,y,R); color(pen); addLabel(x,y+LABEL_OFFSET,"pentagon")
+x,y = pos(2,1); local oct = sdf.newOctagon(x,y,R); color(oct); addLabel(x,y+LABEL_OFFSET,"octagon")
+x,y = pos(3,1); local tri = sdf.newTriangle(x,y,R); color(tri); addLabel(x,y+LABEL_OFFSET,"triangle")
 
-x, y = getGridPos(i)
-local rect = sdf.newRect(x, y, 50, 40)
-colorize(rect)
-addLabel(x, y + 45, "rect")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 2: diamond, star5, star3, star8
+-- ═══════════════════════════════════════════════
+x,y = pos(0,2); local dia = sdf.newDiamond(x,y,60,72); color(dia); addLabel(x,y+LABEL_OFFSET,"diamond")
+x,y = pos(1,2); local s5 = sdf.newStar(x,y,R,5,R*0.4); color(s5); addLabel(x,y+LABEL_OFFSET,"star 5pt")
+x,y = pos(2,2); local s3 = sdf.newStar(x,y,R,3,R*0.4); color(s3); addLabel(x,y+LABEL_OFFSET,"star 3pt")
+x,y = pos(3,2); local s8 = sdf.newStar(x,y,R,8,R*0.35); color(s8); addLabel(x,y+LABEL_OFFSET,"star 8pt")
 
-x, y = getGridPos(i)
-local roundedRect = sdf.newRoundedRect(x, y, 50, 40, 8)
-colorize(roundedRect)
-addLabel(x, y + 45, "roundedRect")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 3: ring, arc, crescent, heart
+-- ═══════════════════════════════════════════════
+x,y = pos(0,3); local rng = sdf.newRing(x,y,R,R*0.6); color(rng); addLabel(x,y+LABEL_OFFSET,"ring")
+x,y = pos(1,3); local arc = sdf.newRing(x,y,R,R*0.6,0,270); color(arc); addLabel(x,y+LABEL_OFFSET,"arc 270")
+x,y = pos(2,3); local cre = sdf.newCrescent(x,y,R,0.35); color(cre); addLabel(x,y+LABEL_OFFSET,"crescent")
+x,y = pos(3,3); local hrt = sdf.newHeart(x,y,R); color(hrt); addLabel(x,y+LABEL_OFFSET,"heart")
 
-x, y = getGridPos(i)
-local hexagon = sdf.newHexagon(x, y, 25)
-colorize(hexagon)
-addLabel(x, y + 40, "hexagon")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 4: cross, pill, star12, (removeSelf)
+-- ═══════════════════════════════════════════════
+x,y = pos(0,4); local crs = sdf.newCross(x,y,R*2,0.3); color(crs); addLabel(x,y+LABEL_OFFSET,"cross")
+x,y = pos(1,4); local pil = sdf.newPill(x,y,80,36); color(pil); addLabel(x,y+LABEL_OFFSET,"pill")
+x,y = pos(2,4); local s12 = sdf.newStar(x,y,R,12,R*0.3); color(s12); addLabel(x,y+LABEL_OFFSET,"star 12pt")
+x,y = pos(3,4)
+local tmp = sdf.newCircle(x,y,R*0.6)
+tmp:setFillColor(1, 0.3, 0.3)
+addLabel(x,y+LABEL_OFFSET,"remove @2s")
+timer.performWithDelay(2000, function() tmp:removeSelf() end)
 
--- Row 2: pentagon, octagon, triangle, diamond, star(5pt)
-x, y = getGridPos(i)
-local pentagon = sdf.newPentagon(x, y, 25)
-colorize(pentagon)
-addLabel(x, y + 40, "pentagon")
-i = i + 1
+-- ═══════════════════════════════════════════════
+-- Row 5: Stroke tests
+-- ═══════════════════════════════════════════════
+x,y = pos(0,5)
+local sc = sdf.newCircle(x,y,R)
+sc:setFillColor(0.3, 0.7, 1.0)
+sc:setStrokeColor(1, 1, 0)
+sc.strokeWidth = 4
+addLabel(x,y+LABEL_OFFSET,"stroke")
 
-x, y = getGridPos(i)
-local octagon = sdf.newOctagon(x, y, 25)
-colorize(octagon)
-addLabel(x, y + 40, "octagon")
-i = i + 1
+x,y = pos(1,5)
+local sr = sdf.newRoundedRect(x,y,68,50,12)
+sr:setFillColor(0.3, 0.7, 1.0)
+sr:setStrokeColor(1, 0.5, 0)
+sr.strokeWidth = 3
+addLabel(x,y+LABEL_OFFSET,"strRect")
 
-x, y = getGridPos(i)
-local triangle = sdf.newTriangle(x, y, 25)
-colorize(triangle)
-addLabel(x, y + 40, "triangle")
-i = i + 1
+x,y = pos(2,5)
+local ss = sdf.newStar(x,y,R,5,R*0.4)
+ss:setFillColor(0.3, 0.7, 1.0)
+ss:setStrokeColor(1, 0, 0.5)
+ss.strokeWidth = 4
+addLabel(x,y+LABEL_OFFSET,"strStar")
 
-x, y = getGridPos(i)
-local diamond = sdf.newDiamond(x, y, 45, 45)
-colorize(diamond)
-addLabel(x, y + 40, "diamond")
-i = i + 1
-
-x, y = getGridPos(i)
-local star5 = sdf.newStar(x, y, 25, 5, 12)
-colorize(star5)
-addLabel(x, y + 40, "star(5pt)")
-i = i + 1
-
--- Row 3: ring, arc(270°), crescent, heart, cross
-x, y = getGridPos(i)
-local ring = sdf.newRing(x, y, 25, 15, 0, math.pi * 2)
-colorize(ring)
-addLabel(x, y + 40, "ring")
-i = i + 1
-
-x, y = getGridPos(i)
-local arc = sdf.newRing(x, y, 25, 15, 0, math.pi * 1.5)
-colorize(arc)
-addLabel(x, y + 40, "arc(270°)")
-i = i + 1
-
-x, y = getGridPos(i)
-local crescent = sdf.newCrescent(x, y, 25, 8)
-colorize(crescent)
-addLabel(x, y + 40, "crescent")
-i = i + 1
-
-x, y = getGridPos(i)
-local heart = sdf.newHeart(x, y, 25)
-colorize(heart)
-addLabel(x, y + 40, "heart")
-i = i + 1
-
-x, y = getGridPos(i)
-local cross = sdf.newCross(x, y, 40, 8)
-colorize(cross)
-addLabel(x, y + 40, "cross")
-i = i + 1
-
--- Row 4: pill, star(3pt), star(8pt), star(12pt), removeSelf test
-x, y = getGridPos(i)
-local pill = sdf.newPill(x, y, 45, 40)
-colorize(pill)
-addLabel(x, y + 45, "pill")
-i = i + 1
-
-x, y = getGridPos(i)
-local star3 = sdf.newStar(x, y, 25, 3, 10)
-colorize(star3)
-addLabel(x, y + 40, "star(3pt)")
-i = i + 1
-
-x, y = getGridPos(i)
-local star8 = sdf.newStar(x, y, 25, 8, 12)
-colorize(star8)
-addLabel(x, y + 40, "star(8pt)")
-i = i + 1
-
-x, y = getGridPos(i)
-local star12 = sdf.newStar(x, y, 25, 12, 15)
-colorize(star12)
-addLabel(x, y + 40, "star(12pt)")
-i = i + 1
-
--- ─── Stroke Tests ───
-local strokeTestY = GRID_START_Y + 5 * GRID_SPACING_Y
-local strokeCircle = sdf.newCircle(GRID_START_X + 0 * GRID_SPACING_X, strokeTestY, 25)
-strokeCircle:setFillColor(0.3, 0.7, 1.0)
-strokeCircle:setStrokeColor(1, 1, 0)
-strokeCircle.strokeWidth = 3
-addLabel(GRID_START_X + 0 * GRID_SPACING_X, strokeTestY + 40, "stroke")
-
-local strokeRect = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, strokeTestY, 50, 40, 8)
-strokeRect:setFillColor(0.3, 0.7, 1.0)
-strokeRect:setStrokeColor(1, 0.5, 0)
-strokeRect.strokeWidth = 2
-addLabel(GRID_START_X + 1 * GRID_SPACING_X, strokeTestY + 45, "strRect")
-
-local strokeStar = sdf.newStar(GRID_START_X + 2 * GRID_SPACING_X, strokeTestY, 25, 5, 12)
-strokeStar:setFillColor(0.3, 0.7, 1.0)
-strokeStar:setStrokeColor(1, 0, 0.5)
-strokeStar.strokeWidth = 3
-addLabel(GRID_START_X + 2 * GRID_SPACING_X, strokeTestY + 40, "strStar")
-
--- Animated stroke width
-local dynCircle = sdf.newCircle(GRID_START_X + 3 * GRID_SPACING_X, strokeTestY, 25)
-dynCircle:setFillColor(0.3, 0.7, 1.0)
-dynCircle:setStrokeColor(0, 1, 0.5)
-local sw = 0
+x,y = pos(3,5)
+local dc = sdf.newCircle(x,y,R)
+dc:setFillColor(0.3, 0.7, 1.0)
+dc:setStrokeColor(0, 1, 0.5)
+local swAnim = 0
 timer.performWithDelay(50, function()
-    sw = (sw + 0.5) % 8
-    dynCircle.strokeWidth = sw
+    swAnim = (swAnim + 0.5) % 10
+    dc.strokeWidth = swAnim
 end, 0)
-addLabel(GRID_START_X + 3 * GRID_SPACING_X, strokeTestY + 40, "anim")
+addLabel(x,y+LABEL_OFFSET,"anim stroke")
 
--- ─── Shadow Tests ───
-local shadowCircle = sdf.newCircle(GRID_START_X + 4 * GRID_SPACING_X, strokeTestY, 25)
-shadowCircle:setFillColor(0.3, 0.7, 1.0)
-shadowCircle.shadow = { offsetX = 3, offsetY = 3, blur = 6, color = {0,0,0,0.4} }
-addLabel(GRID_START_X + 4 * GRID_SPACING_X, strokeTestY + 40, "shadow")
+-- ═══════════════════════════════════════════════
+-- Row 6: Shadow + combined
+-- ═══════════════════════════════════════════════
+x,y = pos(0,6)
+local shc = sdf.newCircle(x,y,R)
+shc:setFillColor(0.3, 0.7, 1.0)
+shc.shadow = { offsetX=4, offsetY=4, blur=8, color={0,0,0,0.5} }
+addLabel(x,y+LABEL_OFFSET,"shadow")
 
--- Combined stroke + shadow
-local shadowTestY = GRID_START_Y + 6 * GRID_SPACING_Y
-local combo = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, shadowTestY, 120, 50, 12)
+x,y = pos(1.5,6)
+local combo = sdf.newRoundedRect(x,y,150,56,14)
 combo:setFillColor(1, 1, 1)
 combo:setStrokeColor(0.2, 0.5, 1.0)
-combo.strokeWidth = 2
-combo.shadow = { offsetX = 4, offsetY = 4, blur = 10, color = {0,0,0,0.3} }
-addLabel(GRID_START_X + 1 * GRID_SPACING_X, shadowTestY + 45, "stroke+shadow")
+combo.strokeWidth = 3
+combo.shadow = { offsetX=5, offsetY=5, blur=12, color={0,0,0,0.35} }
+addLabel(x,y+LABEL_OFFSET,"stroke + shadow")
 
--- Row 4, Col 5: removeSelf test (red circle, auto-remove after 2s)
-x, y = getGridPos(i)
-local testRemove = sdf.newCircle(x, y, 20)
-testRemove:setFillColor(1, 0.2, 0.2)
-addLabel(x, y + 40, "remove @2s")
+-- ═══════════════════════════════════════════════
+-- Row 7: Gradient + Boolean ops
+-- ═══════════════════════════════════════════════
+x,y = pos(0,7)
+local gc = sdf.newCircle(x,y,R)
+gc:setFillGradient({ color1={1,0,0}, color2={0,0,1}, direction="down" })
+addLabel(x,y+LABEL_OFFSET,"gradient")
 
--- Schedule removal
-timer.performWithDelay(2000, function()
-    testRemove:removeSelf()
-end)
+x,y = pos(1,7)
+local gr = sdf.newRoundedRect(x,y,68,50,12)
+gr:setFillGradient({ color1={1,1,0}, color2={0,1,0}, direction="right" })
+addLabel(x,y+LABEL_OFFSET,"gradRect")
 
--- ─── Gradient Tests ───
-local gradTestY = GRID_START_Y + 7 * GRID_SPACING_Y
+x,y = pos(2,7)
+local uA = sdf.newCircle(-12, 0, 24); uA:setFillColor(1, 0.3, 0.3)
+local uB = sdf.newCircle(12, 0, 24);  uB:setFillColor(0.3, 0.3, 1)
+local un = sdf.union(uA, uB)
+un.x, un.y = x, y
+addLabel(x,y+LABEL_OFFSET,"union")
 
-local gradCircle = sdf.newCircle(GRID_START_X + 0 * GRID_SPACING_X, gradTestY, 25)
-gradCircle:setFillGradient({
-    color1    = {1, 0, 0},
-    color2    = {0, 0, 1},
-    direction = "down",
-})
-addLabel(GRID_START_X + 0 * GRID_SPACING_X, gradTestY + 40, "gradient")
+x,y = pos(3,7)
+local iA = sdf.newCircle(-12, 0, 24); iA:setFillColor(1, 0.5, 0)
+local iB = sdf.newCircle(12, 0, 24);  iB:setFillColor(1, 0.5, 0)
+local inter = sdf.intersect(iA, iB)
+inter.x, inter.y = x, y
+addLabel(x,y+LABEL_OFFSET,"intersect")
 
-local gradRect = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, gradTestY, 50, 40, 8)
-gradRect:setFillGradient({
-    color1    = {1, 1, 0},
-    color2    = {0, 1, 0},
-    direction = "right",
-})
-addLabel(GRID_START_X + 1 * GRID_SPACING_X, gradTestY + 45, "gradRect")
-
--- ─── Boolean Tests ───
-local boolA = sdf.newCircle(-10, 0, 20)
-boolA:setFillColor(1, 0.3, 0.3)
-local boolB = sdf.newCircle(10, 0, 20)
-boolB:setFillColor(0.3, 0.3, 1)
-local unionShape = sdf.union(boolA, boolB)
-unionShape.x = GRID_START_X + 2 * GRID_SPACING_X
-unionShape.y = gradTestY
-addLabel(GRID_START_X + 2 * GRID_SPACING_X, gradTestY + 40, "union")
-
-local intA = sdf.newCircle(-10, 0, 20)
-intA:setFillColor(1, 0.5, 0)
-local intB = sdf.newCircle(10, 0, 20)
-intB:setFillColor(1, 0.5, 0)
-local interShape = sdf.intersect(intA, intB)
-interShape.x = GRID_START_X + 3 * GRID_SPACING_X
-interShape.y = gradTestY
-addLabel(GRID_START_X + 3 * GRID_SPACING_X, gradTestY + 40, "intersect")
-
-local subA = sdf.newCircle(-5, 0, 22)
-subA:setFillColor(0, 0.8, 0.5)
-local subB = sdf.newCircle(12, 0, 18)
-subB:setFillColor(0, 0.8, 0.5)
-local subShape = sdf.subtract(subA, subB)
-subShape.x = GRID_START_X + 4 * GRID_SPACING_X
-subShape.y = gradTestY
-addLabel(GRID_START_X + 4 * GRID_SPACING_X, gradTestY + 40, "subtract")
-
-print("SDF Shapes Demo loaded. 15 shapes + removeSelf test.")
+print("SDF Shapes Demo loaded.")
