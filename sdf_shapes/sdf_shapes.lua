@@ -740,7 +740,7 @@ local function updateStroke(self)
 
         local sc = rawget(self, "_strokeColor")
         if sc then
-            stroke:setFillColor(table.unpack(sc))
+            stroke:setFillColor(unpack(sc))
         else
             stroke:setFillColor(0, 0, 0, 1)
         end
@@ -810,7 +810,7 @@ local function updateShadow(self)
 
     applyShaderUniforms(shadowObj, params, overrideAspect, overrideSmoothness)
 
-    shadowObj:setFillColor(table.unpack(color))
+    shadowObj:setFillColor(unpack(color))
 end
 
 local function newProxy(group, fill, params, shapeType)
