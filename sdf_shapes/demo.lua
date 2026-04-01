@@ -214,4 +214,51 @@ timer.performWithDelay(2000, function()
     testRemove:removeSelf()
 end)
 
+-- ─── Gradient Tests ───
+local gradTestY = GRID_START_Y + 7 * GRID_SPACING_Y
+
+local gradCircle = sdf.newCircle(GRID_START_X + 0 * GRID_SPACING_X, gradTestY, 25)
+gradCircle:setFillGradient({
+    color1    = {1, 0, 0},
+    color2    = {0, 0, 1},
+    direction = "down",
+})
+addLabel(GRID_START_X + 0 * GRID_SPACING_X, gradTestY + 40, "gradient")
+
+local gradRect = sdf.newRoundedRect(GRID_START_X + 1 * GRID_SPACING_X, gradTestY, 50, 40, 8)
+gradRect:setFillGradient({
+    color1    = {1, 1, 0},
+    color2    = {0, 1, 0},
+    direction = "right",
+})
+addLabel(GRID_START_X + 1 * GRID_SPACING_X, gradTestY + 45, "gradRect")
+
+-- ─── Boolean Tests ───
+local boolA = sdf.newCircle(-10, 0, 20)
+boolA:setFillColor(1, 0.3, 0.3)
+local boolB = sdf.newCircle(10, 0, 20)
+boolB:setFillColor(0.3, 0.3, 1)
+local unionShape = sdf.union(boolA, boolB)
+unionShape.x = GRID_START_X + 2 * GRID_SPACING_X
+unionShape.y = gradTestY
+addLabel(GRID_START_X + 2 * GRID_SPACING_X, gradTestY + 40, "union")
+
+local intA = sdf.newCircle(-10, 0, 20)
+intA:setFillColor(1, 0.5, 0)
+local intB = sdf.newCircle(10, 0, 20)
+intB:setFillColor(1, 0.5, 0)
+local interShape = sdf.intersect(intA, intB)
+interShape.x = GRID_START_X + 3 * GRID_SPACING_X
+interShape.y = gradTestY
+addLabel(GRID_START_X + 3 * GRID_SPACING_X, gradTestY + 40, "intersect")
+
+local subA = sdf.newCircle(-5, 0, 22)
+subA:setFillColor(0, 0.8, 0.5)
+local subB = sdf.newCircle(12, 0, 18)
+subB:setFillColor(0, 0.8, 0.5)
+local subShape = sdf.subtract(subA, subB)
+subShape.x = GRID_START_X + 4 * GRID_SPACING_X
+subShape.y = gradTestY
+addLabel(GRID_START_X + 4 * GRID_SPACING_X, gradTestY + 40, "subtract")
+
 print("SDF Shapes Demo loaded. 15 shapes + removeSelf test.")

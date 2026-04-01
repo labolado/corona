@@ -34,7 +34,7 @@ end
 
 local function createObject(width, height)
     local ok, obj = pcall(function()
-        return display.newImageRect("sdf_shapes/white_pixel.png", width, height)
+        return display.newImageRect("white_pixel.png", width, height)
     end)
     if not ok or not obj then
         obj = display.newRect(0, 0, width, height)
