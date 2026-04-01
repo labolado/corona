@@ -518,6 +518,27 @@ function M.init()
     _initialized = true
 end
 
+-- Apply SDF shader uniforms to an object based on params
+local function applyShaderUniforms(obj, params, overrideAspect, overrideSmoothness)
+    local eff = obj.fill.effect
+    if not eff then return end
+
+    local aspect     = overrideAspect     or params.aspect
+    local smoothness = overrideSmoothness or params.smoothness
+
+    if params.sdfRadius    ~= nil then eff.radius       = params.sdfRadius   end
+    if aspect              ~= nil then eff.aspect        = aspect             end
+    if smoothness          ~= nil then eff.smoothness    = smoothness         end
+    if params.cornerRadius ~= nil then eff.cornerRadius = params.cornerRadius end
+    if params.thickness    ~= nil then eff.thickness     = params.thickness   end
+    if params.offset       ~= nil then eff.offset        = params.offset      end
+    -- Ring-specific uniforms
+    if params.innerRadius  ~= nil then eff.innerRadius   = params.innerRadius end
+    if params.outerRadius  ~= nil then eff.outerRadius   = params.outerRadius end
+    if params.startAngle   ~= nil then eff.startAngle    = params.startAngle  end
+    if params.endAngle     ~= nil then eff.endAngle      = params.endAngle    end
+end
+
 -- ─────────────────────────────────────────────
 -- Section 4: Proxy Object System
 -- ─────────────────────────────────────────────
@@ -671,27 +692,6 @@ end
 -- ─────────────────────────────────────────────
 -- Section 4b: Stroke & Shadow helpers
 -- ─────────────────────────────────────────────
-
--- Apply SDF shader uniforms to an object based on params
-local function applyShaderUniforms(obj, params, overrideAspect, overrideSmoothness)
-    local eff = obj.fill.effect
-    if not eff then return end
-
-    local aspect     = overrideAspect     or params.aspect
-    local smoothness = overrideSmoothness or params.smoothness
-
-    if params.sdfRadius   ~= nil then eff.radius       = params.sdfRadius   end
-    if aspect             ~= nil then eff.aspect        = aspect             end
-    if smoothness         ~= nil then eff.smoothness    = smoothness         end
-    if params.cornerRadius ~= nil then eff.cornerRadius = params.cornerRadius end
-    if params.thickness   ~= nil then eff.thickness     = params.thickness   end
-    if params.offset      ~= nil then eff.offset        = params.offset      end
-    -- Ring-specific uniforms
-    if params.innerRadius ~= nil then eff.innerRadius   = params.innerRadius end
-    if params.outerRadius ~= nil then eff.outerRadius   = params.outerRadius end
-    if params.startAngle  ~= nil then eff.startAngle    = params.startAngle  end
-    if params.endAngle    ~= nil then eff.endAngle      = params.endAngle    end
-end
 
 local function updateStroke(self)
     local params = rawget(self, "_params")
