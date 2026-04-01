@@ -32,14 +32,11 @@ local function defaultSmoothness(sizeInContent)
     return 0.5 / (sizeInContent * getContentScale())
 end
 
+-- SDF shaders only use UV coordinates, no texture sampling needed.
+-- A white rect works identically to a white pixel texture as shader carrier.
 local function createObject(width, height)
-    local ok, obj = pcall(function()
-        return display.newImageRect("white_pixel.png", width, height)
-    end)
-    if not ok or not obj then
-        obj = display.newRect(0, 0, width, height)
-        obj:setFillColor(1, 1, 1)
-    end
+    local obj = display.newRect(0, 0, width, height)
+    obj:setFillColor(1, 1, 1)
     return obj
 end
 
