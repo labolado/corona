@@ -493,11 +493,12 @@ proxyMT.__index = function(t, k)
         return function(self)
             local g = rawget(self, "_group")
             if g then g:removeSelf() end
-            rawset(self, "_group",   nil)
-            rawset(self, "_fill",    nil)
-            rawset(self, "_stroke",  nil)
-            rawset(self, "_shadow",  nil)
-            rawset(self, "_params",  nil)
+            rawset(self, "_group",     nil)
+            rawset(self, "_fill",      nil)
+            rawset(self, "_stroke",    nil)
+            rawset(self, "_shadow",    nil)
+            rawset(self, "_shadowObj", nil)
+            rawset(self, "_params",    nil)
         end
     end
 
@@ -559,20 +560,161 @@ proxyMT.__newindex = function(t, k, v)
     rawset(t, k, v)
 end
 
+-- ─────────────────────────────────────────────
+-- Section 4b: Stroke & Shadow helpers
+-- ─────────────────────────────────────────────
+
+-- Apply SDF shader uniforms to an object based on params
+local function applyShaderUniforms(obj, params, overrideAspect, overrideSmoothness)
+    local eff = obj.fill.effect
+    if not eff then return end
+
+    local aspect     = overrideAspect     or params.aspect
+    local smoothness = overrideSmoothness or params.smoothness
+
+    if params.sdfRadius   ~= nil then eff.radius       = params.sdfRadius   end
+    if aspect             ~= nil then eff.aspect        = aspect             end
+    if smoothness         ~= nil then eff.smoothness    = smoothness         end
+    if params.cornerRadius ~= nil then eff.cornerRadius = params.cornerRadius end
+    if params.thickness   ~= nil then eff.thickness     = params.thickness   end
+    if params.offset      ~= nil then eff.offset        = params.offset      end
+    -- Ring-specific uniforms
+    if params.innerRadius ~= nil then eff.innerRadius   = params.innerRadius end
+    if params.outerRadius ~= nil then eff.outerRadius   = params.outerRadius end
+    if params.startAngle  ~= nil then eff.startAngle    = params.startAngle  end
+    if params.endAngle    ~= nil then eff.endAngle      = params.endAngle    end
+end
+
+local function updateStroke(self)
+    local params = rawget(self, "_params")
+    local group  = rawget(self, "_group")
+    local sw     = rawget(self, "_strokeWidth") or 0
+
+    -- Ring stroke is not meaningful; skip silently
+    if params.shapeType == "ring" then return end
+
+    if sw > 0 then
+        local nw = params.width  + sw * 2
+        local nh = params.height + sw * 2
+
+        local stroke = rawget(self, "_stroke")
+        if not stroke then
+            stroke = createObject(nw, nh)
+            stroke.x, stroke.y = 0, 0
+            -- Insert at position 1 (or 2 if shadow exists, but shadow is always at 1)
+            local shadowObj = rawget(self, "_shadowObj")
+            if shadowObj then
+                group:insert(2, stroke)
+            else
+                group:insert(1, stroke)
+            end
+            rawset(self, "_stroke", stroke)
+        else
+            stroke.width  = nw
+            stroke.height = nh
+        end
+
+        stroke.fill.effect = params.effectName
+
+        -- Recalculate aspect for the new dimensions
+        local overrideAspect = nil
+        if params.aspect ~= nil then
+            overrideAspect = nw / nh
+        end
+
+        -- Use same smoothness as fill (based on stroke object size)
+        local overrideSmoothness = nil
+        if params.smoothness ~= nil then
+            overrideSmoothness = defaultSmoothness(MIN(nw, nh))
+        end
+
+        applyShaderUniforms(stroke, params, overrideAspect, overrideSmoothness)
+
+        local sc = rawget(self, "_strokeColor")
+        if sc then
+            stroke:setFillColor(table.unpack(sc))
+        else
+            stroke:setFillColor(0, 0, 0, 1)
+        end
+
+        stroke.isVisible = true
+    else
+        local stroke = rawget(self, "_stroke")
+        if stroke then
+            stroke.isVisible = false
+        end
+    end
+end
+
+local function updateShadow(self)
+    local params = rawget(self, "_params")
+    local group  = rawget(self, "_group")
+    local config = rawget(self, "_shadow")
+
+    local existingShadow = rawget(self, "_shadowObj")
+
+    if config == nil then
+        if existingShadow then
+            existingShadow:removeSelf()
+            rawset(self, "_shadowObj", nil)
+        end
+        return
+    end
+
+    local blur    = config.blur    or 8
+    local offsetX = config.offsetX or 4
+    local offsetY = config.offsetY or 4
+    local color   = config.color   or {0, 0, 0, 0.3}
+
+    local w = params.width  + blur * 2
+    local h = params.height + blur * 2
+
+    local shadowObj = existingShadow
+    if not shadowObj then
+        shadowObj = createObject(w, h)
+        shadowObj.x, shadowObj.y = offsetX, offsetY
+        group:insert(1, shadowObj)
+        rawset(self, "_shadowObj", shadowObj)
+    else
+        shadowObj.width  = w
+        shadowObj.height = h
+        shadowObj.x = offsetX
+        shadowObj.y = offsetY
+    end
+
+    shadowObj.fill.effect = params.effectName
+
+    -- Recalculate aspect for shadow dimensions
+    local overrideAspect = nil
+    if params.aspect ~= nil then
+        overrideAspect = w / h
+    end
+
+    -- Shadow blur: larger smoothness = softer edges
+    local overrideSmoothness = nil
+    if params.shapeType ~= "ring" then
+        overrideSmoothness = blur / (MAX(w, h) * 0.5)
+    end
+
+    applyShaderUniforms(shadowObj, params, overrideAspect, overrideSmoothness)
+
+    shadowObj:setFillColor(table.unpack(color))
+end
+
 local function newProxy(group, fill, params, shapeType)
     local proxy = {}
     rawset(proxy, "_group",        group)
     rawset(proxy, "_fill",         fill)
     rawset(proxy, "_stroke",       nil)
     rawset(proxy, "_shadow",       nil)
+    rawset(proxy, "_shadowObj",    nil)
     rawset(proxy, "_params",       params)
     rawset(proxy, "_type",         shapeType)
     rawset(proxy, "_strokeWidth",  0)
     rawset(proxy, "_strokeColor",  nil)
     rawset(proxy, "_smoothness",   nil)
-    -- Hooks for future tasks (stroke/shadow logic not yet implemented)
-    rawset(proxy, "_updateStroke", nil)
-    rawset(proxy, "_updateShadow", nil)
+    rawset(proxy, "_updateStroke", updateStroke)
+    rawset(proxy, "_updateShadow", updateShadow)
     setmetatable(proxy, proxyMT)
     return proxy
 end
@@ -589,13 +731,21 @@ local function newRadiusShape(x, y, radius, effectName, shapeType, sdfRadius)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(size)
     fill.fill.effect = effectName
     fill.fill.effect.radius     = sdfRadius
-    fill.fill.effect.smoothness = defaultSmoothness(size)
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width      = size,
+        height     = size,
+        effectName = effectName,
+        sdfRadius  = sdfRadius,
+        smoothness = sm,
+        shapeType  = shapeType,
+    }
     return newProxy(group, fill, params, shapeType)
 end
 
@@ -606,13 +756,21 @@ function M.newCircle(x, y, radius)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(size)
     fill.fill.effect = "filter.custom.sdf_circle"
     fill.fill.effect.radius     = 0.95
-    fill.fill.effect.smoothness = defaultSmoothness(size)
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width      = size,
+        height     = size,
+        effectName = "filter.custom.sdf_circle",
+        sdfRadius  = 0.95,
+        smoothness = sm,
+        shapeType  = "circle",
+    }
     return newProxy(group, fill, params, "circle")
 end
 
@@ -622,14 +780,23 @@ function M.newEllipse(x, y, width, height)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(MIN(width, height))
     fill.fill.effect = "filter.custom.sdf_ellipse"
     fill.fill.effect.aspect     = width / height
     fill.fill.effect.radius     = 0.95
-    fill.fill.effect.smoothness = defaultSmoothness(MIN(width, height))
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = width, height = height }
+    local params = {
+        width      = width,
+        height     = height,
+        effectName = "filter.custom.sdf_ellipse",
+        sdfRadius  = 0.95,
+        aspect     = width / height,
+        smoothness = sm,
+        shapeType  = "ellipse",
+    }
     return newProxy(group, fill, params, "ellipse")
 end
 
@@ -639,13 +806,21 @@ function M.newRect(x, y, width, height)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(MIN(width, height))
     fill.fill.effect = "filter.custom.sdf_rect"
     fill.fill.effect.aspect     = width / height
-    fill.fill.effect.smoothness = defaultSmoothness(MIN(width, height))
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = width, height = height }
+    local params = {
+        width      = width,
+        height     = height,
+        effectName = "filter.custom.sdf_rect",
+        aspect     = width / height,
+        smoothness = sm,
+        shapeType  = "rect",
+    }
     return newProxy(group, fill, params, "rect")
 end
 
@@ -658,15 +833,24 @@ function M.newRoundedRect(x, y, width, height, cornerRadius)
 
     -- Normalize cornerRadius to [0, 0.45] in SDF space
     local normalizedRadius = MIN(cornerRadius / (MIN(width, height) * 0.5), 0.45)
+    local sm = defaultSmoothness(MIN(width, height))
 
     fill.fill.effect = "filter.custom.sdf_rounded_rect"
     fill.fill.effect.aspect       = width / height
     fill.fill.effect.cornerRadius = normalizedRadius
-    fill.fill.effect.smoothness   = defaultSmoothness(MIN(width, height))
+    fill.fill.effect.smoothness   = sm
 
     group.x, group.y = x, y
 
-    local params = { width = width, height = height }
+    local params = {
+        width        = width,
+        height       = height,
+        effectName   = "filter.custom.sdf_rounded_rect",
+        aspect       = width / height,
+        cornerRadius = normalizedRadius,
+        smoothness   = sm,
+        shapeType    = "roundedRect",
+    }
     return newProxy(group, fill, params, "roundedRect")
 end
 
@@ -696,13 +880,21 @@ function M.newDiamond(x, y, width, height)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(MIN(width, height))
     fill.fill.effect = "filter.custom.sdf_diamond"
     fill.fill.effect.aspect     = width / height
-    fill.fill.effect.smoothness = defaultSmoothness(MIN(width, height))
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = width, height = height }
+    local params = {
+        width      = width,
+        height     = height,
+        effectName = "filter.custom.sdf_diamond",
+        aspect     = width / height,
+        smoothness = sm,
+        shapeType  = "diamond",
+    }
     return newProxy(group, fill, params, "diamond")
 end
 
@@ -713,13 +905,21 @@ function M.newCross(x, y, size, thickness)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(size)
     fill.fill.effect = "filter.custom.sdf_cross"
     fill.fill.effect.thickness  = thickness
-    fill.fill.effect.smoothness = defaultSmoothness(size)
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width      = size,
+        height     = size,
+        effectName = "filter.custom.sdf_cross",
+        thickness  = thickness,
+        smoothness = sm,
+        shapeType  = "cross",
+    }
     return newProxy(group, fill, params, "cross")
 end
 
@@ -731,14 +931,23 @@ function M.newCrescent(x, y, radius, offset)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(size)
     fill.fill.effect = "filter.custom.sdf_crescent"
     fill.fill.effect.radius     = 0.9
     fill.fill.effect.offset     = offset
-    fill.fill.effect.smoothness = defaultSmoothness(size)
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width      = size,
+        height     = size,
+        effectName = "filter.custom.sdf_crescent",
+        sdfRadius  = 0.9,
+        offset     = offset,
+        smoothness = sm,
+        shapeType  = "crescent",
+    }
     return newProxy(group, fill, params, "crescent")
 end
 
@@ -760,15 +969,25 @@ function M.newRing(x, y, outerRadius, innerRadius, startAngle, endAngle)
         endRad = endRad + TWO_PI
     end
 
+    local normInner = innerRadius / outerRadius
     fill.fill.effect = "filter.custom.sdf_ring"
-    fill.fill.effect.innerRadius = innerRadius / outerRadius
+    fill.fill.effect.innerRadius = normInner
     fill.fill.effect.outerRadius = 0.95
     fill.fill.effect.startAngle  = startRad
     fill.fill.effect.endAngle    = endRad
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width       = size,
+        height      = size,
+        effectName  = "filter.custom.sdf_ring",
+        innerRadius = normInner,
+        outerRadius = 0.95,
+        startAngle  = startRad,
+        endAngle    = endRad,
+        shapeType   = "ring",
+    }
     return newProxy(group, fill, params, "ring")
 end
 
@@ -786,13 +1005,21 @@ function M.newStar(x, y, radius, points, innerRadius)
     group:insert(fill)
     fill.x, fill.y = 0, 0
 
+    local sm = defaultSmoothness(radius)
     fill.fill.effect = effectName
     fill.fill.effect.radius     = 0.9
-    fill.fill.effect.smoothness = defaultSmoothness(radius)
+    fill.fill.effect.smoothness = sm
 
     group.x, group.y = x, y
 
-    local params = { width = size, height = size }
+    local params = {
+        width      = size,
+        height     = size,
+        effectName = effectName,
+        sdfRadius  = 0.9,
+        smoothness = sm,
+        shapeType  = "star",
+    }
     return newProxy(group, fill, params, "star")
 end
 
