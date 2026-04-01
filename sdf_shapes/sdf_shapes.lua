@@ -177,7 +177,7 @@ shaders.hexagon = {
     ]],
 }
 
--- Pentagon
+-- Pentagon (Quilez sdPentagon - branchless)
 shaders.pentagon = {
     category = "filter",
     name     = "sdf_pentagon",
@@ -189,16 +189,17 @@ shaders.pentagon = {
         uniform P_DEFAULT float u_UserData0; // radius
         uniform P_DEFAULT float u_UserData1; // smoothness
 
-        #define PI 3.14159265359
-        #define TWO_PI 6.28318530718
-
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
             P_UV vec2 p = (uv - 0.5) * 2.0;
             P_UV float r = u_UserData0;
-            p.y = -p.y - 0.15;
-            P_UV float a = mod(atan(p.x, p.y) + PI, TWO_PI) / 5.0;
-            P_UV vec2 q = length(p) * vec2(cos(a), sin(a));
-            P_UV float dist = max(q.x - 0.809016994 * r, abs(q.y) - 0.587785252 * r);
+            // Quilez sdPentagon constants: cos(pi/5), sin(pi/5), tan(pi/5)
+            P_UV vec3 k = vec3(0.809016994, 0.587785252, 0.726542528);
+            p.y = -p.y;
+            p.x = abs(p.x);
+            p = p - 2.0 * min(dot(vec2(-k.x, k.y), p), 0.0) * vec2(-k.x, k.y);
+            p = p - 2.0 * min(dot(vec2( k.x, k.y), p), 0.0) * vec2( k.x, k.y);
+            p = p - vec2(clamp(p.x, -r * k.z, r * k.z), r);
+            P_UV float dist = length(p) * sign(p.y);
             P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
@@ -297,25 +298,43 @@ shaders.cross = {
     ]],
 }
 
--- Heart
+-- Heart (Quilez sdHeart - branchless via step/mix)
 shaders.heart = {
     category = "filter",
     name     = "sdf_heart",
     uniformData = {
-        { name = "radius",     type = "scalar", index = 0, default = 0.4  },
+        { name = "radius",     type = "scalar", index = 0, default = 0.8  },
         { name = "smoothness", type = "scalar", index = 1, default = 0.01 },
     },
     fragment = [[
-        uniform P_DEFAULT float u_UserData0; // radius
+        uniform P_DEFAULT float u_UserData0; // radius (scale)
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
             P_UV vec2 p = (uv - 0.5) * 2.0;
-            p.y = -p.y + 0.25;
+            p = p / u_UserData0;
+            p.y = -p.y + 0.5;
             P_UV float px = abs(p.x);
             P_UV float py = p.y;
-            P_UV float dist = sqrt(max(px * 0.5, 0.0)) + py - u_UserData0;
-            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+
+            // Quilez sdHeart — two regions, blended branchless
+            // Region 1: top lobes (py + px > 1.0)
+            P_UV vec2 d1 = vec2(px - 0.25, py - 0.75);
+            P_UV float r1 = length(d1) - 0.353553;
+
+            // Region 2: bottom point
+            P_UV vec2 d2a = vec2(px, py - 1.0);
+            P_UV float da = dot(d2a, d2a);
+            P_UV float t = max(px + py, 0.0) * 0.5;
+            P_UV vec2 d2b = vec2(px - t, py - t);
+            P_UV float db = dot(d2b, d2b);
+            P_UV float r2 = sqrt(min(da, db)) * sign(px - py);
+
+            P_UV float sel = step(1.0, py + px);
+            P_UV float dist = mix(r2, r1, sel);
+
+            P_UV float sm = u_UserData1 / u_UserData0;
+            P_UV float alpha = 1.0 - smoothstep(-sm, sm, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -983,7 +1002,7 @@ function M.newTriangle(x, y, radius)
 end
 
 function M.newHeart(x, y, radius)
-    return newRadiusShape(x, y, radius, "filter.custom.sdf_heart", "heart", 0.4)
+    return newRadiusShape(x, y, radius, "filter.custom.sdf_heart", "heart", 0.8)
 end
 
 function M.newDiamond(x, y, width, height)
