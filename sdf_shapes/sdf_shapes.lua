@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------------
 -- SDF Shapes Library for Solar2D
 -- Anti-aliased vector shapes via GLSL signed distance fields
+-- Version: 2.0.0
 ------------------------------------------------------------------------------
 
 -- ─────────────────────────────────────────────
@@ -61,9 +62,9 @@ shaders.circle = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float dist = length(p);
-            float alpha = 1.0 - smoothstep(
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float dist = length(p);
+            P_UV float alpha = 1.0 - smoothstep(
                 u_UserData0 - u_UserData1,
                 u_UserData0 + u_UserData1,
                 dist
@@ -88,10 +89,10 @@ shaders.ellipse = {
         uniform P_DEFAULT float u_UserData2; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
             p.x *= u_UserData0;
-            float dist = length(p);
-            float alpha = 1.0 - smoothstep(
+            P_UV float dist = length(p);
+            P_UV float alpha = 1.0 - smoothstep(
                 u_UserData1 - u_UserData2,
                 u_UserData1 + u_UserData2,
                 dist
@@ -114,13 +115,13 @@ shaders.rect = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float aspect = u_UserData0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float aspect = u_UserData0;
             p.x *= aspect;
-            vec2 d = abs(p) - vec2(aspect, 1.0);
-            float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
-            float smooth = u_UserData1 / max(aspect, 1.0);
-            float alpha = 1.0 - smoothstep(-smooth, smooth, dist);
+            P_UV vec2 d = abs(p) - vec2(aspect, 1.0);
+            P_UV float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+            P_UV float smooth = u_UserData1 / max(aspect, 1.0);
+            P_UV float alpha = 1.0 - smoothstep(-smooth, smooth, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -141,14 +142,14 @@ shaders.roundedRect = {
         uniform P_DEFAULT float u_UserData2; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float aspect = u_UserData0;
-            float radius = u_UserData1;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float aspect = u_UserData0;
+            P_UV float radius = u_UserData1;
             p.x *= aspect;
-            vec2 b = vec2(aspect, 1.0) - vec2(radius * 2.0);
-            vec2 q = abs(p) - b;
-            float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-            float alpha = 1.0 - smoothstep(-u_UserData2, u_UserData2, dist);
+            P_UV vec2 b = vec2(aspect, 1.0) - vec2(radius * 2.0);
+            P_UV vec2 q = abs(p) - b;
+            P_UV float dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData2, u_UserData2, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -167,10 +168,10 @@ shaders.hexagon = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
             p = abs(p);
-            float dist = max(dot(vec2(1.73205, 1.0), p) / 2.0, p.x) - u_UserData0;
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float dist = max(dot(vec2(1.73205, 1.0), p) / 2.0, p.x) - u_UserData0;
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -192,13 +193,13 @@ shaders.pentagon = {
         #define TWO_PI 6.28318530718
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float r = u_UserData0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float r = u_UserData0;
             p.y = -p.y - 0.15;
-            float a = mod(atan(p.x, p.y) + PI, TWO_PI) / 5.0;
-            vec2 q = length(p) * vec2(cos(a), sin(a));
-            float dist = max(q.x - 0.809017 * r, abs(q.y) - 0.587785 * r);
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float a = mod(atan(p.x, p.y) + PI, TWO_PI) / 5.0;
+            P_UV vec2 q = length(p) * vec2(cos(a), sin(a));
+            P_UV float dist = max(q.x - 0.809016994 * r, abs(q.y) - 0.587785252 * r);
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -217,12 +218,12 @@ shaders.octagon = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = abs((uv - 0.5) * 2.0);
-            float r = u_UserData0;
-            float dist = dot(p, vec2(1.0, 0.414213562)) - r * 1.414213562;
+            P_UV vec2 p = abs((uv - 0.5) * 2.0);
+            P_UV float r = u_UserData0;
+            P_UV float dist = dot(p, vec2(1.0, 0.414213562)) - r * 1.414213562;
             dist = max(dist, p.x - r);
             dist = max(dist, p.y - r);
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -241,10 +242,10 @@ shaders.triangle = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
             p.y += 0.35;
-            float dist = max(abs(p.x) * 1.73205 + p.y, -p.y) - u_UserData0;
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float dist = max(abs(p.x) * 1.73205 + p.y, -p.y) - u_UserData0;
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -263,10 +264,10 @@ shaders.diamond = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
             p.x *= u_UserData0;
-            float dist = abs(p.x) + abs(p.y) - 1.0;
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float dist = abs(p.x) + abs(p.y) - 1.0;
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -285,18 +286,18 @@ shaders.cross = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float t = u_UserData0;
-            float h1 = length(vec2(max(abs(p.x) - 1.0, 0.0), max(abs(p.y) - t, 0.0)));
-            float h2 = length(vec2(max(abs(p.x) - t, 0.0), max(abs(p.y) - 1.0, 0.0)));
-            float dist = min(h1, h2);
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float t = u_UserData0;
+            P_UV float h1 = length(vec2(max(abs(p.x) - 1.0, 0.0), max(abs(p.y) - t, 0.0)));
+            P_UV float h2 = length(vec2(max(abs(p.x) - t, 0.0), max(abs(p.y) - 1.0, 0.0)));
+            P_UV float dist = min(h1, h2);
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
 }
 
--- Heart (BUG FIX: use sqrt(max(...)) not pow)
+-- Heart
 shaders.heart = {
     category = "filter",
     name     = "sdf_heart",
@@ -309,12 +310,12 @@ shaders.heart = {
         uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
             p.y = -p.y + 0.25;
-            vec2 q = abs(p);
-            q.y = -p.y;
-            float dist = sqrt(max(q.x * 0.5, 0.0)) + q.y - u_UserData0;
-            float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
+            P_UV float px = abs(p.x);
+            P_UV float py = p.y;
+            P_UV float dist = sqrt(max(px * 0.5, 0.0)) + py - u_UserData0;
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -335,11 +336,11 @@ shaders.crescent = {
         uniform P_DEFAULT float u_UserData2; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float d1 = length(p) - u_UserData0;
-            float d2 = length(p - vec2(u_UserData1, 0.0)) - u_UserData0;
-            float dist = max(d1, -d2);
-            float alpha = 1.0 - smoothstep(-u_UserData2, u_UserData2, dist);
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float d1 = length(p) - u_UserData0;
+            P_UV float d2 = length(p - vec2(u_UserData1, 0.0)) - u_UserData0;
+            P_UV float dist = max(d1, -d2);
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData2, u_UserData2, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -365,31 +366,31 @@ shaders.ring = {
         #define TWO_PI 6.28318530718
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float r = length(p);
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float r = length(p);
 
             // Radial mask
-            float radialDist = max(u_UserData0 - r, r - u_UserData1);
+            P_UV float radialDist = max(u_UserData0 - r, r - u_UserData1);
 
             // Angle in [0, 2pi)
-            float angle = atan(p.y, p.x);
+            P_UV float angle = atan(p.y, p.x);
             angle += step(angle, 0.0) * TWO_PI;
 
-            float start = u_UserData2;
-            float end   = u_UserData3;
-            float range = (end - start) * 0.5;
+            P_UV float start = u_UserData2;
+            P_UV float end   = u_UserData3;
+            P_UV float range = (end - start) * 0.5;
 
             // Full-circle guard: skip angular clipping when range >= PI
-            float isFullCircle = step(PI - 0.001, range);
+            P_UV float isFullCircle = step(PI - 0.001, range);
 
-            float mid = start + range;
-            float angleDiff = abs(angle - mid);
+            P_UV float mid = start + range;
+            P_UV float angleDiff = abs(angle - mid);
             angleDiff = min(angleDiff, TWO_PI - angleDiff);
-            float angleDist = max(0.0, angleDiff - range);
+            P_UV float angleDist = max(0.0, angleDiff - range);
             angleDist *= (1.0 - isFullCircle);
 
-            float dist = max(radialDist, angleDist * r);
-            float alpha = 1.0 - smoothstep(-0.01, 0.01, dist);
+            P_UV float dist = max(radialDist, angleDist * r);
+            P_UV float alpha = 1.0 - smoothstep(-0.01, 0.01, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]],
@@ -410,18 +411,19 @@ local function makeStarShader(points, innerRatio)
 
     return FORMAT([[
         uniform P_DEFAULT float u_UserData0; // radius
+        uniform P_DEFAULT float u_UserData1; // smoothness
 
         P_COLOR vec4 FragmentKernel(P_UV vec2 uv) {
-            vec2 p = (uv - 0.5) * 2.0;
-            float r = u_UserData0;
+            P_UV vec2 p = (uv - 0.5) * 2.0;
+            P_UV float r = u_UserData0;
             const vec2 acs = %s;
             const vec2 ecs = %s;
-            float bn = mod(atan(p.x, p.y), %s) - %s;
+            P_UV float bn = mod(atan(p.x, p.y), %s) - %s;
             p = length(p) * vec2(cos(bn), abs(sin(bn)));
             p -= r * acs;
             p += ecs * clamp(-dot(p, ecs), 0.0, r * acs.y / ecs.y);
-            float dist = length(p) * sign(p.x);
-            float alpha = 1.0 - smoothstep(-0.01, 0.01, dist);
+            P_UV float dist = length(p) * sign(p.x);
+            P_UV float alpha = 1.0 - smoothstep(-u_UserData1, u_UserData1, dist);
             return CoronaColorScale(vec4(alpha, alpha, alpha, alpha));
         }
     ]], acs, ecs, twoAnStr, anStr)
@@ -434,7 +436,8 @@ local function getStarEffectName(points, innerRatio)
             category    = "filter",
             name        = key,
             uniformData = {
-                { name = "radius", type = "scalar", index = 0, default = 0.9 },
+                { name = "radius",     type = "scalar", index = 0, default = 0.9  },
+                { name = "smoothness", type = "scalar", index = 1, default = 0.01 },
             },
             fragment = makeStarShader(points, innerRatio),
         }
@@ -580,7 +583,6 @@ end
 
 -- Helper for simple radius-based shapes
 local function newRadiusShape(x, y, radius, effectName, shapeType, sdfRadius)
-    M.init()
     local size = radius * 2
     local group = display.newGroup()
     local fill  = createObject(size, size)
@@ -598,7 +600,6 @@ local function newRadiusShape(x, y, radius, effectName, shapeType, sdfRadius)
 end
 
 function M.newCircle(x, y, radius)
-    M.init()
     local size = radius * 2
     local group = display.newGroup()
     local fill  = createObject(size, size)
@@ -616,7 +617,6 @@ function M.newCircle(x, y, radius)
 end
 
 function M.newEllipse(x, y, width, height)
-    M.init()
     local group = display.newGroup()
     local fill  = createObject(width, height)
     group:insert(fill)
@@ -634,7 +634,6 @@ function M.newEllipse(x, y, width, height)
 end
 
 function M.newRect(x, y, width, height)
-    M.init()
     local group = display.newGroup()
     local fill  = createObject(width, height)
     group:insert(fill)
@@ -651,7 +650,6 @@ function M.newRect(x, y, width, height)
 end
 
 function M.newRoundedRect(x, y, width, height, cornerRadius)
-    M.init()
     cornerRadius = cornerRadius or 10
     local group = display.newGroup()
     local fill  = createObject(width, height)
@@ -693,7 +691,6 @@ function M.newHeart(x, y, radius)
 end
 
 function M.newDiamond(x, y, width, height)
-    M.init()
     local group = display.newGroup()
     local fill  = createObject(width, height)
     group:insert(fill)
@@ -710,7 +707,6 @@ function M.newDiamond(x, y, width, height)
 end
 
 function M.newCross(x, y, size, thickness)
-    M.init()
     thickness = thickness or 0.3
     local group = display.newGroup()
     local fill  = createObject(size, size)
@@ -728,7 +724,6 @@ function M.newCross(x, y, size, thickness)
 end
 
 function M.newCrescent(x, y, radius, offset)
-    M.init()
     offset = offset or 0.3
     local size  = radius * 2
     local group = display.newGroup()
@@ -748,7 +743,6 @@ function M.newCrescent(x, y, radius, offset)
 end
 
 function M.newRing(x, y, outerRadius, innerRadius, startAngle, endAngle)
-    M.init()
     startAngle = startAngle or 0
     endAngle   = endAngle   or 360
     innerRadius = innerRadius or (outerRadius * 0.5)
@@ -779,7 +773,6 @@ function M.newRing(x, y, outerRadius, innerRadius, startAngle, endAngle)
 end
 
 function M.newStar(x, y, radius, points, innerRadius)
-    M.init()
     points      = points      or 5
     innerRadius = innerRadius or (radius * 0.4)
 
@@ -794,7 +787,8 @@ function M.newStar(x, y, radius, points, innerRadius)
     fill.x, fill.y = 0, 0
 
     fill.fill.effect = effectName
-    fill.fill.effect.radius = 0.9
+    fill.fill.effect.radius     = 0.9
+    fill.fill.effect.smoothness = defaultSmoothness(radius)
 
     group.x, group.y = x, y
 
