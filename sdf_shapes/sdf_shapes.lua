@@ -646,6 +646,10 @@ local function updateStroke(self)
     end
 end
 
+-- Shadow uses SDF smoothstep falloff, not true Gaussian blur.
+-- For non-convex shapes (star, heart, crescent, cross) the shadow follows
+-- SDF contours rather than spreading uniformly at concave regions.
+-- Use Solar2D snapshot + blur filter for pixel-perfect shadows on those shapes.
 local function updateShadow(self)
     local params = rawget(self, "_params")
     local group  = rawget(self, "_group")
