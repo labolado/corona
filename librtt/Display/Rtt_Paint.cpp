@@ -140,6 +140,10 @@ namespace Rtt
 				data.fUserUniform1 = d->GetUniform(ShaderData::kData1);
 				data.fUserUniform2 = d->GetUniform(ShaderData::kData2);
 				data.fUserUniform3 = d->GetUniform(ShaderData::kData3);
+			data.fUserUniform4 = d->GetUniform(ShaderData::kData4);
+			data.fUserUniform5 = d->GetUniform(ShaderData::kData5);
+			data.fUserUniform6 = d->GetUniform(ShaderData::kData6);
+			data.fUserUniform7 = d->GetUniform(ShaderData::kData7);
 			}
 			else
 			{
@@ -147,6 +151,10 @@ namespace Rtt
 				data.fUserUniform1 = NULL;
 				data.fUserUniform2 = NULL;
 				data.fUserUniform3 = NULL;
+			data.fUserUniform4 = NULL;
+			data.fUserUniform5 = NULL;
+			data.fUserUniform6 = NULL;
+			data.fUserUniform7 = NULL;
 			}
 			SetValid(kShaderUniformDataFlag);
 		}

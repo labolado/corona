@@ -464,6 +464,10 @@ GLCommandBuffer::ClearUserUniforms()
     fUniformUpdates[Uniform::kUserData1].uniform = NULL;
     fUniformUpdates[Uniform::kUserData2].uniform = NULL;
     fUniformUpdates[Uniform::kUserData3].uniform = NULL;
+    fUniformUpdates[Uniform::kUserData4].uniform = NULL;
+    fUniformUpdates[Uniform::kUserData5].uniform = NULL;
+    fUniformUpdates[Uniform::kUserData6].uniform = NULL;
+    fUniformUpdates[Uniform::kUserData7].uniform = NULL;
 }
 
 void

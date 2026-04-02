@@ -46,6 +46,10 @@ struct RenderData
 	Uniform* fUserUniform1;
 	Uniform* fUserUniform2;
 	Uniform* fUserUniform3;
+	Uniform* fUserUniform4;
+	Uniform* fUserUniform5;
+	Uniform* fUserUniform6;
+	Uniform* fUserUniform7;
 //	Real fMinDepthRange;
 //	Real fMaxDepthRange;
 	BlendMode fBlendMode;

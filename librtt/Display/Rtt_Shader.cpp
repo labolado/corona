@@ -246,6 +246,10 @@ Shader::UpdatePaint( RenderData& data ) const
     data.fUserUniform1 = fData->GetUniform( ShaderData::kData1 );
     data.fUserUniform2 = fData->GetUniform( ShaderData::kData2 );
     data.fUserUniform3 = fData->GetUniform( ShaderData::kData3 );
+	data.fUserUniform4 = fData->GetUniform( ShaderData::kData4 );
+	data.fUserUniform5 = fData->GetUniform( ShaderData::kData5 );
+	data.fUserUniform6 = fData->GetUniform( ShaderData::kData6 );
+	data.fUserUniform7 = fData->GetUniform( ShaderData::kData7 );
 }
 
 void

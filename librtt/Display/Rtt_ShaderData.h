@@ -44,6 +44,10 @@ class ShaderData
 			kData1,
 			kData2,
 			kData3,
+			kData4,
+			kData5,
+			kData6,
+			kData7,
 
 			kNumData,
 			kDataMin = kData0,

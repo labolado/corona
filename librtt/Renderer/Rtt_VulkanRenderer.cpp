@@ -45,7 +45,7 @@ Descriptor::IsPushConstant( int index, bool userDataPushConstants )
 	return Uniform::kTotalTime == index
 		|| Uniform::kTexelSize == index
 		|| IsMaskPushConstant( index )
-		|| (userDataPushConstants && index >= Uniform::kUserData0 && index <= Uniform::kUserData3);
+		|| (userDataPushConstants && index >= Uniform::kUserData0 && index <= Uniform::kUserData7);
 }
 
 bool

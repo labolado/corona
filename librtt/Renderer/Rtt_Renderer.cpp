@@ -566,7 +566,11 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 	bool userUniformDirty1 = data->fUserUniform1 != fPrevious.fUserUniform1 && data->fUserUniform1;
 	bool userUniformDirty2 = data->fUserUniform2 != fPrevious.fUserUniform2 && data->fUserUniform2;
 	bool userUniformDirty3 = data->fUserUniform3 != fPrevious.fUserUniform3 && data->fUserUniform3;
-	
+	bool userUniformDirty4 = data->fUserUniform4 != fPrevious.fUserUniform4 && data->fUserUniform4;
+	bool userUniformDirty5 = data->fUserUniform5 != fPrevious.fUserUniform5 && data->fUserUniform5;
+	bool userUniformDirty6 = data->fUserUniform6 != fPrevious.fUserUniform6 && data->fUserUniform6;
+	bool userUniformDirty7 = data->fUserUniform7 != fPrevious.fUserUniform7 && data->fUserUniform7;
+
 
     ArrayS32 dirtyIndices( fAllocator );
     U32 largestDirtySize = EnumerateDirtyBlocks( dirtyIndices );
@@ -650,6 +654,10 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
                 || userUniformDirty1
                 || userUniformDirty2
                 || userUniformDirty3
+                || userUniformDirty4
+                || userUniformDirty5
+                || userUniformDirty6
+                || userUniformDirty7
                 || formatsDirty
 				|| fCaptureGroups.Length() > 0 
                 || dirtyIndices.Length() > 0 );
@@ -938,7 +946,31 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         BindUniform( data->fUserUniform3, Uniform::kUserData3 );
         fPrevious.fUserUniform3 = data->fUserUniform3;
     }
-    
+
+	if( userUniformDirty4 )
+	{
+		BindUniform( data->fUserUniform4, Uniform::kUserData4 );
+		fPrevious.fUserUniform4 = data->fUserUniform4;
+	}
+
+	if( userUniformDirty5 )
+	{
+		BindUniform( data->fUserUniform5, Uniform::kUserData5 );
+		fPrevious.fUserUniform5 = data->fUserUniform5;
+	}
+
+	if( userUniformDirty6 )
+	{
+		BindUniform( data->fUserUniform6, Uniform::kUserData6 );
+		fPrevious.fUserUniform6 = data->fUserUniform6;
+	}
+
+	if( userUniformDirty7 )
+	{
+		BindUniform( data->fUserUniform7, Uniform::kUserData7 );
+		fPrevious.fUserUniform7 = data->fUserUniform7;
+	}
+
     if (fCaptureGroups.Length() > 0)
 	{
 		IssueCaptures( data->fFillTexture0 );

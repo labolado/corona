@@ -182,7 +182,7 @@ ShaderData::DetachProxy()
 Real
 ShaderData::GetVertexData( DataIndex index ) const
 {
-	Rtt_ASSERT( index < kNumData ); // Verify bounds
+	Rtt_ASSERT( index < kNumVertexData ); // Verify bounds
 
 	index = Min( Max( index, kDataMin ), kDataMax ); // Ensure bounds
 
@@ -201,7 +201,7 @@ ShaderData::CopyVertexData( Real& a, Real& b, Real& c, Real& d ) const
 void
 ShaderData::SetVertexData( DataIndex index, Real newValue )
 {
-	Rtt_ASSERT( index < kNumData ); // Verify bounds
+	Rtt_ASSERT( index < kNumVertexData ); // Verify bounds
 
 	fVertexData[index] = newValue;
 	

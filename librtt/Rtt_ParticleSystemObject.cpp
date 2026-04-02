@@ -474,6 +474,10 @@ TRACE_CALL;
 		fData.fUserUniform1 = NULL;
 		fData.fUserUniform2 = NULL;
 		fData.fUserUniform3 = NULL;
+		fData.fUserUniform4 = NULL;
+		fData.fUserUniform5 = NULL;
+		fData.fUserUniform6 = NULL;
+		fData.fUserUniform7 = NULL;
 
 		_ResizeRenderBuffers();
 	}
@@ -491,6 +495,10 @@ TRACE_CALL;
 			fData.fUserUniform1 = d->GetUniform( ShaderData::kData1 );
 			fData.fUserUniform2 = d->GetUniform( ShaderData::kData2 );
 			fData.fUserUniform3 = d->GetUniform( ShaderData::kData3 );
+			fData.fUserUniform4 = d->GetUniform( ShaderData::kData4 );
+			fData.fUserUniform5 = d->GetUniform( ShaderData::kData5 );
+			fData.fUserUniform6 = d->GetUniform( ShaderData::kData6 );
+			fData.fUserUniform7 = d->GetUniform( ShaderData::kData7 );
 		}
 		else
 		{
@@ -498,6 +506,10 @@ TRACE_CALL;
 			fData.fUserUniform1 = NULL;
 			fData.fUserUniform2 = NULL;
 			fData.fUserUniform3 = NULL;
+		fData.fUserUniform4 = NULL;
+		fData.fUserUniform5 = NULL;
+		fData.fUserUniform6 = NULL;
+		fData.fUserUniform7 = NULL;
 		}
 	}
 

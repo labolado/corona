@@ -85,6 +85,10 @@ b2GLESDebugDraw::b2GLESDebugDraw( Display &display )
 		fData.fUserUniform1 = NULL;
 		fData.fUserUniform2 = NULL;
 		fData.fUserUniform3 = NULL;
+		fData.fUserUniform4 = NULL;
+		fData.fUserUniform5 = NULL;
+		fData.fUserUniform6 = NULL;
+		fData.fUserUniform7 = NULL;
 	}
 }
 

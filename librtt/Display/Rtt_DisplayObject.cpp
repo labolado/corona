@@ -226,6 +226,10 @@ DisplayObject::DidChangePaint( RenderData& data )
     data.fUserUniform1 = NULL;
     data.fUserUniform2 = NULL;
     data.fUserUniform3 = NULL;
+    data.fUserUniform4 = NULL;
+    data.fUserUniform5 = NULL;
+    data.fUserUniform6 = NULL;
+    data.fUserUniform7 = NULL;
 }
 
 // ----------------------------------------------------------------------------

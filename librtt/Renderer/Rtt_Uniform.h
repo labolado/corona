@@ -57,6 +57,10 @@ class Uniform : public CPUResource
 			kUserData1,
 			kUserData2,
 			kUserData3,
+			kUserData4,
+			kUserData5,
+			kUserData6,
+			kUserData7,
 			kNumBuiltInVariables,
 		}
 		Name;

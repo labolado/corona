@@ -1119,7 +1119,7 @@ VulkanProgram::SearchForFreeRows( const UserdataValue values[], UserdataPosition
 
 	std::vector< int > used( spareVectorCount, 0 );
 
-	for (int i = 0; i < 4 && values[i].IsValid(); ++i)
+	for (int i = 0; i < 8 && values[i].IsValid(); ++i)
 	{
 		int ncols, nrows;
 
@@ -1186,7 +1186,7 @@ PadVector( std::string & str, U32 lastUpTo, U32 & paddingCount)
 const char *
 VulkanProgram::PrepareTexelSizeReplacement( UserdataValue values[], int startingIndex, U32 total, U32 & paddingCount, std::string & replacement )
 {
-	for (int i = startingIndex; i < 4 && values[i].IsValid(); ++i)
+	for (int i = startingIndex; i < 8 && values[i].IsValid(); ++i)
 	{
 		if (i > 0)
 		{
@@ -1211,7 +1211,7 @@ VulkanProgram::PackUserData( UserdataPosition positions[], U32 & paddingCount, s
 {
 	U32 lastComponentCount;
 
-	for (int i = 0; i < 4 && positions[i].IsValid(); ++i)
+	for (int i = 0; i < 8 && positions[i].IsValid(); ++i)
 	{
 		extra += " ";
 
@@ -1421,7 +1421,7 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 	{
 		std::vector< UserdataDeclaration > vertexDeclarations, fragmentDeclarations;
 
-		UserdataValue values[4];
+		UserdataValue values[8];
 
 		size_t vertexOffset = GatherUniformUserdata( true, vertexCode, values, vertexDeclarations, vertexCompileState );
 		size_t fragmentOffset = GatherUniformUserdata( false, fragmentCode, values, fragmentDeclarations, fragmentCompileState );
@@ -1433,16 +1433,16 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 			!(vertexDeclarations.empty() && fragmentDeclarations.empty())
 			)
 		{
-			for (int i = 0; i < 4; ++i)
+			for (int i = 0; i < 8; ++i)
 			{
 				values[i].fIndex = i;
 			}
 
-			std::sort( values, values + 4 ); // sort from highest component count to lowest
+			std::sort( values, values + 8 ); // sort from highest component count to lowest
 
-			UserdataPosition positions[4];
+			UserdataPosition positions[8];
 
-			for (int i = 0; i < 4; ++i)
+			for (int i = 0; i < 8; ++i)
 			{
 				positions[i].fValue = &values[i];
 			}
@@ -1450,7 +1450,7 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 			const VkPhysicalDeviceLimits & limits = fContext->GetDeviceDetails().properties.limits;
 			auto findResult = SearchForFreeRows( values, positions, limits.maxPushConstantsSize / 16 - 6 ); // cf. shell_default_vulkan.lua
 
-			std::sort( positions, positions + 4 ); // sort from lowest (row, offset) to highest
+			std::sort( positions, positions + 8 ); // sort from lowest (row, offset) to highest
 
 			bool canUsePushConstants = true;
 			const char * toReplace = NULL;
@@ -1461,7 +1461,7 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 			{
 				U32 total = 0;
 
-				for (int i = findResult.second; i < 4 && values[i].IsValid(); ++i)
+				for (int i = findResult.second; i < 8 && values[i].IsValid(); ++i)
 				{
 					total += values[i].fComponentCount;
 				}
@@ -1480,14 +1480,14 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 				{
 					canUsePushConstants = false;
 
-					for (int i = 0; i < 4; ++i)
+					for (int i = 0; i < 8; ++i)
 					{
 						positions[i].fValue = &values[i];
 					}
 
-					auto result = SearchForFreeRows( values, positions, 16U ); // four userdata matrices
+					auto result = SearchForFreeRows( values, positions, 32U ); // four userdata matrices
 
-					std::sort( positions, positions + 4 ); // as above
+					std::sort( positions, positions + 8 ); // as above
 
 					if (!result.first)
 					{
@@ -1500,7 +1500,7 @@ VulkanProgram::UpdateShaderSource( VulkanCompilerMaps & maps, Program* program, 
 
 			PackUserData( positions, paddingCount, extra );
 
-			const char * userDataMarker = canUsePushConstants ? "PUSH_CONSTANTS_EXTRA" : "mat4 Stub[4];";
+			const char * userDataMarker = canUsePushConstants ? "PUSH_CONSTANTS_EXTRA" : "mat4 Stub[8];";
 
 			if (!vertexDeclarations.empty())
 			{
@@ -1603,6 +1603,10 @@ VulkanProgram::Update( Program::Version version, VersionData& data )
 	data.fUniformLocations[Uniform::kUserData1] = maps.CheckForUniform( "UserData1" );
 	data.fUniformLocations[Uniform::kUserData2] = maps.CheckForUniform( "UserData2" );
 	data.fUniformLocations[Uniform::kUserData3] = maps.CheckForUniform( "UserData3" );
+	data.fUniformLocations[Uniform::kUserData4] = maps.CheckForUniform( "UserData4" );
+	data.fUniformLocations[Uniform::kUserData5] = maps.CheckForUniform( "UserData5" );
+	data.fUniformLocations[Uniform::kUserData6] = maps.CheckForUniform( "UserData6" );
+	data.fUniformLocations[Uniform::kUserData7] = maps.CheckForUniform( "UserData7" );
 
 	data.fMaskTranslationLocations[0] = maps.CheckForUniform( "MaskTranslation0" );
 	data.fMaskTranslationLocations[1] = maps.CheckForUniform( "MaskTranslation1" );
