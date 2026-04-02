@@ -146,7 +146,7 @@ public class CoronaGLSurfaceView extends GLSurfaceView {
 		int depthSize = wantsDepthBuffer ? 16 : 0;
 		int stencilSize = wantsStencilBuffer ? 8 : 0;
 
-		setEGLConfigChooser(8, 8, 8, 8, depthSize, stencilSize);
+		setEGLConfigChooser(new MultisampleConfigChooser(depthSize, stencilSize));
 
 		// Attach the renderer to the surface.
 		fRenderer = new CoronaRenderer(this, runtime, isCoronaKit);
@@ -453,6 +453,86 @@ public class CoronaGLSurfaceView extends GLSurfaceView {
 		 */
 		public boolean canRender() {
 			return fCanRender;
+		}
+	}
+
+	/**
+	 * EGL config chooser that requests 4x MSAA with automatic fallback to 2x, then no MSAA.
+	 * Includes an ultimate fallback (RGB565, no depth/stencil) for extremely limited devices.
+	 */
+	private static class MultisampleConfigChooser implements GLSurfaceView.EGLConfigChooser {
+		private final int mDepthSize;
+		private final int mStencilSize;
+
+		MultisampleConfigChooser(int depthSize, int stencilSize) {
+			mDepthSize = depthSize;
+			mStencilSize = stencilSize;
+		}
+
+		@Override
+		public javax.microedition.khronos.egl.EGLConfig chooseConfig(
+				javax.microedition.khronos.egl.EGL10 egl,
+				javax.microedition.khronos.egl.EGLDisplay display) {
+
+			int[][] configSpecs = {
+				// 4x MSAA
+				{
+					javax.microedition.khronos.egl.EGL10.EGL_RED_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_GREEN_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_BLUE_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_ALPHA_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_DEPTH_SIZE, mDepthSize,
+					javax.microedition.khronos.egl.EGL10.EGL_STENCIL_SIZE, mStencilSize,
+					javax.microedition.khronos.egl.EGL10.EGL_RENDERABLE_TYPE, 4,
+					javax.microedition.khronos.egl.EGL10.EGL_SAMPLE_BUFFERS, 1,
+					javax.microedition.khronos.egl.EGL10.EGL_SAMPLES, 4,
+					javax.microedition.khronos.egl.EGL10.EGL_NONE
+				},
+				// 2x MSAA
+				{
+					javax.microedition.khronos.egl.EGL10.EGL_RED_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_GREEN_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_BLUE_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_ALPHA_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_DEPTH_SIZE, mDepthSize,
+					javax.microedition.khronos.egl.EGL10.EGL_STENCIL_SIZE, mStencilSize,
+					javax.microedition.khronos.egl.EGL10.EGL_RENDERABLE_TYPE, 4,
+					javax.microedition.khronos.egl.EGL10.EGL_SAMPLE_BUFFERS, 1,
+					javax.microedition.khronos.egl.EGL10.EGL_SAMPLES, 2,
+					javax.microedition.khronos.egl.EGL10.EGL_NONE
+				},
+				// No MSAA, RGBA8888
+				{
+					javax.microedition.khronos.egl.EGL10.EGL_RED_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_GREEN_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_BLUE_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_ALPHA_SIZE, 8,
+					javax.microedition.khronos.egl.EGL10.EGL_DEPTH_SIZE, mDepthSize,
+					javax.microedition.khronos.egl.EGL10.EGL_STENCIL_SIZE, mStencilSize,
+					javax.microedition.khronos.egl.EGL10.EGL_RENDERABLE_TYPE, 4,
+					javax.microedition.khronos.egl.EGL10.EGL_NONE
+				},
+				// Ultimate fallback: RGB565, no depth/stencil
+				{
+					javax.microedition.khronos.egl.EGL10.EGL_RED_SIZE, 5,
+					javax.microedition.khronos.egl.EGL10.EGL_GREEN_SIZE, 6,
+					javax.microedition.khronos.egl.EGL10.EGL_BLUE_SIZE, 5,
+					javax.microedition.khronos.egl.EGL10.EGL_RENDERABLE_TYPE, 4,
+					javax.microedition.khronos.egl.EGL10.EGL_NONE
+				}
+			};
+
+			javax.microedition.khronos.egl.EGLConfig[] configs = new javax.microedition.khronos.egl.EGLConfig[1];
+			int[] count = new int[1];
+			for (int[] spec : configSpecs) {
+				if (egl.eglChooseConfig(display, spec, configs, 1, count) && count[0] > 0) {
+					return configs[0];
+				}
+			}
+
+			// Should never reach here, but return any config rather than crash
+			egl.eglChooseConfig(display, new int[]{ javax.microedition.khronos.egl.EGL10.EGL_NONE }, configs, 1, count);
+			return configs[0];
 		}
 	}
 }

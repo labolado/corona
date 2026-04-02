@@ -127,9 +127,12 @@ CoronaViewRuntimeDelegate::DidLoadConfig( const Runtime& sender, lua_State *L ) 
 	bool antialias = sender.GetDisplay().IsAntialiased();
 	if (antialias)
 	{
-		// TODO: Re-enable once we get this working properly
-		// GLKView *view = fOwner;
-		// view.drawableMultisample = GLKViewDrawableMultisample4X;
+		Rtt_GLKView *view = fOwner;
+#ifdef Rtt_MetalANGLE
+		view.drawableMultisample = MGLDrawableMultisample4X;
+#else
+		view.drawableMultisample = GLKViewDrawableMultisample4X;
+#endif
 	}
 }
 
