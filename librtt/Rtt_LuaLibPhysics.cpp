@@ -374,7 +374,7 @@ namespace // anonymous namespace.
 		b2BodyId bodyId = b2Shape_GetBody(shapeId);
 		DisplayObject* userData = (DisplayObject*)b2Body_GetUserData(bodyId);
 		// Skip over objects that have been marked for deletion but have not yet been deleted from Box2D.
-		if (userData == nullptr) {
+		if ( userData == nullptr || fraction == 0.0f ) {
 			// By returning -1, we instruct the calling code to ignore this shape and
 			// continue the ray-cast to the next shape.
 			return -1.0f;
@@ -401,7 +401,7 @@ namespace // anonymous namespace.
 
 		b2BodyId bodyId = b2Shape_GetBody(shapeId);
 		DisplayObject* userData = (DisplayObject*)b2Body_GetUserData(bodyId);
-		if (userData == nullptr) {
+		if ( userData == nullptr || fraction == 0.0f ) {
 			// By returning -1, we instruct the calling code to ignore this shape and
 			// continue the ray-cast to the next shape.
 			return -1.0f;
@@ -436,7 +436,7 @@ namespace // anonymous namespace.
 
 		b2BodyId bodyId = b2Shape_GetBody(shapeId);
 		DisplayObject* userData = (DisplayObject*)b2Body_GetUserData(bodyId);
-		if (userData == nullptr) {
+		if ( userData == nullptr || fraction == 0.0f ) {
 			// By returning -1, we instruct the calling code to ignore this shape and
 			// continue the ray-cast to the next shape.
 			return -1.0f;
@@ -641,7 +641,7 @@ namespace // anonymous namespace.
 
 		b2BodyId bodyId = b2Shape_GetBody(shapeId);
 		DisplayObject* userData = (DisplayObject*)b2Body_GetUserData(bodyId);
-		if (userData == nullptr) {
+		if (userData == nullptr || fraction == 0.0f) {
 			// By returning -1, we instruct the calling code to ignore this shape and
 			// continue the ray-cast to the next shape.
 			return -1.0f;
@@ -772,7 +772,7 @@ common_ray_cast( lua_State *L,
 	b2Vec2 to_in_meters = { (float)lua_tonumber( L, 3 ), (float)lua_tonumber( L, 4 ) };
 
 	// Pixels to meters.
-	float meters_per_pixels = ( 1.0f / physics.GetPixelsPerMeter() );
+	float meters_per_pixels = physics.GetMetersPerPixel();
 	from_in_meters *= meters_per_pixels;
 	to_in_meters *= meters_per_pixels;
 
@@ -818,7 +818,7 @@ RayCast( lua_State *L )
 
 	float pixels_per_meter = LuaContext::GetRuntime( L )->GetPhysicsWorld().GetPixelsPerMeter();
 
-	if (LuaLibPhysics::IsWorldValid(L, "physics.RayCast()"))
+	if (LuaLibPhysics::IsWorldValid(L, "physics.rayCast()"))
 	{
 		if( ! Rtt_StringCompare( "any", behavior ) )
 		{
@@ -1427,7 +1427,8 @@ InitializeShapePhysicsDefaults(b2ShapeDef &outShapeDef)
 static void
 InitializeShapeFromLua( lua_State *L,
 							b2ShapeDef &outShapeDef,
-							int lua_arg_index )
+							int lua_arg_index,
+							float meter_per_pixels_scale )
 {
 	InitializeShapePhysicsDefaults( outShapeDef );
 
@@ -1493,6 +1494,18 @@ InitializeShapeFromLua( lua_State *L,
 
 	lua_getfield( L, lua_arg_index, "invokeContactCreation" );
 	if ( lua_isboolean( L, -1 ) ) { outShapeDef.invokeContactCreation = (bool)lua_toboolean( L, -1 ); }
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "clipVelocity" );
+	if ( lua_isboolean( L, -1 ) ) { outShapeDef.clipVelocity = (bool)lua_toboolean( L, -1 ); }
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "pushLimit" );
+	if ( lua_isnumber( L, -1 ) )
+	{
+		float pushLimit = (float) lua_tonumber( L, -1 );
+		if ( pushLimit >= 0.0f ) { outShapeDef.pushLimit = (float) lua_tonumber( L, -1 ) * meter_per_pixels_scale; }
+	}
 	lua_pop( L, 1 );
 
 	lua_getfield( L, lua_arg_index, "filter" );
@@ -2197,7 +2210,8 @@ InitializeFixtureUsing_Rectangle( lua_State *L,
 	b2ShapeDef shapeDef = b2DefaultShapeDef();
 	InitializeShapeFromLua( L,
 							shapeDef,
-							lua_arg_index );
+							lua_arg_index,
+							meter_per_pixels_scale );
 
 	_ShapeCreator( bodyId,
 					&shapeDef,
@@ -2341,7 +2355,8 @@ InitializeFixtureUsing_StaticLine( lua_State *L,
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
 		InitializeShapeFromLua( L,
 								shapeDef,
-								lua_arg_index );
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		// b2ChainShape chainDef;
 		// chainDef.CreateChain( &vertexList[ 0 ],
@@ -2409,7 +2424,8 @@ InitializeFixtureUsing_ArbitraryPolygonalShape( lua_State *L,
 			b2ShapeDef shapeDef = b2DefaultShapeDef();
 			InitializeShapeFromLua( L,
 									shapeDef,
-									lua_arg_index );
+									lua_arg_index,
+									meter_per_pixels_scale );
 
 			// b2ChainShape chainDef;
 			// chainDef.CreateLoop( &vertexList[ 0 ],
@@ -2616,7 +2632,8 @@ InitializeFixtureUsing_Radius( lua_State *L,
 
 		InitializeShapeFromLua( L,
 								shapeDef,
-								lua_arg_index );
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		_CircleShapeCreator( bodyId,
 							&shapeDef,
@@ -2684,8 +2701,9 @@ InitializeFixtureUsing_Circle( lua_State *L,
 		b2Circle circle = { center_in_pixels, Rtt_RealToFloat( radius ) };
 
 		InitializeShapeFromLua( L,
-									shapeDef,
-									lua_arg_index );
+								shapeDef,
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		_CircleShapeCreator( bodyId,
 							&shapeDef,
@@ -2750,7 +2768,8 @@ InitializeFixtureUsing_Chain( lua_State *L,
 		b2ShapeDef shapeDef = b2DefaultShapeDef();
 		InitializeShapeFromLua( L,
 								shapeDef,
-								lua_arg_index );
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		// b2ChainShape chainDef;
 
@@ -2914,7 +2933,8 @@ InitializeFixtureUsing_Box( lua_State *L,
 
 		InitializeShapeFromLua( L,
 								shapeDef,
-								lua_arg_index );
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		_ShapeCreator( bodyId,
 						&shapeDef,
@@ -2971,7 +2991,8 @@ InitializeFixtureUsing_Capsule( lua_State *L,
 
 		InitializeShapeFromLua( L,
 								shapeDef,
-								lua_arg_index );
+								lua_arg_index,
+								meter_per_pixels_scale );
 
 		_CapsuleShapeCreator( bodyId,
 								&shapeDef,
@@ -3036,8 +3057,9 @@ InitializeFixtureUsing_Shape( lua_State *L,
 
 			b2Polygon polygon = b2MakePolygon(&hull, radius);
 			InitializeShapeFromLua( L,
-										shapeDef,
-										lua_arg_index );
+									shapeDef,
+									lua_arg_index,
+									meter_per_pixels_scale );
 
 			_ShapeCreator( bodyId,
 								&shapeDef,
@@ -3648,7 +3670,7 @@ fromMKS( lua_State *L )
 // the desired frame interval. If 'dt' is < 0, then the time step is set to the
 // desired frame interval.
 static int
-setTimeStep( lua_State *L )
+SetTimeStep( lua_State *L )
 {
 	if ( LUA_TNUMBER == lua_type( L, 1 ) )
 	{
@@ -3663,10 +3685,20 @@ setTimeStep( lua_State *L )
 	return 0;
 }
 
+// physics.getTimeStep( )
+// Returns numSteps of physics sumulator per time step.
+static int
+GetTimeStep( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushnumber(L, physics.GetTimeStep());
+	return 1;
+}
+
 // physics.setTimeScale( dt )
 // Sets time scale of physics simulator. Default is 1
 static int
-setTimeScale( lua_State *L )
+SetTimeScale( lua_State *L )
 {
 	if ( LUA_TNUMBER == lua_type( L, 1 ) )
 	{
@@ -3684,7 +3716,7 @@ setTimeScale( lua_State *L )
 // physics.getTimeScale( )
 // Returns time scale of physics simulator.
 static int
-getTimeScale( lua_State *L )
+GetTimeScale( lua_State *L )
 {
 	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 	lua_pushnumber(L, physics.GetTimeScale());
@@ -3694,7 +3726,7 @@ getTimeScale( lua_State *L )
 // physics.setNumSteps( numSteps )
 // Sets numSteps of physics sumulator per time step. Default is 1
 static int
-setNumSteps( lua_State *L )
+SetNumSteps( lua_State *L )
 {
 	if ( lua_isnumber( L, 1 ) )
 	{
@@ -3712,7 +3744,7 @@ setNumSteps( lua_State *L )
 // physics.getNumSteps( )
 // Returns numSteps of physics sumulator per time step.
 static int
-getNumSteps( lua_State *L )
+GetNumSteps( lua_State *L )
 {
 	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 	lua_pushinteger(L, physics.GetNumSteps());
@@ -3771,6 +3803,522 @@ Explode( lua_State *L )
 	}
 
 	return 0;
+}
+
+namespace // anonymous namespace.
+{
+	constexpr int MOVER_PLANE_CAPACITY = 8;
+
+	struct MoverContext
+	{
+		lua_State *fL;
+		int fInitialTopIndexOfLuaStack;
+		float fPixelsPerMeter;
+		int fPlaneCount;
+		b2CollisionPlane fPlanes[MOVER_PLANE_CAPACITY];
+	};
+
+	bool plane_result_fcn( b2ShapeId shapeId, const b2PlaneResult* planeResult, void* context )
+	{
+		bool result = planeResult->hit;
+		if ( result )
+		{
+			MoverContext* moverContext = static_cast<MoverContext*>( context );
+			float maxPush = maxPush = b2Shape_GetPushLimit( shapeId );
+			bool clipVelocity = b2Shape_GetClipVelocity( shapeId );
+
+			if ( moverContext->fPlaneCount < MOVER_PLANE_CAPACITY )
+			{
+				assert( b2IsValidPlane( planeResult->plane ) );
+				moverContext->fPlanes[moverContext->fPlaneCount] = { planeResult->plane, maxPush, 0.0f, clipVelocity };
+				moverContext->fPlaneCount += 1;
+			}
+
+		}
+		return result;
+	}
+}
+
+static int
+SolveCharacterMove( lua_State *L )
+{
+	if ( ! lua_istable(L, 1) )
+	{
+		CoronaLuaError( L, "physics.collideMover() requires 1 table parameters ({ \n\
+			capsule = {x1 = n, y1 = n, x2 = n, y2 = n, radius = n}, \n\
+			transform = { x = n, y = n, rotation = n}, \n\
+			target = {x = n, y = n}, \n\
+			velocity = {x = n, y = n}, -- optional \n\
+			tolerance = 0.01, -- optional \n\
+			iteration = 5, -- optional \n\
+			collideFilter = {}, -- optional \n\
+			castFilter = {} -- optional \n\
+		})" );
+
+		return 0;
+	}
+
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	Real scale = physics.GetPixelsPerMeter();
+
+	int lua_arg_index = 1;
+	lua_getfield( L, lua_arg_index, "capsule" );
+		lua_getfield( L, -1, "x1" );
+		Real cx1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y1" );
+		Real cy1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "x2" );
+		Real cx2 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y2" );
+		Real cy2 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "radius" );
+		Real radius = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "transform" );
+		lua_getfield( L, -1, "x" );
+		Real px1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y" );
+		Real py1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "rotation" );
+		Real angle = Rtt_RealDegreesToRadians( luaL_toreal( L, -1 ) );
+		lua_pop( L, 1 );
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "target" );
+		lua_getfield( L, -1, "x" );
+		Real tx1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y" );
+		Real ty1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "velocity" );
+	bool needToClipVelocity = false;
+	b2Vec2 velocity = b2Vec2_zero;
+	if ( lua_istable( L, -1 ) )
+	{
+		needToClipVelocity = true;
+
+		lua_getfield( L, -1, "x" );
+		velocity.x = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y" );
+		velocity.y = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+	}
+	lua_pop( L, 1 );
+
+	b2Transform transform = { { px1, py1 }, b2MakeRot( angle ) };
+	b2Vec2 center1 = { cx1, cy1 };
+	b2Vec2 center2 = { cx2, cy2 };
+	b2Vec2 target = { tx1, ty1 };
+
+	lua_getfield( L, lua_arg_index, "collideFilter" );
+	b2QueryFilter collideFilter = b2DefaultQueryFilter();
+	collideFilter.categoryBits = UINT64_MAX;
+	if ( lua_istable( L, -1 ) )
+	{
+		lua_getfield( L, -1, "categoryBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			collideFilter.categoryBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "maskBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			collideFilter.maskBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "castFilter" );
+	b2QueryFilter castFilter = b2DefaultQueryFilter();
+	castFilter.categoryBits = UINT64_MAX;
+	if ( lua_istable( L, -1 ) )
+	{
+		lua_getfield( L, -1, "categoryBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			castFilter.categoryBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "maskBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			castFilter.maskBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+	lua_pop( L, 1 );
+
+	float tolerance = 0.01f;
+	lua_getfield( L, lua_arg_index, "tolerance" );
+	if ( lua_isnumber( L, -1 ) )
+	{
+		tolerance = (float) lua_tonumber( L, -1 );
+	}
+	lua_pop( L, 1 );
+
+	int iteration = 5;
+	lua_getfield( L, lua_arg_index, "iteration" );
+	if ( lua_isnumber( L, -1 ) )
+	{
+		iteration = lua_tointeger( L, -1 );
+	}
+	lua_pop( L, 1 );
+
+	if ( LuaLibPhysics::IsWorldValid(L, "physics.solveCharacterMove()") )
+	{
+		MoverContext context = {
+			L,
+			lua_gettop( L ),
+			physics.GetMetersPerPixel(),
+			0,
+			{}
+		};
+
+		for ( int i = 0; i < iteration; ++i )
+		{
+			b2Capsule mover;
+			mover.center1 = b2TransformPoint( transform, center1 );
+			mover.center2 = b2TransformPoint( transform, center2 );
+			mover.radius = radius;
+
+			b2World_CollideMover( physics.GetWorldId(), &mover, collideFilter, plane_result_fcn, &context );
+			b2PlaneSolverResult result = b2SolvePlanes( target - transform.p, context.fPlanes, context.fPlaneCount );
+
+			float fraction = b2World_CastMover( physics.GetWorldId(), &mover, result.translation, castFilter );
+
+			b2Vec2 delta = fraction * result.translation;
+			transform.p += delta;
+			if ( b2LengthSquared( delta ) < tolerance * tolerance )
+			{
+				break;
+			}
+		}
+
+		lua_newtable( L );
+
+		lua_newtable( L );
+			lua_pushnumber( L, transform.p.x * scale );
+			lua_setfield( L, -2, "x");
+			lua_pushnumber( L, transform.p.y * scale );
+			lua_setfield( L, -2, "y");
+		lua_setfield( L, -2, "transform");
+
+		if ( needToClipVelocity )
+		{
+			velocity = b2ClipVector( velocity, context.fPlanes, context.fPlaneCount );
+			lua_newtable( L );
+
+			lua_pushnumber( L, velocity.x * scale );
+			lua_setfield( L, -2, "x");
+			lua_pushnumber( L, velocity.y * scale );
+			lua_setfield( L, -2, "y");
+
+			lua_setfield( L, -2, "velocity");
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static int
+common_shape_cast( lua_State *L, const b2ShapeProxy *proxy )
+{
+	int lua_arg_index = 1;
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	Real scale = physics.GetPixelsPerMeter();
+
+	lua_getfield( L, lua_arg_index, "translation" );
+		lua_getfield( L, -1, "x" );
+		Real tx1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y" );
+		Real ty1 = luaL_torealphysics( L, -1, scale );
+		lua_pop( L, 1 );
+	lua_pop( L, 1 );
+	b2Vec2 translation = { tx1, ty1 };
+
+	lua_getfield( L, lua_arg_index, "behavior" );
+	const char *behavior = lua_tostring( L, -1 );
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "castFilter" );
+	b2QueryFilter castFilter = b2DefaultQueryFilter();
+	castFilter.categoryBits = UINT64_MAX;
+	if ( lua_istable( L, -1 ) )
+	{
+		lua_getfield( L, -1, "categoryBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			castFilter.categoryBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "maskBits" );
+		if ( lua_isnumber( L, -1 ) )
+		{
+			castFilter.maskBits = lua_tonumber( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+	lua_pop( L, 1 );
+
+	lua_pop( L, 1 );
+
+	int top_index_before_RayCast = lua_gettop( L );
+
+	if ( ! Rtt_StringCompare( "any", behavior ) )
+	{
+		RayCastContext context = {
+			0, L, -1,
+			LuaContext::GetRuntime( L )->GetPhysicsWorld().GetPixelsPerMeter()
+		};
+
+		b2World_CastShape(physics.GetWorldId(), proxy, translation, castFilter, ray_cast_any_callback, &context);
+
+		return ( top_index_before_RayCast != lua_gettop( L ) );
+	}
+	else if( ! Rtt_StringCompare( "unsorted", behavior ) )
+	{
+		RayCastContext context = {
+			0, L, -1,
+			LuaContext::GetRuntime( L )->GetPhysicsWorld().GetPixelsPerMeter()
+		};
+
+		b2World_CastShape(physics.GetWorldId(), proxy, translation, castFilter, ray_cast_multiple_callback, &context);
+		return ( top_index_before_RayCast != lua_gettop( L ) );
+	}
+	else if( ! Rtt_StringCompare( "sorted", behavior ) )
+	{
+		RayCastContextSorted context = {
+			0, L,
+			LuaContext::GetRuntime( L )->GetPhysicsWorld().GetPixelsPerMeter(),
+			ListHit()
+		};
+
+		b2World_CastShape(physics.GetWorldId(), proxy, translation, castFilter, ray_cast_sorted_callback, &context);
+
+		return push_results_to_lua(&context);
+	}
+	else // if( ! Rtt_StringCompare( "closest", behavior ) )
+	{
+		RayCastContext context = {
+			0, L, lua_gettop( L ),
+			LuaContext::GetRuntime( L )->GetPhysicsWorld().GetPixelsPerMeter()
+		};
+		b2World_CastShape(physics.GetWorldId(), proxy, translation, castFilter, ray_cast_closest_callback, &context);
+		return ( top_index_before_RayCast != lua_gettop( L ) );
+	}
+}
+
+static int
+ShapeCast( lua_State *L )
+{
+	if ( ! lua_istable(L, 1) )
+	{
+		CoronaLuaError( L, "physics.shapeCast() requires 1 table parameters ({ \n\
+			shape = {type = 'circle'}, \n\
+			translation = {x = n, y = n}, \n\
+			behavior = 'closest', \n\
+			castFilter = {} -- optional \n\
+		})" );
+
+		return 0;
+	}
+
+	int result = 0;
+
+	if (LuaLibPhysics::IsWorldValid(L, "physics.shapeCast()"))
+	{
+		int lua_arg_index = 1;
+
+		const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		Real pixels_per_meter_scale = physics.GetPixelsPerMeter();
+
+		lua_getfield( L, lua_arg_index, "shape" );
+		if ( lua_istable( L , -1 ) )
+		{
+			lua_getfield( L, -1, "type" );
+			const char *shapeType = lua_tostring( L, -1 );
+			lua_pop( L, 1 );
+
+			if ( ! Rtt_StringCompare( "box", shapeType ) )
+			{
+				// shape = {type = "box", x = n, y = n, halfWidth = n, halfHeight = n, angle = n, radius = n}
+				lua_getfield( L, -1, "halfWidth" );
+				float halfW = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "halfHeight" );
+				float halfH = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "x" );
+				Real x = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y" );
+				Real y = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "angle" );
+				Real angle = Rtt_RealDegreesToRadians( luaL_toreal( L, -1 ) );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "radius" );
+				Real radius = luaL_torealphysics( L, -1, pixels_per_meter_scale );;
+				lua_pop( L, 1 );
+
+				b2Polygon box = b2MakeOffsetRoundedBox( halfW, halfH, { x, y }, b2MakeRot( angle ), radius );
+				b2ShapeProxy proxy = b2MakeProxy( box.vertices, box.count, box.radius );
+
+				result = common_shape_cast( L, &proxy );
+			}
+			else if ( ! Rtt_StringCompare( "circle", shapeType ) )
+			{
+				// shape = {type = "circle", x = n, y = n, radius = n}
+				lua_getfield( L, -1, "x" );
+				Real x = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y" );
+				Real y = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "radius" );
+				Real radius = luaL_torealphysics( L, -1, pixels_per_meter_scale );;
+				lua_pop( L, 1 );
+
+				b2Vec2 center = { x, y };
+				b2ShapeProxy proxy = b2MakeProxy( &center, 1, radius );
+
+				result = common_shape_cast( L, &proxy );
+			}
+			else if ( ! Rtt_StringCompare( "capsule", shapeType ) )
+			{
+				// shape = {type = "capsule", x1 = n, y1 = n, x2 = n, y2 = n, radius = n}
+				lua_getfield( L, -1, "x1" );
+				Real cx1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y1" );
+				Real cy1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "x2" );
+				Real cx2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y2" );
+				Real cy2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "radius" );
+				Real radius = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				b2Capsule capsule = { { cx1, cy1 }, { cx2, cy2 }, radius };
+				b2ShapeProxy proxy = b2MakeProxy( &capsule.center1, 2, radius );
+
+				result = common_shape_cast( L, &proxy );
+			}
+			else if ( ! Rtt_StringCompare( "polygon", shapeType ) )
+			{
+				// shape = {type = "polygon", vertices = {}, radius = n}
+				lua_getfield( L, -1, "vertices" );
+				b2Vec2Vector vertexList;
+				_FromLua_to_b2Vec2Vector( L, vertexList );
+				lua_pop( L, 1 );
+
+				if( vertexList.size() < 3 )
+				{
+					CoronaLuaError( L, "physics.shapeCast() with a \"polygon\" requires at least 3 vertices." );
+				}
+				else
+				{
+					b2Hull hull = b2ComputeHull( &vertexList[ 0 ],
+												(int)vertexList.size() );
+					bool ok = b2ValidateHull(&hull);
+					if ( ok )
+					{
+						lua_getfield( L, lua_arg_index, "radius" );
+						float radius = 	luaL_torealphysics( L, -1, pixels_per_meter_scale );;
+						lua_pop( L, 1 );
+
+						b2Polygon polygon = b2MakePolygon( &hull, radius );
+						b2ShapeProxy proxy = b2MakeProxy( polygon.vertices, polygon.count, polygon.radius );
+
+						result = common_shape_cast( L, &proxy );
+					}
+					else
+					{
+						CoronaLuaError( L, "physics.shapeCast() of a \"polygon\" with no area, or nearly no area, has been rejected." );
+					}
+				}
+			}
+			else if ( ! Rtt_StringCompare( "segment", shapeType ) )
+			{
+				// shape = {type = "segment", x1 = n, y1 = n, x2 = n, y2 = n, radius = n}
+				lua_getfield( L, -1, "x1" );
+				Real x1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y1" );
+				Real y1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "x2" );
+				Real x2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				lua_getfield( L, -1, "y2" );
+				Real y2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+				lua_pop( L, 1 );
+
+				b2Segment segment = { { x1, y1 }, { x2, y2 } };
+				b2ShapeProxy proxy = b2MakeProxy( &segment.point1, 2, 0.0f );
+
+				result = common_shape_cast( L, &proxy );
+			}
+			else
+			{
+				lua_pop( L, 1 );
+			}
+		}
+		else
+		{
+			lua_pop( L, 1 );
+		}
+	}
+
+	return result;
 }
 
 static int
@@ -3868,11 +4416,12 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getMKS", getMKS },
 		{ "toMKS", toMKS },
 		{ "fromMKS", fromMKS },
-		{ "setTimeStep", setTimeStep },
-		{ "setTimeScale", setTimeScale },
-		{ "getTimeScale", getTimeScale },
-		{ "setNumSteps", setNumSteps },
-		{ "getNumSteps", getNumSteps },
+		{ "setTimeStep", SetTimeStep },
+		{ "getTimeStep", GetTimeStep },
+		{ "setTimeScale", SetTimeScale },
+		{ "getTimeScale", GetTimeScale },
+		{ "setNumSteps", SetNumSteps },
+		{ "getNumSteps", GetNumSteps },
 		{ "explode", Explode },
 		{ "setContactTuning", SetContactTuning },
 		{ "setWorkerCount", SetWorkerCount },
@@ -3880,6 +4429,8 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getNumHardwareThreads", GetNumHardwareThreads },
 		{ "setSubSteps", SetSubSteps },
 		{ "getSubSteps", GetSubSteps },
+		{ "solveCharacterMove", SolveCharacterMove },
+		{ "shapeCast", ShapeCast },
 
 		{ NULL, NULL }
 	};
