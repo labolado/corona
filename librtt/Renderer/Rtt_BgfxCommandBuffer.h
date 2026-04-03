@@ -2,7 +2,7 @@
 //
 // This file is part of the Solar2D game engine.
 // With contributions from Dianchu Technology
-// For overview and more information on licensing please refer to README.md 
+// For overview and more information on licensing please refer to README.md
 // Home page: https://github.com/coronalabs/corona
 // Contact: support@coronalabs.com
 //
@@ -15,6 +15,7 @@
 #include "Renderer/Rtt_Uniform.h"
 #include "Renderer/Rtt_RenderTypes.h"
 #include <bgfx/bgfx.h>
+#include <vector>
 
 // ----------------------------------------------------------------------------
 
@@ -29,6 +30,64 @@ class BgfxGeometry;
 class BgfxProgram;
 class BgfxTexture;
 class BgfxFrameBufferObject;
+class Geometry;
+class Texture;
+class Program;
+class FrameBufferObject;
+
+// ----------------------------------------------------------------------------
+
+// Deferred command: captures all state needed for replay in Execute()
+struct DeferredCmd
+{
+    enum Type { kBindFBO, kSetViewport, kClear, kDraw, kDrawIndexed };
+    Type type;
+
+    // kBindFBO
+    FrameBufferObject* fbo;
+
+    // kSetViewport
+    uint16_t vpX, vpY, vpW, vpH;
+
+    // kClear
+    float clearR, clearG, clearB, clearA;
+    float clearDepth;
+    uint8_t clearStencil;
+
+    // kDraw / kDrawIndexed
+    Geometry* geometry;
+    Texture* textures[8];
+    Program* program;
+    Program::Version programVersion;
+    U32 offset, count;
+    Geometry::PrimitiveType primitiveType;
+    uint64_t bgfxState;
+    bool scissorEnabled;
+    int scissorX, scissorY, scissorW, scissorH;
+
+    // Uniform snapshots (copied values, not pointers)
+    struct UniformSnapshot
+    {
+        bool valid;
+        U32 size;
+        U8 data[64]; // Max: Mat4 = 16 floats = 64 bytes
+    };
+    UniformSnapshot uniforms[Uniform::kNumBuiltInVariables];
+
+    DeferredCmd() : type(kDraw), fbo(NULL), vpX(0), vpY(0), vpW(0), vpH(0),
+        clearR(0), clearG(0), clearB(0), clearA(0), clearDepth(1.0f), clearStencil(0),
+        geometry(NULL), program(NULL), programVersion(Program::kMaskCount0),
+        offset(0), count(0), primitiveType(Geometry::kTriangles),
+        bgfxState(0), scissorEnabled(false), scissorX(0), scissorY(0), scissorW(0), scissorH(0)
+    {
+        for (int i = 0; i < 8; i++) textures[i] = NULL;
+        for (int i = 0; i < Uniform::kNumBuiltInVariables; i++)
+        {
+            uniforms[i].valid = false;
+            uniforms[i].size = 0;
+        }
+    }
+};
 
 // ----------------------------------------------------------------------------
 
@@ -51,8 +110,7 @@ class BgfxCommandBuffer : public CommandBuffer
 
         virtual void ClearUserUniforms();
 
-        // Generate the appropriate bgfx commands to accomplish the
-        // specified state changes.
+        // These methods now capture state for deferred execution
         virtual void BindFrameBufferObject( FrameBufferObject* fbo, bool asDrawBuffer );
         virtual void CaptureRect( FrameBufferObject* fbo, Texture& texture, const Rect& rect, const Rect& rawRect );
         virtual void BindGeometry( Geometry* geometry );
@@ -82,35 +140,43 @@ class BgfxCommandBuffer : public CommandBuffer
 
         virtual bool WriteNamedUniform( const char * uniformName, const void * data, unsigned int size );
 
-        // Execute all buffered commands.
+        // Execute all deferred commands - called after Swap creates GPU resources
         virtual Real Execute( bool measureGPU );
-    
+
     private:
         virtual void InitializeFBO();
         virtual void InitializeCachedParams();
         virtual void CacheQueryParam( CommandBuffer::QueryableParams param );
 
     private:
-        // State management helpers
-        void ApplyUniforms();
+        // Build bgfx blend state
         uint64_t ToBgfxBlendState( const BlendMode& mode ) const;
         uint64_t ToBgfxBlendFactor( BlendMode::Param param ) const;
         uint64_t ToBgfxPrimitiveType( Geometry::PrimitiveType type ) const;
 
+        // Snapshot current uniform state into a DeferredCmd
+        void SnapshotUniforms( DeferredCmd& cmd );
+
+        // Execute helpers
+        void ExecuteBindFBO( const DeferredCmd& cmd );
+        void ExecuteSetViewport( const DeferredCmd& cmd );
+        void ExecuteClear( const DeferredCmd& cmd );
+        void ExecuteDraw( const DeferredCmd& cmd );
+        void ExecuteDrawIndexed( const DeferredCmd& cmd );
+
     private:
         static const U32 kMaxTextureUnits = 8;
 
-        // Current state
-        bgfx::ViewId fCurrentView;
-        BgfxGeometry* fCurrentGeometry;
-        BgfxProgram* fCurrentProgram;
+        // Current state (CPU resource pointers - resolved to GPU in Execute)
+        Geometry* fCurrentGeometry;
+        Program* fCurrentProgram;
         Program::Version fCurrentVersion;
-        BgfxTexture* fBoundTextures[kMaxTextureUnits];
+        Texture* fBoundTextures[kMaxTextureUnits];
 
         // Blend state
         bool fBlendEnabled;
-        uint64_t fBlendState;           // BGFX_STATE_BLEND_* combination
-        uint64_t fBlendEquation;        // BGFX_STATE_BLEND_EQUATION_* 
+        uint64_t fBlendState;
+        uint64_t fBlendEquation;
 
         // Scissor state
         bool fScissorEnabled;
@@ -125,6 +191,7 @@ class BgfxCommandBuffer : public CommandBuffer
 
         // Default FBO view
         bgfx::ViewId fDefaultView;
+        bgfx::ViewId fCurrentView;
 
         // Cached params
         S32 fCachedQuery[kNumQueryableParams];
@@ -132,7 +199,7 @@ class BgfxCommandBuffer : public CommandBuffer
         // Custom commands
         LightPtrArray< const CoronaCommand > fCustomCommands;
 
-        // Uniform updates
+        // Uniform tracking (store CPU-side uniform pointers)
         struct UniformUpdate
         {
             Uniform* uniform;
@@ -144,6 +211,9 @@ class BgfxCommandBuffer : public CommandBuffer
         // Instance data
         U32 fInstanceCount;
         Geometry::Vertex* fInstanceData;
+
+        // Deferred command list
+        std::vector<DeferredCmd> fDeferredCmds;
 
         // View ID allocator for FBOs
         static bgfx::ViewId sNextViewId;

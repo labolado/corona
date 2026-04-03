@@ -2,7 +2,7 @@
 //
 // This file is part of the Solar2D game engine.
 // With contributions from Dianchu Technology
-// For overview and more information on licensing please refer to README.md 
+// For overview and more information on licensing please refer to README.md
 // Home page: https://github.com/coronalabs/corona
 // Contact: support@coronalabs.com
 //
@@ -55,10 +55,10 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fCurrentProgram( NULL ),
     fCurrentVersion( Program::kMaskCount0 ),
     fBlendEnabled( true ),
-    fBlendState( BGFX_STATE_BLEND_FUNC_SEPARATE( 
-        BGFX_STATE_BLEND_SRC_ALPHA, 
+    fBlendState( BGFX_STATE_BLEND_FUNC_SEPARATE(
+        BGFX_STATE_BLEND_SRC_ALPHA,
         BGFX_STATE_BLEND_INV_SRC_ALPHA,
-        BGFX_STATE_BLEND_ONE, 
+        BGFX_STATE_BLEND_ONE,
         BGFX_STATE_BLEND_INV_SRC_ALPHA ) ),
     fBlendEquation( 0 ),
     fScissorEnabled( false ),
@@ -86,6 +86,8 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     {
         fCachedQuery[i] = -1;
     }
+
+    fDeferredCmds.reserve( 512 );
 }
 
 BgfxCommandBuffer::~BgfxCommandBuffer()
@@ -97,10 +99,10 @@ BgfxCommandBuffer::Initialize()
 {
     // bgfx initialization is handled by BgfxRenderer
     // Here we just set up the default view
-    bgfx::setViewClear( fDefaultView, 
+    bgfx::setViewClear( fDefaultView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
-        0x00000000, 
-        fClearDepth, 
+        0x00000000,
+        fClearDepth,
         fClearStencil );
 
     InitializeFBO();
@@ -146,7 +148,7 @@ BgfxCommandBuffer::CacheQueryParam( CommandBuffer::QueryableParams param )
 void
 BgfxCommandBuffer::Denitialize()
 {
-    // Nothing to clean up - bgfx handles its own cleanup
+    fDeferredCmds.clear();
 }
 
 void
@@ -164,7 +166,6 @@ BgfxCommandBuffer::ClearUserUniforms()
 bool
 BgfxCommandBuffer::HasFramebufferBlit( bool * canScale ) const
 {
-    // bgfx always supports blit
     if( canScale )
     {
         *canScale = true;
@@ -175,129 +176,58 @@ BgfxCommandBuffer::HasFramebufferBlit( bool * canScale ) const
 void
 BgfxCommandBuffer::GetVertexAttributes( VertexAttributeSupport & support ) const
 {
-    support.maxCount = 16;  // Arbitrary reasonable limit
+    support.maxCount = 16;
     support.hasInstancing = BgfxGeometry::SupportsInstancing();
     support.hasDivisors = BgfxGeometry::SupportsDivisors();
     support.hasPerInstance = support.hasDivisors;
     support.suffix = BgfxGeometry::InstanceIDSuffix();
 }
 
+// ============================================================================
+// Deferred state capture methods
+// These store CPU resource pointers and state - NO bgfx calls except view config
+// ============================================================================
+
 void
 BgfxCommandBuffer::BindFrameBufferObject( FrameBufferObject* fbo, bool asDrawBuffer )
 {
     Rtt_UNUSED( asDrawBuffer );
 
-    if( fbo )
-    {
-        BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( fbo->GetGPUResource() );
-        if( bgfxFbo )
-        {
-            fCurrentView = bgfxFbo->GetViewId();
-            bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
-        }
-    }
-    else
-    {
-        // Unbind - return to default view
-        fCurrentView = fDefaultView;
-    }
+    // Defer FBO binding - GPU resource may not exist yet
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kBindFBO;
+    cmd.fbo = fbo;
+    fDeferredCmds.push_back( cmd );
 }
 
 void
 BgfxCommandBuffer::CaptureRect( FrameBufferObject* fbo, Texture& texture, const Rect& rect, const Rect& rawRect )
 {
-    BgfxTexture* bgfxTexture = static_cast<BgfxTexture*>( texture.GetGPUResource() );
-    if( !bgfxTexture )
-    {
-        return;
-    }
-
-    // Calculate dimensions
-    U32 x = 0, w = static_cast<U32>( rect.xMax - rect.xMin );
-    U32 y = 0, h = static_cast<U32>( rect.yMax - rect.yMin );
-
-    if( rawRect.xMin < 0 )
-    {
-        x = static_cast<U32>( -rawRect.xMin );
-    }
-
-    if( rawRect.yMax > rect.yMax )
-    {
-        y = static_cast<U32>( rawRect.yMax - rect.yMax );
-    }
-
-    // Adjust for size differences
-    S32 w1 = texture.GetWidth();
-    S32 w2 = static_cast<S32>( rawRect.xMax - rawRect.xMin );
-    S32 h1 = texture.GetHeight();
-    S32 h2 = static_cast<S32>( rawRect.yMax - rawRect.yMin );
-
-    if( ( abs( w1 - w2 ) > 5 || abs( h1 - h2 ) > 5 ) )
-    {
-        x = x * w1 / w2;
-        y = y * h1 / h2;
-        w = w * w1 / w2;
-        h = h * h1 / h2;
-    }
-
-    // Use bgfx blit
-    bgfx::ViewId view = fCurrentView;
-    bgfx::TextureHandle dstTex = bgfxTexture->GetHandle();
-    
-    // Source is the current FBO's texture or backbuffer
-    bgfx::TextureHandle srcTex = BGFX_INVALID_HANDLE;
-    if( fbo )
-    {
-        BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( fbo->GetGPUResource() );
-        if( bgfxFbo )
-        {
-            srcTex = bgfxFbo->GetTextureHandle();
-        }
-    }
-
-    // Note: If srcTex is invalid, blit from backbuffer (view)
-    if( bgfx::isValid( dstTex ) )
-    {
-        bgfx::blit( view, 
-            dstTex, 
-            static_cast<uint16_t>( x ), 
-            static_cast<uint16_t>( y ),
-            srcTex,
-            static_cast<uint16_t>( rect.xMin ), 
-            static_cast<uint16_t>( rect.yMin ),
-            static_cast<uint16_t>( w ), 
-            static_cast<uint16_t>( h ) );
-    }
+    // CaptureRect needs GPU resources - for now, defer is not implemented
+    // This is rarely called during normal rendering
+    // TODO: defer CaptureRect if needed
+    Rtt_UNUSED( fbo );
+    Rtt_UNUSED( texture );
+    Rtt_UNUSED( rect );
+    Rtt_UNUSED( rawRect );
 }
 
 void
 BgfxCommandBuffer::BindGeometry( Geometry* geometry )
 {
-    if( geometry )
-    {
-        fCurrentGeometry = static_cast<BgfxGeometry*>( geometry->GetGPUResource() );
-    }
-    else
-    {
-        fCurrentGeometry = NULL;
-    }
+    // Store CPU resource pointer - resolve to GPU in Execute()
+    fCurrentGeometry = geometry;
 }
 
 void
 BgfxCommandBuffer::BindTexture( Texture* texture, U32 unit )
 {
     Rtt_ASSERT( unit < kMaxTextureUnits );
-    
+
     if( unit < kMaxTextureUnits )
     {
-        if( texture )
-        {
-            fBoundTextures[unit] = static_cast<BgfxTexture*>( texture->GetGPUResource() );
-        }
-        else
-        {
-            fBoundTextures[unit] = NULL;
-        }
+        // Store CPU resource pointer - resolve to GPU in Execute()
+        fBoundTextures[unit] = texture;
     }
 }
 
@@ -305,18 +235,13 @@ void
 BgfxCommandBuffer::BindUniform( Uniform* uniform, U32 unit )
 {
     Rtt_ASSERT( unit < Uniform::kNumBuiltInVariables );
-    
+
     if( unit < Uniform::kNumBuiltInVariables )
     {
         UniformUpdate& update = fUniformUpdates[unit];
         update.uniform = uniform;
         update.timestamp = gUniformTimestamp++;
-
-        // Apply uniform immediately for bgfx
-        if( fCurrentProgram && uniform )
-        {
-            fCurrentProgram->SetUniform( static_cast<Uniform::Name>( unit ), uniform->GetData() );
-        }
+        // Don't apply to GPU program here - deferred to Execute()
     }
 }
 
@@ -325,18 +250,11 @@ BgfxCommandBuffer::BindProgram( Program* program, Program::Version version )
 {
     if( program )
     {
-        fCurrentProgram = static_cast<BgfxProgram*>( program->GetGPUResource() );
+        // Store CPU resource pointer - resolve to GPU in Execute()
+        fCurrentProgram = program;
         fCurrentVersion = version;
 
-        // Trigger lazy shader creation
-        if( fCurrentProgram )
-        {
-            fCurrentProgram->Bind( version );
-        }
-
-        // Apply all pending uniforms
-        ApplyUniforms();
-
+        // AcquireTimeTransform accesses CPU-side shader metadata, safe to call now
         AcquireTimeTransform( program->GetShaderResource() );
     }
     else
@@ -349,8 +267,6 @@ void
 BgfxCommandBuffer::BindInstancing( U32 count, Geometry::Vertex* instanceData )
 {
     Rtt_LogException( "bgfx backend: instancing not yet implemented\n" );
-    
-    // Store for later use in Draw
     fInstanceCount = count;
     fInstanceData = instanceData;
 }
@@ -358,9 +274,6 @@ BgfxCommandBuffer::BindInstancing( U32 count, Geometry::Vertex* instanceData )
 void
 BgfxCommandBuffer::BindVertexFormat( FormatExtensionList* list, U16 fullCount, U16 vertexSize, U32 offset )
 {
-    // bgfx vertex layout is fixed, handled by BgfxGeometry
-    // This method is for custom vertex attributes which we'll handle
-    // when we implement custom shader attributes
     Rtt_UNUSED( list );
     Rtt_UNUSED( fullCount );
     Rtt_UNUSED( vertexSize );
@@ -433,7 +346,7 @@ BgfxCommandBuffer::SetBlendEquation( RenderTypes::BlendEquation mode )
 void
 BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
 {
-    // Update bgfx resolution if the viewport size changed (handles Retina scale factor timing)
+    // bgfx::reset is safe to call immediately for resolution changes
     static uint16_t sLastWidth = 0, sLastHeight = 0;
     uint16_t w = static_cast<uint16_t>( width );
     uint16_t h = static_cast<uint16_t>( height );
@@ -443,7 +356,15 @@ BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
         sLastWidth = w;
         sLastHeight = h;
     }
-    bgfx::setViewRect( fCurrentView, static_cast<uint16_t>( x ), static_cast<uint16_t>( y ), w, h );
+
+    // Defer setViewRect to Execute (needs correct view ID from FBO)
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kSetViewport;
+    cmd.vpX = static_cast<uint16_t>( x );
+    cmd.vpY = static_cast<uint16_t>( y );
+    cmd.vpW = w;
+    cmd.vpH = h;
+    fDeferredCmds.push_back( cmd );
 }
 
 void
@@ -482,15 +403,16 @@ BgfxCommandBuffer::ClearStencil( U32 stencil )
 void
 BgfxCommandBuffer::Clear( Real r, Real g, Real b, Real a )
 {
-    // Pack into uint32_t RGBA format (bgfx expects RGBA, not ABGR)
-    uint32_t rgba = ( static_cast<uint32_t>( r * 255.0f ) << 24 ) |
-                    ( static_cast<uint32_t>( g * 255.0f ) << 16 ) |
-                    ( static_cast<uint32_t>( b * 255.0f ) << 8 ) |
-                    ( static_cast<uint32_t>( a * 255.0f ) );
-
-    bgfx::setViewClear( fCurrentView,
-        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
-        rgba, fClearDepth, fClearStencil );
+    // Defer clear to Execute (needs correct view ID from FBO)
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kClear;
+    cmd.clearR = static_cast<float>( r );
+    cmd.clearG = static_cast<float>( g );
+    cmd.clearB = static_cast<float>( b );
+    cmd.clearA = static_cast<float>( a );
+    cmd.clearDepth = fClearDepth;
+    cmd.clearStencil = fClearStencil;
+    fDeferredCmds.push_back( cmd );
 }
 
 uint64_t
@@ -501,11 +423,10 @@ BgfxCommandBuffer::ToBgfxPrimitiveType( Geometry::PrimitiveType type ) const
         case Geometry::kTriangleStrip:
             return BGFX_STATE_PT_TRISTRIP;
         case Geometry::kTriangleFan:
-            // bgfx doesn't support triangle fan - will be converted to indexed triangles
             return 0;
         case Geometry::kTriangles:
         case Geometry::kIndexedTriangles:
-            return 0;  // Default is triangles
+            return 0;
         case Geometry::kLines:
         case Geometry::kLineLoop:
             return BGFX_STATE_PT_LINES;
@@ -515,224 +436,44 @@ BgfxCommandBuffer::ToBgfxPrimitiveType( Geometry::PrimitiveType type ) const
 }
 
 void
+BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
+{
+    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    {
+        const UniformUpdate& update = fUniformUpdates[i];
+        if( update.uniform && update.uniform->GetData() )
+        {
+            U32 size = update.uniform->GetSizeInBytes();
+            if( size > 64 ) size = 64;  // Safety clamp
+            cmd.uniforms[i].valid = true;
+            cmd.uniforms[i].size = size;
+            memcpy( cmd.uniforms[i].data, update.uniform->GetData(), size );
+        }
+        else
+        {
+            cmd.uniforms[i].valid = false;
+            cmd.uniforms[i].size = 0;
+        }
+    }
+}
+
+// ============================================================================
+// Draw/DrawIndexed - package current state into DeferredCmd
+// ============================================================================
+
+void
 BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
 {
     if( !fCurrentGeometry )
     {
-        Rtt_LogException( "bgfx: Draw called without bound geometry\n" );
         return;
     }
-
     if( !fCurrentProgram )
     {
-        Rtt_LogException( "bgfx: Draw called without bound program\n" );
         return;
     }
 
-    bgfx::ProgramHandle program = fCurrentProgram->GetHandle( fCurrentVersion );
-    if( !bgfx::isValid( program ) )
-    {
-        Rtt_LogException( "bgfx: Draw called with invalid program\n" );
-        return;
-    }
-
-    // Apply any pending uniforms
-    ApplyUniforms();
-
-    {
-        // Log first draw of first 5 frames
-        if (gBgfxDrawFrame < 5 && gBgfxDrawsThisFrame == 0)
-        {
-            bool hasVP = (fUniformUpdates[Uniform::kViewProjectionMatrix].uniform != NULL);
-            bool vbValid = fCurrentGeometry ?
-                (fCurrentGeometry->IsDynamic() ?
-                    bgfx::isValid(fCurrentGeometry->GetDynamicVBHandle()) :
-                    bgfx::isValid(fCurrentGeometry->GetStaticVBHandle())) : false;
-
-            fprintf(stderr, "BGFX_DRAW frame=%u: view=%d prog=%d type=%d off=%u cnt=%u hasVP=%d vbValid=%d isDynamic=%d\n",
-                    gBgfxDrawFrame, fCurrentView, program.idx, type, offset, count, hasVP, vbValid,
-                    fCurrentGeometry ? fCurrentGeometry->IsDynamic() : -1);
-
-            if (hasVP)
-            {
-                const float* vp = (const float*)fUniformUpdates[Uniform::kViewProjectionMatrix].uniform->GetData();
-                fprintf(stderr, "  VP diag=[%f %f %f] trans=[%f %f]\n", vp[0], vp[5], vp[10], vp[12], vp[13]);
-            }
-
-            fprintf(stderr, "  TEX0=%s", fBoundTextures[0] ? "bound" : "NULL");
-            if (fBoundTextures[0])
-            {
-                bgfx::TextureHandle th = fBoundTextures[0]->GetHandle();
-                fprintf(stderr, " idx=%d valid=%d", th.idx, bgfx::isValid(th));
-            }
-            fprintf(stderr, "\n");
-        }
-        gBgfxDrawsThisFrame++;
-    }
-
-    // Handle TriangleFan conversion
-    if( type == Geometry::kTriangleFan )
-    {
-        if( count < 3 )
-        {
-            return;  // Not enough vertices for a triangle
-        }
-
-        // Convert triangle fan to indexed triangles
-        // Fan: V0,V1,V2,...,Vn -> Triangles: (V0,V1,V2), (V0,V2,V3), ..., (V0,Vn-1,Vn)
-        uint32_t triCount = count - 2;
-        
-        bgfx::TransientIndexBuffer tib;
-        bgfx::allocTransientIndexBuffer( &tib, triCount * 3 );
-        
-        if( tib.data )
-        {
-            uint16_t* indices = reinterpret_cast<uint16_t*>( tib.data );
-            for( uint32_t i = 0; i < triCount; i++ )
-            {
-                indices[i * 3 + 0] = static_cast<uint16_t>( offset );           // V0
-                indices[i * 3 + 1] = static_cast<uint16_t>( offset + i + 1 );   // V(i+1)
-                indices[i * 3 + 2] = static_cast<uint16_t>( offset + i + 2 );   // V(i+2)
-            }
-
-            // 1. Build state
-            uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
-            if( fBlendEnabled )
-            {
-                state |= fBlendState;
-            }
-            if( fBlendEquation != 0 )
-            {
-                state |= fBlendEquation;
-            }
-            if( fMsaaEnabled )
-            {
-                state |= BGFX_STATE_MSAA;
-            }
-            bgfx::setState( state );
-
-            // 2. Set scissor
-            if( fScissorEnabled )
-            {
-                bgfx::setScissor( fScissorRect.x, fScissorRect.y, fScissorRect.w, fScissorRect.h );
-            }
-            else
-            {
-                bgfx::setScissor( 0, 0, 0, 0 );  // Disable scissor
-            }
-
-            // 3. Set geometry
-            fCurrentGeometry->SetVertexBuffer( offset, count );
-            bgfx::setIndexBuffer( &tib );
-
-            // 4. Set textures
-            for( U32 i = 0; i < kMaxTextureUnits; i++ )
-            {
-                if( fBoundTextures[i] )
-                {
-                    bgfx::TextureHandle texHandle = fBoundTextures[i]->GetHandle();
-                    if( bgfx::isValid( texHandle ) )
-                    {
-                        bgfx::UniformHandle sampler = fCurrentProgram->GetSamplerHandle( i );
-                        if( bgfx::isValid( sampler ) )
-                        {
-                            bgfx::setTexture( i, sampler, texHandle );
-                        }
-                    }
-                }
-            }
-
-            // 5. Submit
-            bgfx::submit( fCurrentView, program );
-        }
-    }
-    else
-    {
-        // 1. Build state
-        uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
-        if( fBlendEnabled )
-        {
-            state |= fBlendState;
-        }
-        if( fBlendEquation != 0 )
-        {
-            state |= fBlendEquation;
-        }
-        if( fMsaaEnabled )
-        {
-            state |= BGFX_STATE_MSAA;
-        }
-
-        // Add primitive type
-        uint64_t primType = ToBgfxPrimitiveType( type );
-        if( primType != 0 )
-        {
-            state |= primType;
-        }
-
-        bgfx::setState( state );
-
-        // 2. Set scissor
-        if( fScissorEnabled )
-        {
-            bgfx::setScissor( fScissorRect.x, fScissorRect.y, fScissorRect.w, fScissorRect.h );
-        }
-        else
-        {
-            bgfx::setScissor( 0, 0, 0, 0 );  // Disable scissor
-        }
-
-        // 3. Set geometry
-        fCurrentGeometry->SetVertexBuffer( offset, count );
-
-        // 4. Set textures
-        for( U32 i = 0; i < kMaxTextureUnits; i++ )
-        {
-            if( fBoundTextures[i] )
-            {
-                bgfx::TextureHandle texHandle = fBoundTextures[i]->GetHandle();
-                if( bgfx::isValid( texHandle ) )
-                {
-                    bgfx::UniformHandle sampler = fCurrentProgram->GetSamplerHandle( i );
-                    if( bgfx::isValid( sampler ) )
-                    {
-                        bgfx::setTexture( i, sampler, texHandle );
-                    }
-                }
-            }
-        }
-
-        // 5. Submit
-        bgfx::submit( fCurrentView, program );
-    }
-}
-
-void
-BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType type )
-{
-    if( !fCurrentGeometry )
-    {
-        Rtt_LogException( "bgfx: DrawIndexed called without bound geometry\n" );
-        return;
-    }
-
-    if( !fCurrentProgram )
-    {
-        Rtt_LogException( "bgfx: DrawIndexed called without bound program\n" );
-        return;
-    }
-
-    bgfx::ProgramHandle program = fCurrentProgram->GetHandle( fCurrentVersion );
-    if( !bgfx::isValid( program ) )
-    {
-        Rtt_LogException( "bgfx: DrawIndexed called with invalid program\n" );
-        return;
-    }
-
-    // Apply any pending uniforms
-    ApplyUniforms();
-
-    // 1. Build state
+    // Build state flags
     uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
     if( fBlendEnabled )
     {
@@ -747,47 +488,384 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
         state |= BGFX_STATE_MSAA;
     }
 
-    // Add primitive type (only triangles supported for indexed)
-    if( type == Geometry::kIndexedTriangles )
+    uint64_t primType = ToBgfxPrimitiveType( type );
+    if( primType != 0 )
     {
-        // Default is triangles, no flag needed
+        state |= primType;
     }
 
-    bgfx::setState( state );
+    // Package into deferred command
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kDraw;
+    cmd.geometry = fCurrentGeometry;
+    cmd.program = fCurrentProgram;
+    cmd.programVersion = fCurrentVersion;
+    cmd.offset = offset;
+    cmd.count = count;
+    cmd.primitiveType = type;
+    cmd.bgfxState = state;
+    cmd.scissorEnabled = fScissorEnabled;
+    cmd.scissorX = fScissorRect.x;
+    cmd.scissorY = fScissorRect.y;
+    cmd.scissorW = fScissorRect.w;
+    cmd.scissorH = fScissorRect.h;
 
-    // 2. Set scissor
-    if( fScissorEnabled )
+    for( U32 i = 0; i < kMaxTextureUnits; ++i )
     {
-        bgfx::setScissor( fScissorRect.x, fScissorRect.y, fScissorRect.w, fScissorRect.h );
+        cmd.textures[i] = fBoundTextures[i];
+    }
+
+    SnapshotUniforms( cmd );
+
+    fDeferredCmds.push_back( cmd );
+}
+
+void
+BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType type )
+{
+    if( !fCurrentGeometry )
+    {
+        return;
+    }
+    if( !fCurrentProgram )
+    {
+        return;
+    }
+
+    // Build state flags
+    uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
+    if( fBlendEnabled )
+    {
+        state |= fBlendState;
+    }
+    if( fBlendEquation != 0 )
+    {
+        state |= fBlendEquation;
+    }
+    if( fMsaaEnabled )
+    {
+        state |= BGFX_STATE_MSAA;
+    }
+
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kDrawIndexed;
+    cmd.geometry = fCurrentGeometry;
+    cmd.program = fCurrentProgram;
+    cmd.programVersion = fCurrentVersion;
+    cmd.offset = offset;
+    cmd.count = count;
+    cmd.primitiveType = type;
+    cmd.bgfxState = state;
+    cmd.scissorEnabled = fScissorEnabled;
+    cmd.scissorX = fScissorRect.x;
+    cmd.scissorY = fScissorRect.y;
+    cmd.scissorW = fScissorRect.w;
+    cmd.scissorH = fScissorRect.h;
+
+    for( U32 i = 0; i < kMaxTextureUnits; ++i )
+    {
+        cmd.textures[i] = fBoundTextures[i];
+    }
+
+    SnapshotUniforms( cmd );
+
+    fDeferredCmds.push_back( cmd );
+}
+
+// ============================================================================
+// Execute - replay deferred commands with GPU resources now available
+// ============================================================================
+
+void
+BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
+{
+    if( cmd.fbo )
+    {
+        BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( cmd.fbo->GetGPUResource() );
+        if( bgfxFbo )
+        {
+            fCurrentView = bgfxFbo->GetViewId();
+            bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
+        }
     }
     else
     {
-        bgfx::setScissor( 0, 0, 0, 0 );  // Disable scissor
+        fCurrentView = fDefaultView;
+    }
+}
+
+void
+BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
+{
+    bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
+}
+
+void
+BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
+{
+    uint32_t rgba = ( static_cast<uint32_t>( cmd.clearR * 255.0f ) << 24 ) |
+                    ( static_cast<uint32_t>( cmd.clearG * 255.0f ) << 16 ) |
+                    ( static_cast<uint32_t>( cmd.clearB * 255.0f ) << 8 ) |
+                    ( static_cast<uint32_t>( cmd.clearA * 255.0f ) );
+
+    bgfx::setViewClear( fCurrentView,
+        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+        rgba, cmd.clearDepth, cmd.clearStencil );
+}
+
+void
+BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
+{
+    // Resolve GPU resources (now available after Swap)
+    BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
+    if( !geo )
+    {
+        return;
     }
 
-    // 3. Set geometry (both vertex and index buffers)
-    fCurrentGeometry->SetVertexBuffer( 0, 0 );  // Full vertex buffer
-    fCurrentGeometry->SetIndexBuffer( offset, count );
+    BgfxProgram* prog = static_cast<BgfxProgram*>( cmd.program->GetGPUResource() );
+    if( !prog )
+    {
+        return;
+    }
 
-    // 4. Set textures
+    // Trigger lazy shader creation
+    prog->Bind( cmd.programVersion );
+
+    bgfx::ProgramHandle programHandle = prog->GetHandle( cmd.programVersion );
+    if( !bgfx::isValid( programHandle ) )
+    {
+        return;
+    }
+
+    // Apply uniforms from snapshot
+    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    {
+        if( cmd.uniforms[i].valid )
+        {
+            prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+        }
+    }
+
+    // Handle TriangleFan conversion
+    if( cmd.primitiveType == Geometry::kTriangleFan )
+    {
+        if( cmd.count < 3 )
+        {
+            return;
+        }
+
+        uint32_t triCount = cmd.count - 2;
+
+        bgfx::TransientIndexBuffer tib;
+        bgfx::allocTransientIndexBuffer( &tib, triCount * 3 );
+
+        if( tib.data )
+        {
+            uint16_t* indices = reinterpret_cast<uint16_t*>( tib.data );
+            for( uint32_t i = 0; i < triCount; i++ )
+            {
+                indices[i * 3 + 0] = static_cast<uint16_t>( cmd.offset );
+                indices[i * 3 + 1] = static_cast<uint16_t>( cmd.offset + i + 1 );
+                indices[i * 3 + 2] = static_cast<uint16_t>( cmd.offset + i + 2 );
+            }
+
+            bgfx::setState( cmd.bgfxState );
+
+            if( cmd.scissorEnabled )
+            {
+                bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
+            }
+
+            geo->SetVertexBuffer( cmd.offset, cmd.count );
+            bgfx::setIndexBuffer( &tib );
+
+            // Set textures
+            for( U32 i = 0; i < kMaxTextureUnits; i++ )
+            {
+                if( cmd.textures[i] )
+                {
+                    BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+                    if( tex )
+                    {
+                        bgfx::TextureHandle texHandle = tex->GetHandle();
+                        if( bgfx::isValid( texHandle ) )
+                        {
+                            bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                            if( bgfx::isValid( sampler ) )
+                            {
+                                bgfx::setTexture( i, sampler, texHandle );
+                            }
+                        }
+                    }
+                }
+            }
+
+            bgfx::submit( fCurrentView, programHandle );
+        }
+    }
+    else
+    {
+        bgfx::setState( cmd.bgfxState );
+
+        if( cmd.scissorEnabled )
+        {
+            bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
+        }
+
+        geo->SetVertexBuffer( cmd.offset, cmd.count );
+
+        // Set textures
+        for( U32 i = 0; i < kMaxTextureUnits; i++ )
+        {
+            if( cmd.textures[i] )
+            {
+                BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+                if( tex )
+                {
+                    bgfx::TextureHandle texHandle = tex->GetHandle();
+                    if( bgfx::isValid( texHandle ) )
+                    {
+                        bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                        if( bgfx::isValid( sampler ) )
+                        {
+                            bgfx::setTexture( i, sampler, texHandle );
+                        }
+                    }
+                }
+            }
+        }
+
+        bgfx::submit( fCurrentView, programHandle );
+    }
+}
+
+void
+BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
+{
+    BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
+    if( !geo )
+    {
+        return;
+    }
+
+    BgfxProgram* prog = static_cast<BgfxProgram*>( cmd.program->GetGPUResource() );
+    if( !prog )
+    {
+        return;
+    }
+
+    prog->Bind( cmd.programVersion );
+
+    bgfx::ProgramHandle programHandle = prog->GetHandle( cmd.programVersion );
+    if( !bgfx::isValid( programHandle ) )
+    {
+        return;
+    }
+
+    // Apply uniforms from snapshot
+    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    {
+        if( cmd.uniforms[i].valid )
+        {
+            prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+        }
+    }
+
+    bgfx::setState( cmd.bgfxState );
+
+    if( cmd.scissorEnabled )
+    {
+        bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
+    }
+
+    geo->SetVertexBuffer( 0, 0 );  // Full vertex buffer
+    geo->SetIndexBuffer( cmd.offset, cmd.count );
+
+    // Set textures
     for( U32 i = 0; i < kMaxTextureUnits; i++ )
     {
-        if( fBoundTextures[i] )
+        if( cmd.textures[i] )
         {
-            bgfx::TextureHandle texHandle = fBoundTextures[i]->GetHandle();
-            if( bgfx::isValid( texHandle ) )
+            BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+            if( tex )
             {
-                bgfx::UniformHandle sampler = fCurrentProgram->GetSamplerHandle( i );
-                if( bgfx::isValid( sampler ) )
+                bgfx::TextureHandle texHandle = tex->GetHandle();
+                if( bgfx::isValid( texHandle ) )
                 {
-                    bgfx::setTexture( i, sampler, texHandle );
+                    bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                    if( bgfx::isValid( sampler ) )
+                    {
+                        bgfx::setTexture( i, sampler, texHandle );
+                    }
                 }
             }
         }
     }
 
-    // 5. Submit
-    bgfx::submit( fCurrentView, program );
+    bgfx::submit( fCurrentView, programHandle );
+}
+
+Real
+BgfxCommandBuffer::Execute( bool measureGPU )
+{
+    Rtt_UNUSED( measureGPU );
+
+    // Reset view to default before replaying commands
+    fCurrentView = fDefaultView;
+
+    static uint32_t sFrameNum = 0;
+
+    // Replay all deferred commands - GPU resources are now available (Swap has run)
+    for( size_t i = 0; i < fDeferredCmds.size(); ++i )
+    {
+        const DeferredCmd& cmd = fDeferredCmds[i];
+        switch( cmd.type )
+        {
+            case DeferredCmd::kBindFBO:
+                ExecuteBindFBO( cmd );
+                break;
+            case DeferredCmd::kSetViewport:
+                ExecuteSetViewport( cmd );
+                break;
+            case DeferredCmd::kClear:
+                ExecuteClear( cmd );
+                break;
+            case DeferredCmd::kDraw:
+                ExecuteDraw( cmd );
+                break;
+            case DeferredCmd::kDrawIndexed:
+                ExecuteDrawIndexed( cmd );
+                break;
+        }
+    }
+
+    // Per-frame tracking
+    {
+        sFrameNum++;
+        extern uint32_t gBgfxDrawFrame;
+        extern uint32_t gBgfxDrawsThisFrame;
+        gBgfxDrawFrame = sFrameNum;
+        gBgfxDrawsThisFrame = 0;
+    }
+
+    // Ensure view 0 is submitted even if no draw commands targeted it
+    bgfx::touch(0);
+
+    // Submit frame to bgfx
+    bgfx::frame();
+
+    // Clear deferred commands for next frame
+    fDeferredCmds.clear();
+
+    // Reset instance data for next frame
+    fInstanceCount = 0;
+    fInstanceData = NULL;
+
+    // Increment timestamp for uniform tracking
+    gUniformTimestamp++;
+
+    return 0.0f;
 }
 
 S32
@@ -816,9 +894,6 @@ BgfxCommandBuffer::IssueCommand( U16 id, const void * data, U32 size )
     Rtt_UNUSED( id );
     Rtt_UNUSED( data );
     Rtt_UNUSED( size );
-
-    // Custom commands not yet supported in bgfx backend
-    Rtt_LogException( "bgfx backend: custom commands not yet supported\n" );
 }
 
 bool
@@ -827,78 +902,17 @@ BgfxCommandBuffer::WriteNamedUniform( const char * uniformName, const void * dat
     Rtt_UNUSED( uniformName );
     Rtt_UNUSED( data );
     Rtt_UNUSED( size );
-
-    // Named uniforms not yet supported
-    Rtt_LogException( "bgfx backend: WriteNamedUniform not yet implemented\n" );
     return false;
-}
-
-Real 
-BgfxCommandBuffer::Execute( bool measureGPU )
-{
-    Rtt_UNUSED( measureGPU );
-
-    // Ensure view 0 is submitted even without draw calls
-    bgfx::touch(0);
-
-    // Per-frame debug logging
-    {
-        static uint32_t sFrameNum = 0;
-        bgfx::dbgTextClear();
-        bgfx::dbgTextPrintf(0, 0, 0x0f, "bgfx frame=%u view=%d", sFrameNum, fCurrentView);
-        if (sFrameNum < 5)
-        {
-            fprintf(stderr, "BGFX_FRAME[%u]: submitting frame\n", sFrameNum);
-        }
-        sFrameNum++;
-        // Reset per-draw counter for next frame's Draw() logging
-        extern uint32_t gBgfxDrawFrame;
-        extern uint32_t gBgfxDrawsThisFrame;
-        gBgfxDrawFrame = sFrameNum;
-        gBgfxDrawsThisFrame = 0;
-    }
-
-    // bgfx::frame() submits all queued draw calls and swaps buffers
-    bgfx::frame();
-
-    // Reset instance data for next frame
-    fInstanceCount = 0;
-    fInstanceData = NULL;
-
-    // Increment timestamp for uniform tracking
-    gUniformTimestamp++;
-
-    return 0.0f;
-}
-
-void
-BgfxCommandBuffer::ApplyUniforms()
-{
-    if( !fCurrentProgram )
-    {
-        return;
-    }
-
-    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
-    {
-        const UniformUpdate& update = fUniformUpdates[i];
-        if( update.uniform )
-        {
-            fCurrentProgram->SetUniform( static_cast<Uniform::Name>( i ), update.uniform->GetData() );
-        }
-    }
 }
 
 bgfx::ViewId
 BgfxCommandBuffer::AllocateViewId()
 {
-    // bgfx supports up to 256 views (0-255)
-    // 0 is reserved for default screen
     if( sNextViewId < 255 )
     {
         return sNextViewId++;
     }
-    
+
     Rtt_LogException( "bgfx: Out of view IDs!\n" );
     return 0;
 }
