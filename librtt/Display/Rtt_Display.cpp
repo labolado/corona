@@ -275,12 +275,8 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		}
 		else if (Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
-			// Get the platform surface for native window handle
-			void* nativeWindowHandle = NULL;
-			if (fTarget && fTarget->GetSurface())
-			{
-				nativeWindowHandle = fTarget->GetSurface()->NativeWindow();
-			}
+			// Get the native window handle from backendContext
+			void* nativeWindowHandle = backendContext;
 			
 			// Get surface dimensions
 			U32 width = fTarget ? fTarget->Width() : 0;
@@ -302,12 +298,8 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 #else
 		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
-			// Get the platform surface for native window handle
-			void* nativeWindowHandle = NULL;
-			if (fTarget && fTarget->GetSurface())
-			{
-				nativeWindowHandle = fTarget->GetSurface()->NativeWindow();
-			}
+			// Get the native window handle from backendContext
+			void* nativeWindowHandle = backendContext;
 			
 			// Get surface dimensions
 			U32 width = fTarget ? fTarget->Width() : 0;

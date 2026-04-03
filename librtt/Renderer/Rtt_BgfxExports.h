@@ -11,6 +11,8 @@
 #ifndef _Rtt_BgfxExports_H__
 #define _Rtt_BgfxExports_H__
 
+#include "Core/Rtt_Types.h"
+
 // ----------------------------------------------------------------------------
 
 struct Rtt_Allocator;
