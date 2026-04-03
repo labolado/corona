@@ -226,6 +226,19 @@ BgfxCommandBuffer::BindTexture( Texture* texture, U32 unit )
 
     if( unit < kMaxTextureUnits )
     {
+        // Debug: log bind texture
+        {
+            static int sBindDbg = 0;
+            if (sBindDbg < 30)
+            {
+                BgfxTexture* gpuTex = texture ? static_cast<BgfxTexture*>(texture->GetGPUResource()) : NULL;
+                Rtt_LogException("BGFX_BIND_TEX[%d]: unit=%u tex=%p gpuTex=%p fmt=%d handle=%d\n",
+                    sBindDbg, unit, (void*)texture, (void*)gpuTex,
+                    gpuTex ? gpuTex->GetCachedFormat() : -1,
+                    gpuTex ? gpuTex->GetHandle().idx : -1);
+                sBindDbg++;
+            }
+        }
         // Store CPU resource pointer - resolve to GPU in Execute()
         fBoundTextures[unit] = texture;
     }
@@ -614,6 +627,28 @@ BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
 }
 
 void
+BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd )
+{
+    // Check if fill texture (unit 0) is alpha-only format
+    float texFlags[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if( cmd.textures[0] )
+    {
+        BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[0]->GetGPUResource() );
+        if( tex && tex->GetCachedFormat() == static_cast<S32>( Texture::kAlpha ) )
+        {
+            texFlags[0] = 1.0f;
+        }
+    }
+    // Pass mask count so shader knows how many mask samplers to apply
+    texFlags[1] = static_cast<float>( cmd.programVersion );
+    bgfx::UniformHandle texFlagsHandle = prog->GetTexFlagsHandle();
+    if( bgfx::isValid( texFlagsHandle ) )
+    {
+        bgfx::setUniform( texFlagsHandle, texFlags );
+    }
+}
+
+void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
     // Resolve GPU resources (now available after Swap)
@@ -644,6 +679,23 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         if( cmd.uniforms[i].valid )
         {
             prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+        }
+    }
+
+    // Set texture flags (alpha texture swizzle)
+    SetTexFlagsUniform( prog, cmd );
+
+    // Debug: log draw calls with texture info
+    {
+        static int sDrawDbg = 0;
+        if (sDrawDbg < 50)
+        {
+            BgfxTexture* tex0 = cmd.textures[0] ? static_cast<BgfxTexture*>(cmd.textures[0]->GetGPUResource()) : NULL;
+            Rtt_LogException("BGFX_DRAW[%d]: off=%u cnt=%u tex0=%p texFmt=%d texHandle=%d\n",
+                sDrawDbg, cmd.offset, cmd.count,
+                (void*)tex0, tex0 ? tex0->GetCachedFormat() : -1,
+                tex0 ? tex0->GetHandle().idx : -1);
+            sDrawDbg++;
         }
     }
 
@@ -771,6 +823,9 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
             prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
         }
     }
+
+    // Set texture flags (alpha texture swizzle)
+    SetTexFlagsUniform( prog, cmd );
 
     bgfx::setState( cmd.bgfxState );
 

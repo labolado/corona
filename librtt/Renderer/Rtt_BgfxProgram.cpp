@@ -80,12 +80,14 @@ BgfxProgram::BgfxProgram()
     fUniformUserData2 = BGFX_INVALID_HANDLE;
     fUniformUserData3 = BGFX_INVALID_HANDLE;
     
+    fUniformTexFlags = BGFX_INVALID_HANDLE;
+
     fSamplerFill0 = BGFX_INVALID_HANDLE;
     fSamplerFill1 = BGFX_INVALID_HANDLE;
     fSamplerMask0 = BGFX_INVALID_HANDLE;
     fSamplerMask1 = BGFX_INVALID_HANDLE;
     fSamplerMask2 = BGFX_INVALID_HANDLE;
-    
+
     // Initialize all version data
     for (U32 i = 0; i < Program::kNumVersions; ++i)
     {
@@ -421,6 +423,10 @@ void BgfxProgram::CreateUniforms()
     fUniformUserData3 = bgfx::createUniform(
         "u_UserData3", bgfx::UniformType::Vec4);
     
+    // Texture flags: .x = 1.0 for alpha-only texture (needs R->A swizzle)
+    fUniformTexFlags = bgfx::createUniform(
+        "u_TexFlags", bgfx::UniformType::Vec4);
+
     // Create sampler uniforms
     fSamplerFill0 = bgfx::createUniform(
         "u_FillSampler0", bgfx::UniformType::Sampler);
@@ -460,6 +466,7 @@ void BgfxProgram::DestroyUniforms()
     destroyIfValid(fUniformUserData2);
     destroyIfValid(fUniformUserData3);
     
+    destroyIfValid(fUniformTexFlags);
     destroyIfValid(fSamplerFill0);
     destroyIfValid(fSamplerFill1);
     destroyIfValid(fSamplerMask0);

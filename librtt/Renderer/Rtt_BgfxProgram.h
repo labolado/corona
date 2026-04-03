@@ -48,6 +48,9 @@ public:
     // Get sampler uniform handle
     bgfx::UniformHandle GetSamplerHandle(U32 unit) const;
 
+    // Get texture flags uniform handle (for alpha texture swizzle)
+    bgfx::UniformHandle GetTexFlagsHandle() const { return fUniformTexFlags; }
+
     // Set uniform value (data points to appropriate type based on uniform)
     void SetUniform(Uniform::Name name, const void* data);
 
@@ -105,6 +108,9 @@ private:
     bgfx::UniformHandle fUniformUserData2;
     bgfx::UniformHandle fUniformUserData3;
     
+    // Texture flags uniform (alpha texture swizzle, etc.)
+    bgfx::UniformHandle fUniformTexFlags;
+
     // Sampler uniforms (5)
     bgfx::UniformHandle fSamplerFill0;
     bgfx::UniformHandle fSamplerFill1;
