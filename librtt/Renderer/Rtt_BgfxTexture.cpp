@@ -53,7 +53,7 @@ BgfxTexture::ConvertFormat( Texture::Format format )
 {
 	switch( format )
 	{
-		case Texture::kAlpha:			return bgfx::TextureFormat::A8;
+		case Texture::kAlpha:			return bgfx::TextureFormat::R8; // Use R8 instead of A8; shader swizzles via u_TexFlags
 		case Texture::kLuminance:		return bgfx::TextureFormat::R8;
 		case Texture::kRGB:				return bgfx::TextureFormat::RGB8;
 		case Texture::kRGBA:			return bgfx::TextureFormat::RGBA8;
@@ -141,7 +141,27 @@ BgfxTexture::Create( CPUResource* resource )
 	const bgfx::Memory* mem = NULL;
 	if( data && dataSize > 0 )
 	{
-		mem = bgfx::copy( data, dataSize );
+		// Luminance textures: expand to RGBA(R,R,R,255) to match GL_LUMINANCE behavior
+		if( texture->GetFormat() == Texture::kLuminance )
+		{
+			uint32_t pixelCount = w * h;
+			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = rgbaMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				U8 v = data[i];
+				dst[i * 4 + 0] = v;
+				dst[i * 4 + 1] = v;
+				dst[i * 4 + 2] = v;
+				dst[i * 4 + 3] = 255;
+			}
+			mem = rgbaMem;
+			format = bgfx::TextureFormat::RGBA8;
+		}
+		else
+		{
+			mem = bgfx::copy( data, dataSize );
+		}
 	}
 	else
 	{
@@ -207,25 +227,48 @@ BgfxTexture::Update( CPUResource* resource )
 			default:						dataSize = w * h * 4; break;
 		}
 
+		// Luminance textures: expand to RGBA(R,R,R,255) to match GL_LUMINANCE behavior
+		// Alpha textures: keep as R8; shader swizzles via u_TexFlags
+		const bgfx::Memory* expandedMem = NULL;
+		bgfx::TextureFormat::Enum actualFormat;
+		if( format == Texture::kLuminance )
+		{
+			uint32_t pixelCount = w * h;
+			expandedMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = expandedMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				U8 v = data[i];
+				dst[i * 4 + 0] = v;
+				dst[i * 4 + 1] = v;
+				dst[i * 4 + 2] = v;
+				dst[i * 4 + 3] = 255;
+			}
+			actualFormat = bgfx::TextureFormat::RGBA8;
+		}
+		else
+		{
+			actualFormat = ConvertFormat( format );
+		}
+
 		// If dimensions or format changed, we need to recreate the texture
 		if( format != fCachedFormat || w != fCachedWidth || h != fCachedHeight )
 		{
 			// Destroy and recreate
 			bgfx::destroy( fHandle );
-			
+
 			uint64_t flags = BGFX_TEXTURE_NONE;
 			flags |= ConvertFilter( texture->GetFilter() );
 			flags |= ConvertWrap( texture->GetWrapX() );
 			flags |= ConvertWrap( texture->GetWrapY() );
-			
-			bgfx::TextureFormat::Enum bgfxFormat = ConvertFormat( format );
-			const bgfx::Memory* mem = bgfx::copy( data, dataSize );
-			fHandle = bgfx::createTexture2D( 
-				static_cast<uint16_t>( w ), 
-				static_cast<uint16_t>( h ), 
-				false, 
-				1, 
-				bgfxFormat,
+
+			const bgfx::Memory* mem = expandedMem ? expandedMem : bgfx::copy( data, dataSize );
+			fHandle = bgfx::createTexture2D(
+				static_cast<uint16_t>( w ),
+				static_cast<uint16_t>( h ),
+				false,
+				1,
+				actualFormat,
 				flags,
 				mem
 			);
@@ -237,15 +280,15 @@ BgfxTexture::Update( CPUResource* resource )
 		else
 		{
 			// Update existing texture
-			const bgfx::Memory* mem = bgfx::copy( data, dataSize );
-			bgfx::updateTexture2D( 
-				fHandle, 
+			const bgfx::Memory* mem = expandedMem ? expandedMem : bgfx::copy( data, dataSize );
+			bgfx::updateTexture2D(
+				fHandle,
 				0, // layer
 				0, // mip
 				0, // x
 				0, // y
-				static_cast<uint16_t>( w ), 
-				static_cast<uint16_t>( h ), 
+				static_cast<uint16_t>( w ),
+				static_cast<uint16_t>( h ),
 				mem
 			);
 		}
