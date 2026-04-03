@@ -143,6 +143,8 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+// DEPRECATED: Use Renderer::GetCaps() instead.
+// This static method is kept for backward compatibility.
 size_t
 CommandBuffer::GetMaxUniformVectorsCount()
 {
@@ -168,6 +170,8 @@ CommandBuffer::GetMaxUniformVectorsCount()
     return count;
 }
 
+// DEPRECATED: Use Renderer::GetCaps() instead.
+// This static method is kept for backward compatibility.
 size_t
 CommandBuffer::GetMaxVertexTextureUnits()
 {
@@ -185,6 +189,8 @@ CommandBuffer::GetMaxVertexTextureUnits()
     return sMaxUnits;
 }
 
+// DEPRECATED: Use Renderer::GetCaps() instead.
+// This static method is kept for backward compatibility.
 size_t
 CommandBuffer::GetMaxTextureSize()
 {
@@ -200,6 +206,8 @@ CommandBuffer::GetMaxTextureSize()
     return sMaxSize;
 }
 
+// DEPRECATED: Use Renderer::GetCaps() or Renderer::GetGlString() instead.
+// This static method is kept for backward compatibility.
 const char *
 CommandBuffer::GetGlString( const char *s )
 {
@@ -229,6 +237,8 @@ CommandBuffer::GetGlString( const char *s )
     }
 }
 
+// DEPRECATED: Use Renderer::GetCaps() instead.
+// This static method is kept for backward compatibility.
 bool
 CommandBuffer::GetGpuSupportsHighPrecisionFragmentShaders()
 {
