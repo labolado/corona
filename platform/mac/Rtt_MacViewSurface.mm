@@ -54,14 +54,22 @@ MacViewSurface::Flush() const
 void*
 MacViewSurface::NativeWindow() const
 {
-	// Return the view itself (not the window) for bgfx Metal backend.
-	// bgfx will call setWantsLayer:YES and setLayer: with a CAMetalLayer.
-	// Passing NSView* directly avoids NSOpenGLView's layer conflict with NSWindow's contentView.
-	if (fView)
+	if (!fView)
 	{
-		[fView setWantsLayer:YES];
+		return NULL;
 	}
-	return (__bridge void*)fView;
+
+	// NSOpenGLView + setWantsLayer:YES is undefined behavior per Apple docs.
+	// Create a plain NSView overlay for bgfx Metal rendering instead.
+	static NSView* sBgfxOverlay = nil;
+	if (!sBgfxOverlay)
+	{
+		sBgfxOverlay = [[NSView alloc] initWithFrame:[fView bounds]];
+		[sBgfxOverlay setWantsLayer:YES];
+		[sBgfxOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+		[fView addSubview:sBgfxOverlay];
+	}
+	return (__bridge void*)sBgfxOverlay;
 }
 
 void

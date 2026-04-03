@@ -73,7 +73,7 @@ local function createNavigationBar()
                 if _G.bgfxDemoCurrentScene ~= i then
                     _G.bgfxDemoCurrentScene = i
                     composer.gotoScene("scene_" .. sceneInfo.name, { effect = "slideLeft", time = 300 })
-                    print("[Navigation] Switching to Scene " .. i .. ": " .. sceneInfo.label)
+                    print("[Navigation] Switching to Scene " .. i .. ": " .. sceneInfo.name)
                 end
             end
             return true
@@ -81,7 +81,7 @@ local function createNavigationBar()
         
         -- Store reference for highlighting
         sceneInfo.button = btn
-        sceneInfo.label = label
+        sceneInfo.labelText = label
     end
     
     -- Highlight current scene function
@@ -89,10 +89,10 @@ local function createNavigationBar()
         for i, sceneInfo in ipairs(scenes) do
             if i == _G.bgfxDemoCurrentScene then
                 sceneInfo.button:setFillColor(0.4, 0.6, 0.9)
-                sceneInfo.label:setFillColor(1, 1, 1)
+                sceneInfo.labelText:setFillColor(1, 1, 1)
             else
                 sceneInfo.button:setFillColor(0.25, 0.25, 0.25)
-                sceneInfo.label:setFillColor(0.7, 0.7, 0.7)
+                sceneInfo.labelText:setFillColor(0.7, 0.7, 0.7)
             end
         end
     end

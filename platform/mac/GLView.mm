@@ -372,12 +372,11 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 
 	if (sBgfxBackend)
 	{
-		// bgfx manages its own rendering via Metal - just call Render()
+		// bgfx renders via Metal on a separate overlay view
 		if ( isReady && fRuntime != NULL && fRuntime->IsProperty(Rtt::Runtime::kIsApplicationLoaded))
 		{
 			fRuntime->Render();
 		}
-		// Do NOT flush the OpenGL context - bgfx presents via its own swap chain
 		return;
 	}
 
