@@ -53,7 +53,7 @@ BgfxTexture::ConvertFormat( Texture::Format format )
 {
 	switch( format )
 	{
-		case Texture::kAlpha:			return bgfx::TextureFormat::R8; // Use R8 instead of A8; shader swizzles via u_TexFlags
+		case Texture::kAlpha:			return bgfx::TextureFormat::RGBA8; // Expanded to RGBA(255,255,255,a) on CPU
 		case Texture::kLuminance:		return bgfx::TextureFormat::R8;
 		case Texture::kRGB:				return bgfx::TextureFormat::RGB8;
 		case Texture::kRGBA:			return bgfx::TextureFormat::RGBA8;
@@ -141,8 +141,24 @@ BgfxTexture::Create( CPUResource* resource )
 	const bgfx::Memory* mem = NULL;
 	if( data && dataSize > 0 )
 	{
+		// Alpha textures (font glyphs): expand to RGBA(255,255,255,alpha)
 		// Luminance textures: expand to RGBA(R,R,R,255) to match GL_LUMINANCE behavior
-		if( texture->GetFormat() == Texture::kLuminance )
+		if( texture->GetFormat() == Texture::kAlpha )
+		{
+			uint32_t pixelCount = w * h;
+			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = rgbaMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				dst[i * 4 + 0] = 255;
+				dst[i * 4 + 1] = 255;
+				dst[i * 4 + 2] = 255;
+				dst[i * 4 + 3] = data[i];
+			}
+			mem = rgbaMem;
+			format = bgfx::TextureFormat::RGBA8;
+		}
+		else if( texture->GetFormat() == Texture::kLuminance )
 		{
 			uint32_t pixelCount = w * h;
 			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
@@ -227,11 +243,25 @@ BgfxTexture::Update( CPUResource* resource )
 			default:						dataSize = w * h * 4; break;
 		}
 
+		// Alpha textures (font glyphs): expand to RGBA(255,255,255,alpha)
 		// Luminance textures: expand to RGBA(R,R,R,255) to match GL_LUMINANCE behavior
-		// Alpha textures: keep as R8; shader swizzles via u_TexFlags
 		const bgfx::Memory* expandedMem = NULL;
 		bgfx::TextureFormat::Enum actualFormat;
-		if( format == Texture::kLuminance )
+		if( format == Texture::kAlpha )
+		{
+			uint32_t pixelCount = w * h;
+			expandedMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = expandedMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				dst[i * 4 + 0] = 255;
+				dst[i * 4 + 1] = 255;
+				dst[i * 4 + 2] = 255;
+				dst[i * 4 + 3] = data[i];
+			}
+			actualFormat = bgfx::TextureFormat::RGBA8;
+		}
+		else if( format == Texture::kLuminance )
 		{
 			uint32_t pixelCount = w * h;
 			expandedMem = bgfx::alloc( pixelCount * 4 );
