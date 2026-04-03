@@ -138,10 +138,27 @@ BgfxTexture::Create( CPUResource* resource )
 
 	// Create texture
 	// Note: bgfx::copy() copies data to internal memory, so we can safely ReleaseData() after
-	const bgfx::Memory* mem = data ? bgfx::copy( data, dataSize ) : NULL;
-	fHandle = bgfx::createTexture2D( 
-		static_cast<uint16_t>( w ), 
-		static_cast<uint16_t>( h ), 
+	const bgfx::Memory* mem = NULL;
+	if( data && dataSize > 0 )
+	{
+		mem = bgfx::copy( data, dataSize );
+	}
+	else
+	{
+		// No data provided - create a white 1x1 fallback texture
+		// Solar2D color shapes rely on vertex color * white texture
+		uint32_t white = 0xFFFFFFFF;
+		mem = bgfx::copy( &white, 4 );
+		format = bgfx::TextureFormat::RGBA8;
+		fHandle = bgfx::createTexture2D( 1, 1, false, 1, format, flags, mem );
+		fCachedFormat = static_cast<S32>( Texture::kRGBA );
+		fCachedWidth = 1;
+		fCachedHeight = 1;
+		return;
+	}
+	fHandle = bgfx::createTexture2D(
+		static_cast<uint16_t>( w ),
+		static_cast<uint16_t>( h ),
 		false, // no mips
 		1,     // num layers
 		format,
