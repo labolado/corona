@@ -21,6 +21,78 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		887820455F4D54B5F079FDEC /* Rtt_CompositeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */; };
+		D25CCDF156E1F38B1E384CB7 /* Rtt_DisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2363773154E4430625606414 /* Rtt_DisplayObject_Lua.cpp */; };
+		783BD2FB734EF0653F9A06DF /* Rtt_EmbossedTextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */; };
+		D11A1761F3546D2BBBF8389A /* Rtt_EmitterObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7725D5D102C160CF90A1525A /* Rtt_EmitterObject_Lua.cpp */; };
+		37A1A2A34C1C95552A045BFD /* Rtt_GroupObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */; };
+		447CB5DFFFD754146C49BCD6 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
+		2442B3EC5F9C9F5135AE3784 /* Rtt_ShapeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */; };
+		2C5B9E27043EE91314C3D61E /* Rtt_SnapshotObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF5B66F89FFC6126A9B5DE10 /* Rtt_SnapshotObject_Lua.cpp */; };
+		9F7CA7D20FD5501A1A464AAF /* Rtt_SpriteObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B75B111780BD5095C657FA19 /* Rtt_SpriteObject_Lua.cpp */; };
+		1D9398AE08CF59CF9A9AE94A /* Rtt_StageObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D723E98F1F70C985BEC22E57 /* Rtt_StageObject_Lua.cpp */; };
+		890F398772405DC4C7371D7A /* Rtt_TextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */; };
+		F79481FEAD9ADCF0F97D70C9 /* Rtt_ParticleSystemObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */; };
+		4F614438A2929888F5F6EB90 /* Rtt_PlatformDisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */; };
+		E2A81B8B0DCA0F6C34EE443B /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
+		9AFC57363710CD0062F7A649 /* Rtt_BgfxExports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */; };
+		D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
+		C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
+		0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
+		6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
+		DF3A93ABD4A82A100A6B0F29 /* Rtt_BgfxTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */; };
+		18FEF8361D2BFD4109D384CF /* Rtt_CompositeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */; };
+		8AD4F76C05F1EAE8BBDC489B /* Rtt_DisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2363773154E4430625606414 /* Rtt_DisplayObject_Lua.cpp */; };
+		FAB6237428C3081F31AFA483 /* Rtt_EmbossedTextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */; };
+		F0819A53DE71B2BACF259E00 /* Rtt_EmitterObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7725D5D102C160CF90A1525A /* Rtt_EmitterObject_Lua.cpp */; };
+		D2205CE730B7E789E4FD0196 /* Rtt_GroupObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */; };
+		5453400666FC0A3D0B5CA277 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
+		63D3C5DF1A737C1102989DE0 /* Rtt_ShapeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */; };
+		3BD495A91C050692DE66A255 /* Rtt_SnapshotObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF5B66F89FFC6126A9B5DE10 /* Rtt_SnapshotObject_Lua.cpp */; };
+		D91F7BC1905E18875846A6F6 /* Rtt_SpriteObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B75B111780BD5095C657FA19 /* Rtt_SpriteObject_Lua.cpp */; };
+		4C488256670FE2D18019CC38 /* Rtt_StageObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D723E98F1F70C985BEC22E57 /* Rtt_StageObject_Lua.cpp */; };
+		89419F4B54BCD6ED0337DB5D /* Rtt_TextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */; };
+		C87A66691B2F8C0036D2F4F6 /* Rtt_ParticleSystemObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */; };
+		44560668187F5A03F27FAE28 /* Rtt_PlatformDisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */; };
+		D028954FC6D5DEBAB3B40796 /* Rtt_CompositeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */; };
+		81DE338850C35606AEB4A27E /* Rtt_DisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2363773154E4430625606414 /* Rtt_DisplayObject_Lua.cpp */; };
+		F0C5811FAE60C1B9F3F1C2D6 /* Rtt_EmbossedTextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */; };
+		DBA03E91D0918D01D299BB6A /* Rtt_EmitterObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7725D5D102C160CF90A1525A /* Rtt_EmitterObject_Lua.cpp */; };
+		1BE7054EFC6E7BF77BECD8FB /* Rtt_GroupObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */; };
+		1203659D565B1E4816695932 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
+		49D566976E388567ED41B4E8 /* Rtt_ShapeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */; };
+		A41789C50E61A0D3ECFE0EDC /* Rtt_SnapshotObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF5B66F89FFC6126A9B5DE10 /* Rtt_SnapshotObject_Lua.cpp */; };
+		B3E2CED7598A4240EC0794C8 /* Rtt_SpriteObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B75B111780BD5095C657FA19 /* Rtt_SpriteObject_Lua.cpp */; };
+		9F3A348DE6A4E0B20425D420 /* Rtt_StageObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D723E98F1F70C985BEC22E57 /* Rtt_StageObject_Lua.cpp */; };
+		280B301408CECF13D3EB8973 /* Rtt_TextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */; };
+		0257E4EB39F9A87C906C9B6F /* Rtt_ParticleSystemObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */; };
+		4F8F5AE1BE3D83118BB71AEC /* Rtt_PlatformDisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */; };
+		E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
+		FF81CD90243D480D18AC59E3 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
+		A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
+		6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
+		EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
+		22EA586B206094C270D49A1F /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		3A549BB22B167806E935C406 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
+		0DC9094D961F41E281F8EE27 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
+		E45DA608047CC08BF8D35EF4 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		2E7C8F93E7A2AE64AB346C72 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
+		EA380B995C9BA20670510F40 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		7F3FB9D72506F06274B305C2 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
+		05236243B77D8E67124621C0 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		F83F4403F0EB977645ABE437 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
+		6B4AAC87E853A5793AD55E9A /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		5C532566ECBFF606DDAF230F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
+		4B1A83A22B184FF46E34A111 /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
+		4D158B9EBBF63E00FA44B951 /* Rtt_BgfxExports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */; };
+		D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
+		AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
+		F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
+		0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
+		516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */; };
 		000CE76712B73EE300D9B6A4 /* Rtt_Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000CE6BA12B73EE300D9B6A4 /* Rtt_Archive.cpp */; };
 		000CE76B12B73EE300D9B6A4 /* Rtt_CachedPath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000CE6BE12B73EE300D9B6A4 /* Rtt_CachedPath.cpp */; };
 		000CE77512B73EE300D9B6A4 /* Rtt_DeviceOrientation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000CE6C812B73EE300D9B6A4 /* Rtt_DeviceOrientation.cpp */; };
@@ -2249,6 +2321,38 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CompositeObject_Lua.cpp; path = "../../librtt/Display/Rtt_CompositeObject_Lua.cpp"; sourceTree = "<group>"; };
+		2363773154E4430625606414 /* Rtt_DisplayObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_DisplayObject_Lua.cpp; path = "../../librtt/Display/Rtt_DisplayObject_Lua.cpp"; sourceTree = "<group>"; };
+		87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_EmbossedTextObject_Lua.cpp; path = "../../librtt/Display/Rtt_EmbossedTextObject_Lua.cpp"; sourceTree = "<group>"; };
+		7725D5D102C160CF90A1525A /* Rtt_EmitterObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_EmitterObject_Lua.cpp; path = "../../librtt/Display/Rtt_EmitterObject_Lua.cpp"; sourceTree = "<group>"; };
+		6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_GroupObject_Lua.cpp; path = "../../librtt/Display/Rtt_GroupObject_Lua.cpp"; sourceTree = "<group>"; };
+		738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LineObject_Lua.cpp; path = "../../librtt/Display/Rtt_LineObject_Lua.cpp"; sourceTree = "<group>"; };
+		D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShapeObject_Lua.cpp; path = "../../librtt/Display/Rtt_ShapeObject_Lua.cpp"; sourceTree = "<group>"; };
+		AF5B66F89FFC6126A9B5DE10 /* Rtt_SnapshotObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SnapshotObject_Lua.cpp; path = "../../librtt/Display/Rtt_SnapshotObject_Lua.cpp"; sourceTree = "<group>"; };
+		B75B111780BD5095C657FA19 /* Rtt_SpriteObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SpriteObject_Lua.cpp; path = "../../librtt/Display/Rtt_SpriteObject_Lua.cpp"; sourceTree = "<group>"; };
+		D723E98F1F70C985BEC22E57 /* Rtt_StageObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_StageObject_Lua.cpp; path = "../../librtt/Display/Rtt_StageObject_Lua.cpp"; sourceTree = "<group>"; };
+		AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextObject_Lua.cpp; path = "../../librtt/Display/Rtt_TextObject_Lua.cpp"; sourceTree = "<group>"; };
+		5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ParticleSystemObject_Lua.cpp; path = "../../librtt/Rtt_ParticleSystemObject_Lua.cpp"; sourceTree = "<group>"; };
+		BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_PlatformDisplayObject_Lua.cpp; path = "../../librtt/Rtt_PlatformDisplayObject_Lua.cpp"; sourceTree = "<group>"; };
+		62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbgfxRelease.a"; sourceTree = "<absolute>"; };
+		6BDF997774391BA9C031D638 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbxRelease.a"; sourceTree = "<absolute>"; };
+		6F39D5C684AA098023A5A409 /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbimgRelease.a"; sourceTree = "<absolute>"; };
+		81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbimg_decodeRelease.a"; sourceTree = "<absolute>"; };
+		B5C34561E307CC8B13FF96D9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxCommandBuffer.cpp; path = "../../librtt/Renderer/Rtt_BgfxCommandBuffer.cpp"; sourceTree = "<group>"; };
+		7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxExports.cpp; path = "../../librtt/Renderer/Rtt_BgfxExports.cpp"; sourceTree = "<group>"; };
+		EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxFrameBufferObject.cpp; path = "../../librtt/Renderer/Rtt_BgfxFrameBufferObject.cpp"; sourceTree = "<group>"; };
+		ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometry.cpp; path = "../../librtt/Renderer/Rtt_BgfxGeometry.cpp"; sourceTree = "<group>"; };
+		A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxProgram.cpp; path = "../../librtt/Renderer/Rtt_BgfxProgram.cpp"; sourceTree = "<group>"; };
+		3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = "../../librtt/Renderer/Rtt_BgfxRenderer.cpp"; sourceTree = "<group>"; };
+		5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxTexture.cpp; path = "../../librtt/Renderer/Rtt_BgfxTexture.cpp"; sourceTree = "<group>"; };
+		8C52BCA21BF78A826020BA7F /* Rtt_BgfxCommandBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxCommandBuffer.h; path = "../../librtt/Renderer/Rtt_BgfxCommandBuffer.h"; sourceTree = "<group>"; };
+		2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxExports.h; path = "../../librtt/Renderer/Rtt_BgfxExports.h"; sourceTree = "<group>"; };
+		1806E595B7CF5C51593DF089 /* Rtt_BgfxFrameBufferObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxFrameBufferObject.h; path = "../../librtt/Renderer/Rtt_BgfxFrameBufferObject.h"; sourceTree = "<group>"; };
+		FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometry.h; path = "../../librtt/Renderer/Rtt_BgfxGeometry.h"; sourceTree = "<group>"; };
+		B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxProgram.h; path = "../../librtt/Renderer/Rtt_BgfxProgram.h"; sourceTree = "<group>"; };
+		86E69617C47C8930B0EF5814 /* Rtt_BgfxRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxRenderer.h; path = "../../librtt/Renderer/Rtt_BgfxRenderer.h"; sourceTree = "<group>"; };
+		2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxTexture.h; path = "../../librtt/Renderer/Rtt_BgfxTexture.h"; sourceTree = "<group>"; };
 		000CE6BA12B73EE300D9B6A4 /* Rtt_Archive.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_Archive.cpp; sourceTree = "<group>"; };
 		000CE6BB12B73EE300D9B6A4 /* Rtt_Archive.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_Archive.h; sourceTree = "<group>"; };
 		000CE6BE12B73EE300D9B6A4 /* Rtt_CachedPath.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_CachedPath.cpp; sourceTree = "<group>"; };
@@ -3496,6 +3600,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7F3FB9D72506F06274B305C2 /* libbgfxRelease.a in Frameworks */,
+				05236243B77D8E67124621C0 /* libbxRelease.a in Frameworks */,
+				F83F4403F0EB977645ABE437 /* libbimgRelease.a in Frameworks */,
+				6B4AAC87E853A5793AD55E9A /* libbimg_decodeRelease.a in Frameworks */,
+				5C532566ECBFF606DDAF230F /* Metal.framework in Frameworks */,
 				C2C59B2C1E2812FF001DF51E /* CoreMedia.framework in Frameworks */,
 				F5567D4A2ADC73CB008CD550 /* network.dylib in Frameworks */,
 				C2C59B2A1E2812F9001DF51E /* AVFoundation.framework in Frameworks */,
@@ -3527,6 +3636,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */,
+				FF81CD90243D480D18AC59E3 /* libbxRelease.a in Frameworks */,
+				37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */,
+				A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */,
+				2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */,
 				A4FBC51D1A2D55A2004D9A01 /* libBox2D.a in Frameworks */,
 				A4FBC51E1A2D55A2004D9A01 /* liblua.a in Frameworks */,
 				A4FBC5221A2D55A2004D9A01 /* liblpeg.a in Frameworks */,
@@ -3547,6 +3661,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */,
+				EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */,
+				2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */,
+				22EA586B206094C270D49A1F /* libbimg_decodeRelease.a in Frameworks */,
+				3A549BB22B167806E935C406 /* Metal.framework in Frameworks */,
 				F5567D482ADC73BC008CD550 /* network.dylib in Frameworks */,
 				F5FED0972512248E00AE2911 /* StoreKit.framework in Frameworks */,
 				C2C59B291E2812D6001DF51E /* CoreMedia.framework in Frameworks */,
@@ -3578,6 +3697,32 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2DEA0CAE79C3427332C6C39F /* bgfx */ = {
+			isa = PBXGroup;
+			children = (
+				528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */,
+				7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */,
+				EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */,
+				ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */,
+				A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */,
+				3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */,
+				5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */,
+				8C52BCA21BF78A826020BA7F /* Rtt_BgfxCommandBuffer.h */,
+				2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */,
+				1806E595B7CF5C51593DF089 /* Rtt_BgfxFrameBufferObject.h */,
+				FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */,
+				B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */,
+				86E69617C47C8930B0EF5814 /* Rtt_BgfxRenderer.h */,
+				2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */,
+				62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */,
+				6BDF997774391BA9C031D638 /* libbxRelease.a */,
+				6F39D5C684AA098023A5A409 /* libbimgRelease.a */,
+				81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */,
+				B5C34561E307CC8B13FF96D9 /* Metal.framework */,
+			);
+			name = bgfx;
+			sourceTree = "<group>";
+		};
 		000CE89A12B73F7500D9B6A4 /* lsqlite3-7 */ = {
 			isa = PBXGroup;
 			children = (
@@ -4495,6 +4640,7 @@
 		29B97314FDCFA39411CA2CEA /* ratatouille */ = {
 			isa = PBXGroup;
 			children = (
+				2DEA0CAE79C3427332C6C39F /* bgfx */,
 				C21995A81C189E0100E88FD0 /* ios-syslog-helper.xcodeproj */,
 				C26DD10A1BD9508800EC4F44 /* CoronaConsole.xcodeproj */,
 				C2EF85011B336B6300731A45 /* CoronaShell.xcodeproj */,
@@ -6916,6 +7062,26 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D028954FC6D5DEBAB3B40796 /* Rtt_CompositeObject_Lua.cpp in Sources */,
+				81DE338850C35606AEB4A27E /* Rtt_DisplayObject_Lua.cpp in Sources */,
+				F0C5811FAE60C1B9F3F1C2D6 /* Rtt_EmbossedTextObject_Lua.cpp in Sources */,
+				DBA03E91D0918D01D299BB6A /* Rtt_EmitterObject_Lua.cpp in Sources */,
+				1BE7054EFC6E7BF77BECD8FB /* Rtt_GroupObject_Lua.cpp in Sources */,
+				1203659D565B1E4816695932 /* Rtt_LineObject_Lua.cpp in Sources */,
+				49D566976E388567ED41B4E8 /* Rtt_ShapeObject_Lua.cpp in Sources */,
+				A41789C50E61A0D3ECFE0EDC /* Rtt_SnapshotObject_Lua.cpp in Sources */,
+				B3E2CED7598A4240EC0794C8 /* Rtt_SpriteObject_Lua.cpp in Sources */,
+				9F3A348DE6A4E0B20425D420 /* Rtt_StageObject_Lua.cpp in Sources */,
+				280B301408CECF13D3EB8973 /* Rtt_TextObject_Lua.cpp in Sources */,
+				0257E4EB39F9A87C906C9B6F /* Rtt_ParticleSystemObject_Lua.cpp in Sources */,
+				4F8F5AE1BE3D83118BB71AEC /* Rtt_PlatformDisplayObject_Lua.cpp in Sources */,
+				4B1A83A22B184FF46E34A111 /* Rtt_BgfxCommandBuffer.cpp in Sources */,
+				4D158B9EBBF63E00FA44B951 /* Rtt_BgfxExports.cpp in Sources */,
+				D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
+				AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */,
+				F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */,
+				0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */,
+				516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */,
 				F53C328C2404E2A300BC2BED /* CoronaBuilderPluginCollector.lua in Sources */,
 				F5FFADBC23FFC7DB004E61A9 /* CoronaOfflineiOSPackager.lua in Sources */,
 				C2AF1E571DA6F24500907A65 /* valid_build_settings.lua in Sources */,
@@ -7489,6 +7655,26 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				887820455F4D54B5F079FDEC /* Rtt_CompositeObject_Lua.cpp in Sources */,
+				D25CCDF156E1F38B1E384CB7 /* Rtt_DisplayObject_Lua.cpp in Sources */,
+				783BD2FB734EF0653F9A06DF /* Rtt_EmbossedTextObject_Lua.cpp in Sources */,
+				D11A1761F3546D2BBBF8389A /* Rtt_EmitterObject_Lua.cpp in Sources */,
+				37A1A2A34C1C95552A045BFD /* Rtt_GroupObject_Lua.cpp in Sources */,
+				447CB5DFFFD754146C49BCD6 /* Rtt_LineObject_Lua.cpp in Sources */,
+				2442B3EC5F9C9F5135AE3784 /* Rtt_ShapeObject_Lua.cpp in Sources */,
+				2C5B9E27043EE91314C3D61E /* Rtt_SnapshotObject_Lua.cpp in Sources */,
+				9F7CA7D20FD5501A1A464AAF /* Rtt_SpriteObject_Lua.cpp in Sources */,
+				1D9398AE08CF59CF9A9AE94A /* Rtt_StageObject_Lua.cpp in Sources */,
+				890F398772405DC4C7371D7A /* Rtt_TextObject_Lua.cpp in Sources */,
+				F79481FEAD9ADCF0F97D70C9 /* Rtt_ParticleSystemObject_Lua.cpp in Sources */,
+				4F614438A2929888F5F6EB90 /* Rtt_PlatformDisplayObject_Lua.cpp in Sources */,
+				E2A81B8B0DCA0F6C34EE443B /* Rtt_BgfxCommandBuffer.cpp in Sources */,
+				9AFC57363710CD0062F7A649 /* Rtt_BgfxExports.cpp in Sources */,
+				D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
+				C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */,
+				0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */,
+				6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */,
+				DF3A93ABD4A82A100A6B0F29 /* Rtt_BgfxTexture.cpp in Sources */,
 				A47290011AE827C400BC088D /* CoronaLuaObjC.mm in Sources */,
 				A4FBC55C1A2D574D004D9A01 /* CoronaViewPrivate.mm in Sources */,
 				A4FBC55B1A2D5746004D9A01 /* CoronaWindowController.mm in Sources */,
@@ -8490,6 +8676,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					Rtt_MAC_ENV,
 					Rtt_LUA_COMPILER,
+					Rtt_BGFX,
 					LUA_USE_MODERN_MACOSX,
 					LUA_USE_APICHECK,
 					NDEBUG,
@@ -8515,6 +8702,13 @@
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"$(SRCROOT)/../../external/SDL_sound.framework/Headers",
 					"$(SRCROOT)/../../external/SDL.framework/Headers",
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_MACOS:default=10.13)";
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
@@ -8561,6 +8755,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"../../external/kelan-yrk-spinning-progress-indicator-layer/Code",
 					"../../external/Simple-NSAlert-with-Blocks",
@@ -8806,6 +9003,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
 				MTL_ENABLE_DEBUG_INFO = YES;
@@ -8836,6 +9036,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -8862,6 +9065,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -8900,6 +9106,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"../../external/kelan-yrk-spinning-progress-indicator-layer/Code",
 					"../../external/Simple-NSAlert-with-Blocks",
@@ -8914,6 +9123,7 @@
 					"\"$(SRCROOT)/../../plugins/build-core/licensing/mac\"",
 					/opt/X11/lib,
 					"$(SYSTEM_APPS_DIR)/Steam.app/Contents/MacOS",
+					"\"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15\"",
 				);
 				LIBRARY_SEARCH_PATHS_QUOTED_FOR_TARGET_1 = "\"$(SRCROOT)/../../modules/platform/mac/build/Release\"";
 				OTHER_LDFLAGS = "-ObjC";
@@ -8961,6 +9171,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"../../external/kelan-yrk-spinning-progress-indicator-layer/Code",
 					"../../external/Simple-NSAlert-with-Blocks",
@@ -8975,6 +9188,7 @@
 					"\"$(SRCROOT)/../../plugins/build-core/licensing/mac\"",
 					/opt/X11/lib,
 					"$(SYSTEM_APPS_DIR)/Steam.app/Contents/MacOS",
+					"\"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15\"",
 				);
 				LIBRARY_SEARCH_PATHS_QUOTED_FOR_TARGET_1 = "\"$(SRCROOT)/../../modules/platform/mac/build/Release\"";
 				OTHER_LDFLAGS = "-ObjC";
@@ -8991,7 +9205,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -9020,6 +9234,7 @@
 					Rtt_MAC_ENV,
 					Rtt_DEBUG,
 					Rtt_LUA_COMPILER,
+					Rtt_BGFX,
 					LUA_USE_MODERN_MACOSX,
 					LUA_USE_APICHECK,
 					DEBUG,
@@ -9045,6 +9260,13 @@
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"$(SRCROOT)/../../external/SDL_sound.framework/Headers",
 					"$(SRCROOT)/../../external/SDL.framework/Headers",
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_MACOS:default=10.13)";
 				ONLY_ACTIVE_ARCH = YES;
@@ -9069,7 +9291,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -9116,6 +9338,9 @@
 					"../../external/b2Separator-cpp",
 					../../external/Box2D,
 					../../external/smoothpolygon,
+					"../../external/bgfx/include",
+					"../../external/bx/include",
+					"../../external/bimg/include",
 					"../../external/tiny-aes128-c",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					"$(SRCROOT)/../../external/SDL_sound.framework/Headers",
