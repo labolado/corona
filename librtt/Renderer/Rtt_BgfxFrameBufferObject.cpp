@@ -1,0 +1,205 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// This file is part of the Solar2D game engine.
+// With contributions from Dianchu Technology
+// For overview and more information on licensing please refer to README.md 
+// Home page: https://github.com/coronalabs/corona
+// Contact: support@coronalabs.com
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#include "Renderer/Rtt_BgfxFrameBufferObject.h"
+
+#include "Renderer/Rtt_FrameBufferObject.h"
+#include "Renderer/Rtt_Texture.h"
+#include "Renderer/Rtt_BgfxTexture.h"
+#include "Core/Rtt_Assert.h"
+
+#include "Rtt_Profiling.h"
+
+// ----------------------------------------------------------------------------
+
+#define ENABLE_DEBUG_PRINT	0
+
+#if ENABLE_DEBUG_PRINT
+	#define DEBUG_PRINT( ... ) Rtt_LogException( __VA_ARGS__ );
+#else
+	#define DEBUG_PRINT( ... )
+#endif
+
+// ----------------------------------------------------------------------------
+
+namespace Rtt
+{
+
+// ----------------------------------------------------------------------------
+
+// Static members
+bgfx::ViewId BgfxFrameBufferObject::sNextViewId = 1; // Start at 1, reserve 0 for default
+
+bgfx::ViewId
+BgfxFrameBufferObject::AllocateViewId()
+{
+	// Allocate next available view ID
+	// bgfx supports up to 256 views (0-255)
+	bgfx::ViewId id = sNextViewId;
+	if( sNextViewId < 255 )
+	{
+		sNextViewId++;
+	}
+	else
+	{
+		// Wrap around - in a real implementation, we might want to track which IDs are free
+		sNextViewId = 1;
+	}
+	return id;
+}
+
+BgfxFrameBufferObject::BgfxFrameBufferObject()
+:	fHandle( BGFX_INVALID_HANDLE ),
+	fTextureHandle( BGFX_INVALID_HANDLE ),
+	fViewId( 0 )
+{
+}
+
+BgfxFrameBufferObject::~BgfxFrameBufferObject()
+{
+	Destroy();
+}
+
+void
+BgfxFrameBufferObject::Create( CPUResource* resource )
+{
+	Rtt_ASSERT( CPUResource::kFrameBufferObject == resource->GetType() );
+	FrameBufferObject* fbo = static_cast<FrameBufferObject*>( resource );
+
+	SUMMED_TIMING( bgfxfc, "Bgfx Framebuffer GPU Resource: Create" );
+
+	// Get texture from FBO
+	Texture* texture = fbo->GetTexture();
+	Rtt_ASSERT( texture );
+
+	// Get the GPU resource for the texture
+	BgfxTexture* bgfxTexture = static_cast<BgfxTexture*>( texture->GetGPUResource() );
+	Rtt_ASSERT( bgfxTexture );
+
+	fTextureHandle = bgfxTexture->GetHandle();
+	Rtt_ASSERT( bgfx::isValid( fTextureHandle ) );
+
+	// Allocate a view ID for this FBO
+	fViewId = AllocateViewId();
+
+	// Create framebuffer from texture handle
+	// destroyTextures = false - texture is managed by BgfxTexture
+	fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
+
+	DEBUG_PRINT( "%s : bgfx framebuffer handle: %d, view: %d\n",
+					__FUNCTION__,
+					fHandle.idx,
+					fViewId );
+}
+
+void
+BgfxFrameBufferObject::Update( CPUResource* resource )
+{
+	SUMMED_TIMING( bgfxfu, "Bgfx Framebuffer GPU Resource: Update" );
+
+	Rtt_ASSERT( CPUResource::kFrameBufferObject == resource->GetType() );
+	FrameBufferObject* fbo = static_cast<FrameBufferObject*>( resource );
+
+	// Get texture from FBO
+	Texture* texture = fbo->GetTexture();
+	Rtt_ASSERT( texture );
+
+	BgfxTexture* bgfxTexture = static_cast<BgfxTexture*>( texture->GetGPUResource() );
+	Rtt_ASSERT( bgfxTexture );
+
+	bgfx::TextureHandle newTextureHandle = bgfxTexture->GetHandle();
+
+	// If texture handle changed, recreate framebuffer
+	if( newTextureHandle.idx != fTextureHandle.idx )
+	{
+		if( bgfx::isValid( fHandle ) )
+		{
+			bgfx::destroy( fHandle );
+		}
+
+		fTextureHandle = newTextureHandle;
+		fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
+	}
+}
+
+void
+BgfxFrameBufferObject::Destroy()
+{
+	if( bgfx::isValid( fHandle ) )
+	{
+		bgfx::destroy( fHandle );
+		fHandle = BGFX_INVALID_HANDLE;
+	}
+
+	fTextureHandle = BGFX_INVALID_HANDLE;
+	// Note: We don't reset fViewId here - it can be reused after the framebuffer is destroyed
+
+	DEBUG_PRINT( "%s : bgfx framebuffer destroyed\n",
+					__FUNCTION__ );
+}
+
+void
+BgfxFrameBufferObject::Bind( bool asDrawBuffer )
+{
+	// In bgfx, we use setViewFrameBuffer to bind a framebuffer to a view
+	// The view ID is determined by the FBO
+	if( bgfx::isValid( fHandle ) )
+	{
+		bgfx::setViewFrameBuffer( fViewId, fHandle );
+	}
+}
+
+bool
+BgfxFrameBufferObject::HasFramebufferBlit( bool* canScale )
+{
+	// bgfx always supports blitting
+	if( canScale )
+	{
+		*canScale = true;
+	}
+	return true;
+}
+
+void
+BgfxFrameBufferObject::Blit( 
+	bgfx::ViewId dstView,
+	bgfx::TextureHandle dstTexture,
+	U16 dstX,
+	U16 dstY,
+	bgfx::TextureHandle srcTexture,
+	U16 srcX,
+	U16 srcY,
+	U16 width,
+	U16 height )
+{
+	// Use bgfx::blit for framebuffer blitting
+	bgfx::blit( 
+		dstView,
+		dstTexture,
+		0,      // dstMip
+		dstX,
+		dstY,
+		0,      // dstZ
+		srcTexture,
+		0,      // srcMip
+		srcX,
+		srcY,
+		0,      // srcZ
+		width,
+		height,
+		1       // depth
+	);
+}
+
+// ----------------------------------------------------------------------------
+
+} // namespace Rtt
+
+// ----------------------------------------------------------------------------
