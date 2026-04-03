@@ -55,6 +55,7 @@ class MacViewSurface : public PlatformSurface
 		virtual S32 DeviceHeight() const;
 
 	public:
+		virtual void* NativeWindow() const;
 		virtual void SetDelegate( Delegate* delegate );
 
 	private:

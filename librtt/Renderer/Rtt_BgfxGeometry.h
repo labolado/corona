@@ -50,6 +50,12 @@ class BgfxGeometry : public GPUResource
         bgfx::InstanceDataBuffer* AcquireInstanceBuffer( U32 count );
         void SetInstanceDataBuffer( bgfx::InstanceDataBuffer* buffer, U32 count );
 
+        // Debug accessors
+        bool IsDynamic() const { return fIsDynamic; }
+        bgfx::VertexBufferHandle GetStaticVBHandle() const { return fVertexBufferHandle; }
+        bgfx::DynamicVertexBufferHandle GetDynamicVBHandle() const { return fDynamicVertexBufferHandle; }
+        static const bgfx::VertexLayout& GetVertexLayout() { InitializeVertexLayout(); return sVertexLayout; }
+
     private:
         static void InitializeVertexLayout();
         void CreateStatic( Geometry* geometry );

@@ -13,6 +13,7 @@
 #include "Renderer/Rtt_BgfxGeometry.h"
 
 #include "Renderer/Rtt_Geometry_Renderer.h"
+#include <stdio.h>
 #include "Core/Rtt_Assert.h"
 #include "Rtt_Profiling.h"
 
@@ -159,6 +160,29 @@ BgfxGeometry::Create( CPUResource* resource )
 {
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
+
+	// Log first few vertex positions for debugging
+	{
+		static int sGeoDbg = 0;
+		if (sGeoDbg < 5)
+		{
+			const Geometry::Vertex* verts = geometry->GetVertexData();
+			U32 cnt = geometry->GetVerticesUsed();
+			if (verts && cnt > 0)
+			{
+				U32 logCnt = (cnt < 4) ? cnt : 4;
+				fprintf(stderr, "BGFX_GEO_CREATE[%d]: verts=%u stored=%d\n", sGeoDbg, cnt, geometry->GetStoredOnGPU());
+				for (U32 i = 0; i < logCnt; i++)
+				{
+					fprintf(stderr, "  v[%u] pos=(%f,%f,%f) uv=(%f,%f) rgba=(%u,%u,%u,%u)\n",
+						i, verts[i].x, verts[i].y, verts[i].z,
+						verts[i].u, verts[i].v,
+						verts[i].rs, verts[i].gs, verts[i].bs, verts[i].as);
+				}
+			}
+			sGeoDbg++;
+		}
+	}
 
 	bool shouldStoreOnGPU = geometry->GetStoredOnGPU();
 	
@@ -322,16 +346,21 @@ BgfxGeometry::Bind()
 void
 BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 {
+	static int sVBDbg = 0;
 	if( fIsDynamic )
 	{
-		if( bgfx::isValid( fDynamicVertexBufferHandle ) )
+		bool valid = bgfx::isValid( fDynamicVertexBufferHandle );
+		if (sVBDbg < 5) { fprintf(stderr, "BGFX_VB: dynamic idx=%d valid=%d off=%u cnt=%u\n", fDynamicVertexBufferHandle.idx, valid, offset, count); sVBDbg++; }
+		if( valid )
 		{
 			bgfx::setVertexBuffer( 0, fDynamicVertexBufferHandle, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}
 	}
 	else
 	{
-		if( bgfx::isValid( fVertexBufferHandle ) )
+		bool valid = bgfx::isValid( fVertexBufferHandle );
+		if (sVBDbg < 5) { fprintf(stderr, "BGFX_VB: static idx=%d valid=%d off=%u cnt=%u\n", fVertexBufferHandle.idx, valid, offset, count); sVBDbg++; }
+		if( valid )
 		{
 			bgfx::setVertexBuffer( 0, fVertexBufferHandle, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}

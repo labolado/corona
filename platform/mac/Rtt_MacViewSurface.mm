@@ -51,6 +51,19 @@ MacViewSurface::Flush() const
 {
 }
 
+void*
+MacViewSurface::NativeWindow() const
+{
+	// Return the view itself (not the window) for bgfx Metal backend.
+	// bgfx will call setWantsLayer:YES and setLayer: with a CAMetalLayer.
+	// Passing NSView* directly avoids NSOpenGLView's layer conflict with NSWindow's contentView.
+	if (fView)
+	{
+		[fView setWantsLayer:YES];
+	}
+	return (__bridge void*)fView;
+}
+
 void
 MacViewSurface::SetDelegate( Delegate* delegate )
 {

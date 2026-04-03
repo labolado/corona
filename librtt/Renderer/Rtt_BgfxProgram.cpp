@@ -14,6 +14,9 @@
 #include <string.h>
 #include <stdio.h>
 
+// Embedded precompiled Metal shaders (vs_default.bin / fs_default.bin)
+#include "Renderer/Rtt_BgfxShaderData_metal.h"
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -157,17 +160,14 @@ void BgfxProgram::Destroy()
 void BgfxProgram::Bind(Program::Version version)
 {
     Rtt_ASSERT(version < Program::kNumVersions);
-    
+
     VersionData& data = fData[version];
-    
+
     // Lazy creation if not already attempted
     if (!data.fAttemptedCreation)
     {
         CreateVersion(version, data);
     }
-    
-    // Note: Actual program binding happens at submit time in CommandBuffer
-    // We just ensure the program is created here
 }
 
 bgfx::ProgramHandle BgfxProgram::GetHandle(Program::Version version) const
@@ -291,11 +291,11 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
     // Create shaders from memory
     data.fVertexShader = bgfx::createShader(vsMem);
     data.fFragmentShader = bgfx::createShader(fsMem);
-    
+
     if (!bgfx::isValid(data.fVertexShader) || !bgfx::isValid(data.fFragmentShader))
     {
         Rtt_LogException("Failed to create shaders for version %d\n", version);
-        
+
         if (bgfx::isValid(data.fVertexShader))
         {
             bgfx::destroy(data.fVertexShader);
@@ -308,10 +308,13 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
         }
         return;
     }
-    
+
     // Create program from shaders
     data.fProgram = bgfx::createProgram(data.fVertexShader, data.fFragmentShader, true);
-    
+
+    Rtt_LogException("BGFX: CreateVersion(%d) prog.idx=%d valid=%d\n",
+           version, data.fProgram.idx, bgfx::isValid(data.fProgram));
+
     if (!bgfx::isValid(data.fProgram))
     {
         Rtt_LogException("Failed to create program for version %d\n", version);
@@ -345,78 +348,36 @@ void BgfxProgram::ResetVersion(VersionData& data)
 
 bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
-    // Map version to file name suffix
-    const char* versionSuffix = NULL;
-    switch (version)
+    // Use embedded precompiled shaders
+    // Currently only Metal shaders are embedded; all program versions
+    // (mask0-3, wireframe) use the same default shader for now.
+    const unsigned char* data = NULL;
+    size_t size = 0;
+
+    if (strcmp(type, "vs") == 0)
     {
-        case Program::kMaskCount0: versionSuffix = "_mask0"; break;
-        case Program::kMaskCount1: versionSuffix = "_mask1"; break;
-        case Program::kMaskCount2: versionSuffix = "_mask2"; break;
-        case Program::kMaskCount3: versionSuffix = "_mask3"; break;
-        case Program::kWireframe:  versionSuffix = "_wireframe"; break;
-        default:
-            Rtt_ASSERT_MSG(false, "Unknown program version");
-            return false;
+        data = s_vs_default_metal;
+        size = s_vs_default_metal_size;
     }
-    
-    // Determine platform-specific shader file extension
-    const char* platformExt = NULL;
-    switch (bgfx::getRendererType())
+    else if (strcmp(type, "fs") == 0)
     {
-        case bgfx::RendererType::Direct3D11:
-        case bgfx::RendererType::Direct3D12:
-            platformExt = "dx11";
-            break;
-        case bgfx::RendererType::Metal:
-            platformExt = "metal";
-            break;
-        case bgfx::RendererType::OpenGL:
-            platformExt = "glsl";
-            break;
-        case bgfx::RendererType::OpenGLES:
-            platformExt = "essl";
-            break;
-        case bgfx::RendererType::Vulkan:
-            platformExt = "spirv";
-            break;
-        default:
-            Rtt_LogException("Unknown renderer type for shader loading\n");
-            return false;
+        data = s_fs_default_metal;
+        size = s_fs_default_metal_size;
     }
-    
-    // Build file path: shaders/<type>_<version>.<platform>
-    char filePath[256];
-    snprintf(filePath, sizeof(filePath), "shaders/%s%s.%s", type, versionSuffix, platformExt);
-    
-    // Read shader file
-    FILE* file = fopen(filePath, "rb");
-    if (!file)
+    else
     {
-        Rtt_LogException("Failed to open shader file: %s\n", filePath);
+        Rtt_LogException("Unknown shader type: %s\n", type);
         return false;
     }
-    
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    
-    if (size <= 0)
+
+    if (!data || size == 0)
     {
-        fclose(file);
-        Rtt_LogException("Invalid shader file size: %s\n", filePath);
+        Rtt_LogException("No embedded shader data for type: %s\n", type);
         return false;
     }
-    
-    // Allocate bgfx memory and read file
-    outMem = bgfx::alloc(size);
-    if (fread(outMem->data, 1, size, file) != (size_t)size)
-    {
-        fclose(file);
-        Rtt_LogException("Failed to read shader file: %s\n", filePath);
-        return false;
-    }
-    
-    fclose(file);
+
+    // Copy embedded data into bgfx-managed memory
+    outMem = bgfx::copy(data, (uint32_t)size);
     return true;
 }
 
