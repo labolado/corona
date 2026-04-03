@@ -298,13 +298,17 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 #else
 		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
-			// Get the native window handle from backendContext
+			// Prefer backendContext; fallback to NativeWindow() if not set
 			void* nativeWindowHandle = backendContext;
-			
+			if (!nativeWindowHandle && fTarget)
+			{
+				nativeWindowHandle = fTarget->GetSurface() ? fTarget->GetSurface()->NativeWindow() : NULL;
+			}
+
 			// Get surface dimensions
 			U32 width = fTarget ? fTarget->Width() : 0;
 			U32 height = fTarget ? fTarget->Height() : 0;
-			
+
 			if (nativeWindowHandle && width > 0 && height > 0)
 			{
 				fRenderer = BgfxExports::CreateBgfxRenderer(allocator, nativeWindowHandle, width, height);
@@ -312,6 +316,8 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			else
 			{
 				Rtt_LogException("Display::Initialize: Cannot create bgfx renderer - invalid native window handle or dimensions");
+				// Fallback to GL renderer
+				fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
 			}
 		}
 		else
