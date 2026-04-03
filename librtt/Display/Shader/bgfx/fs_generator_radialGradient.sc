@@ -1,4 +1,4 @@
-$input v_TexCoord, v_ColorScale, v_UserData, v_feathering_edges
+$input v_TexCoord, v_ColorScale, v_UserData
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -10,11 +10,9 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_feathering_edges
 //
 //////////////////////////////////////////////////////////////////////////////
 
-// Filter: iris
+// Solar2D Generator Fragment Shader: radialGradient
 
 #include <bgfx_shader.sh>
-
-SAMPLER2D(u_FillSampler0, 0);
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -34,34 +32,44 @@ uniform vec4 u_UserData3;
 #define CoronaTexelSize u_TexelSize
 #define CoronaContentScale u_ContentScale.xy
 
-void main()
+vec4 FragmentKernel(vec2 texCoord, vec4 v_ColorScale, vec4 v_UserData)
 {
-    float aspectRatio = u_UserData2.x;
+    float aspectRatio = u_UserData0.x;
 
-    vec2 center = vec2((u_UserData0.x * aspectRatio), u_UserData0.y);
+    vec2 center = vec2((u_UserData1.x * aspectRatio), u_UserData1.y);
+    float innerRadius = u_UserData1.z;
+    float outerRadius = u_UserData1.w;
 
-    vec2 pos = vec2((v_TexCoord.xy.x * aspectRatio), v_TexCoord.xy.y);
+    vec4 color1 = u_UserData2;
+    vec4 color2 = u_UserData3;
 
-    float dist = distance(pos, center);
+    float one_over_radius_range = (1.0 / (outerRadius - innerRadius));
 
-    vec4 color = (texture2D(u_FillSampler0, v_TexCoord.xy) * v_ColorScale);
+    vec2 pos = vec2((texCoord.x * aspectRatio), texCoord.y);
+
+    float dist0 = distance(pos, center);
+
+    float dist1 = ((dist0 - innerRadius) * one_over_radius_range);
 
     #if 0
-        color = v_ColorScale;
-    #elif 0
-        if (dist <= v_feathering_edges.x)
+        if (dist0 <= innerRadius)
         {
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            return vec4(1.0, 0.0, 0.0, 1.0);
         }
-        else if (dist >= v_feathering_edges.y)
+        else if (dist0 >= outerRadius)
         {
-            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            return vec4(0.0, 1.0, 0.0, 1.0);
         }
         else
         {
-            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            return vec4(0.0, 0.0, 1.0, 1.0);
         }
     #endif
 
-    gl_FragColor = (color * smoothstep(v_feathering_edges.x, v_feathering_edges.y, dist));
+    return (mix(color1, color2, dist1) * v_ColorScale);
+}
+
+void main()
+{
+    gl_FragColor = FragmentKernel(v_TexCoord.xy, v_ColorScale, v_UserData);
 }
