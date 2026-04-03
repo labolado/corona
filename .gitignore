@@ -295,3 +295,4 @@ external/JNLua/.project
 /jre.macos.tgz
 jre.win32.7z
 redist.win32.7z
+*.log
