@@ -12,6 +12,7 @@
 #define _Rtt_BgfxTexture_H__
 
 #include "Renderer/Rtt_GPUResource.h"
+#include "Renderer/Rtt_Texture.h"
 #include <bgfx/bgfx.h>
 
 // ----------------------------------------------------------------------------

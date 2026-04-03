@@ -118,7 +118,7 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 		const size_t indexDataSize = indexCount * sizeof( Geometry::Index );
 		
 		const bgfx::Memory* indexMem = bgfx::copy( indexData, static_cast<uint32_t>( indexDataSize ) );
-		fIndexBufferHandle = bgfx::createIndexBuffer( indexMem, BGFX_BUFFER_INDEX_UINT16 );
+		fIndexBufferHandle = bgfx::createIndexBuffer( indexMem, BGFX_BUFFER_NONE );
 		fHasIndexBuffer = true;
 	}
 
@@ -145,7 +145,7 @@ BgfxGeometry::CreateDynamic( Geometry* geometry )
 		const U32 indexCount = geometry->GetIndicesAllocated();
 		fDynamicIndexBufferHandle = bgfx::createDynamicIndexBuffer( 
 			indexCount, 
-			BGFX_BUFFER_ALLOW_RESIZE | BGFX_BUFFER_INDEX_UINT16 
+			BGFX_BUFFER_ALLOW_RESIZE | BGFX_BUFFER_NONE 
 		);
 		fHasIndexBuffer = true;
 	}
@@ -373,13 +373,9 @@ BgfxGeometry::AcquireInstanceBuffer( U32 count )
 	// Allocate instance data buffer from bgfx
 	// Each instance data is a 4x4 matrix (16 floats) by default
 	// But we can use custom instance data layout
-	if( bgfx::allocInstanceDataBuffer( &fInstanceDataBuffer, count, sizeof( float ) * 16 ) )
-	{
-		fHasInstanceBuffer = true;
-		return &fInstanceDataBuffer;
-	}
-	
-	return NULL;
+	bgfx::allocInstanceDataBuffer( &fInstanceDataBuffer, count, sizeof( float ) * 16 );
+	fHasInstanceBuffer = true;
+	return &fInstanceDataBuffer;
 }
 
 void
@@ -387,7 +383,7 @@ BgfxGeometry::SetInstanceDataBuffer( bgfx::InstanceDataBuffer* buffer, U32 count
 {
 	if( buffer && count > 0 )
 	{
-		bgfx::setInstanceDataBuffer( buffer, count );
+		bgfx::setInstanceDataBuffer( buffer );
 	}
 }
 

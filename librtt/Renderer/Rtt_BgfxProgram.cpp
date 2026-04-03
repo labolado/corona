@@ -12,6 +12,7 @@
 #include "Renderer/Rtt_Program.h"
 #include "Core/Rtt_Assert.h"
 #include <string.h>
+#include <stdio.h>
 
 // ----------------------------------------------------------------------------
 
@@ -278,8 +279,8 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
     data.fAttemptedCreation = true;
     
     // Load precompiled shader binaries
-    bgfx::Memory* vsMem = NULL;
-    bgfx::Memory* fsMem = NULL;
+    const bgfx::Memory* vsMem = NULL;
+    const bgfx::Memory* fsMem = NULL;
     
     if (!LoadShaderBinary(version, "vs", vsMem) || !LoadShaderBinary(version, "fs", fsMem))
     {
@@ -342,7 +343,7 @@ void BgfxProgram::ResetVersion(VersionData& data)
     data.Reset();
 }
 
-bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, bgfx::Memory*& outMem)
+bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
     // Map version to file name suffix
     const char* versionSuffix = NULL;

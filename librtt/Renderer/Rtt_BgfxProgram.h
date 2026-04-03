@@ -79,7 +79,7 @@ private:
     void ResetVersion(VersionData& data);
     
     // Load precompiled shader binary
-    bool LoadShaderBinary(Program::Version version, const char* type, bgfx::Memory*& outMem);
+    bool LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem);
     
     // Create all global uniforms (called once)
     void CreateUniforms();

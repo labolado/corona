@@ -9,25 +9,42 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "Core/Rtt_Build.h"
-
 #include "Rtt_LuaProxyVTable.h"
-
+#include "Rtt_FilePath.h"
+#include "Display/Rtt_BitmapMask.h"
+#include "Display/Rtt_BitmapPaint.h"
+#include "Display/Rtt_ClosedPath.h"
+#include "Display/Rtt_ContainerObject.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_DisplayDefaults.h"
+#include "Display/Rtt_DisplayObject.h"
+#include "Display/Rtt_EmbossedTextObject.h"
+#include "Display/Rtt_GradientPaint.h"
 #include "Display/Rtt_LineObject.h"
 #include "Display/Rtt_LuaLibDisplay.h"
 #include "Display/Rtt_Paint.h"
+#include "Display/Rtt_RectPath.h"
 #include "Display/Rtt_Shader.h"
+#include "Display/Rtt_ShaderFactory.h"
+#include "Display/Rtt_ShapeObject.h"
+#include "Display/Rtt_SnapshotObject.h"
+#include "Display/Rtt_SpriteObject.h"
+#include "Display/Rtt_StageObject.h"
+#include "Display/Rtt_TextObject.h"
+#include "Display/Rtt_TextureFactory.h"
 #include "Rtt_LuaContext.h"
 #include "Rtt_LuaProxy.h"
+#include "Rtt_MPlatformDevice.h"
+#include "Rtt_PlatformDisplayObject.h"
 #include "Rtt_Runtime.h"
+#include "Rtt_PhysicsWorld.h"
 #include "CoronaLua.h"
-
+#include "Rtt_ParticleSystemObject.h"
+#include "Display/Rtt_EmitterObject.h"
 #include "Core/Rtt_StringHash.h"
-
+#include "Renderer/Rtt_Geometry_Renderer.h"
+#include "Rtt_Profiling.h"
 #include <string.h>
-
-#include "Rtt_Lua.h"
 
 // ----------------------------------------------------------------------------
 
