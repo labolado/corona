@@ -57,6 +57,8 @@ class CommandBuffer
 		void WriteBytes( const void * value, size_t size );
 		
 	public:
+		// DEPRECATED: Use Renderer::GetCaps() instead.
+		// These static methods are kept for backward compatibility.
 		static size_t GetMaxUniformVectorsCount();
 		static size_t GetMaxVertexTextureUnits();
 		static size_t GetMaxTextureSize();

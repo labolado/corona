@@ -1459,32 +1459,48 @@ Renderer::SetWireframeEnabled( bool enabled )
 U32
 Renderer::GetMaxTextureSize()
 {
-    U32 result = (U32) CommandBuffer::GetMaxTextureSize();
-    return result;
+    return GetCaps().maxTextureSize;
 }
 
 const char *
 Renderer::GetGlString( const char *s )
 {
-    return CommandBuffer::GetGlString( s );
+    const RendererCaps& caps = GetCaps();
+    if( Rtt_StringCompare( s, "GL_VENDOR" ) == 0 )
+    {
+        return caps.vendorString;
+    }
+    else if( Rtt_StringCompare( s, "GL_RENDERER" ) == 0 )
+    {
+        return caps.rendererString;
+    }
+    else if( Rtt_StringCompare( s, "GL_VERSION" ) == 0 )
+    {
+        return caps.versionString;
+    }
+    else
+    {
+        // Fallback to CommandBuffer for other strings (e.g., GL_SHADING_LANGUAGE_VERSION, GL_EXTENSIONS)
+        return CommandBuffer::GetGlString( s );
+    }
 }
 
 bool
 Renderer::GetGpuSupportsHighPrecisionFragmentShaders()
 {
-    return CommandBuffer::GetGpuSupportsHighPrecisionFragmentShaders();
+    return GetCaps().supportsHighPrecisionFragmentShaders;
 }
 
 U32
 Renderer::GetMaxUniformVectorsCount()
 {
-    return CommandBuffer::GetMaxUniformVectorsCount();
+    return GetCaps().maxUniformVectors;
 }
 
 U32
 Renderer::GetMaxVertexTextureUnits()
 {
-    return CommandBuffer::GetMaxVertexTextureUnits();
+    return GetCaps().maxVertexTextureUnits;
 }
 
 void
