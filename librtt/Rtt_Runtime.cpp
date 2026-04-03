@@ -167,7 +167,11 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 	fScheduler(Rtt_NEW(&fAllocator, Scheduler(*this))),
 	fArchive(NULL),
 	fPhysicsWorld(Rtt_NEW(&fAllocator, PhysicsWorld(fAllocator))),
+#ifdef Rtt_BGFX
+	fBackend(getenv("SOLAR2D_BACKEND") && strcmp(getenv("SOLAR2D_BACKEND"), "bgfx") == 0 ? "bgfxBackend" : "glBackend"),
+#else
 	fBackend("glBackend"),
+#endif
 	fBackendState(nullptr),
 #ifdef Rtt_USE_ALMIXER
 	fOpenALPlayer(NULL),
