@@ -38,6 +38,7 @@ class BgfxFrameBufferObject : public GPUResource
 
 		bgfx::FrameBufferHandle GetHandle() const { return fHandle; }
 		bgfx::TextureHandle GetTextureHandle() const { return fTextureHandle; }
+		bgfx::ViewId GetViewId() const { return fViewId; }
 
 		static bool HasFramebufferBlit( bool* canScale );
 		static void Blit( 
