@@ -302,7 +302,7 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			void* nativeWindowHandle = backendContext;
 			if (!nativeWindowHandle && fTarget)
 			{
-				nativeWindowHandle = fTarget->GetSurface() ? fTarget->GetSurface()->NativeWindow() : NULL;
+				nativeWindowHandle = fTarget->NativeWindow();
 			}
 
 			// Get surface dimensions

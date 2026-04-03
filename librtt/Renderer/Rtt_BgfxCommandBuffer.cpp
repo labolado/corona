@@ -42,6 +42,10 @@ namespace Rtt
 U32 BgfxCommandBuffer::gUniformTimestamp = 0;
 bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default screen
 
+// Debug frame tracking globals
+uint32_t gBgfxDrawFrame = 0;
+uint32_t gBgfxDrawsThisFrame = 0;
+
 // ----------------------------------------------------------------------------
 
 BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
@@ -324,6 +328,12 @@ BgfxCommandBuffer::BindProgram( Program* program, Program::Version version )
         fCurrentProgram = static_cast<BgfxProgram*>( program->GetGPUResource() );
         fCurrentVersion = version;
 
+        // Trigger lazy shader creation
+        if( fCurrentProgram )
+        {
+            fCurrentProgram->Bind( version );
+        }
+
         // Apply all pending uniforms
         ApplyUniforms();
 
@@ -423,8 +433,17 @@ BgfxCommandBuffer::SetBlendEquation( RenderTypes::BlendEquation mode )
 void
 BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
 {
-    bgfx::setViewRect( fCurrentView, static_cast<uint16_t>( x ), static_cast<uint16_t>( y ),
-        static_cast<uint16_t>( width ), static_cast<uint16_t>( height ) );
+    // Update bgfx resolution if the viewport size changed (handles Retina scale factor timing)
+    static uint16_t sLastWidth = 0, sLastHeight = 0;
+    uint16_t w = static_cast<uint16_t>( width );
+    uint16_t h = static_cast<uint16_t>( height );
+    if( w != sLastWidth || h != sLastHeight )
+    {
+        bgfx::reset( w, h, BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 );
+        sLastWidth = w;
+        sLastHeight = h;
+    }
+    bgfx::setViewRect( fCurrentView, static_cast<uint16_t>( x ), static_cast<uint16_t>( y ), w, h );
 }
 
 void
@@ -463,11 +482,11 @@ BgfxCommandBuffer::ClearStencil( U32 stencil )
 void
 BgfxCommandBuffer::Clear( Real r, Real g, Real b, Real a )
 {
-    // Pack RGBA into uint32_t (ABGR format for bgfx)
-    uint32_t rgba = ( static_cast<uint32_t>( a * 255.0f ) << 24 ) |
-                    ( static_cast<uint32_t>( b * 255.0f ) << 16 ) |
-                    ( static_cast<uint32_t>( g * 255.0f ) << 8 ) |
-                    ( static_cast<uint32_t>( r * 255.0f ) );
+    // Pack into uint32_t RGBA format (bgfx expects RGBA, not ABGR)
+    uint32_t rgba = ( static_cast<uint32_t>( r * 255.0f ) << 24 ) |
+                    ( static_cast<uint32_t>( g * 255.0f ) << 16 ) |
+                    ( static_cast<uint32_t>( b * 255.0f ) << 8 ) |
+                    ( static_cast<uint32_t>( a * 255.0f ) );
 
     bgfx::setViewClear( fCurrentView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
@@ -519,6 +538,37 @@ BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
 
     // Apply any pending uniforms
     ApplyUniforms();
+
+    {
+        // Log first draw of first 5 frames
+        if (gBgfxDrawFrame < 5 && gBgfxDrawsThisFrame == 0)
+        {
+            bool hasVP = (fUniformUpdates[Uniform::kViewProjectionMatrix].uniform != NULL);
+            bool vbValid = fCurrentGeometry ?
+                (fCurrentGeometry->IsDynamic() ?
+                    bgfx::isValid(fCurrentGeometry->GetDynamicVBHandle()) :
+                    bgfx::isValid(fCurrentGeometry->GetStaticVBHandle())) : false;
+
+            fprintf(stderr, "BGFX_DRAW frame=%u: view=%d prog=%d type=%d off=%u cnt=%u hasVP=%d vbValid=%d isDynamic=%d\n",
+                    gBgfxDrawFrame, fCurrentView, program.idx, type, offset, count, hasVP, vbValid,
+                    fCurrentGeometry ? fCurrentGeometry->IsDynamic() : -1);
+
+            if (hasVP)
+            {
+                const float* vp = (const float*)fUniformUpdates[Uniform::kViewProjectionMatrix].uniform->GetData();
+                fprintf(stderr, "  VP diag=[%f %f %f] trans=[%f %f]\n", vp[0], vp[5], vp[10], vp[12], vp[13]);
+            }
+
+            fprintf(stderr, "  TEX0=%s", fBoundTextures[0] ? "bound" : "NULL");
+            if (fBoundTextures[0])
+            {
+                bgfx::TextureHandle th = fBoundTextures[0]->GetHandle();
+                fprintf(stderr, " idx=%d valid=%d", th.idx, bgfx::isValid(th));
+            }
+            fprintf(stderr, "\n");
+        }
+        gBgfxDrawsThisFrame++;
+    }
 
     // Handle TriangleFan conversion
     if( type == Geometry::kTriangleFan )
@@ -787,6 +837,26 @@ Real
 BgfxCommandBuffer::Execute( bool measureGPU )
 {
     Rtt_UNUSED( measureGPU );
+
+    // Ensure view 0 is submitted even without draw calls
+    bgfx::touch(0);
+
+    // Per-frame debug logging
+    {
+        static uint32_t sFrameNum = 0;
+        bgfx::dbgTextClear();
+        bgfx::dbgTextPrintf(0, 0, 0x0f, "bgfx frame=%u view=%d", sFrameNum, fCurrentView);
+        if (sFrameNum < 5)
+        {
+            fprintf(stderr, "BGFX_FRAME[%u]: submitting frame\n", sFrameNum);
+        }
+        sFrameNum++;
+        // Reset per-draw counter for next frame's Draw() logging
+        extern uint32_t gBgfxDrawFrame;
+        extern uint32_t gBgfxDrawsThisFrame;
+        gBgfxDrawFrame = sFrameNum;
+        gBgfxDrawsThisFrame = 0;
+    }
 
     // bgfx::frame() submits all queued draw calls and swaps buffers
     bgfx::frame();

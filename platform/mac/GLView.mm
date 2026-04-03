@@ -303,30 +303,36 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
     NSDEBUG(@"XXX: GLView: prepareOpenGL: fRuntime %p, self.isReady %s", fRuntime, (self.isReady ? "YES" : "NO"));
 	//[super prepareOpenGL];
 
-	[[self openGLContext] makeCurrentContext];
+	// Check if bgfx backend is active
+	const char* backend = getenv("SOLAR2D_BACKEND");
+	bool isBgfx = (backend && strcmp(backend, "bgfx") == 0);
+
+	if (!isBgfx)
+	{
+		[[self openGLContext] makeCurrentContext];
+	}
 
 	Rtt::Display *display = NULL;
 
 	if ( fRuntime != NULL && fRuntime->IsProperty(Rtt::Runtime::kIsApplicationLoaded) )
 	{
 		display = static_cast<Rtt::Display*>(&fRuntime->GetDisplay());
-		// NSDEBUG(@"Deciding to call display->GetRenderer().ReleaseGPUResources(): display %p, GetRenderer() %p", display, (&display->GetRenderer()));
         if ( display != NULL && (&display->GetRenderer()) != NULL )
 		{
-			// NSDEBUG(@"Calling display->GetRenderer().ReleaseGPUResources(): display %p, GetRenderer() %p", display, (&display->GetRenderer()));
-			// FIXME: this crashes in release builds because (&display->GetRenderer()) is NULL but the test above succeeds
 			display->GetRenderer().ReleaseGPUResources();
 		}
 	}
 
 	if (self.isReady == NO)
 	{
-		glClearColor( 0.0, 0.0, 0.0, 1.0 );
-		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-//        [[self openGLContext] flushBuffer];
-		
+		if (!isBgfx)
+		{
+			glClearColor( 0.0, 0.0, 0.0, 1.0 );
+			glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+		}
+
 		self.isReady = YES;
-		
+
 		[fDelegate didPrepareOpenGLContext:self];
 	}
 
@@ -356,17 +362,34 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 		[self invalidate];
 	}
 
+	// Check if bgfx backend is active
+	static int sBgfxBackend = -1;
+	if (sBgfxBackend < 0)
+	{
+		const char* backend = getenv("SOLAR2D_BACKEND");
+		sBgfxBackend = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
+	}
+
+	if (sBgfxBackend)
+	{
+		// bgfx manages its own rendering via Metal - just call Render()
+		if ( isReady && fRuntime != NULL && fRuntime->IsProperty(Rtt::Runtime::kIsApplicationLoaded))
+		{
+			fRuntime->Render();
+		}
+		// Do NOT flush the OpenGL context - bgfx presents via its own swap chain
+		return;
+	}
+
 	[[self openGLContext] makeCurrentContext];
 
-    
-    
 	// This should be called by the layer, not NSTimer!!!
 	// That's b/c the OGL context is valid and ready for new OGL commands
 	if ( isReady && fRuntime != NULL && fRuntime->IsProperty(Rtt::Runtime::kIsApplicationLoaded))
 	{
 		fRuntime->Render();
 	}
-    
+
     [[self openGLContext] flushBuffer];
 }
 
