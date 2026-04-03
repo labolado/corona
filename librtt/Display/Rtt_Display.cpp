@@ -268,17 +268,29 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		{
 			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
 		}
-
 		else if (strcmp( backend, "vulkanBackend" ) == 0)
 		{
 			fRenderer = VulkanExports::CreateVulkanRenderer( allocator, backendContext, &InvalidateDisplay, this );
+		}
+		else if (Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
+		{
+			// TODO: implement bgfx renderer; temporarily use GL
+			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
 		}
 		else
 		{
 			Rtt_ASSERT_NOT_REACHED();
 		}
 #else
-		fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
+		{
+			// TODO: implement bgfx renderer; temporarily use GL
+			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+		}
+		else
+		{
+			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+		}
 #endif
 
 		fRenderer->Initialize();
