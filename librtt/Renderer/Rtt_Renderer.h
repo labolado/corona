@@ -65,7 +65,13 @@ class Renderer
     public:
         Renderer( Rtt_Allocator* allocator );
 
-        virtual const RendererCaps& GetCaps() const = 0;
+        // Default implementation returns safe zero-value caps.
+        // Subclasses (GLRenderer, BgfxRenderer) should override with actual values.
+        virtual const RendererCaps& GetCaps() const
+        {
+            static const RendererCaps sDefaultCaps = { 2048, 128, 0, false, "unknown", "unknown", "unknown" };
+            return sDefaultCaps;
+        }
 
         virtual ~Renderer();
 
