@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_color0, a_texcoord1
-$output v_TexCoord, v_ColorScale, v_UserData
+$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -17,6 +17,9 @@ $output v_TexCoord, v_ColorScale, v_UserData
 
 // Uniforms
 uniform mat4 u_ViewProjectionMatrix;
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 // Time uniforms (packed in vec4.x as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;

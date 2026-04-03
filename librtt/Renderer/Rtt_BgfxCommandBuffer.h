@@ -163,6 +163,7 @@ class BgfxCommandBuffer : public CommandBuffer
         void ExecuteClear( const DeferredCmd& cmd );
         void ExecuteDraw( const DeferredCmd& cmd );
         void ExecuteDrawIndexed( const DeferredCmd& cmd );
+        void SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd );
 
     private:
         static const U32 kMaxTextureUnits = 8;
