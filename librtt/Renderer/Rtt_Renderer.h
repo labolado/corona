@@ -44,6 +44,19 @@ struct TimeTransform;
 
 // ----------------------------------------------------------------------------
 
+struct RendererCaps
+{
+    U32 maxTextureSize;
+    U32 maxUniformVectors;
+    U32 maxVertexTextureUnits;
+    bool supportsHighPrecisionFragmentShaders;
+    const char* vendorString;
+    const char* rendererString;
+    const char* versionString;
+};
+
+// ----------------------------------------------------------------------------
+
 class Renderer
 {
     public:
@@ -51,6 +64,8 @@ class Renderer
 
     public:
         Renderer( Rtt_Allocator* allocator );
+
+        virtual const RendererCaps& GetCaps() const = 0;
 
         virtual ~Renderer();
 

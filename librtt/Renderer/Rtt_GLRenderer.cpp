@@ -10,6 +10,7 @@
 #include "Renderer/Rtt_GLRenderer.h"
 
 #include "Renderer/Rtt_GLCommandBuffer.h"
+#include "Renderer/Rtt_CommandBuffer.h"
 #include "Renderer/Rtt_GLFrameBufferObject.h"
 #include "Renderer/Rtt_GLGeometry.h"
 #include "Renderer/Rtt_GLProgram.h"
@@ -30,10 +31,36 @@ namespace Rtt
 // ----------------------------------------------------------------------------
 
 GLRenderer::GLRenderer( Rtt_Allocator* allocator )
-:   Super( allocator )
+:   Super( allocator ),
+	fCaps(),
+	fCapsInitialized( false )
 {
+	memset( &fCaps, 0, sizeof( fCaps ) );
 	fFrontCommandBuffer = Rtt_NEW( allocator, GLCommandBuffer( allocator ) );
 	fBackCommandBuffer = Rtt_NEW( allocator, GLCommandBuffer( allocator ) );
+}
+
+void
+GLRenderer::InitCaps()
+{
+	fCaps.maxTextureSize = (U32)CommandBuffer::GetMaxTextureSize();
+	fCaps.maxUniformVectors = (U32)CommandBuffer::GetMaxUniformVectorsCount();
+	fCaps.maxVertexTextureUnits = (U32)CommandBuffer::GetMaxVertexTextureUnits();
+	fCaps.supportsHighPrecisionFragmentShaders = CommandBuffer::GetGpuSupportsHighPrecisionFragmentShaders();
+	fCaps.vendorString = CommandBuffer::GetGlString( "GL_VENDOR" );
+	fCaps.rendererString = CommandBuffer::GetGlString( "GL_RENDERER" );
+	fCaps.versionString = CommandBuffer::GetGlString( "GL_VERSION" );
+	fCapsInitialized = true;
+}
+
+const RendererCaps&
+GLRenderer::GetCaps() const
+{
+	if ( !fCapsInitialized )
+	{
+		const_cast< GLRenderer* >( this )->InitCaps();
+	}
+	return fCaps;
 }
 
 GPUResource* 

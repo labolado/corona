@@ -33,9 +33,17 @@ class GLRenderer : public Renderer
 	public:
 		GLRenderer( Rtt_Allocator* allocator );
 
+		virtual const RendererCaps& GetCaps() const;
+
+		void InitCaps();
+
 	protected:
 		// Create an OpenGL resource appropriate for the given CPUResource.
 		virtual GPUResource* Create( const CPUResource* resource );
+
+	private:
+		RendererCaps fCaps;
+		mutable bool fCapsInitialized;
 };
 
 // ----------------------------------------------------------------------------
