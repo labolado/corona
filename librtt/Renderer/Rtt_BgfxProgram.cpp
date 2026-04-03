@@ -1,0 +1,514 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// This file is part of the Solar2D game engine.
+// With contributions from Dianchu Technology
+// For overview and more information on licensing please refer to README.md 
+// Home page: https://github.com/coronalabs/corona
+// Contact: support@coronalabs.com
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#include "Renderer/Rtt_BgfxProgram.h"
+#include "Renderer/Rtt_Program.h"
+#include "Core/Rtt_Assert.h"
+#include <string.h>
+
+// ----------------------------------------------------------------------------
+
+namespace Rtt
+{
+
+// ----------------------------------------------------------------------------
+
+// VersionData implementation
+BgfxProgram::VersionData::VersionData()
+    : fProgram(BGFX_INVALID_HANDLE)
+    , fVertexShader(BGFX_INVALID_HANDLE)
+    , fFragmentShader(BGFX_INVALID_HANDLE)
+    , fHeaderNumLines(0)
+    , fAttemptedCreation(false)
+{
+    for (U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i)
+    {
+        fTimestamps[i] = 0;
+    }
+}
+
+void BgfxProgram::VersionData::Reset()
+{
+    fProgram = BGFX_INVALID_HANDLE;
+    fVertexShader = BGFX_INVALID_HANDLE;
+    fFragmentShader = BGFX_INVALID_HANDLE;
+    fHeaderNumLines = 0;
+    fAttemptedCreation = false;
+    
+    for (U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i)
+    {
+        fTimestamps[i] = 0;
+    }
+}
+
+bool BgfxProgram::VersionData::IsValid() const
+{
+    return bgfx::isValid(fProgram) && 
+           bgfx::isValid(fVertexShader) && 
+           bgfx::isValid(fFragmentShader);
+}
+
+// ----------------------------------------------------------------------------
+
+BgfxProgram::BgfxProgram()
+    : fResource(NULL)
+    , fUniformsCreated(false)
+{
+    // Initialize all uniform handles to invalid
+    fUniformViewProjectionMatrix = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix0 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix1 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix2 = BGFX_INVALID_HANDLE;
+    fUniformTotalTime = BGFX_INVALID_HANDLE;
+    fUniformDeltaTime = BGFX_INVALID_HANDLE;
+    fUniformTexelSize = BGFX_INVALID_HANDLE;
+    fUniformContentScale = BGFX_INVALID_HANDLE;
+    fUniformContentSize = BGFX_INVALID_HANDLE;
+    fUniformUserData0 = BGFX_INVALID_HANDLE;
+    fUniformUserData1 = BGFX_INVALID_HANDLE;
+    fUniformUserData2 = BGFX_INVALID_HANDLE;
+    fUniformUserData3 = BGFX_INVALID_HANDLE;
+    
+    fSamplerFill0 = BGFX_INVALID_HANDLE;
+    fSamplerFill1 = BGFX_INVALID_HANDLE;
+    fSamplerMask0 = BGFX_INVALID_HANDLE;
+    fSamplerMask1 = BGFX_INVALID_HANDLE;
+    fSamplerMask2 = BGFX_INVALID_HANDLE;
+    
+    // Initialize all version data
+    for (U32 i = 0; i < Program::kNumVersions; ++i)
+    {
+        fData[i].Reset();
+    }
+}
+
+BgfxProgram::~BgfxProgram()
+{
+    Destroy();
+}
+
+void BgfxProgram::Create(CPUResource* resource)
+{
+    Rtt_ASSERT(CPUResource::kProgram == resource->GetType());
+    fResource = resource;
+    
+    // Create global uniforms (only once)
+    if (!fUniformsCreated)
+    {
+        CreateUniforms();
+        fUniformsCreated = true;
+    }
+}
+
+void BgfxProgram::Update(CPUResource* resource)
+{
+    Rtt_ASSERT(CPUResource::kProgram == resource->GetType());
+    
+    // Update all versions that have been created
+    for (U32 i = 0; i < Program::kNumVersions; ++i)
+    {
+        if (fData[i].fAttemptedCreation)
+        {
+            UpdateVersion(static_cast<Program::Version>(i), fData[i]);
+        }
+    }
+}
+
+void BgfxProgram::Destroy()
+{
+    // Destroy all program versions
+    for (U32 i = 0; i < Program::kNumVersions; ++i)
+    {
+        VersionData& data = fData[i];
+        
+        if (bgfx::isValid(data.fProgram))
+        {
+            bgfx::destroy(data.fProgram);
+            data.fProgram = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(data.fVertexShader))
+        {
+            bgfx::destroy(data.fVertexShader);
+            data.fVertexShader = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(data.fFragmentShader))
+        {
+            bgfx::destroy(data.fFragmentShader);
+            data.fFragmentShader = BGFX_INVALID_HANDLE;
+        }
+        
+        data.Reset();
+    }
+    
+    // Destroy global uniforms
+    DestroyUniforms();
+    
+    fResource = NULL;
+}
+
+void BgfxProgram::Bind(Program::Version version)
+{
+    Rtt_ASSERT(version < Program::kNumVersions);
+    
+    VersionData& data = fData[version];
+    
+    // Lazy creation if not already attempted
+    if (!data.fAttemptedCreation)
+    {
+        CreateVersion(version, data);
+    }
+    
+    // Note: Actual program binding happens at submit time in CommandBuffer
+    // We just ensure the program is created here
+}
+
+bgfx::ProgramHandle BgfxProgram::GetHandle(Program::Version version) const
+{
+    Rtt_ASSERT(version < Program::kNumVersions);
+    return fData[version].fProgram;
+}
+
+bgfx::UniformHandle BgfxProgram::GetUniformHandle(Uniform::Name name) const
+{
+    Rtt_ASSERT(name < Uniform::kNumBuiltInVariables);
+    
+    switch (name)
+    {
+        case Uniform::kViewProjectionMatrix: return fUniformViewProjectionMatrix;
+        case Uniform::kMaskMatrix0:          return fUniformMaskMatrix0;
+        case Uniform::kMaskMatrix1:          return fUniformMaskMatrix1;
+        case Uniform::kMaskMatrix2:          return fUniformMaskMatrix2;
+        case Uniform::kTotalTime:            return fUniformTotalTime;
+        case Uniform::kDeltaTime:            return fUniformDeltaTime;
+        case Uniform::kTexelSize:            return fUniformTexelSize;
+        case Uniform::kContentScale:         return fUniformContentScale;
+        case Uniform::kContentSize:          return fUniformContentSize;
+        case Uniform::kUserData0:            return fUniformUserData0;
+        case Uniform::kUserData1:            return fUniformUserData1;
+        case Uniform::kUserData2:            return fUniformUserData2;
+        case Uniform::kUserData3:            return fUniformUserData3;
+        default:
+            Rtt_ASSERT_MSG(false, "Unknown uniform name");
+            return BGFX_INVALID_HANDLE;
+    }
+}
+
+bgfx::UniformHandle BgfxProgram::GetSamplerHandle(U32 unit) const
+{
+    Rtt_ASSERT(unit < 5);
+    
+    switch (unit)
+    {
+        case 0: return fSamplerFill0;
+        case 1: return fSamplerFill1;
+        case 2: return fSamplerMask0;
+        case 3: return fSamplerMask1;
+        case 4: return fSamplerMask2;
+        default:
+            Rtt_ASSERT_MSG(false, "Unknown sampler unit");
+            return BGFX_INVALID_HANDLE;
+    }
+}
+
+void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
+{
+    Rtt_ASSERT(data);
+    
+    bgfx::UniformHandle handle = GetUniformHandle(name);
+    if (!bgfx::isValid(handle))
+    {
+        return;
+    }
+    
+    // Determine number of elements based on uniform type
+    U16 numElements = 1;
+    
+    switch (name)
+    {
+        case Uniform::kViewProjectionMatrix:
+            // mat4 - 4x4 floats
+            bgfx::setUniform(handle, data, numElements);
+            break;
+            
+        case Uniform::kMaskMatrix0:
+        case Uniform::kMaskMatrix1:
+        case Uniform::kMaskMatrix2:
+            // mat3 - 3x3 floats (passed as 3 vec4s in bgfx)
+            bgfx::setUniform(handle, data, numElements);
+            break;
+            
+        case Uniform::kTotalTime:
+        case Uniform::kDeltaTime:
+            // float packed in vec4.x
+            bgfx::setUniform(handle, data, numElements);
+            break;
+            
+        case Uniform::kTexelSize:
+        case Uniform::kContentScale:
+        case Uniform::kContentSize:
+        case Uniform::kUserData0:
+        case Uniform::kUserData1:
+        case Uniform::kUserData2:
+        case Uniform::kUserData3:
+            // vec4 uniforms
+            bgfx::setUniform(handle, data, numElements);
+            break;
+            
+        default:
+            Rtt_ASSERT_MSG(false, "Unknown uniform name");
+            break;
+    }
+}
+
+bool BgfxProgram::IsValid(Program::Version version) const
+{
+    Rtt_ASSERT(version < Program::kNumVersions);
+    return fData[version].IsValid();
+}
+
+void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
+{
+    data.fAttemptedCreation = true;
+    
+    // Load precompiled shader binaries
+    bgfx::Memory* vsMem = NULL;
+    bgfx::Memory* fsMem = NULL;
+    
+    if (!LoadShaderBinary(version, "vs", vsMem) || !LoadShaderBinary(version, "fs", fsMem))
+    {
+        Rtt_LogException("Failed to load shader binaries for version %d\n", version);
+        return;
+    }
+    
+    // Create shaders from memory
+    data.fVertexShader = bgfx::createShader(vsMem);
+    data.fFragmentShader = bgfx::createShader(fsMem);
+    
+    if (!bgfx::isValid(data.fVertexShader) || !bgfx::isValid(data.fFragmentShader))
+    {
+        Rtt_LogException("Failed to create shaders for version %d\n", version);
+        
+        if (bgfx::isValid(data.fVertexShader))
+        {
+            bgfx::destroy(data.fVertexShader);
+            data.fVertexShader = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(data.fFragmentShader))
+        {
+            bgfx::destroy(data.fFragmentShader);
+            data.fFragmentShader = BGFX_INVALID_HANDLE;
+        }
+        return;
+    }
+    
+    // Create program from shaders
+    data.fProgram = bgfx::createProgram(data.fVertexShader, data.fFragmentShader, true);
+    
+    if (!bgfx::isValid(data.fProgram))
+    {
+        Rtt_LogException("Failed to create program for version %d\n", version);
+        // Shaders are destroyed by createProgram on failure if true is passed
+        data.fVertexShader = BGFX_INVALID_HANDLE;
+        data.fFragmentShader = BGFX_INVALID_HANDLE;
+    }
+}
+
+void BgfxProgram::UpdateVersion(Program::Version version, VersionData& data)
+{
+    // Destroy existing program and shaders
+    if (bgfx::isValid(data.fProgram))
+    {
+        bgfx::destroy(data.fProgram);
+        data.fProgram = BGFX_INVALID_HANDLE;
+    }
+    // Note: Shaders are destroyed with the program, so we don't need to destroy them separately
+    data.fVertexShader = BGFX_INVALID_HANDLE;
+    data.fFragmentShader = BGFX_INVALID_HANDLE;
+    
+    // Recreate from updated binaries
+    data.fAttemptedCreation = false;
+    CreateVersion(version, data);
+}
+
+void BgfxProgram::ResetVersion(VersionData& data)
+{
+    data.Reset();
+}
+
+bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, bgfx::Memory*& outMem)
+{
+    // Map version to file name suffix
+    const char* versionSuffix = NULL;
+    switch (version)
+    {
+        case Program::kMaskCount0: versionSuffix = "_mask0"; break;
+        case Program::kMaskCount1: versionSuffix = "_mask1"; break;
+        case Program::kMaskCount2: versionSuffix = "_mask2"; break;
+        case Program::kMaskCount3: versionSuffix = "_mask3"; break;
+        case Program::kWireframe:  versionSuffix = "_wireframe"; break;
+        default:
+            Rtt_ASSERT_MSG(false, "Unknown program version");
+            return false;
+    }
+    
+    // Determine platform-specific shader file extension
+    const char* platformExt = NULL;
+    switch (bgfx::getRendererType())
+    {
+        case bgfx::RendererType::Direct3D11:
+        case bgfx::RendererType::Direct3D12:
+            platformExt = "dx11";
+            break;
+        case bgfx::RendererType::Metal:
+            platformExt = "metal";
+            break;
+        case bgfx::RendererType::OpenGL:
+            platformExt = "glsl";
+            break;
+        case bgfx::RendererType::OpenGLES:
+            platformExt = "essl";
+            break;
+        case bgfx::RendererType::Vulkan:
+            platformExt = "spirv";
+            break;
+        default:
+            Rtt_LogException("Unknown renderer type for shader loading\n");
+            return false;
+    }
+    
+    // Build file path: shaders/<type>_<version>.<platform>
+    char filePath[256];
+    snprintf(filePath, sizeof(filePath), "shaders/%s%s.%s", type, versionSuffix, platformExt);
+    
+    // Read shader file
+    FILE* file = fopen(filePath, "rb");
+    if (!file)
+    {
+        Rtt_LogException("Failed to open shader file: %s\n", filePath);
+        return false;
+    }
+    
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    if (size <= 0)
+    {
+        fclose(file);
+        Rtt_LogException("Invalid shader file size: %s\n", filePath);
+        return false;
+    }
+    
+    // Allocate bgfx memory and read file
+    outMem = bgfx::alloc(size);
+    if (fread(outMem->data, 1, size, file) != (size_t)size)
+    {
+        fclose(file);
+        Rtt_LogException("Failed to read shader file: %s\n", filePath);
+        return false;
+    }
+    
+    fclose(file);
+    return true;
+}
+
+void BgfxProgram::CreateUniforms()
+{
+    // Create built-in uniforms (global, created once)
+    // Note: bgfx doesn't support float uniforms directly, so we use Vec4
+    // and pack float values in the .x component
+    
+    fUniformViewProjectionMatrix = bgfx::createUniform(
+        "u_ViewProjectionMatrix", bgfx::UniformType::Mat4);
+    
+    fUniformMaskMatrix0 = bgfx::createUniform(
+        "u_MaskMatrix0", bgfx::UniformType::Mat3);
+    fUniformMaskMatrix1 = bgfx::createUniform(
+        "u_MaskMatrix1", bgfx::UniformType::Mat3);
+    fUniformMaskMatrix2 = bgfx::createUniform(
+        "u_MaskMatrix2", bgfx::UniformType::Mat3);
+    
+    // Float uniforms packed in vec4.x
+    fUniformTotalTime = bgfx::createUniform(
+        "u_TotalTime", bgfx::UniformType::Vec4);
+    fUniformDeltaTime = bgfx::createUniform(
+        "u_DeltaTime", bgfx::UniformType::Vec4);
+    
+    fUniformTexelSize = bgfx::createUniform(
+        "u_TexelSize", bgfx::UniformType::Vec4);
+    
+    // vec2 packed in vec4.xy
+    fUniformContentScale = bgfx::createUniform(
+        "u_ContentScale", bgfx::UniformType::Vec4);
+    fUniformContentSize = bgfx::createUniform(
+        "u_ContentSize", bgfx::UniformType::Vec4);
+    
+    fUniformUserData0 = bgfx::createUniform(
+        "u_UserData0", bgfx::UniformType::Vec4);
+    fUniformUserData1 = bgfx::createUniform(
+        "u_UserData1", bgfx::UniformType::Vec4);
+    fUniformUserData2 = bgfx::createUniform(
+        "u_UserData2", bgfx::UniformType::Vec4);
+    fUniformUserData3 = bgfx::createUniform(
+        "u_UserData3", bgfx::UniformType::Vec4);
+    
+    // Create sampler uniforms
+    fSamplerFill0 = bgfx::createUniform(
+        "u_FillSampler0", bgfx::UniformType::Sampler);
+    fSamplerFill1 = bgfx::createUniform(
+        "u_FillSampler1", bgfx::UniformType::Sampler);
+    fSamplerMask0 = bgfx::createUniform(
+        "u_MaskSampler0", bgfx::UniformType::Sampler);
+    fSamplerMask1 = bgfx::createUniform(
+        "u_MaskSampler1", bgfx::UniformType::Sampler);
+    fSamplerMask2 = bgfx::createUniform(
+        "u_MaskSampler2", bgfx::UniformType::Sampler);
+}
+
+void BgfxProgram::DestroyUniforms()
+{
+    // Destroy all uniform handles
+    auto destroyIfValid = [](bgfx::UniformHandle& handle)
+    {
+        if (bgfx::isValid(handle))
+        {
+            bgfx::destroy(handle);
+            handle = BGFX_INVALID_HANDLE;
+        }
+    };
+    
+    destroyIfValid(fUniformViewProjectionMatrix);
+    destroyIfValid(fUniformMaskMatrix0);
+    destroyIfValid(fUniformMaskMatrix1);
+    destroyIfValid(fUniformMaskMatrix2);
+    destroyIfValid(fUniformTotalTime);
+    destroyIfValid(fUniformDeltaTime);
+    destroyIfValid(fUniformTexelSize);
+    destroyIfValid(fUniformContentScale);
+    destroyIfValid(fUniformContentSize);
+    destroyIfValid(fUniformUserData0);
+    destroyIfValid(fUniformUserData1);
+    destroyIfValid(fUniformUserData2);
+    destroyIfValid(fUniformUserData3);
+    
+    destroyIfValid(fSamplerFill0);
+    destroyIfValid(fSamplerFill1);
+    destroyIfValid(fSamplerMask0);
+    destroyIfValid(fSamplerMask1);
+    destroyIfValid(fSamplerMask2);
+    
+    fUniformsCreated = false;
+}
+
+// ----------------------------------------------------------------------------
+
+} // namespace Rtt
+
+// ----------------------------------------------------------------------------
