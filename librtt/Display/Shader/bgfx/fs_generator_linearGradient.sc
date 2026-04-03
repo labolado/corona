@@ -1,4 +1,4 @@
-$input v_TexCoord, v_ColorScale, v_UserData, v_feathering_edges
+$input v_TexCoord, v_ColorScale, v_UserData
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -10,11 +10,9 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_feathering_edges
 //
 //////////////////////////////////////////////////////////////////////////////
 
-// Filter: iris
+// Solar2D Generator Fragment Shader: linearGradient
 
 #include <bgfx_shader.sh>
-
-SAMPLER2D(u_FillSampler0, 0);
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -34,34 +32,44 @@ uniform vec4 u_UserData3;
 #define CoronaTexelSize u_TexelSize
 #define CoronaContentScale u_ContentScale.xy
 
-void main()
+vec4 FragmentKernel(vec2 texCoord, vec4 v_ColorScale, vec4 v_UserData)
 {
-    float aspectRatio = u_UserData2.x;
+    vec4 fromColor = u_UserData0;
+    vec2 fromPos = u_UserData1.xy;
+    vec4 toColor = u_UserData2;
+    vec2 toPos = u_UserData3.xy;
 
-    vec2 center = vec2((u_UserData0.x * aspectRatio), u_UserData0.y);
+    vec2 V = (toPos - fromPos);
+    float len_V = length(V);
+    vec2 N = normalize(V);
 
-    vec2 pos = vec2((v_TexCoord.xy.x * aspectRatio), v_TexCoord.xy.y);
+    vec2 W = (texCoord - fromPos);
 
-    float dist = distance(pos, center);
+    float d = dot(W, N);
 
-    vec4 color = (texture2D(u_FillSampler0, v_TexCoord.xy) * v_ColorScale);
+    d = clamp(d, 0.0, len_V);
+
+    float progress = (d / len_V);
 
     #if 0
-        color = v_ColorScale;
-    #elif 0
-        if (dist <= v_feathering_edges.x)
+        if (progress <= 0.0)
         {
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            return vec4(1.0, 0.0, 0.0, 1.0);
         }
-        else if (dist >= v_feathering_edges.y)
+        else if (progress >= 1.0)
         {
-            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            return vec4(0.0, 1.0, 0.0, 1.0);
         }
         else
         {
-            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            return vec4(0.0, 0.0, 1.0, 1.0);
         }
     #endif
 
-    gl_FragColor = (color * smoothstep(v_feathering_edges.x, v_feathering_edges.y, dist));
+    return (mix(fromColor, toColor, progress) * v_ColorScale);
+}
+
+void main()
+{
+    gl_FragColor = FragmentKernel(v_TexCoord.xy, v_ColorScale, v_UserData);
 }

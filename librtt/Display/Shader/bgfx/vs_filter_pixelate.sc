@@ -1,4 +1,5 @@
-$input v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset, v_minimum_full_radius
+$input a_position, a_texcoord0, a_color0, a_texcoord1
+$output v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -10,11 +11,11 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset, v_
 //
 //////////////////////////////////////////////////////////////////////////////
 
-// Filter: polkaDots
+// Filter: pixelate - Custom Vertex Shader
 
 #include <bgfx_shader.sh>
 
-SAMPLER2D(u_FillSampler0, 0);
+uniform mat4 u_ViewProjectionMatrix;
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -27,8 +28,8 @@ uniform vec4 u_UserData1;
 uniform vec4 u_UserData2;
 uniform vec4 u_UserData3;
 
-#define CoronaColorScale(color) (v_ColorScale * (color))
-#define CoronaVertexUserData v_UserData
+#define CoronaVertexUserData a_texcoord1
+#define CoronaTexCoord a_texcoord0.xy
 #define CoronaTotalTime u_TotalTime.x
 #define CoronaDeltaTime u_DeltaTime.x
 #define CoronaTexelSize u_TexelSize
@@ -36,21 +37,13 @@ uniform vec4 u_UserData3;
 
 void main()
 {
-    float aspectRatio = v_UserData.z;
+    v_TexCoord = vec3(a_texcoord0.xy, 0.0);
+    v_ColorScale = a_color0;
+    v_UserData = a_texcoord1;
 
-    vec2 tc = vec2((v_TexCoord.xy.x * aspectRatio), v_TexCoord.xy.y);
+    float numPixels = a_texcoord1.x;
+    v_slot_size = (u_TexelSize.zw * numPixels);
+    v_sample_uv_offset = (v_slot_size * 0.5);
 
-    vec2 uv = (v_sample_uv_offset + (floor(tc / v_slot_size) * v_slot_size));
-
-    float dist = distance(tc, uv);
-
-    float unitized_dist = ((v_minimum_full_radius - dist) / v_minimum_full_radius);
-
-    float brightness = (1.0 - pow(2.0, (-10.0 * unitized_dist)));
-
-    float visibility = step(dist, v_minimum_full_radius);
-
-    vec4 color = texture2D(u_FillSampler0, uv);
-
-    gl_FragColor = color * v_ColorScale * visibility * brightness;
+    gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));
 }
