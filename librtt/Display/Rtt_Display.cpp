@@ -33,6 +33,7 @@
 
 #include "Renderer/Rtt_GLRenderer.h"
 #include "Renderer/Rtt_VulkanExports.h"
+#include "Renderer/Rtt_BgfxExports.h"
 #include "Renderer/Rtt_FrameBufferObject.h"
 #include "Renderer/Rtt_Matrix_Renderer.h"
 #include "Renderer/Rtt_Program.h"
@@ -274,8 +275,25 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		}
 		else if (Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
-			// TODO: implement bgfx renderer; temporarily use GL
-			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+			// Get the platform surface for native window handle
+			void* nativeWindowHandle = NULL;
+			if (fTarget && fTarget->GetSurface())
+			{
+				nativeWindowHandle = fTarget->GetSurface()->NativeWindow();
+			}
+			
+			// Get surface dimensions
+			U32 width = fTarget ? fTarget->Width() : 0;
+			U32 height = fTarget ? fTarget->Height() : 0;
+			
+			if (nativeWindowHandle && width > 0 && height > 0)
+			{
+				fRenderer = BgfxExports::CreateBgfxRenderer(allocator, nativeWindowHandle, width, height);
+			}
+			else
+			{
+				Rtt_LogException("Display::Initialize: Cannot create bgfx renderer - invalid native window handle or dimensions");
+			}
 		}
 		else
 		{
@@ -284,8 +302,25 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 #else
 		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
-			// TODO: implement bgfx renderer; temporarily use GL
-			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+			// Get the platform surface for native window handle
+			void* nativeWindowHandle = NULL;
+			if (fTarget && fTarget->GetSurface())
+			{
+				nativeWindowHandle = fTarget->GetSurface()->NativeWindow();
+			}
+			
+			// Get surface dimensions
+			U32 width = fTarget ? fTarget->Width() : 0;
+			U32 height = fTarget ? fTarget->Height() : 0;
+			
+			if (nativeWindowHandle && width > 0 && height > 0)
+			{
+				fRenderer = BgfxExports::CreateBgfxRenderer(allocator, nativeWindowHandle, width, height);
+			}
+			else
+			{
+				Rtt_LogException("Display::Initialize: Cannot create bgfx renderer - invalid native window handle or dimensions");
+			}
 		}
 		else
 		{
