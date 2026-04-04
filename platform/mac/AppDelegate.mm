@@ -2358,7 +2358,7 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		// Prevent subsequent launches from connecting to debugger --- must relaunch
 		// process to connect to debugger
 		fOptions.connectToDebugger = false;
-		
+
 		// The appdelegate handles location events independently of the runtime
 		// so we need to stop them here
 		[self endLocationUpdating];
@@ -2653,11 +2653,20 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 	// Detect relaunch
 	if ( fSimulator )
 	{
+		// bgfx mode: restart the process instead of in-memory relaunch
+		// bgfx::shutdown() + bgfx::init() in same process causes Metal crashes
+		const char* backend = getenv("SOLAR2D_BACKEND");
+		if (backend && strcmp(backend, "bgfx") == 0)
+		{
+			NSString *execPath = [[NSBundle mainBundle] executablePath];
+			NSMutableArray *args = [NSMutableArray arrayWithArray:[[NSProcessInfo processInfo] arguments]];
+			[NSTask launchedTaskWithLaunchPath:execPath arguments:[args subarrayWithRange:NSMakeRange(1, args.count - 1)]];
+			[NSApp terminate:nil];
+			return;
+		}
+
 		// Always close
 		[self closeSimulator:sender];
-
-		// Allow bgfx/Metal to fully clean up before re-initializing
-		[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
 
 		++fRelaunchCount;
 	}

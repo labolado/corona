@@ -90,7 +90,6 @@ MacSimulator::~MacSimulator()
         [view setRuntime:NULL];
     }
 
-
     [fWindow saveFrameUsingName:fDeviceName];
 	[fWindow close];
 	// Fix case 40335: Simulator crashes sometime after an app with a native textfield runs (http://bugs.coronalabs.com/default.asp?40335)
