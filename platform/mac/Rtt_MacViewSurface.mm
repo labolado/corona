@@ -66,6 +66,7 @@ MacViewSurface::NativeWindow() const
 	{
 		sBgfxOverlay = [[NSView alloc] initWithFrame:[fView bounds]];
 		[sBgfxOverlay setWantsLayer:YES];
+		sBgfxOverlay.layer.opaque = YES;
 		[sBgfxOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 		[fView addSubview:sBgfxOverlay];
 	}
