@@ -65,9 +65,9 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         fprintf(stderr, "BGFX_INIT: renderer=%s nwh=%p w=%u h=%u\n",
                 bgfx::getRendererName(bgfx::getRendererType()), nativeWindowHandle, width, height);
         bgfx::setDebug(BGFX_DEBUG_NONE);
-        // Set default view clear state (view 0)
-        bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
-        bgfx::setViewRect(0, 0, 0, static_cast<uint16_t>(width), static_cast<uint16_t>(height));
+        // Set default view clear state (view 200 = screen, FBO views use 1-199)
+        bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
+        bgfx::setViewRect(200, 0, 0, static_cast<uint16_t>(width), static_cast<uint16_t>(height));
     }
 
     return fBgfxInitialized;

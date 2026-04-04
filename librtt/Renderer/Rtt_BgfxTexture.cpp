@@ -203,15 +203,18 @@ BgfxTexture::Create( CPUResource* resource )
 	}
 	else
 	{
-		// No data provided - create a white 1x1 fallback texture
-		// Solar2D color shapes rely on vertex color * white texture
-		uint32_t white = 0xFFFFFFFF;
-		mem = bgfx::copy( &white, 4 );
+		// No pixel data = render target texture (for FBO/snapshot)
+		// Create with correct dimensions and RT flag
 		format = bgfx::TextureFormat::RGBA8;
-		fHandle = bgfx::createTexture2D( 1, 1, false, 1, format, flags, mem );
+		flags |= BGFX_TEXTURE_RT;
+		fHandle = bgfx::createTexture2D(
+			static_cast<uint16_t>(w),
+			static_cast<uint16_t>(h),
+			false, 1, format, flags);
+		
 		fCachedFormat = static_cast<S32>( Texture::kRGBA );
-		fCachedWidth = 1;
-		fCachedHeight = 1;
+		fCachedWidth = w;
+		fCachedHeight = h;
 		return;
 	}
 	fHandle = bgfx::createTexture2D(
