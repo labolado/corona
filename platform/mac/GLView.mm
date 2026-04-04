@@ -372,11 +372,7 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 
 	if (sBgfxBackend)
 	{
-		// bgfx renders via Metal on a separate overlay view
-		if ( isReady && fRuntime != NULL && fRuntime->IsProperty(Rtt::Runtime::kIsApplicationLoaded))
-		{
-			fRuntime->Render();
-		}
+		// bgfx rendering is driven directly by timer callback, not drawRect
 		return;
 	}
 

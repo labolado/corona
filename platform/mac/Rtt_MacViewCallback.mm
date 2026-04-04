@@ -37,7 +37,21 @@ MacViewCallback::operator()()
 	(*fRuntime)();
 	if ( ! fRuntime->GetDisplay().GetScene().IsValid() )
 	{
-		[fView setNeedsDisplay:YES];
+		// bgfx renders to its own CAMetalLayer, bypass NSView drawing system
+		static int sBgfxMode = -1;
+		if (sBgfxMode < 0)
+		{
+			const char* backend = getenv("SOLAR2D_BACKEND");
+			sBgfxMode = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
+		}
+		if (sBgfxMode)
+		{
+			fRuntime->Render();
+		}
+		else
+		{
+			[fView setNeedsDisplay:YES];
+		}
 	}
 }
 
