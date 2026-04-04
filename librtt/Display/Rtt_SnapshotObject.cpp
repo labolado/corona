@@ -376,9 +376,13 @@ SnapshotObject::RenderToFBO(
 	renderer.PopMaskCount();
 
 	// Restore state so further rendering is unaffected
+	// IMPORTANT: Must unbind FBO BEFORE restoring viewport!
+	// In deferred rendering (bgfx), SetViewport captures the current view (fCurrentView).
+	// If we restore viewport while FBO is still bound, the screen viewport
+	// will be incorrectly applied to the FBO view.
+	renderer.SetFrameBufferObject( fbo );
 	renderer.SetViewport( x, y, width, height );
 	renderer.SetFrustum( viewMatrix, projMatrix );
-	renderer.SetFrameBufferObject( fbo );
 }
 
 void
