@@ -54,7 +54,7 @@ BgfxTexture::ConvertFormat( Texture::Format format )
 	switch( format )
 	{
 		case Texture::kAlpha:			return bgfx::TextureFormat::RGBA8; // Expanded to RGBA(255,255,255,a) on CPU
-		case Texture::kLuminance:		return bgfx::TextureFormat::R8;
+		case Texture::kLuminance:		return bgfx::TextureFormat::RGBA8; // Expanded to RGBA(v,v,v,255) on CPU
 		case Texture::kRGB:				return bgfx::TextureFormat::RGB8;
 		case Texture::kRGBA:			return bgfx::TextureFormat::RGBA8;
 		case Texture::kBGRA:			return bgfx::TextureFormat::BGRA8;
@@ -101,6 +101,17 @@ BgfxTexture::Create( CPUResource* resource )
 	Texture* texture = static_cast<Texture*>( resource );
 
 	SUMMED_TIMING( bgfxtc, "Bgfx Texture GPU Resource: Create" );
+
+	// Debug: log texture creation
+	{
+		static int sTexDbg = 0;
+		if (sTexDbg < 20)
+		{
+			Rtt_LogException("BGFX_TEX_CREATE[%d]: fmt=%d w=%u h=%u data=%p\n",
+				sTexDbg, (int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(), texture->GetData());
+			sTexDbg++;
+		}
+	}
 
 	// Destroy existing handle if any
 	if( bgfx::isValid( fHandle ) )
@@ -160,8 +171,9 @@ BgfxTexture::Create( CPUResource* resource )
 		}
 		else if( texture->GetFormat() == Texture::kLuminance )
 		{
-			// GL_LUMINANCE maps value to (v,v,v,v) — all 4 channels including alpha
-			// This is critical for text/font glyphs which use luminance as alpha mask
+			// GL_LUMINANCE maps value to (L,L,L,1) per OpenGL spec
+			// Alpha must be 255 (opaque) so that fill alpha = 1.0 and only the
+			// mask multiply controls text transparency (matching GL backend behavior)
 			uint32_t pixelCount = w * h;
 			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
 			U8* dst = rgbaMem->data;
@@ -171,7 +183,7 @@ BgfxTexture::Create( CPUResource* resource )
 				dst[i * 4 + 0] = v;
 				dst[i * 4 + 1] = v;
 				dst[i * 4 + 2] = v;
-				dst[i * 4 + 3] = v; // alpha = luminance value, matching GL_LUMINANCE (a,a,a,a)
+				dst[i * 4 + 3] = 255; // alpha = 1.0, matching GL_LUMINANCE (L,L,L,1)
 			}
 			mem = rgbaMem;
 			format = bgfx::TextureFormat::RGBA8;
@@ -265,7 +277,7 @@ BgfxTexture::Update( CPUResource* resource )
 		}
 		else if( format == Texture::kLuminance )
 		{
-			// GL_LUMINANCE maps value to (v,v,v,v) — all 4 channels including alpha
+			// GL_LUMINANCE maps value to (L,L,L,1) per OpenGL spec
 			uint32_t pixelCount = w * h;
 			expandedMem = bgfx::alloc( pixelCount * 4 );
 			U8* dst = expandedMem->data;
@@ -275,7 +287,7 @@ BgfxTexture::Update( CPUResource* resource )
 				dst[i * 4 + 0] = v;
 				dst[i * 4 + 1] = v;
 				dst[i * 4 + 2] = v;
-				dst[i * 4 + 3] = v; // alpha = luminance, matching GL_LUMINANCE
+				dst[i * 4 + 3] = 255; // alpha = 1.0, matching GL_LUMINANCE (L,L,L,1)
 			}
 			actualFormat = bgfx::TextureFormat::RGBA8;
 		}
