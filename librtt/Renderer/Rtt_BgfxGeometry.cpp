@@ -161,29 +161,6 @@ BgfxGeometry::Create( CPUResource* resource )
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
-	// Log first few vertex positions for debugging
-	{
-		static int sGeoDbg = 0;
-		if (sGeoDbg < 5)
-		{
-			const Geometry::Vertex* verts = geometry->GetVertexData();
-			U32 cnt = geometry->GetVerticesUsed();
-			if (verts && cnt > 0)
-			{
-				U32 logCnt = (cnt < 4) ? cnt : 4;
-				fprintf(stderr, "BGFX_GEO_CREATE[%d]: verts=%u stored=%d\n", sGeoDbg, cnt, geometry->GetStoredOnGPU());
-				for (U32 i = 0; i < logCnt; i++)
-				{
-					fprintf(stderr, "  v[%u] pos=(%f,%f,%f) uv=(%f,%f) rgba=(%u,%u,%u,%u)\n",
-						i, verts[i].x, verts[i].y, verts[i].z,
-						verts[i].u, verts[i].v,
-						verts[i].rs, verts[i].gs, verts[i].bs, verts[i].as);
-				}
-			}
-			sGeoDbg++;
-		}
-	}
-
 	bool shouldStoreOnGPU = geometry->GetStoredOnGPU();
 	
 	if( shouldStoreOnGPU )
@@ -241,24 +218,6 @@ BgfxGeometry::UpdateDynamic( Geometry* geometry )
 
 	const U32 vertexCount = geometry->GetVerticesAllocated();
 	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
-
-	// Debug: log vertex data for first text quad (offset 6-11)
-	{
-		static int sDbg = 0;
-		if (sDbg < 20)
-		{
-			U32 cnt = geometry->GetVerticesUsed();
-			if (vertexData && cnt > 11)
-			{
-				for (U32 i = 6; i <= 11 && i < cnt; i++)
-				{
-					Rtt_LogException("BGFX_VERT: v[%u] pos=(%.1f,%.1f) uv=(%.3f,%.3f)\n",
-						i, vertexData[i].x, vertexData[i].y, vertexData[i].u, vertexData[i].v);
-				}
-			}
-			sDbg++;
-		}
-	}
 
 	// Check if we need to resize
 	if( vertexCount > fVertexCount )
@@ -364,21 +323,16 @@ BgfxGeometry::Bind()
 void
 BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 {
-	static int sVBDbg = 0;
 	if( fIsDynamic )
 	{
-		bool valid = bgfx::isValid( fDynamicVertexBufferHandle );
-		if (sVBDbg < 5) { fprintf(stderr, "BGFX_VB: dynamic idx=%d valid=%d off=%u cnt=%u\n", fDynamicVertexBufferHandle.idx, valid, offset, count); sVBDbg++; }
-		if( valid )
+		if( bgfx::isValid( fDynamicVertexBufferHandle ) )
 		{
 			bgfx::setVertexBuffer( 0, fDynamicVertexBufferHandle, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}
 	}
 	else
 	{
-		bool valid = bgfx::isValid( fVertexBufferHandle );
-		if (sVBDbg < 5) { fprintf(stderr, "BGFX_VB: static idx=%d valid=%d off=%u cnt=%u\n", fVertexBufferHandle.idx, valid, offset, count); sVBDbg++; }
-		if( valid )
+		if( bgfx::isValid( fVertexBufferHandle ) )
 		{
 			bgfx::setVertexBuffer( 0, fVertexBufferHandle, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}

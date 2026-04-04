@@ -226,17 +226,6 @@ BgfxCommandBuffer::BindTexture( Texture* texture, U32 unit )
 
     if( unit < kMaxTextureUnits )
     {
-        // Debug: log bind texture
-        {
-            static int sDbg = 0;
-            if (sDbg < 20)
-            {
-                BgfxTexture* gpuTex = texture ? static_cast<BgfxTexture*>(texture->GetGPUResource()) : NULL;
-                Rtt_LogException("BGFX_BIND_TEX: unit=%u fmt=%d\n",
-                    unit, gpuTex ? gpuTex->GetCachedFormat() : -1);
-                sDbg++;
-            }
-        }
         // Store CPU resource pointer - resolve to GPU in Execute()
         fBoundTextures[unit] = texture;
     }
@@ -678,34 +667,11 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         if( cmd.uniforms[i].valid )
         {
             prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
-            // Debug: log mask matrix uniforms (kMaskMatrix0=1, kMaskMatrix1=2, kMaskMatrix2=3)
-            if (i >= Uniform::kMaskMatrix0 && i <= Uniform::kMaskMatrix2)
-            {
-                static int sDbg = 0;
-                if (sDbg < 20)
-                {
-                    const float* m = reinterpret_cast<const float*>( cmd.uniforms[i].data );
-                    Rtt_LogException("BGFX_MASK_MAT: m=[%.3f %.3f %.3f | %.3f %.3f %.3f | %.3f %.3f %.3f]\n",
-                        m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
-                    sDbg++;
-                }
-            }
         }
     }
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
-
-    // Debug: log draw call
-    {
-        static int sDbg = 0;
-        if (sDbg < 20)
-        {
-            Rtt_LogException("BGFX_DRAW: off=%u cnt=%u ver=%d\n",
-                cmd.offset, cmd.count, (int)cmd.programVersion);
-            sDbg++;
-        }
-    }
 
     // Handle TriangleFan conversion
     if( cmd.primitiveType == Geometry::kTriangleFan )
