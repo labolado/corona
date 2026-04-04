@@ -2344,10 +2344,10 @@
 		AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextObject_Lua.cpp; path = "../../librtt/Display/Rtt_TextObject_Lua.cpp"; sourceTree = "<group>"; };
 		5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ParticleSystemObject_Lua.cpp; path = "../../librtt/Rtt_ParticleSystemObject_Lua.cpp"; sourceTree = "<group>"; };
 		BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_PlatformDisplayObject_Lua.cpp; path = "../../librtt/Rtt_PlatformDisplayObject_Lua.cpp"; sourceTree = "<group>"; };
-		62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/osx-arm64/bin/libbgfxRelease.a"; sourceTree = "<absolute>"; };
-		6BDF997774391BA9C031D638 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/osx-arm64/bin/libbxRelease.a"; sourceTree = "<absolute>"; };
-		6F39D5C684AA098023A5A409 /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/osx-arm64/bin/libbimgRelease.a"; sourceTree = "<absolute>"; };
-		81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/osx-arm64/bin/libbimg_decodeRelease.a"; sourceTree = "<absolute>"; };
+		62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbgfxRelease.a"; sourceTree = "<absolute>"; };
+		6BDF997774391BA9C031D638 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbxRelease.a"; sourceTree = "<absolute>"; };
+		6F39D5C684AA098023A5A409 /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbimgRelease.a"; sourceTree = "<absolute>"; };
+		81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/projects/xcode15/libbimg_decodeRelease.a"; sourceTree = "<absolute>"; };
 		B5C34561E307CC8B13FF96D9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxCommandBuffer.cpp; path = "../../librtt/Renderer/Rtt_BgfxCommandBuffer.cpp"; sourceTree = "<group>"; };
 		7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxExports.cpp; path = "../../librtt/Renderer/Rtt_BgfxExports.cpp"; sourceTree = "<group>"; };
@@ -8728,7 +8728,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../../external/bgfx/.build/osx-arm64/bin",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_MACOS:default=10.13)";
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
@@ -9143,7 +9143,7 @@
 					"\"$(SRCROOT)/../../plugins/build-core/licensing/mac\"",
 					/opt/X11/lib,
 					"$(SYSTEM_APPS_DIR)/Steam.app/Contents/MacOS",
-					"\"$(SRCROOT)/../../external/bgfx/.build/osx-arm64/bin\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15\"",
 				);
 				LIBRARY_SEARCH_PATHS_QUOTED_FOR_TARGET_1 = "\"$(SRCROOT)/../../modules/platform/mac/build/Release\"";
 				OTHER_LDFLAGS = "-ObjC";
@@ -9208,7 +9208,7 @@
 					"\"$(SRCROOT)/../../plugins/build-core/licensing/mac\"",
 					/opt/X11/lib,
 					"$(SYSTEM_APPS_DIR)/Steam.app/Contents/MacOS",
-					"\"$(SRCROOT)/../../external/bgfx/.build/osx-arm64/bin\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15\"",
 				);
 				LIBRARY_SEARCH_PATHS_QUOTED_FOR_TARGET_1 = "\"$(SRCROOT)/../../modules/platform/mac/build/Release\"";
 				OTHER_LDFLAGS = "-ObjC";
@@ -9286,7 +9286,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../../external/bgfx/.build/osx-arm64/bin",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_MACOS:default=10.13)";
 				ONLY_ACTIVE_ARCH = YES;
