@@ -115,8 +115,9 @@ BgfxCommandBuffer::Initialize()
 void
 BgfxCommandBuffer::InitializeFBO()
 {
-    // Default view is 0 (screen)
-    fDefaultView = 0;
+    // Screen uses high view ID so FBO views (1, 2, 3, ...) render first
+    // bgfx renders views in ascending ID order by default
+    fDefaultView = 200;
     fCurrentView = fDefaultView;
 }
 
@@ -586,6 +587,7 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
         {
             fCurrentView = bgfxFbo->GetViewId();
             bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
+            bgfx::setViewMode( fCurrentView, bgfx::ViewMode::Sequential );
         }
     }
     else
@@ -843,6 +845,10 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
 
+    // FBO views use IDs 1-199, screen view uses ID 200
+    // bgfx renders views in ascending ID order, so FBOs render before screen
+    // No setViewOrder needed - natural ordering handles this
+
     static uint32_t sFrameNum = 0;
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
@@ -878,8 +884,8 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         gBgfxDrawsThisFrame = 0;
     }
 
-    // Ensure view 0 is submitted even if no draw commands targeted it
-    bgfx::touch(0);
+    // Ensure screen view is submitted even if no draw commands targeted it
+    bgfx::touch(fDefaultView);
 
     // Submit frame to bgfx
     bgfx::frame();
