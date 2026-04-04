@@ -242,6 +242,24 @@ BgfxGeometry::UpdateDynamic( Geometry* geometry )
 	const U32 vertexCount = geometry->GetVerticesAllocated();
 	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
 
+	// Debug: log vertex data for first text quad (offset 6-11)
+	{
+		static int sDbg = 0;
+		if (sDbg < 20)
+		{
+			U32 cnt = geometry->GetVerticesUsed();
+			if (vertexData && cnt > 11)
+			{
+				for (U32 i = 6; i <= 11 && i < cnt; i++)
+				{
+					Rtt_LogException("BGFX_VERT: v[%u] pos=(%.1f,%.1f) uv=(%.3f,%.3f)\n",
+						i, vertexData[i].x, vertexData[i].y, vertexData[i].u, vertexData[i].v);
+				}
+			}
+			sDbg++;
+		}
+	}
+
 	// Check if we need to resize
 	if( vertexCount > fVertexCount )
 	{
