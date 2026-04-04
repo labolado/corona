@@ -243,9 +243,17 @@ void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
         case Uniform::kMaskMatrix0:
         case Uniform::kMaskMatrix1:
         case Uniform::kMaskMatrix2:
-            // mat3 - 3x3 floats (passed as 3 vec4s in bgfx)
-            bgfx::setUniform(handle, data, numElements);
+        {
+            // mat3 - Solar2D stores as 9 floats, but bgfx expects 3 vec4s (12 floats)
+            const float* src = static_cast<const float*>(data);
+            float mat3[12] = {
+                src[0], src[1], src[2], 0.0f,
+                src[3], src[4], src[5], 0.0f,
+                src[6], src[7], src[8], 0.0f
+            };
+            bgfx::setUniform(handle, mat3, numElements);
             break;
+        }
             
         case Uniform::kTotalTime:
         case Uniform::kDeltaTime:
