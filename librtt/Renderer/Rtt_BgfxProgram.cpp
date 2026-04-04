@@ -247,9 +247,9 @@ void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
             // mat3 - Solar2D stores as 9 floats, but bgfx expects 3 vec4s (12 floats)
             const float* src = static_cast<const float*>(data);
             float mat3[12] = {
-                src[0], src[1], src[2], 0.0f,
-                src[3], src[4], src[5], 0.0f,
-                src[6], src[7], src[8], 0.0f
+                src[0], src[1], src[2], 0.0f,  // row0 (no transpose - try row-major)
+                src[3], src[4], src[5], 0.0f,  // row1
+                src[6], src[7], src[8], 0.0f   // row2
             };
             bgfx::setUniform(handle, mat3, numElements);
             break;
@@ -257,9 +257,12 @@ void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
             
         case Uniform::kTotalTime:
         case Uniform::kDeltaTime:
-            // float packed in vec4.x
-            bgfx::setUniform(handle, data, numElements);
+        {
+            // Scalar uniforms need to be packed into vec4 for bgfx
+            float packed[4] = { *static_cast<const float*>(data), 0.0f, 0.0f, 0.0f };
+            bgfx::setUniform(handle, packed, numElements);
             break;
+        }
             
         case Uniform::kTexelSize:
         case Uniform::kContentScale:
