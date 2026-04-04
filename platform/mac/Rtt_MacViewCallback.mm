@@ -46,7 +46,9 @@ MacViewCallback::operator()()
 		}
 		if (sBgfxMode)
 		{
-			fRuntime->Render();
+			// Use performSelector:afterDelay:0 to match GL's async rendering timing
+			// This ensures Render() is called in the next runloop iteration, not synchronously
+			[fView performSelector:@selector(renderBgfx) withObject:nil afterDelay:0];
 		}
 		else
 		{
