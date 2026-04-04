@@ -889,6 +889,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     // Submit frame to bgfx
     bgfx::frame();
+    bgfx::renderFrame(-1);  // 等待渲染完成
 
     // Clear deferred commands for next frame
     fDeferredCmds.clear();
