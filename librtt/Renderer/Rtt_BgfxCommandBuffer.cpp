@@ -844,6 +844,12 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
+    
+    // CRITICAL: Reset default view's framebuffer to backbuffer.
+    // bgfx::setViewFrameBuffer is persistent across frames. If we don't reset,
+    // the default view might still be bound to an FBO from a previous frame,
+    // causing scene transition issues.
+    bgfx::setViewFrameBuffer( fDefaultView, BGFX_INVALID_HANDLE );
 
     // FBO views use IDs 1-199, screen view uses ID 200
     // bgfx renders views in ascending ID order, so FBOs render before screen
