@@ -109,6 +109,13 @@ local navGroup = createNavigationBar()
 composer.stage:insert(navGroup)
 navGroup:toFront()
 
+-- Keep navGroup on top after scene changes
+Runtime:addEventListener("show", function(event)
+    if event.phase == "did" then
+        navGroup:toFront()
+    end
+end)
+
 -- Go to first scene
 print("[Main] Loading Scene 1: Shapes")
 composer.gotoScene("scene_shapes")
