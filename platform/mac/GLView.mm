@@ -349,6 +349,20 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 
 - (void)drawRect:(NSRect)rect
 {
+	// Check if bgfx backend is active — must be FIRST to skip all GL operations
+	static int sBgfxBackend = -1;
+	if (sBgfxBackend < 0)
+	{
+		const char* backend = getenv("SOLAR2D_BACKEND");
+		sBgfxBackend = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
+	}
+
+	if (sBgfxBackend)
+	{
+		// bgfx renders to CAMetalLayer via timer callback, skip drawRect entirely
+		return;
+	}
+
     if ([self inLiveResize] || self.inFullScreenTransition)
     {
         // This fixes nasty OpenGL painting artifacts when live resizing
@@ -360,20 +374,6 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 		// when the Scene has already been invalidated. We invalidate here b/c drawRect
 		// can also be called by the OS in situations like dragging between multiple monitors.
 		[self invalidate];
-	}
-
-	// Check if bgfx backend is active
-	static int sBgfxBackend = -1;
-	if (sBgfxBackend < 0)
-	{
-		const char* backend = getenv("SOLAR2D_BACKEND");
-		sBgfxBackend = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
-	}
-
-	if (sBgfxBackend)
-	{
-		// bgfx rendering is driven directly by timer callback, not drawRect
-		return;
 	}
 
 	[[self openGLContext] makeCurrentContext];
