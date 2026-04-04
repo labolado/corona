@@ -1032,6 +1032,16 @@ GLCommandBuffer::Execute( bool measureGPU )
                 U32 unit = Read<U32>();
                 GLTexture* texture = Read<GLTexture*>();
                 texture->Bind( unit );
+                // Debug: log texture binding
+                {
+                    static int sDbg = 0;
+                    if (sDbg < 20)
+                    {
+                        Rtt_LogException("GL_BIND_TEX: unit=%u fmt=%d\n",
+                            unit, texture ? texture->GetCachedFormat() : -1);
+                        sDbg++;
+                    }
+                }
                 DEBUG_PRINT( "Bind Texture: texture=%p unit=%i OpenGL name=%d",
                                 texture,
                                 unit,
@@ -1161,6 +1171,19 @@ GLCommandBuffer::Execute( bool measureGPU )
             {
                 READ_UNIFORM_DATA( Mat3 );
                 glUniformMatrix3fv( location, 1, GL_FALSE, &value.data[0] );
+                // Debug: log mask matrix (uniform index 1, 2, 3 correspond to MaskMatrix0, 1, 2)
+                {
+                    static int sDbg = 0;
+                    if (sDbg < 20)
+                    {
+                        // Check if this is a mask matrix by location heuristic (mask matrices are typically 1, 2, 3)
+                        Rtt_LogException("GL_MASK_MAT: m=[%.3f %.3f %.3f | %.3f %.3f %.3f | %.3f %.3f %.3f]\n",
+                            value.data[0], value.data[1], value.data[2],
+                            value.data[3], value.data[4], value.data[5],
+                            value.data[6], value.data[7], value.data[8]);
+                        sDbg++;
+                    }
+                }
                 DEBUG_PRINT_MATRIX( "Set Uniform: value=", value.data, 9 );
                 CHECK_ERROR_AND_BREAK;
             }
@@ -1333,6 +1356,16 @@ GLCommandBuffer::Execute( bool measureGPU )
                 GLenum mode = Read<GLenum>();
                 GLint offset = Read<GLint>();
                 GLsizei count = Read<GLsizei>();
+                // Debug: log draw call
+                {
+                    static int sDbg = 0;
+                    if (sDbg < 20)
+                    {
+                        Rtt_LogException("GL_DRAW: off=%u cnt=%u ver=%d\n",
+                            (U32)offset, (U32)count, (int)fCurrentDrawVersion);
+                        sDbg++;
+                    }
+                }
                 if (0 == instanceCount)
                 {
                     glDrawArrays( mode, offset, count );

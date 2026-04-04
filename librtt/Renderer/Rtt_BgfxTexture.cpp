@@ -104,12 +104,14 @@ BgfxTexture::Create( CPUResource* resource )
 
 	// Debug: log texture creation
 	{
-		static int sTexDbg = 0;
-		if (sTexDbg < 20)
+		static int sDbg = 0;
+		if (sDbg < 20)
 		{
-			Rtt_LogException("BGFX_TEX_CREATE[%d]: fmt=%d w=%u h=%u data=%p\n",
-				sTexDbg, (int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(), texture->GetData());
-			sTexDbg++;
+			const U8* data = texture->GetData();
+			Rtt_LogException("BGFX_TEX_CREATE: fmt=%d w=%u h=%u data_first4bytes=%02x%02x%02x%02x\n",
+				(int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(),
+				data ? data[0] : 0, data ? data[1] : 0, data ? data[2] : 0, data ? data[3] : 0);
+			sDbg++;
 		}
 	}
 

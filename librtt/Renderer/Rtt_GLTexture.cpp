@@ -160,6 +160,19 @@ GLTexture::Create( CPUResource* resource )
 
     SUMMED_TIMING( gltc, "Texture GPU Resource: Create" );
 
+    // Debug: log texture creation
+    {
+        static int sDbg = 0;
+        if (sDbg < 20)
+        {
+            const U8* data = texture->GetData();
+            Rtt_LogException("GL_TEX_CREATE: fmt=%d w=%u h=%u data_first4bytes=%02x%02x%02x%02x\n",
+                (int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(),
+                data ? data[0] : 0, data ? data[1] : 0, data ? data[2] : 0, data ? data[3] : 0);
+            sDbg++;
+        }
+    }
+
     GLuint name = 0;
     glGenTextures( 1, &name );
     fHandle = NameToHandle( name );

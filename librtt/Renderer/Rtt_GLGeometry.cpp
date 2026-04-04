@@ -11,6 +11,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Renderer/Rtt_GLGeometry.h"
+#include "Core/Rtt_Assert.h"
 
 #include "Renderer/Rtt_FormatExtensionList.h"
 #include "Renderer/Rtt_Geometry_Renderer.h"
@@ -476,6 +477,25 @@ GLGeometry::Update( CPUResource* resource )
 
     Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
     Geometry* geometry = static_cast<Geometry*>( resource );
+
+    // Debug: log vertex data for first text quad (offset 6-11)
+    {
+        static int sDbg = 0;
+        if (sDbg < 20)
+        {
+            const Geometry::Vertex* verts = geometry->GetVertexData();
+            U32 cnt = geometry->GetVerticesUsed();
+            if (verts && cnt > 11)
+            {
+                for (U32 i = 6; i <= 11 && i < cnt; i++)
+                {
+                    Rtt_LogException("GL_VERT: v[%u] pos=(%.1f,%.1f) uv=(%.3f,%.3f)\n",
+                        i, verts[i].x, verts[i].y, verts[i].u, verts[i].v);
+                }
+            }
+            sDbg++;
+        }
+    }
 
     const FormatExtensionList* extensionList = geometry->GetExtensionList();
     bool gainedExtension = -1 == fInstancesAllocated && NULL != extensionList;
