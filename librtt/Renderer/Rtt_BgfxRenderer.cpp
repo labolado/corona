@@ -19,23 +19,12 @@
 #include "Core/Rtt_Assert.h"
 #include <stdio.h>
 
-#if defined(__APPLE__)
-#include <objc/objc.h>
-#include <objc/runtime.h>
-#include <objc/message.h>
-#endif
-
 // ----------------------------------------------------------------------------
 
 namespace Rtt
 {
 
 // ----------------------------------------------------------------------------
-
-// Forward declaration for macOS Metal layer configuration
-#if defined(__APPLE__)
-static void ConfigureMetalLayerForMacOS(void* nativeWindowHandle);
-#endif
 
 BgfxRenderer::BgfxRenderer(Rtt_Allocator* allocator)
 :   Super(allocator),
@@ -79,16 +68,6 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         // Set default view clear state (view 200 = screen, FBO views use 1-199)
         bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
         bgfx::setViewRect(200, 0, 0, static_cast<uint16_t>(width), static_cast<uint16_t>(height));
-        
-#if defined(__APPLE__)
-        // Fix flickering: configure CAMetalLayer after bgfx initialization
-        // bgfx uses triple buffering by default (3 drawables), but Solar2D uses
-        // double buffering (front/back command buffers). This mismatch causes
-        // the flickering. We set maximumDrawableCount=2 to match Solar2D's
-        // buffering strategy and enable presentsWithTransaction for synchronized
-        // frame presentation.
-        ConfigureMetalLayerForMacOS(nativeWindowHandle);
-#endif
     }
 
     return fBgfxInitialized;
@@ -163,56 +142,6 @@ BgfxRenderer::Create(const CPUResource* resource)
             return NULL;
     }
 }
-
-// ----------------------------------------------------------------------------
-
-#if defined(__APPLE__)
-// Helper function to configure CAMetalLayer on macOS
-// Uses Objective-C runtime to avoid requiring Objective-C++ compilation
-static void ConfigureMetalLayerForMacOS(void* nativeWindowHandle)
-{
-    if (!nativeWindowHandle)
-        return;
-
-    bgfx::RendererType::Enum rendererType = bgfx::getRendererType();
-    if (rendererType != bgfx::RendererType::Metal)
-        return;
-
-    // Get NSView's layer using objc_msgSend
-    id view = (id)nativeWindowHandle;
-    
-    // [view layer]
-    SEL layerSel = sel_registerName("layer");
-    id (*msgSend)(id, SEL) = (id (*)(id, SEL))objc_msgSend;
-    id layer = msgSend(view, layerSel);
-    
-    if (!layer)
-        return;
-
-    // Check if layer is CAMetalLayer using isKindOfClass:
-    Class caMetalLayerClass = objc_getClass("CAMetalLayer");
-    if (!caMetalLayerClass)
-        return;
-
-    SEL isKindOfClassSel = sel_registerName("isKindOfClass:");
-    BOOL (*msgSendBOOL)(id, SEL, Class) = (BOOL (*)(id, SEL, Class))objc_msgSend;
-    
-    if (!msgSendBOOL(layer, isKindOfClassSel, caMetalLayerClass))
-        return;
-
-    // Set maximumDrawableCount = 2
-    SEL setMaxDrawableSel = sel_registerName("setMaximumDrawableCount:");
-    void (*msgSendSetInt)(id, SEL, uint32_t) = (void (*)(id, SEL, uint32_t))objc_msgSend;
-    msgSendSetInt(layer, setMaxDrawableSel, 2);
-
-    // Set presentsWithTransaction = YES
-    SEL setPresentsSel = sel_registerName("setPresentsWithTransaction:");
-    void (*msgSendSetBool)(id, SEL, BOOL) = (void (*)(id, SEL, BOOL))objc_msgSend;
-    msgSendSetBool(layer, setPresentsSel, YES);
-
-    fprintf(stderr, "BGFX_METAL_FIX: configured CAMetalLayer drawableCount=2 presentsWithTransaction=YES\n");
-}
-#endif
 
 // ----------------------------------------------------------------------------
 
