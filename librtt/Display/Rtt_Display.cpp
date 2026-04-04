@@ -237,6 +237,10 @@ Display::~Display()
     //Needs to be done before deletes, because it uses scene etc
     fTextureFactory->ReleaseByType( TextureResource::kTextureResource_Any );
     
+    // Delete renderer first to ensure bgfx::shutdown() is called before
+    // fTarget (CAMetalLayer) is released, preventing access to freed resources
+    Rtt_DELETE( fRenderer );
+    
     Rtt_DELETE( fTarget );
     Rtt_DELETE( fStream );
     Rtt_DELETE( fScene );
@@ -244,7 +248,6 @@ Display::~Display()
     Rtt_DELETE( fTextureFactory );
     Rtt_DELETE( fSpritePlayer );
     Rtt_DELETE( fShaderFactory );
-    Rtt_DELETE( fRenderer );
     Rtt_DELETE( fDefaults );
 }
 
