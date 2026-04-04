@@ -17,16 +17,9 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 // Uniforms
 uniform mat4 u_ViewProjectionMatrix;
-// Mask matrix as 3 vec4 rows instead of mat3 (bypass bgfx mat3 issues)
-uniform vec4 u_MaskMatrix0_r0;
-uniform vec4 u_MaskMatrix0_r1;
-uniform vec4 u_MaskMatrix0_r2;
-uniform vec4 u_MaskMatrix1_r0;
-uniform vec4 u_MaskMatrix1_r1;
-uniform vec4 u_MaskMatrix1_r2;
-uniform vec4 u_MaskMatrix2_r0;
-uniform vec4 u_MaskMatrix2_r1;
-uniform vec4 u_MaskMatrix2_r2;
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 // Time uniforms (packed in vec4.x as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;
@@ -61,11 +54,11 @@ void main()
     // Pass through user data
     v_UserData = a_texcoord1;
 
-    // Compute mask UVs manually (bypass mat3 uniform issues)
+    // Compute mask UVs
     vec3 maskPos = vec3(a_position.xy, 1.0);
-    v_MaskUV0 = vec2(dot(u_MaskMatrix0_r0.xyz, maskPos), dot(u_MaskMatrix0_r1.xyz, maskPos));
-    v_MaskUV1 = vec2(dot(u_MaskMatrix1_r0.xyz, maskPos), dot(u_MaskMatrix1_r1.xyz, maskPos));
-    v_MaskUV2 = vec2(dot(u_MaskMatrix2_r0.xyz, maskPos), dot(u_MaskMatrix2_r1.xyz, maskPos));
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
 
     // Transform to clip space
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));

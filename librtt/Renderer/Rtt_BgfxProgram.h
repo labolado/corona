@@ -93,18 +93,11 @@ private:
     CPUResource* fResource;
     
     // Global uniform handles (created once, shared across all versions)
-    // Built-in uniforms (12+)
+    // Built-in uniforms
     bgfx::UniformHandle fUniformViewProjectionMatrix;
-    // Mask matrix as 3 vec4 rows per matrix (bypass bgfx mat3 issues)
-    bgfx::UniformHandle fUniformMaskMatrix0_r0;
-    bgfx::UniformHandle fUniformMaskMatrix0_r1;
-    bgfx::UniformHandle fUniformMaskMatrix0_r2;
-    bgfx::UniformHandle fUniformMaskMatrix1_r0;
-    bgfx::UniformHandle fUniformMaskMatrix1_r1;
-    bgfx::UniformHandle fUniformMaskMatrix1_r2;
-    bgfx::UniformHandle fUniformMaskMatrix2_r0;
-    bgfx::UniformHandle fUniformMaskMatrix2_r1;
-    bgfx::UniformHandle fUniformMaskMatrix2_r2;
+    bgfx::UniformHandle fUniformMaskMatrix0;
+    bgfx::UniformHandle fUniformMaskMatrix1;
+    bgfx::UniformHandle fUniformMaskMatrix2;
     bgfx::UniformHandle fUniformTotalTime;      // vec4, time in .x
     bgfx::UniformHandle fUniformDeltaTime;      // vec4, delta in .x
     bgfx::UniformHandle fUniformTexelSize;
