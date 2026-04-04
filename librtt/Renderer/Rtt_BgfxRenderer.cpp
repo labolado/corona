@@ -55,7 +55,7 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     init.type = bgfx::RendererType::Count;  // Auto-select best backend
     init.resolution.width = width;
     init.resolution.height = height;
-    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4;
+    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
     init.platformData.nwh = nativeWindowHandle;
 
     fBgfxInitialized = bgfx::init(init);
