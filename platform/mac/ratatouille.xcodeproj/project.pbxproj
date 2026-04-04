@@ -21,16 +21,6 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
-		FF81CD90243D480D18AC59E3 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
-		37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
-		A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
-		2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
-		6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
-		EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
-		2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
-		22EA586B206094C270D49A1F /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
-		3A549BB22B167806E935C406 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
 		887820455F4D54B5F079FDEC /* Rtt_CompositeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */; };
 		D25CCDF156E1F38B1E384CB7 /* Rtt_DisplayObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2363773154E4430625606414 /* Rtt_DisplayObject_Lua.cpp */; };
 		783BD2FB734EF0653F9A06DF /* Rtt_EmbossedTextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */; };
@@ -3651,11 +3641,6 @@
 				37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */,
 				A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */,
 				2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */,
-				E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */,
-				FF81CD90243D480D18AC59E3 /* libbxRelease.a in Frameworks */,
-				37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */,
-				A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */,
-				2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */,
 				A4FBC51D1A2D55A2004D9A01 /* libBox2D.a in Frameworks */,
 				A4FBC51E1A2D55A2004D9A01 /* liblua.a in Frameworks */,
 				A4FBC5221A2D55A2004D9A01 /* liblpeg.a in Frameworks */,
@@ -3676,11 +3661,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */,
-				EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */,
-				2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */,
-				22EA586B206094C270D49A1F /* libbimg_decodeRelease.a in Frameworks */,
-				3A549BB22B167806E935C406 /* Metal.framework in Frameworks */,
 				6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */,
 				EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */,
 				2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */,
