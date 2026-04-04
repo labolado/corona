@@ -1811,6 +1811,10 @@ Renderer::UpdateBatch( bool batch, bool enoughSpace, bool storedOnGPU, U32 verti
         {
             QueueCreate( fCurrentGeometry );
         }
+        else
+        {
+            QueueUpdate( fCurrentGeometry );
+        }
 
         fCurrentVertex = fCurrentGeometry->GetVertexData();
         fVertexOffset = 0;

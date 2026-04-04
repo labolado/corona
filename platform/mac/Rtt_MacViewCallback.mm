@@ -46,9 +46,8 @@ MacViewCallback::operator()()
 		}
 		if (sBgfxMode)
 		{
-			// Use performSelector:afterDelay:0 to match GL's async rendering timing
-			// This ensures Render() is called in the next runloop iteration, not synchronously
-			[fView performSelector:@selector(renderBgfx) withObject:nil afterDelay:0];
+			// bgfx renders to its own CAMetalLayer, render directly from timer
+			fRuntime->Render();
 		}
 		else
 		{

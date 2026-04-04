@@ -349,7 +349,7 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 
 - (void)drawRect:(NSRect)rect
 {
-	// Check if bgfx backend is active — must be FIRST to skip all GL operations
+	// Check if bgfx backend is active — must be FIRST
 	static int sBgfxBackend = -1;
 	if (sBgfxBackend < 0)
 	{
@@ -402,15 +402,6 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 	}
 
 	[self update];
-}
-
-// bgfx render callback - called via performSelector:afterDelay: to match GL's async rendering timing
-- (void) renderBgfx
-{
-	if ( fRuntime )
-	{
-		fRuntime->Render();
-	}
 }
 
 - (BOOL) isOpaque
