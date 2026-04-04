@@ -622,6 +622,7 @@ BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
     bgfx::setViewClear( fCurrentView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
         rgba, cmd.clearDepth, cmd.clearStencil );
+    bgfx::touch( fCurrentView );
 }
 
 void
