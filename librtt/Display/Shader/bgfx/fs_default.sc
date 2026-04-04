@@ -50,10 +50,8 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-    // Default fragment: texture color modulated by vertex color scale
     vec4 texColor = texture2D(u_FillSampler0, v_TexCoord.xy);
 
-    // Alpha-only texture (kAlpha stored as R8): swizzle to match GL_ALPHA behavior (0,0,0,r)
     if (u_TexFlags.x > 0.5)
     {
         texColor = vec4(0.0, 0.0, 0.0, texColor.r);
@@ -61,7 +59,6 @@ void main()
 
     vec4 result = texColor * v_ColorScale;
 
-    // Apply masks
     if (u_TexFlags.y > 0.5)
         result *= texture2D(u_MaskSampler0, v_MaskUV0).r;
     if (u_TexFlags.y > 1.5)
