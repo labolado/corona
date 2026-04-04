@@ -42,10 +42,6 @@ namespace Rtt
 U32 BgfxCommandBuffer::gUniformTimestamp = 0;
 bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default screen
 
-// Debug frame tracking globals
-uint32_t gBgfxDrawFrame = 0;
-uint32_t gBgfxDrawsThisFrame = 0;
-
 // ----------------------------------------------------------------------------
 
 BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
@@ -582,7 +578,8 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 {
     if( cmd.fbo )
     {
-        BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( cmd.fbo->GetGPUResource() );
+        void* gpuRes = cmd.fbo->GetGPUResource();
+        BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
         if( bgfxFbo )
         {
             fCurrentView = bgfxFbo->GetViewId();
@@ -642,7 +639,7 @@ void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
     // Resolve GPU resources (now available after Swap)
-    BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
+    BgfxGeometry* geo = cmd.geometry ? static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() ) : NULL;
     if( !geo )
     {
         return;
@@ -845,11 +842,13 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
     
-    // CRITICAL: Reset default view's framebuffer to backbuffer.
-    // bgfx::setViewFrameBuffer is persistent across frames. If we don't reset,
-    // the default view might still be bound to an FBO from a previous frame,
-    // causing scene transition issues.
-    bgfx::setViewFrameBuffer( fDefaultView, BGFX_INVALID_HANDLE );
+    // CRITICAL: Reset ALL views' framebuffer bindings every frame.
+    // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
+    // from previous scenes cause rendering failures after scene transitions.
+    for( bgfx::ViewId v = 0; v <= fDefaultView; ++v )
+    {
+        bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
+    }
 
     // FBO views use IDs 1-199, screen view uses ID 200
     // bgfx renders views in ascending ID order, so FBOs render before screen
@@ -881,14 +880,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         }
     }
 
-    // Per-frame tracking
-    {
-        sFrameNum++;
-        extern uint32_t gBgfxDrawFrame;
-        extern uint32_t gBgfxDrawsThisFrame;
-        gBgfxDrawFrame = sFrameNum;
-        gBgfxDrawsThisFrame = 0;
-    }
+    sFrameNum++;
 
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch(fDefaultView);

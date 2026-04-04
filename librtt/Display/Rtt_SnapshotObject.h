@@ -132,6 +132,7 @@ class SnapshotObject : public RectObject
 		GroupObject& fOrphanage;
 		mutable DirtyFlags fDirtyFlags;
 		U8 fCanvasMode;
+		mutable U32 fLastRenderGeneration;
 };
 
 // ----------------------------------------------------------------------------

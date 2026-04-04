@@ -94,9 +94,9 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 	fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
 
 	DEBUG_PRINT( "%s : bgfx framebuffer handle: %d, view: %d\n",
-					__FUNCTION__,
-					fHandle.idx,
-					fViewId );
+				__FUNCTION__,
+				fHandle.idx,
+				fViewId );
 }
 
 void
@@ -132,6 +132,17 @@ BgfxFrameBufferObject::Update( CPUResource* resource )
 void
 BgfxFrameBufferObject::Destroy()
 {
+	// CRITICAL: Reset the view's framebuffer binding BEFORE destroying the handle
+	// to prevent stale state from interfering with scene transitions.
+	// bgfx::setViewFrameBuffer is persistent across frames, so if we don't reset it,
+	// the next FBO that happens to use the same view ID will inherit a binding
+	// to a destroyed framebuffer handle.
+	if( fViewId != 0 )
+	{
+		bgfx::setViewFrameBuffer( fViewId, BGFX_INVALID_HANDLE );
+		fViewId = 0;
+	}
+
 	if( bgfx::isValid( fHandle ) )
 	{
 		bgfx::destroy( fHandle );
@@ -139,10 +150,9 @@ BgfxFrameBufferObject::Destroy()
 	}
 
 	fTextureHandle = BGFX_INVALID_HANDLE;
-	// Note: We don't reset fViewId here - it can be reused after the framebuffer is destroyed
 
 	DEBUG_PRINT( "%s : bgfx framebuffer destroyed\n",
-					__FUNCTION__ );
+				__FUNCTION__ );
 }
 
 void
