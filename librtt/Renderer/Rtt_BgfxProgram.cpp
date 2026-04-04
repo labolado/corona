@@ -67,9 +67,15 @@ BgfxProgram::BgfxProgram()
 {
     // Initialize all uniform handles to invalid
     fUniformViewProjectionMatrix = BGFX_INVALID_HANDLE;
-    fUniformMaskMatrix0 = BGFX_INVALID_HANDLE;
-    fUniformMaskMatrix1 = BGFX_INVALID_HANDLE;
-    fUniformMaskMatrix2 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix0_r0 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix0_r1 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix0_r2 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix1_r0 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix1_r1 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix1_r2 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix2_r0 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix2_r1 = BGFX_INVALID_HANDLE;
+    fUniformMaskMatrix2_r2 = BGFX_INVALID_HANDLE;
     fUniformTotalTime = BGFX_INVALID_HANDLE;
     fUniformDeltaTime = BGFX_INVALID_HANDLE;
     fUniformTexelSize = BGFX_INVALID_HANDLE;
@@ -185,9 +191,9 @@ bgfx::UniformHandle BgfxProgram::GetUniformHandle(Uniform::Name name) const
     switch (name)
     {
         case Uniform::kViewProjectionMatrix: return fUniformViewProjectionMatrix;
-        case Uniform::kMaskMatrix0:          return fUniformMaskMatrix0;
-        case Uniform::kMaskMatrix1:          return fUniformMaskMatrix1;
-        case Uniform::kMaskMatrix2:          return fUniformMaskMatrix2;
+        case Uniform::kMaskMatrix0:          return fUniformMaskMatrix0_r0;
+        case Uniform::kMaskMatrix1:          return fUniformMaskMatrix1_r0;
+        case Uniform::kMaskMatrix2:          return fUniformMaskMatrix2_r0;
         case Uniform::kTotalTime:            return fUniformTotalTime;
         case Uniform::kDeltaTime:            return fUniformDeltaTime;
         case Uniform::kTexelSize:            return fUniformTexelSize;
@@ -244,14 +250,34 @@ void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
         case Uniform::kMaskMatrix1:
         case Uniform::kMaskMatrix2:
         {
-            // mat3 - Solar2D stores as 9 floats, but bgfx expects 3 vec4s (12 floats)
+            // Send mask matrix as 3 separate vec4 rows (bypass bgfx mat3 issues)
             const float* src = static_cast<const float*>(data);
-            float mat3[12] = {
-                src[0], src[1], src[2], 0.0f,  // row0 (no transpose - try row-major)
-                src[3], src[4], src[5], 0.0f,  // row1
-                src[6], src[7], src[8], 0.0f   // row2
-            };
-            bgfx::setUniform(handle, mat3, numElements);
+            // Solar2D stores column-major: col0[3], col1[3], col2[3]
+            // We want row vectors for dot product in shader:
+            // row0 = (col0[0], col1[0], col2[0]) = scale_x, 0, tx
+            // row1 = (col0[1], col1[1], col2[1]) = 0, scale_y, ty
+            // row2 = (col0[2], col1[2], col2[2]) = 0, 0, 1
+            float row0[4] = { src[0], src[3], src[6], 0.0f };
+            float row1[4] = { src[1], src[4], src[7], 0.0f };
+            float row2[4] = { src[2], src[5], src[8], 0.0f };
+
+            bgfx::UniformHandle h_r0, h_r1, h_r2;
+            if (name == Uniform::kMaskMatrix0) {
+                h_r0 = fUniformMaskMatrix0_r0;
+                h_r1 = fUniformMaskMatrix0_r1;
+                h_r2 = fUniformMaskMatrix0_r2;
+            } else if (name == Uniform::kMaskMatrix1) {
+                h_r0 = fUniformMaskMatrix1_r0;
+                h_r1 = fUniformMaskMatrix1_r1;
+                h_r2 = fUniformMaskMatrix1_r2;
+            } else {
+                h_r0 = fUniformMaskMatrix2_r0;
+                h_r1 = fUniformMaskMatrix2_r1;
+                h_r2 = fUniformMaskMatrix2_r2;
+            }
+            bgfx::setUniform(h_r0, row0);
+            bgfx::setUniform(h_r1, row1);
+            bgfx::setUniform(h_r2, row2);
             break;
         }
             
@@ -403,12 +429,15 @@ void BgfxProgram::CreateUniforms()
     fUniformViewProjectionMatrix = bgfx::createUniform(
         "u_ViewProjectionMatrix", bgfx::UniformType::Mat4);
     
-    fUniformMaskMatrix0 = bgfx::createUniform(
-        "u_MaskMatrix0", bgfx::UniformType::Mat3);
-    fUniformMaskMatrix1 = bgfx::createUniform(
-        "u_MaskMatrix1", bgfx::UniformType::Mat3);
-    fUniformMaskMatrix2 = bgfx::createUniform(
-        "u_MaskMatrix2", bgfx::UniformType::Mat3);
+    fUniformMaskMatrix0_r0 = bgfx::createUniform("u_MaskMatrix0_r0", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix0_r1 = bgfx::createUniform("u_MaskMatrix0_r1", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix0_r2 = bgfx::createUniform("u_MaskMatrix0_r2", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix1_r0 = bgfx::createUniform("u_MaskMatrix1_r0", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix1_r1 = bgfx::createUniform("u_MaskMatrix1_r1", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix1_r2 = bgfx::createUniform("u_MaskMatrix1_r2", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix2_r0 = bgfx::createUniform("u_MaskMatrix2_r0", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix2_r1 = bgfx::createUniform("u_MaskMatrix2_r1", bgfx::UniformType::Vec4);
+    fUniformMaskMatrix2_r2 = bgfx::createUniform("u_MaskMatrix2_r2", bgfx::UniformType::Vec4);
     
     // Float uniforms packed in vec4.x
     fUniformTotalTime = bgfx::createUniform(
@@ -464,9 +493,15 @@ void BgfxProgram::DestroyUniforms()
     };
     
     destroyIfValid(fUniformViewProjectionMatrix);
-    destroyIfValid(fUniformMaskMatrix0);
-    destroyIfValid(fUniformMaskMatrix1);
-    destroyIfValid(fUniformMaskMatrix2);
+    destroyIfValid(fUniformMaskMatrix0_r0);
+    destroyIfValid(fUniformMaskMatrix0_r1);
+    destroyIfValid(fUniformMaskMatrix0_r2);
+    destroyIfValid(fUniformMaskMatrix1_r0);
+    destroyIfValid(fUniformMaskMatrix1_r1);
+    destroyIfValid(fUniformMaskMatrix1_r2);
+    destroyIfValid(fUniformMaskMatrix2_r0);
+    destroyIfValid(fUniformMaskMatrix2_r1);
+    destroyIfValid(fUniformMaskMatrix2_r2);
     destroyIfValid(fUniformTotalTime);
     destroyIfValid(fUniformDeltaTime);
     destroyIfValid(fUniformTexelSize);

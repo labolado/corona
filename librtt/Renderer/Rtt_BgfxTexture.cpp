@@ -105,7 +105,7 @@ BgfxTexture::Create( CPUResource* resource )
 	// Debug: log texture creation
 	{
 		static int sDbg = 0;
-		if (sDbg < 20)
+		if (sDbg < 50)
 		{
 			const U8* data = texture->GetData();
 			Rtt_LogException("BGFX_TEX_CREATE: fmt=%d w=%u h=%u data_first4bytes=%02x%02x%02x%02x\n",
@@ -187,6 +187,27 @@ BgfxTexture::Create( CPUResource* resource )
 				dst[i * 4 + 2] = v;
 				dst[i * 4 + 3] = 255; // alpha = 1.0, matching GL_LUMINANCE (L,L,L,1)
 			}
+			mem = rgbaMem;
+			format = bgfx::TextureFormat::RGBA8;
+		}
+		else if( texture->GetFormat() == Texture::kLuminanceAlpha )
+		{
+			// GL_LUMINANCE_ALPHA maps to (L,L,L,A) per OpenGL spec
+			// src data is 2 bytes per pixel: [L, A]
+			uint32_t pixelCount = w * h;
+			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = rgbaMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				U8 l = data[i * 2 + 0];
+				U8 a = data[i * 2 + 1];
+				dst[i * 4 + 0] = l;
+				dst[i * 4 + 1] = l;
+				dst[i * 4 + 2] = l;
+				dst[i * 4 + 3] = a;
+			}
+			Rtt_LogException("BGFX_LA_EXPAND: w=%u h=%u first8src=%02x%02x %02x%02x %02x%02x %02x%02x\n",
+				w, h, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 			mem = rgbaMem;
 			format = bgfx::TextureFormat::RGBA8;
 		}
@@ -290,6 +311,24 @@ BgfxTexture::Update( CPUResource* resource )
 				dst[i * 4 + 1] = v;
 				dst[i * 4 + 2] = v;
 				dst[i * 4 + 3] = 255; // alpha = 1.0, matching GL_LUMINANCE (L,L,L,1)
+			}
+			actualFormat = bgfx::TextureFormat::RGBA8;
+		}
+		else if( format == Texture::kLuminanceAlpha )
+		{
+			// GL_LUMINANCE_ALPHA maps to (L,L,L,A) per OpenGL spec
+			// src data is 2 bytes per pixel: [L, A]
+			uint32_t pixelCount = w * h;
+			expandedMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = expandedMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				U8 l = data[i * 2 + 0];
+				U8 a = data[i * 2 + 1];
+				dst[i * 4 + 0] = l;
+				dst[i * 4 + 1] = l;
+				dst[i * 4 + 2] = l;
+				dst[i * 4 + 3] = a;
 			}
 			actualFormat = bgfx::TextureFormat::RGBA8;
 		}
