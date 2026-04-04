@@ -363,23 +363,38 @@ LoadMainTask::operator()( Scheduler& sender )
 
 	int narg = runtime.PushLaunchArgs( false );
 
+	// Get entry file name from runtime (defaults to "main" if not set)
+	const char *entryFile = runtime.GetEntryFile();
+	if ( ! entryFile || ! *entryFile )
+	{
+		entryFile = "main";
+	}
+	
 	if ( runtime.IsProperty( Runtime::kIsApplicationNotArchived ) )
 	{
 		// Load from individual Lua file
-		const char kMain[] = Rtt_LUA_SCRIPT_FILE( "main" );
 		String filePath( runtime.GetAllocator() );
-		runtime.Platform().PathForFile( kMain, MPlatform::kResourceDir, MPlatform::kDefaultPathFlags, filePath );
-		if ( Rtt_VERIFY( filePath.GetString() ) )
+		filePath.Set( entryFile );
+		filePath.Append( "." );
+		filePath.Append( Rtt_LUA_SCRIPT_FILE_EXTENSION );
+		
+		String fullPath( runtime.GetAllocator() );
+		runtime.Platform().PathForFile( filePath.GetString(), MPlatform::kResourceDir, MPlatform::kDefaultPathFlags, fullPath );
+		if ( Rtt_VERIFY( fullPath.GetString() ) )
 		{
 			bool connectToDebugger = runtime.IsProperty( Runtime::kIsDebuggerConnected );
-			runtime.VMContext().DoFile( filePath.GetString(), connectToDebugger, narg );
+			runtime.VMContext().DoFile( fullPath.GetString(), connectToDebugger, narg );
 		}
 	}
 	else
 	{
 		// Load from resource.car
-		const char kMain[] = Rtt_LUA_OBJECT_FILE( "main" );
-		(void) Rtt_VERIFY( 0 == runtime.GetArchive()->DoResource( runtime.VMContext().L(), kMain, narg ) );
+		String filePath( runtime.GetAllocator() );
+		filePath.Set( entryFile );
+		filePath.Append( "." );
+		filePath.Append( Rtt_LUA_OBJECT_FILE_EXTENSION );
+		
+		(void) Rtt_VERIFY( 0 == runtime.GetArchive()->DoResource( runtime.VMContext().L(), filePath.GetString(), narg ) );
 	}
 
 	runtime.OnSystemEvent( SystemEvent::kOnAppStart );
@@ -1183,7 +1198,8 @@ Runtime::LoadParameters::LoadParameters()
 :	launchOptions( kDefaultLaunchOption ),
 	orientation( DeviceOrientation::kUpright ),
 	contentWidth( -1 ),
-	contentHeight( -1 )
+	contentHeight( -1 ),
+	entryFile( NULL )
 {
 }
 
@@ -1202,11 +1218,34 @@ Runtime::LoadParameters::UpdateConfig( lua_State *L, int configIndex ) const
 	}
 }
 
+void
+Runtime::SetEntryFile( const char *entryFile )
+{
+	if ( entryFile && *entryFile )
+	{
+		fEntryFile.Set( entryFile );
+	}
+	else
+	{
+		fEntryFile.Set( "main" );
+	}
+}
+
 Runtime::LoadApplicationReturnCodes
 Runtime::LoadApplication( const LoadParameters& parameters )
 {
 	U32 launchOptions = parameters.launchOptions;
 	DeviceOrientation::Type orientation = parameters.orientation;
+
+	// Set entry file from parameters or use default
+	if ( parameters.entryFile && *parameters.entryFile )
+	{
+		SetEntryFile( parameters.entryFile );
+	}
+	else if ( fEntryFile.IsEmpty() )
+	{
+		SetEntryFile( NULL ); // Sets default "main"
+	}
 
 	LoadApplicationReturnCodes result = Runtime::kGeneralFail;
 

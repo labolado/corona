@@ -162,6 +162,17 @@
 		launchArgs = [[NSMutableDictionary alloc] init];
 		[launchArgs setValue:[argv objectsAtIndexes:indices] forKey:@"args"];
 	}
+	
+	// Check for entry file argument (--entry or -entry)
+	NSString *entryFile = [[NSUserDefaults standardUserDefaults] stringForKey:@"entry"];
+	if (entryFile)
+	{
+		if (!launchArgs)
+		{
+			launchArgs = [[NSMutableDictionary alloc] init];
+		}
+		[launchArgs setValue:entryFile forKey:@"entry"];
+	}
 
 	// Start the Corona app
 	[_coronaView setCoronaViewDelegate:self];

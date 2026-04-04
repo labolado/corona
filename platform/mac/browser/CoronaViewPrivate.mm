@@ -115,9 +115,36 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
     
     MacPlatform *platform = new MacPlatform(self);
 
+	// Determine entry file (default to main.lua)
+	NSString *entryFileName = @"main.lua";
+	NSString *entryFileNameLu = @"main.lu";
+	if (params)
+	{
+		NSString *entryParam = [params valueForKey:@"entry"];
+		if (entryParam)
+		{
+			entryFileName = entryParam;
+			// Also check for .lu extension if entry file is specified
+			if (![entryFileName hasSuffix:@".lua"] && ![entryFileName hasSuffix:@".lu"])
+			{
+				entryFileNameLu = [entryFileName stringByAppendingString:@".lu"];
+				entryFileName = [entryFileName stringByAppendingString:@".lua"];
+			}
+			else if ([entryFileName hasSuffix:@".lu"])
+			{
+				entryFileNameLu = entryFileName;
+				entryFileName = [entryFileName stringByReplacingOccurrencesOfString:@".lu" withString:@".lua"];
+			}
+			else
+			{
+				entryFileNameLu = [entryFileName stringByReplacingOccurrencesOfString:@".lua" withString:@".lu"];
+			}
+		}
+	}
+	
 	// Sanity check
-    if (! [[NSFileManager defaultManager] isReadableFileAtPath:[path stringByAppendingPathComponent:@"main.lua"]] &&
-        ! [[NSFileManager defaultManager] isReadableFileAtPath:[path stringByAppendingPathComponent:@"main.lu"]]&&
+    if (! [[NSFileManager defaultManager] isReadableFileAtPath:[path stringByAppendingPathComponent:entryFileName]] &&
+        ! [[NSFileManager defaultManager] isReadableFileAtPath:[path stringByAppendingPathComponent:entryFileNameLu]] &&
         ! [[NSFileManager defaultManager] isReadableFileAtPath:[path stringByAppendingPathComponent:@"resource.car"]])
 	{
 		NSTextView *accessory = [[NSTextView alloc] initWithFrame:NSMakeRect(0,0,400,15)];
@@ -127,7 +154,7 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		NSString *link = @"http://docs.coronalabs.com/coronacards/osx/index.html";
 		NSString *linkText = @"\n\nCoronaCards documentation";
 		NSDictionary *linkAttributes = [NSDictionary dictionaryWithObject:link forKey:NSLinkAttributeName];
-		NSString *msgText = @"\n\n(no main.lua found)";
+		NSString *msgText = [NSString stringWithFormat:@"\n\n(no %@ found)", entryFileName];
 		NSDictionary *msgAttributes = [NSDictionary dictionaryWithObject:msgFont forKey:NSFontAttributeName];
 		[accessory insertText:[[NSAttributedString alloc] initWithString:path
 															  attributes:pathAttributes]];
@@ -321,6 +348,16 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 			// Load the project's "build.settings" and "config.lua" file first.
 			// Used to fetch supported orientations, supported image suffix scales, and content width/height.
 			_projectSettings->LoadFromDirectory([_projectPath UTF8String]);
+			
+			// Set entry file if provided (for --entry parameter)
+			if (_launchParams)
+			{
+				NSString *entryFile = [_launchParams valueForKey:@"entry"];
+				if (entryFile)
+				{
+					_runtime->SetEntryFile([entryFile UTF8String]);
+				}
+			}
 
 			_GLView.isResizable = _projectSettings->IsWindowResizable();
 			
