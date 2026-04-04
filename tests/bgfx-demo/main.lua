@@ -103,7 +103,11 @@ local function createNavigationBar()
 end
 
 -- Create navigation bar (it will stay on top)
-createNavigationBar()
+local navGroup = createNavigationBar()
+
+-- Insert navGroup into composer's stage and keep it on top
+composer.stage:insert(navGroup)
+navGroup:toFront()
 
 -- Go to first scene
 print("[Main] Loading Scene 1: Shapes")
