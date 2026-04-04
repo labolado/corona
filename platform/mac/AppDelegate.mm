@@ -2656,6 +2656,9 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		// Always close
 		[self closeSimulator:sender];
 
+		// Allow bgfx/Metal to fully clean up before re-initializing
+		[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+
 		++fRelaunchCount;
 	}
 	else
