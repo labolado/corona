@@ -19,6 +19,7 @@
 #include "Display/Rtt_GroupObject.h"
 #include "Display/Rtt_RectPath.h"
 #include "Display/Rtt_ShaderFactory.h"
+#include "Display/Rtt_Scene.h"
 #include "Display/Rtt_StageObject.h"
 #include "Display/Rtt_TextureFactory.h"
 #include "Display/Rtt_TextureResource.h"
@@ -128,7 +129,8 @@ SnapshotObject::SnapshotObject(
 	fClearColor( ColorZero() ),
 	fOrphanage( * display.Orphanage() ),
 	fDirtyFlags( kDefaultFlag ),
-	fCanvasMode( kDefaultMode )
+	fCanvasMode( kDefaultMode ),
+	fLastRenderGeneration( 0 )
 {
 	// At the Lua level, prevent certain operations on fGroup and fCanvas. In particular:
 	// * they cannot be an argument to newParent:insert()
@@ -227,6 +229,24 @@ SnapshotObject::Initialize( lua_State *L, Display& display, Real contentW, Real 
 bool
 SnapshotObject::UpdateTransform( const Matrix& parentToDstSpace )
 {
+	// If the scene's render generation has changed since we last rendered,
+	// force re-render to FBO. This handles scene transitions where a snapshot
+	// may have rendered in a transition frame and cleared its dirty flags,
+	// but needs to re-render when the full scene is drawn in a subsequent frame.
+	const StageObject *stage = GetStage();
+	if ( stage )
+	{
+		U32 currentGeneration = stage->GetScene().GetRenderGeneration();
+		if ( fLastRenderGeneration != currentGeneration )
+		{
+			if ( ! IsDirty() )
+			{
+				fDirtyFlags |= kGroupFlag;
+			}
+			fLastRenderGeneration = currentGeneration;
+		}
+	}
+
 	if ( IsDirty() )
 	{
 		GroupObject& group = GetGroup();
@@ -415,7 +435,7 @@ SnapshotObject::Draw( Renderer& renderer ) const
 		SUMMED_TIMING( srg, "Snapshot: Render Canvas" );
 
 		DrawGroup( renderer, GetCanvas(), NULL );
-		
+
 		// Append/release children of other fCanvas into fGroup
 		GroupObject& src = const_cast< GroupObject& >( GetCanvas() );
 		if ( kAppendMode == GetCanvasMode() )
@@ -433,7 +453,7 @@ SnapshotObject::Draw( Renderer& renderer ) const
 			}
 		}
 	}
-	
+
 	fDirtyFlags = 0; // Clear all flags
 
 	Super::Draw( renderer );

@@ -57,6 +57,7 @@ Scene::Scene( Rtt_Allocator* pAllocator, Display& owner)
     fProxyOrphanage( owner.GetAllocator() ),
     fIsValid( false ),
     fCounter( 0 ),
+    fRenderGeneration( 0 ),
     fActiveUpdatable()
 {
     fOffscreenStage->SetRenderedOffScreen( true );
@@ -210,6 +211,8 @@ Scene::Render( Renderer& renderer, PlatformSurface& rTarget, ProfilingEntryRAII*
 
     if ( ! IsValid() )
     {
+        ++fRenderGeneration;
+
         const Rtt::Real kMillisecondsPerSecond = 1000.0f;
         Rtt_AbsoluteTime elapsedTime = fOwner.GetElapsedTime();
         Rtt::Real totalTime = Rtt_AbsoluteToMilliseconds( elapsedTime ) / kMillisecondsPerSecond;

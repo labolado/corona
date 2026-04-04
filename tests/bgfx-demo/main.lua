@@ -1,6 +1,6 @@
 --[[
     main.lua - Solar2D bgfx Test Demo Main Entry
-    
+
     Comprehensive test demo for verifying bgfx rendering backend correctness.
     Uses composer for multi-scene navigation with bottom navigation bar.
 --]]
@@ -36,26 +36,26 @@ _G.bgfxDemoCurrentScene = 1
 -- Create navigation bar
 local function createNavigationBar()
     local navGroup = display.newGroup()
-    
+
     -- Navigation bar background
     local navBg = display.newRect(navGroup, display.contentCenterX, display.contentHeight - 25, display.contentWidth, 50)
     navBg:setFillColor(0.15, 0.15, 0.15)
     navBg.strokeWidth = 1
     navBg:setStrokeColor(0.3, 0.3, 0.3)
-    
+
     -- Scene buttons
     local buttonWidth = display.contentWidth / #scenes
-    
+
     for i, sceneInfo in ipairs(scenes) do
         local btnX = (i - 0.5) * buttonWidth
         local btnY = display.contentHeight - 25
-        
+
         -- Button background
         local btn = display.newRect(navGroup, btnX, btnY, buttonWidth - 2, 46)
         btn:setFillColor(0.25, 0.25, 0.25)
         btn.sceneIndex = i
         btn.sceneName = sceneInfo.name
-        
+
         -- Button label
         local label = display.newText({
             parent = navGroup,
@@ -66,7 +66,7 @@ local function createNavigationBar()
             fontSize = 12
         })
         label:setFillColor(0.9, 0.9, 0.9)
-        
+
         -- Touch handler
         btn:addEventListener("touch", function(event)
             if event.phase == "ended" then
@@ -78,12 +78,12 @@ local function createNavigationBar()
             end
             return true
         end)
-        
+
         -- Store reference for highlighting
         sceneInfo.button = btn
         sceneInfo.labelText = label
     end
-    
+
     -- Highlight current scene function
     function _G.updateNavHighlight()
         for i, sceneInfo in ipairs(scenes) do
@@ -96,9 +96,9 @@ local function createNavigationBar()
             end
         end
     end
-    
+
     _G.updateNavHighlight()
-    
+
     return navGroup
 end
 
