@@ -54,6 +54,12 @@ void main()
     // Pass through user data
     v_UserData = a_texcoord1;
 
+    // Compute mask UVs by transforming position through mask matrices
+    vec3 maskPos = vec3(a_position.xy, 1.0);
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
+
     // Transform to clip space
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));
 }
