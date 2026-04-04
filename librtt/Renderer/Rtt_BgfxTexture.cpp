@@ -102,19 +102,6 @@ BgfxTexture::Create( CPUResource* resource )
 
 	SUMMED_TIMING( bgfxtc, "Bgfx Texture GPU Resource: Create" );
 
-	// Debug: log texture creation
-	{
-		static int sDbg = 0;
-		if (sDbg < 50)
-		{
-			const U8* data = texture->GetData();
-			Rtt_LogException("BGFX_TEX_CREATE: fmt=%d w=%u h=%u data_first4bytes=%02x%02x%02x%02x\n",
-				(int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(),
-				data ? data[0] : 0, data ? data[1] : 0, data ? data[2] : 0, data ? data[3] : 0);
-			sDbg++;
-		}
-	}
-
 	// Destroy existing handle if any
 	if( bgfx::isValid( fHandle ) )
 	{
@@ -206,8 +193,6 @@ BgfxTexture::Create( CPUResource* resource )
 				dst[i * 4 + 2] = l;
 				dst[i * 4 + 3] = a;
 			}
-			Rtt_LogException("BGFX_LA_EXPAND: w=%u h=%u first8src=%02x%02x %02x%02x %02x%02x %02x%02x\n",
-				w, h, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
 			mem = rgbaMem;
 			format = bgfx::TextureFormat::RGBA8;
 		}
