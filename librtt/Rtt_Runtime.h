@@ -218,6 +218,7 @@ class Runtime : public MCallback,
 			DeviceOrientation::Type orientation;
 			S32 contentWidth;
 			S32 contentHeight;
+			const char *entryFile;
 		};
 
 		// Inits VM and then loads script file.
@@ -388,6 +389,7 @@ class Runtime : public MCallback,
 		U32 fFrame;
 		int fLaunchArgsRef;
 		const char *fSimulatorPlatformName;
+		String fEntryFile;
 		int fDownloadablePluginsRef;
 		int fDownloadablePluginsCount;
 		const MRuntimeDelegate *fDelegate;
@@ -401,6 +403,8 @@ class Runtime : public MCallback,
 		bool fErrorHandlerRecursionGuard;
 	public:
 		const char* GetBuildId() { return fBuildId.GetString(); }
+		const char* GetEntryFile() const { return fEntryFile.GetString(); }
+		void SetEntryFile( const char *entryFile );
 
 #ifdef Rtt_USE_ALMIXER
 	public:
