@@ -2660,7 +2660,13 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		{
 			NSString *execPath = [[NSBundle mainBundle] executablePath];
 			NSMutableArray *args = [NSMutableArray arrayWithArray:[[NSProcessInfo processInfo] arguments]];
-			[NSTask launchedTaskWithLaunchPath:execPath arguments:[args subarrayWithRange:NSMakeRange(1, args.count - 1)]];
+			NSTask *task = [[NSTask alloc] init];
+			[task setLaunchPath:execPath];
+			[task setArguments:[args subarrayWithRange:NSMakeRange(1, args.count - 1)]];
+			// Pass SOLAR2D_BACKEND to the new process
+			NSMutableDictionary *env = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
+			[task setEnvironment:env];
+			[task launch];
 			[NSApp terminate:nil];
 			return;
 		}
