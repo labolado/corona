@@ -99,13 +99,15 @@ BgfxCommandBuffer::Initialize()
 {
     // bgfx initialization is handled by BgfxRenderer
     // Here we just set up the default view
+    // Set correct default view first to avoid leaving stale state on view 0
+    InitializeFBO();
+
     bgfx::setViewClear( fDefaultView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
         0x00000000,
         fClearDepth,
         fClearStencil );
 
-    InitializeFBO();
     InitializeCachedParams();
 
     // Query max texture size
@@ -844,6 +846,9 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
+
+    // Disable view 0 to prevent stale state from causing flicker
+    bgfx::setViewClear( 0, BGFX_CLEAR_NONE );
 
     // FBO views use IDs 1-199, screen view uses ID 200
     // bgfx renders views in ascending ID order, so FBOs render before screen
