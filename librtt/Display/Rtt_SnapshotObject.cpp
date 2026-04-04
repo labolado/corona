@@ -33,7 +33,6 @@
 #include "Rtt_Profiling.h"
 
 #include "Display/Rtt_ClosedPath.h"
-#include <stdio.h>
 
 // ----------------------------------------------------------------------------
 
@@ -322,14 +321,6 @@ SnapshotObject::RenderToFBO(
 {
 	// Save current state so we can restore it later
 	FrameBufferObject *fbo = renderer.GetFrameBufferObject();
-	
-	// DEBUG LOG
-	S32 currX, currY, currW, currH;
-	renderer.GetViewport( currX, currY, currW, currH );
-	fprintf(stderr, "[RenderToFBO ENTER] dstFBO=%p currFBO=%p viewport=%dx%d tex=%dx%d\n",
-		dstFBO, fbo, currW, currH,
-		dstFBO ? dstFBO->GetTexture()->GetWidth() : 0,
-		dstFBO ? dstFBO->GetTexture()->GetHeight() : 0);
 
 	Rtt::Real viewMatrix[16];
 	Rtt::Real projMatrix[16];
@@ -380,16 +371,6 @@ SnapshotObject::RenderToFBO(
 		}
 		
 		renderer.BeginDrawing();
-		// DEBUG: Print object children count
-		const GroupObject* group = object.AsGroupObject();
-		if( group )
-		{
-			fprintf(stderr, "[RenderToFBO DRAW] GroupObject children=%d\n", group->NumChildren());
-		}
-		else
-		{
-			fprintf(stderr, "[RenderToFBO DRAW] Object is not a GroupObject\n");
-		}
 		object.Draw( renderer );
 	}
 	renderer.PopMaskCount();
@@ -402,10 +383,6 @@ SnapshotObject::RenderToFBO(
 	renderer.SetFrameBufferObject( fbo );
 	renderer.SetViewport( x, y, width, height );
 	renderer.SetFrustum( viewMatrix, projMatrix );
-	
-	// DEBUG LOG
-	fprintf(stderr, "[RenderToFBO EXIT] restoredFBO=%p restoredViewport=%dx%d\n",
-		fbo, width, height);
 }
 
 void
@@ -426,12 +403,7 @@ SnapshotObject::Draw( Renderer& renderer ) const
 {
 	SUMMED_TIMING( sd, "Snapshot: Draw" );
 
-	bool shouldRender = ShouldRenderGroup();
-	int children = GetGroup().NumChildren();
-	fprintf(stderr, "[SnapshotObject::Draw] ShouldRenderGroup=%d GetGroup children=%d\n", 
-		shouldRender, children);
-
-	if ( shouldRender )
+	if ( ShouldRenderGroup() )
 	{
 		SUMMED_TIMING( srg, "Snapshot: Render Group" );
 

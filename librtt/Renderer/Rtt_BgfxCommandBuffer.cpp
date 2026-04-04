@@ -30,7 +30,6 @@
 #include "Core/Rtt_Math.h"
 
 #include <string.h>
-#include <stdio.h>
 
 // ----------------------------------------------------------------------------
 
@@ -584,24 +583,16 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
     if( cmd.fbo )
     {
         BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( cmd.fbo->GetGPUResource() );
-        fprintf(stderr, "[EX_BIND_FBO] cmd.fbo=%p gpuResource=%p\n", cmd.fbo, bgfxFbo);
         if( bgfxFbo )
         {
             fCurrentView = bgfxFbo->GetViewId();
             bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
             bgfx::setViewMode( fCurrentView, bgfx::ViewMode::Sequential );
-            fprintf(stderr, "[EX_BIND_FBO] -> bind view=%d fboHandle=%d\n", fCurrentView, bgfxFbo->GetHandle().idx);
-        }
-        else
-        {
-            fprintf(stderr, "[EX_BIND_FBO] -> NO GPU RESOURCE! fallback to view=%d\n", fDefaultView);
-            fCurrentView = fDefaultView;
         }
     }
     else
     {
         fCurrentView = fDefaultView;
-        fprintf(stderr, "[EX_BIND_FBO] -> unbind view=%d\n", fDefaultView);
     }
 }
 
@@ -650,13 +641,10 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
 void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
-    fprintf(stderr, "[EX_DRAW] view=%d offset=%d count=%d\n", fCurrentView, cmd.offset, cmd.count);
-    
     // Resolve GPU resources (now available after Swap)
     BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
     if( !geo )
     {
-        fprintf(stderr, "[EX_DRAW] view=%d - NO GEO!\n", fCurrentView);
         return;
     }
 
@@ -873,7 +861,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     for( size_t i = 0; i < fDeferredCmds.size(); ++i )
     {
         const DeferredCmd& cmd = fDeferredCmds[i];
-        fprintf(stderr, "CMD[%zu]: type=%d fCurrentView=%d\n", i, cmd.type, fCurrentView);
         switch( cmd.type )
         {
             case DeferredCmd::kBindFBO:

@@ -404,6 +404,15 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 	[self update];
 }
 
+// bgfx render callback - called via performSelector:afterDelay: to match GL's async rendering timing
+- (void) renderBgfx
+{
+	if ( fRuntime )
+	{
+		fRuntime->Render();
+	}
+}
+
 - (BOOL) isOpaque
 {
 	return YES;
