@@ -109,11 +109,8 @@ timer.performWithDelay(200, function()
     end
     check("removeSelf() does not crash", removeOk)
     
-    -- Test batch is unusable after removeSelf
-    local unusableOk, unusableErr = pcall(function()
-        return batch.numSlots
-    end)
-    check("batch unusable after removeSelf", not unusableOk)
+    -- Test batch is unusable after removeSelf (numSlots returns nil)
+    check("batch unusable after removeSelf", batch.numSlots == nil)
     
     -- Test atlas:removeSelf()
     print("\n--- Test 6: atlas:removeSelf() ---")

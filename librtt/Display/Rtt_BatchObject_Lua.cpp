@@ -300,6 +300,22 @@ LuaBatchObjectProxyVTable::count( lua_State* L )
 int
 LuaBatchObjectProxyVTable::ValueForKey( lua_State* L, const MLuaProxyable& object, const char key[], bool overrideRestriction ) const
 {
+	const BatchObject& batch = static_cast< const BatchObject& >( (const DisplayObject&)object );
+
+	// After removeSelf(), batch-specific properties return nil
+	if ( batch.IsRemoved() )
+	{
+		if ( strcmp( key, "add" ) == 0 ||
+			 strcmp( key, "clear" ) == 0 ||
+			 strcmp( key, "count" ) == 0 ||
+			 strcmp( key, "numSlots" ) == 0 )
+		{
+			lua_pushnil( L );
+			return 1;
+		}
+		return Super::ValueForKey( L, object, key, overrideRestriction );
+	}
+
 	int result = 1;
 
 	if ( strcmp( key, "add" ) == 0 )
@@ -316,7 +332,6 @@ LuaBatchObjectProxyVTable::ValueForKey( lua_State* L, const MLuaProxyable& objec
 	}
 	else if ( strcmp( key, "numSlots" ) == 0 )
 	{
-		const BatchObject& batch = static_cast< const BatchObject& >( (const DisplayObject&)object );
 		lua_pushinteger( L, batch.GetCount() );
 	}
 	else
