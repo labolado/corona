@@ -114,6 +114,9 @@ class CommandBuffer
     
         virtual bool WriteNamedUniform( const char * uniformName, const void * data, unsigned int size ) = 0;
         
+        // Set opaque instance draw data for the next Draw call (NULL to clear)
+        virtual void SetPendingInstanceDraw( void* data ) {}
+
         virtual void WillRender() {}
     
         // Execute the generated command buffer. This function should only be

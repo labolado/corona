@@ -50,6 +50,9 @@ struct RenderData
 //	Real fMaxDepthRange;
 	BlendMode fBlendMode;
 	RenderTypes::BlendEquation fBlendEquation;
+
+	// Opaque pointer for backend-specific instanced draw data (NULL = no instancing)
+	void* fInstanceDraw;
 };
 
 // ----------------------------------------------------------------------------
