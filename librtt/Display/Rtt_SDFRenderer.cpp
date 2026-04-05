@@ -34,6 +34,9 @@ SDFRenderer::SDFRenderer()
 	fParamsUniform = BGFX_INVALID_HANDLE;
 	fFillColorUniform = BGFX_INVALID_HANDLE;
 	fStrokeColorUniform = BGFX_INVALID_HANDLE;
+	fLineParamsUniform = BGFX_INVALID_HANDLE;
+	fPolyParamsUniform = BGFX_INVALID_HANDLE;
+	fPolyVertsUniform = BGFX_INVALID_HANDLE;
 }
 
 SDFRenderer::~SDFRenderer()
@@ -60,26 +63,43 @@ SDFRenderer::Initialize()
 	fParamsUniform = bgfx::createUniform( "u_sdfParams", bgfx::UniformType::Vec4 );
 	fFillColorUniform = bgfx::createUniform( "u_sdfFillColor", bgfx::UniformType::Vec4 );
 	fStrokeColorUniform = bgfx::createUniform( "u_sdfStrokeColor", bgfx::UniformType::Vec4 );
+	fLineParamsUniform = bgfx::createUniform( "u_lineParams", bgfx::UniformType::Vec4 );
+	fPolyParamsUniform = bgfx::createUniform( "u_polyParams", bgfx::UniformType::Vec4 );
+	fPolyVertsUniform = bgfx::createUniform( "u_polyVerts", bgfx::UniformType::Vec4, 8 );
 
 	// Create SDF shader programs from embedded shader binaries
 	// Vertex shader is shared across all shape types
 	const bgfx::Memory* vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
 	bgfx::ShaderHandle vsHandle = bgfx::createShader(vsMemory);
-	
+
 	// Circle program
 	const bgfx::Memory* fsCircleMemory = bgfx::copy(s_fs_sdf_circle_metal, s_fs_sdf_circle_metal_size);
 	bgfx::ShaderHandle fsCircleHandle = bgfx::createShader(fsCircleMemory);
 	fPrograms[kCircle] = bgfx::createProgram(vsHandle, fsCircleHandle, true);
-	
+
 	// Rect program (re-create vs since previous createProgram destroyed it)
 	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
 	vsHandle = bgfx::createShader(vsMemory);
 	const bgfx::Memory* fsRectMemory = bgfx::copy(s_fs_sdf_rect_metal, s_fs_sdf_rect_metal_size);
 	bgfx::ShaderHandle fsRectHandle = bgfx::createShader(fsRectMemory);
 	fPrograms[kRect] = bgfx::createProgram(vsHandle, fsRectHandle, true);
-	
+
 	// Rounded rect uses same shader as rect
 	fPrograms[kRoundedRect] = fPrograms[kRect];
+
+	// Line program
+	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsHandle = bgfx::createShader(vsMemory);
+	const bgfx::Memory* fsLineMemory = bgfx::copy(s_fs_sdf_line_metal, s_fs_sdf_line_metal_size);
+	bgfx::ShaderHandle fsLineHandle = bgfx::createShader(fsLineMemory);
+	fPrograms[kLine] = bgfx::createProgram(vsHandle, fsLineHandle, true);
+
+	// Polygon program
+	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsHandle = bgfx::createShader(vsMemory);
+	const bgfx::Memory* fsPolyMemory = bgfx::copy(s_fs_sdf_polygon_metal, s_fs_sdf_polygon_metal_size);
+	bgfx::ShaderHandle fsPolyHandle = bgfx::createShader(fsPolyMemory);
+	fPrograms[kPolygon] = bgfx::createProgram(vsHandle, fsPolyHandle, true);
 
 	fInitialized = true;
 }
@@ -103,26 +123,36 @@ SDFRenderer::Finalize()
 		bgfx::destroy( fPrograms[kRect] );
 		fPrograms[kRect] = BGFX_INVALID_HANDLE;
 	}
-	// kRoundedRect uses same program as kRect, already destroyed above
 	fPrograms[kRoundedRect] = BGFX_INVALID_HANDLE;
 
-	if ( bgfx::isValid( fParamsUniform ) )
+	if ( bgfx::isValid( fPrograms[kLine] ) )
 	{
-		bgfx::destroy( fParamsUniform );
-		fParamsUniform = BGFX_INVALID_HANDLE;
+		bgfx::destroy( fPrograms[kLine] );
+		fPrograms[kLine] = BGFX_INVALID_HANDLE;
+	}
+	if ( bgfx::isValid( fPrograms[kPolygon] ) )
+	{
+		bgfx::destroy( fPrograms[kPolygon] );
+		fPrograms[kPolygon] = BGFX_INVALID_HANDLE;
 	}
 
-	if ( bgfx::isValid( fFillColorUniform ) )
+	bgfx::UniformHandle uniforms[] = {
+		fParamsUniform, fFillColorUniform, fStrokeColorUniform,
+		fLineParamsUniform, fPolyParamsUniform, fPolyVertsUniform
+	};
+	for ( int i = 0; i < 6; ++i )
 	{
-		bgfx::destroy( fFillColorUniform );
-		fFillColorUniform = BGFX_INVALID_HANDLE;
+		if ( bgfx::isValid( uniforms[i] ) )
+		{
+			bgfx::destroy( uniforms[i] );
+		}
 	}
-
-	if ( bgfx::isValid( fStrokeColorUniform ) )
-	{
-		bgfx::destroy( fStrokeColorUniform );
-		fStrokeColorUniform = BGFX_INVALID_HANDLE;
-	}
+	fParamsUniform = BGFX_INVALID_HANDLE;
+	fFillColorUniform = BGFX_INVALID_HANDLE;
+	fStrokeColorUniform = BGFX_INVALID_HANDLE;
+	fLineParamsUniform = BGFX_INVALID_HANDLE;
+	fPolyParamsUniform = BGFX_INVALID_HANDLE;
+	fPolyVertsUniform = BGFX_INVALID_HANDLE;
 
 	fInitialized = false;
 }
@@ -205,6 +235,58 @@ SDFRenderer::SetColorUniforms(
 	{
 		bgfx::setUniform( fStrokeColorUniform, strokeColor );
 	}
+}
+
+void
+SDFRenderer::SetLineUniforms( Real x0, Real y0, Real x1, Real y1 )
+{
+	if ( !fInitialized )
+	{
+		return;
+	}
+
+	float params[4] = {
+		(float)x0, (float)y0, (float)x1, (float)y1
+	};
+
+	if ( bgfx::isValid( fLineParamsUniform ) )
+	{
+		bgfx::setUniform( fLineParamsUniform, params );
+	}
+}
+
+bool
+SDFRenderer::SetPolygonUniforms( const Real* verts, int numVerts )
+{
+	if ( !fInitialized || numVerts < 3 || numVerts > kMaxPolygonVerts )
+	{
+		return false;
+	}
+
+	// Set vertex count
+	float polyParams[4] = { (float)numVerts, 0.0f, 0.0f, 0.0f };
+	if ( bgfx::isValid( fPolyParamsUniform ) )
+	{
+		bgfx::setUniform( fPolyParamsUniform, polyParams );
+	}
+
+	// Pack vertices into vec4 array: each vec4 = (x0,y0, x1,y1)
+	float packedVerts[32]; // 8 vec4s * 4 floats
+	memset( packedVerts, 0, sizeof(packedVerts) );
+	for ( int i = 0; i < numVerts; ++i )
+	{
+		int vecIdx = i / 2;
+		int comp = (i % 2) * 2;
+		packedVerts[vecIdx * 4 + comp] = (float)verts[i * 2];
+		packedVerts[vecIdx * 4 + comp + 1] = (float)verts[i * 2 + 1];
+	}
+
+	if ( bgfx::isValid( fPolyVertsUniform ) )
+	{
+		bgfx::setUniform( fPolyVertsUniform, packedVerts, 8 );
+	}
+
+	return true;
 }
 
 // ----------------------------------------------------------------------------
