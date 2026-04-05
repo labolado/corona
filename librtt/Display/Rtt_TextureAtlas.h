@@ -20,6 +20,7 @@
 #include "Display/Rtt_BitmapPaint.h"
 
 #include <string>
+#include <unordered_map>
 
 // ----------------------------------------------------------------------------
 
@@ -72,6 +73,9 @@ class TextureAtlas
 		S32 GetWidth() const { return fAtlasWidth; }
 		S32 GetHeight() const { return fAtlasHeight; }
 
+		// Create an ImageSheet from a frame in this atlas
+		ImageSheet* CreateImageSheet( const char* frameName, int frameWidth, int frameHeight, int numFrames ) const;
+
 	private:
 		TextureAtlas( Rtt_Allocator* allocator );
 
@@ -87,6 +91,7 @@ class TextureAtlas
 		Rtt_Allocator* fAllocator;
 		SharedPtr< TextureResource > fTexture;
 		Array< Frame > fFrames;
+		std::unordered_map<std::string, int> fFrameMap;  // name -> index mapping for O(1) lookup
 		S32 fAtlasWidth;
 		S32 fAtlasHeight;
 };
