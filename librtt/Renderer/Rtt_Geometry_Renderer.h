@@ -187,6 +187,11 @@ class Geometry : public CPUResource
         U32 GetIndicesAllocated() const;
         bool GetStoredOnGPU() const;
 
+        // GPU dirty flag: true when geometry data has changed and needs re-upload
+        bool IsGPUDirty() const { return fGPUDirty; }
+        void SetGPUDirty() { fGPUDirty = true; }
+        void ClearGPUDirty() { fGPUDirty = false; }
+
         void AttachPerVertexColors( ArrayU32* colors, U32 size );
 
 		const U32* GetPerVertexColorData() const;
@@ -242,6 +247,7 @@ class Geometry : public CPUResource
         Index* fIndexData;
         U32 fVerticesUsed;
         U32 fIndicesUsed;
+        bool fGPUDirty;
         ExtensionBlock* fExtension;
 };
 

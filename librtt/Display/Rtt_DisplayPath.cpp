@@ -36,6 +36,8 @@ DisplayPath::UpdateGeometry( Geometry& dst, const VertexCache& src, const Matrix
 {
     if ( 0 == flags ) { return; }
 
+    dst.SetGPUDirty();
+
     const ArrayVertex2& vertices = src.Vertices();
     const ArrayVertex2& texVertices = src.TexVertices();
     U32 numVertices = vertices.Length();

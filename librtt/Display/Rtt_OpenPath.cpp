@@ -128,7 +128,7 @@ OpenPath::UpdateResources( Renderer& renderer ) const
 {
 #if ! Rtt_OPENGL_CLIENT_SIDE_ARRAYS
 
-    if ( HasStroke() && IsStrokeVisible() && fStrokeGeometry->GetStoredOnGPU() )
+    if ( HasStroke() && IsStrokeVisible() && fStrokeGeometry->GetStoredOnGPU() && fStrokeGeometry->IsGPUDirty() )
     {
         renderer.QueueUpdate( fStrokeGeometry );
     }
@@ -150,6 +150,7 @@ OpenPath::Translate( Real dx, Real dy )
         v.x += dx;
         v.y += dy;
     }
+    fStrokeGeometry->SetGPUDirty();
 }
 
 void
