@@ -14,6 +14,7 @@
 #include "Display/Rtt_DisplayTypes.h"
 #include "Display/Rtt_VertexCache.h"
 #include "Display/Rtt_TesselatorShape.h"
+#include "Display/Rtt_SDFRenderer.h"
 
 // ----------------------------------------------------------------------------
 
@@ -90,6 +91,12 @@ class ShapePath : public ClosedPath
 
         Geometry *GetFillGeometry() const { return fFillGeometry; }
         Geometry *GetStrokeGeometry() const { return fStrokeGeometry; }
+
+		// SDF rendering support
+		// Generates a 4-vertex quad covering the shape's bounding box
+		// with UV coordinates in [0,1] for SDF evaluation.
+		// Returns true if SDF quad was generated.
+		bool GenerateSDFQuad( ArrayVertex2& outVertices, ArrayVertex2& outTexCoords );
 
     protected:
         Geometry *fFillGeometry;

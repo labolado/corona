@@ -14,6 +14,10 @@ local scene = composer.newScene()
 function scene:create(event)
     local sceneGroup = self.view
     
+    local W = display.contentWidth
+    local H = display.contentHeight
+    local S = W / 320  -- 缩放系数
+    
     print("[Scene 3: Text] Creating...")
     
     -- Background
@@ -24,10 +28,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 3: Text",
-        x = 20,
-        y = 20,
+        x = 20 * S,
+        y = 20 * S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16 * S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -37,28 +41,28 @@ function scene:create(event)
     local sizeLabel = display.newText({
         parent = sceneGroup,
         text = "Font Sizes:",
-        x = 20,
-        y = 55,
+        x = 20 * S,
+        y = 55 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     sizeLabel.anchorX = 0
     sizeLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local sizes = {10, 14, 18, 24, 32}
-    local yPos = 80
+    local sizes = {10 * S, 14 * S, 18 * S, 24 * S, 32 * S}
+    local yPos = 80 * S
     for _, size in ipairs(sizes) do
         local txt = display.newText({
             parent = sceneGroup,
             text = "Size " .. size,
-            x = 30,
+            x = 30 * S,
             y = yPos,
             font = native.systemFont,
             fontSize = size
         })
         txt.anchorX = 0
         txt:setFillColor(0.9, 0.9, 0.9)
-        yPos = yPos + size + 8
+        yPos = yPos + size + 8 * S
     end
     
     -- Section 2: Different colors
@@ -66,10 +70,10 @@ function scene:create(event)
     local colorLabel = display.newText({
         parent = sceneGroup,
         text = "Colors:",
-        x = 160,
-        y = 55,
+        x = 160 * S,
+        y = 55 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     colorLabel.anchorX = 0
     colorLabel:setFillColor(0.7, 0.7, 0.7)
@@ -85,19 +89,19 @@ function scene:create(event)
         {name = "White",  r = 1,   g = 1,   b = 1},
     }
     
-    yPos = 80
+    yPos = 80 * S
     for _, color in ipairs(colors) do
         local txt = display.newText({
             parent = sceneGroup,
             text = color.name,
-            x = 170,
+            x = 170 * S,
             y = yPos,
             font = native.systemFont,
-            fontSize = 14
+            fontSize = 14 * S
         })
         txt.anchorX = 0
         txt:setFillColor(color.r, color.g, color.b)
-        yPos = yPos + 22
+        yPos = yPos + 22 * S
     end
     
     -- Section 3: Multi-line text
@@ -105,10 +109,10 @@ function scene:create(event)
     local multilineLabel = display.newText({
         parent = sceneGroup,
         text = "Multi-line Text:",
-        x = 20,
-        y = 260,
+        x = 20 * S,
+        y = 260 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     multilineLabel.anchorX = 0
     multilineLabel:setFillColor(0.7, 0.7, 0.7)
@@ -117,11 +121,11 @@ function scene:create(event)
     local mtxt = display.newText({
         parent = sceneGroup,
         text = multilineText,
-        x = 30,
-        y = 310,
-        width = 120,
+        x = 30 * S,
+        y = 310 * S,
+        width = 120 * S,
         font = native.systemFont,
-        fontSize = 12,
+        fontSize = 12 * S,
         align = "left"
     })
     mtxt.anchorX = 0
@@ -132,10 +136,10 @@ function scene:create(event)
     local alignLabel = display.newText({
         parent = sceneGroup,
         text = "Alignments:",
-        x = 180,
-        y = 260,
+        x = 180 * S,
+        y = 260 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     alignLabel.anchorX = 0
     alignLabel:setFillColor(0.7, 0.7, 0.7)
@@ -144,11 +148,11 @@ function scene:create(event)
     local leftAlign = display.newText({
         parent = sceneGroup,
         text = "Left aligned text sample",
-        x = 180,
-        y = 285,
-        width = 120,
+        x = 180 * S,
+        y = 285 * S,
+        width = 120 * S,
         font = native.systemFont,
-        fontSize = 11,
+        fontSize = 11 * S,
         align = "left"
     })
     leftAlign.anchorX = 0
@@ -158,11 +162,11 @@ function scene:create(event)
     local centerAlign = display.newText({
         parent = sceneGroup,
         text = "Center aligned text",
-        x = 240,
-        y = 330,
-        width = 120,
+        x = 240 * S,
+        y = 330 * S,
+        width = 120 * S,
         font = native.systemFont,
-        fontSize = 11,
+        fontSize = 11 * S,
         align = "center"
     })
     centerAlign:setFillColor(0.9, 0.8, 0.8)
@@ -171,11 +175,11 @@ function scene:create(event)
     local rightAlign = display.newText({
         parent = sceneGroup,
         text = "Right aligned text",
-        x = 300,
-        y = 370,
-        width = 120,
+        x = 300 * S,
+        y = 370 * S,
+        width = 120 * S,
         font = native.systemFont,
-        fontSize = 11,
+        fontSize = 11 * S,
         align = "right"
     })
     rightAlign:setFillColor(0.8, 0.8, 0.9)
@@ -185,10 +189,10 @@ function scene:create(event)
     local styleLabel = display.newText({
         parent = sceneGroup,
         text = "Font Styles:",
-        x = 20,
-        y = 400,
+        x = 20 * S,
+        y = 400 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     styleLabel.anchorX = 0
     styleLabel:setFillColor(0.7, 0.7, 0.7)
@@ -196,10 +200,10 @@ function scene:create(event)
     local regularText = display.newText({
         parent = sceneGroup,
         text = "Regular Font",
-        x = 30,
-        y = 425,
+        x = 30 * S,
+        y = 425 * S,
         font = native.systemFont,
-        fontSize = 14
+        fontSize = 14 * S
     })
     regularText.anchorX = 0
     regularText:setFillColor(0.9, 0.9, 0.9)
@@ -207,10 +211,10 @@ function scene:create(event)
     local boldText = display.newText({
         parent = sceneGroup,
         text = "Bold Font",
-        x = 30,
-        y = 450,
+        x = 30 * S,
+        y = 450 * S,
         font = native.systemFontBold,
-        fontSize = 14
+        fontSize = 14 * S
     })
     boldText.anchorX = 0
     boldText:setFillColor(0.9, 0.9, 0.9)
@@ -220,10 +224,10 @@ function scene:create(event)
     local wrapLabel = display.newText({
         parent = sceneGroup,
         text = "Text Wrapping:",
-        x = 160,
-        y = 400,
+        x = 160 * S,
+        y = 400 * S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12 * S
     })
     wrapLabel.anchorX = 0
     wrapLabel:setFillColor(0.7, 0.7, 0.7)
@@ -232,11 +236,11 @@ function scene:create(event)
     local wrapText = display.newText({
         parent = sceneGroup,
         text = longText,
-        x = 170,
-        y = 445,
-        width = 140,
+        x = 170 * S,
+        y = 445 * S,
+        width = 140 * S,
         font = native.systemFont,
-        fontSize = 11,
+        fontSize = 11 * S,
         align = "left"
     })
     wrapText.anchorX = 0

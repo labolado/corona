@@ -22,6 +22,11 @@ function scene:create(event)
     
     print("[Scene 8: Physics] Creating...")
     
+    -- Scaling variables for high resolution
+    local W = display.contentWidth
+    local H = display.contentHeight
+    local S = W / 320  -- Scaling factor
+    
     -- Try to load physics
     local success, result = pcall(function()
         return require("physics")
@@ -42,10 +47,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 8: Physics",
-        x = 20,
-        y = 20,
+        x = 20*S,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -58,7 +63,7 @@ function scene:create(event)
             x = display.contentCenterX,
             y = display.contentCenterY,
             font = native.systemFont,
-            fontSize = 16,
+            fontSize = 16*S,
             align = "center"
         })
         warning:setFillColor(0.9, 0.5, 0.3)
@@ -75,9 +80,9 @@ function scene:create(event)
     
     -- Section 1: Static ground
     print("[Scene 8: Physics] Creating static ground...")
-    local ground = display.newRect(sceneGroup, display.contentCenterX, display.contentHeight - 80, display.contentWidth - 20, 20)
+    local ground = display.newRect(sceneGroup, display.contentCenterX, display.contentHeight - 80*S, display.contentWidth - 20*S, 20*S)
     ground:setFillColor(0.4, 0.3, 0.2)
-    ground.strokeWidth = 2
+    ground.strokeWidth = 2*S
     ground:setStrokeColor(0.6, 0.5, 0.4)
     physics.addBody(ground, "static", {friction = 0.5, bounce = 0.2})
     ground.tag = "ground"
@@ -86,9 +91,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Static Ground",
         x = display.contentCenterX,
-        y = display.contentHeight - 95,
+        y = display.contentHeight - 95*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     groundLabel:setFillColor(0.6, 0.6, 0.6)
     
@@ -96,8 +101,8 @@ function scene:create(event)
     print("[Scene 8: Physics] Creating dynamic rectangle bodies...")
     local rectBodies = {}
     for i = 1, 3 do
-        local x = 60 + (i - 1) * 50
-        local rect = display.newRect(sceneGroup, x, 100 + i * 30, 30, 30)
+        local x = 60*S + (i - 1) * 50*S
+        local rect = display.newRect(sceneGroup, x, 100*S + i * 30*S, 30*S, 30*S)
         rect:setFillColor(0.2 + i * 0.25, 0.5, 0.8 - i * 0.1)
         physics.addBody(rect, "dynamic", {
             density = 1.0,
@@ -113,14 +118,14 @@ function scene:create(event)
     print("[Scene 8: Physics] Creating dynamic circle bodies...")
     local circleBodies = {}
     for i = 1, 3 do
-        local x = 220 + (i - 1) * 40
-        local circle = display.newCircle(sceneGroup, x, 80 + i * 25, 15)
+        local x = 220*S + (i - 1) * 40*S
+        local circle = display.newCircle(sceneGroup, x, 80*S + i * 25*S, 15*S)
         circle:setFillColor(0.9, 0.3 + i * 0.2, 0.3)
         physics.addBody(circle, "dynamic", {
             density = 1.0,
             friction = 0.3,
             bounce = 0.6,
-            radius = 15
+            radius = 15*S
         })
         circle.tag = "ball"
         circle.id = i
@@ -129,13 +134,13 @@ function scene:create(event)
     
     -- Section 4: Polygon body (triangle)
     print("[Scene 8: Physics] Creating polygon body...")
-    local triangle = display.newPolygon(sceneGroup, 80, 200, {0, -20, 17, 10, -17, 10})
+    local triangle = display.newPolygon(sceneGroup, 80*S, 200*S, {0, -20*S, 17*S, 10*S, -17*S, 10*S})
     triangle:setFillColor(0.5, 0.9, 0.4)
     physics.addBody(triangle, "dynamic", {
         density = 1.0,
         friction = 0.3,
         bounce = 0.3,
-        shape = {0, -20, 17, 10, -17, 10}
+        Shape = {0, -20*S, 17*S, 10*S, -17*S, 10*S}
     })
     triangle.tag = "triangle"
     triangle.angularVelocity = 100
@@ -145,10 +150,10 @@ function scene:create(event)
     local collisionLabel = display.newText({
         parent = sceneGroup,
         text = "Collision Event Log:",
-        x = 20,
-        y = 55,
+        x = 20*S,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 11
+        fontSize = 11*S
     })
     collisionLabel.anchorX = 0
     collisionLabel:setFillColor(0.7, 0.7, 0.7)
@@ -158,11 +163,11 @@ function scene:create(event)
     local logText = display.newText({
         parent = sceneGroup,
         text = "Waiting for collisions...",
-        x = 20,
-        y = 75,
-        width = 200,
+        x = 20*S,
+        y = 75*S,
+        width = 200*S,
         font = native.systemFont,
-        fontSize = 9,
+        fontSize = 9*S,
         align = "left"
     })
     logText.anchorX = 0
@@ -196,76 +201,76 @@ function scene:create(event)
     local jointLabel = display.newText({
         parent = sceneGroup,
         text = "Pivot Joint:",
-        x = 200,
-        y = 270,
+        x = 200*S,
+        y = 270*S,
         font = native.systemFont,
-        fontSize = 11
+        fontSize = 11*S
     })
     jointLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Two bodies connected by a pivot
-    local bodyA = display.newRect(sceneGroup, 240, 300, 40, 20)
+    local bodyA = display.newRect(sceneGroup, 240*S, 300*S, 40*S, 20*S)
     bodyA:setFillColor(0.9, 0.6, 0.2)
     physics.addBody(bodyA, "dynamic", {density = 1.0, friction = 0.3})
     bodyA.tag = "bodyA"
     
-    local bodyB = display.newRect(sceneGroup, 290, 300, 40, 20)
+    local bodyB = display.newRect(sceneGroup, 290*S, 300*S, 40*S, 20*S)
     bodyB:setFillColor(0.2, 0.6, 0.9)
     physics.addBody(bodyB, "dynamic", {density = 1.0, friction = 0.3})
     bodyB.tag = "bodyB"
     
     -- Create pivot joint
     if physics.newJoint then
-        local pivotJoint = physics.newJoint("pivot", bodyA, bodyB, 265, 300)
+        local pivotJoint = physics.newJoint("pivot", bodyA, bodyB, 265*S, 300*S)
         pivotJoint.isLimitEnabled = true
         pivotJoint:setRotationLimits(-45, 45)
         print("[Scene 8: Physics] Pivot joint created")
         
         -- Visual indicator for joint
-        local jointVisual = display.newCircle(sceneGroup, 265, 300, 5)
+        local jointVisual = display.newCircle(sceneGroup, 265*S, 300*S, 5*S)
         jointVisual:setFillColor(1, 1, 0)
-        jointVisual.strokeWidth = 2
+        jointVisual.strokeWidth = 2*S
         jointVisual:setStrokeColor(0.8, 0.8, 0)
     end
     
     -- Apply initial forces
     for _, body in ipairs(rectBodies) do
-        body:applyLinearImpulse(math.random(-10, 10) / 100, 0, body.x, body.y)
+        body:applyLinearImpulse(math.random(-10*S, 10*S) / 100, 0, body.x, body.y)
     end
     for _, body in ipairs(circleBodies) do
-        body:applyLinearImpulse(math.random(-15, 15) / 100, 0, body.x, body.y)
+        body:applyLinearImpulse(math.random(-15*S, 15*S) / 100, 0, body.x, body.y)
     end
-    triangle:applyLinearImpulse(0.05, 0, triangle.x, triangle.y)
+    triangle:applyLinearImpulse(0.05*S, 0, triangle.x, triangle.y)
     
     -- Apply angular impulse to pivot bodies
     bodyA:applyAngularImpulse(5)
     
     -- Section 7: Spawner button
     print("[Scene 8: Physics] Creating object spawner...")
-    local spawnButton = display.newRoundedRect(sceneGroup, display.contentCenterX, 440, 100, 30, 5)
+    local spawnButton = display.newRoundedRect(sceneGroup, display.contentCenterX, 440*S, 100*S, 30*S, 5*S)
     spawnButton:setFillColor(0.3, 0.6, 0.9)
-    spawnButton.strokeWidth = 2
+    spawnButton.strokeWidth = 2*S
     spawnButton:setStrokeColor(0.5, 0.8, 1)
     
     local spawnLabel = display.newText({
         parent = sceneGroup,
         text = "Spawn Object",
         x = display.contentCenterX,
-        y = 440,
+        y = 440*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     spawnLabel:setFillColor(1, 1, 1)
     
     local spawnCount = 0
     spawnButton:addEventListener("tap", function()
         spawnCount = spawnCount + 1
-        local x = 50 + math.random(0, 220)
+        local x = 50*S + math.random(0, 220*S)
         local isCircle = math.random() > 0.5
         local obj
         
         if isCircle then
-            obj = display.newCircle(sceneGroup, x, 100, 12 + math.random(0, 8))
+            obj = display.newCircle(sceneGroup, x, 100*S, (12 + math.random(0, 8))*S)
             obj:setFillColor(math.random(), math.random(), math.random())
             physics.addBody(obj, "dynamic", {
                 density = 1.0,
@@ -275,8 +280,8 @@ function scene:create(event)
             })
             obj.tag = "spawned_circle"
         else
-            local size = 20 + math.random(0, 15)
-            obj = display.newRect(sceneGroup, x, 100, size, size)
+            local size = (20 + math.random(0, 15))*S
+            obj = display.newRect(sceneGroup, x, 100*S, size, size)
             obj:setFillColor(math.random(), math.random(), math.random())
             physics.addBody(obj, "dynamic", {
                 density = 1.0,
@@ -291,20 +296,20 @@ function scene:create(event)
     
     -- Section 8: Sensor body
     print("[Scene 8: Physics] Creating sensor body...")
-    local sensor = display.newCircle(sceneGroup, 280, 380, 25)
+    local sensor = display.newCircle(sceneGroup, 280*S, 380*S, 25*S)
     sensor:setFillColor(0.9, 0.9, 0.2, 0.3)
-    sensor.strokeWidth = 2
+    sensor.strokeWidth = 2*S
     sensor:setStrokeColor(0.9, 0.9, 0.2)
-    physics.addBody(sensor, "static", {isSensor = true, radius = 25})
+    physics.addBody(sensor, "static", {isSensor = true, radius = 25*S})
     sensor.tag = "sensor"
     
     local sensorLabel = display.newText({
         parent = sceneGroup,
         text = "Sensor",
-        x = 280,
-        y = 415,
+        x = 280*S,
+        y = 415*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     sensorLabel:setFillColor(0.8, 0.8, 0.4)
     
