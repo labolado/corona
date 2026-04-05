@@ -1,4 +1,4 @@
-$input v_TexCoord, v_ColorScale, v_UserData, floor(v_UserData.x)
+$input v_TexCoord, v_ColorScale, v_UserData
 
 //////////////////////////////////////////////////////////////////////////////
 //
