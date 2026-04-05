@@ -24,6 +24,7 @@
 #include "Display/Rtt_ImageSheetPaint.h"
 #include "Display/Rtt_ImageSheetUserdata.h"
 #include "Display/Rtt_TextureAtlas_Lua.h"
+#include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShaderTypes.h"
 #include "Display/Rtt_TextureResource.h"
@@ -98,6 +99,8 @@ class GraphicsLibrary
         static int undefineEffect( lua_State *L );
         static int getFontMetrics( lua_State *L );
         static int newAtlas( lua_State *L );
+        static int setSDF( lua_State *L );
+        static int getSDF( lua_State *L );
 
     private:
         Display& fDisplay;
@@ -144,6 +147,8 @@ GraphicsLibrary::Open( lua_State *L )
         { "undefineEffect", undefineEffect },
         { "getFontMetrics", getFontMetrics },
         { "newAtlas", newAtlas },
+        { "setSDF", setSDF },
+        { "getSDF", getSDF },
 
         { NULL, NULL }
     };
@@ -318,6 +323,23 @@ int
 GraphicsLibrary::newAtlas( lua_State *L )
 {
     return TextureAtlas_newAtlas( L );
+}
+
+// graphics.setSDF( bool )
+int
+GraphicsLibrary::setSDF( lua_State *L )
+{
+    bool enabled = lua_toboolean( L, 1 );
+    SDFRenderer::SetEnabled( enabled );
+    return 0;
+}
+
+// graphics.getSDF() -> bool
+int
+GraphicsLibrary::getSDF( lua_State *L )
+{
+    lua_pushboolean( L, SDFRenderer::IsEnabled() ? 1 : 0 );
+    return 1;
 }
 
 // graphics.defineEffect( params )
