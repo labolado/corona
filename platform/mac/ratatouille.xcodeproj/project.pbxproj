@@ -560,6 +560,8 @@
 		A4328881176A621200ACB6FF /* Rtt_ShaderFactory.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328822176A621100ACB6FF /* Rtt_ShaderFactory.h */; };
 		A4328882176A621200ACB6FF /* Rtt_ShaderName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328823176A621100ACB6FF /* Rtt_ShaderName.cpp */; };
 		A4328883176A621200ACB6FF /* Rtt_ShaderName.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328824176A621100ACB6FF /* Rtt_ShaderName.h */; };
+		D0A0B0C0D0E05DF000000003 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
+		D0A0B0C0D0E05DF000000004 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
 		A4328884176A621200ACB6FF /* Rtt_ShapeObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328825176A621100ACB6FF /* Rtt_ShapeObject.cpp */; };
 		A4328885176A621200ACB6FF /* Rtt_ShapeObject.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */; };
 		A4328886176A621200ACB6FF /* Rtt_ShapePath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328827176A621100ACB6FF /* Rtt_ShapePath.cpp */; };
@@ -942,6 +944,8 @@
 		C229E07C1B32221B00D87A7C /* Rtt_ShapeAdapterPolygon.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC8AB1783F17D00BE6805 /* Rtt_ShapeAdapterPolygon.h */; };
 		C229E07D1B32221B00D87A7C /* Rtt_ShapeAdapterRect.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC88B17820C9A00BE6805 /* Rtt_ShapeAdapterRect.h */; };
 		C229E07E1B32221B00D87A7C /* Rtt_ShapeAdapterRoundedRect.h in Headers */ = {isa = PBXBuildFile; fileRef = A4B66B2417728CF90077B2BF /* Rtt_ShapeAdapterRoundedRect.h */; };
+		D0A0B0C0D0E05DF000000005 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
+		D0A0B0C0D0E05DF000000006 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
 		C229E07F1B32221B00D87A7C /* Rtt_ShapeObject.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */; };
 		C229E0801B32221B00D87A7C /* Rtt_ShapePath.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328828176A621100ACB6FF /* Rtt_ShapePath.h */; };
 		C229E0811B32221B00D87A7C /* Rtt_SharedCount.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC8BF178A25FD00BE6805 /* Rtt_SharedCount.h */; };
@@ -3131,6 +3135,8 @@
 		A4328822176A621100ACB6FF /* Rtt_ShaderFactory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShaderFactory.h; path = Display/Rtt_ShaderFactory.h; sourceTree = "<group>"; };
 		A4328823176A621100ACB6FF /* Rtt_ShaderName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShaderName.cpp; path = Display/Rtt_ShaderName.cpp; sourceTree = "<group>"; };
 		A4328824176A621100ACB6FF /* Rtt_ShaderName.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShaderName.h; path = Display/Rtt_ShaderName.h; sourceTree = "<group>"; };
+		D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFRenderer.cpp; path = Display/Rtt_SDFRenderer.cpp; sourceTree = "<group>"; };
+		D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_SDFRenderer.h; path = Display/Rtt_SDFRenderer.h; sourceTree = "<group>"; };
 		A4328825176A621100ACB6FF /* Rtt_ShapeObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShapeObject.cpp; path = Display/Rtt_ShapeObject.cpp; sourceTree = "<group>"; };
 		A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShapeObject.h; path = Display/Rtt_ShapeObject.h; sourceTree = "<group>"; };
 		A4328827176A621100ACB6FF /* Rtt_ShapePath.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShapePath.cpp; path = Display/Rtt_ShapePath.cpp; sourceTree = "<group>"; };
@@ -5050,6 +5056,8 @@
 				A46AC88B17820C9A00BE6805 /* Rtt_ShapeAdapterRect.h */,
 				A4B66B2317728CF10077B2BF /* Rtt_ShapeAdapterRoundedRect.cpp */,
 				A4B66B2417728CF90077B2BF /* Rtt_ShapeAdapterRoundedRect.h */,
+				D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */,
+				D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */,
 				A4328825176A621100ACB6FF /* Rtt_ShapeObject.cpp */,
 				A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */,
 				A4328827176A621100ACB6FF /* Rtt_ShapePath.cpp */,
@@ -5823,6 +5831,7 @@
 				C2DA962C1B46460F00DAF684 /* Rtt_ShapeAdapterPolygon.h in Headers */,
 				C2DA96351B46460F00DAF684 /* Rtt_ShapeAdapterRect.h in Headers */,
 				C2DA964A1B46460F00DAF684 /* Rtt_ShapeAdapterRoundedRect.h in Headers */,
+				D0A0B0C0D0E05DF000000004 /* Rtt_SDFRenderer.h in Headers */,
 				A4328885176A621200ACB6FF /* Rtt_ShapeObject.h in Headers */,
 				A4328887176A621200ACB6FF /* Rtt_ShapePath.h in Headers */,
 				C2DA96521B46460F00DAF684 /* Rtt_SharedCount.h in Headers */,
@@ -6171,6 +6180,7 @@
 				C229E07D1B32221B00D87A7C /* Rtt_ShapeAdapterRect.h in Headers */,
 				C229E07E1B32221B00D87A7C /* Rtt_ShapeAdapterRoundedRect.h in Headers */,
 				F58CA276245651B2002191EA /* Rtt_HTTPClient.h in Headers */,
+				D0A0B0C0D0E05DF000000006 /* Rtt_SDFRenderer.h in Headers */,
 				C229E07F1B32221B00D87A7C /* Rtt_ShapeObject.h in Headers */,
 				C229E0801B32221B00D87A7C /* Rtt_ShapePath.h in Headers */,
 				C229E0811B32221B00D87A7C /* Rtt_SharedCount.h in Headers */,
@@ -7270,6 +7280,7 @@
 				A46AC8AC1783F18F00BE6805 /* Rtt_ShapeAdapterPolygon.cpp in Sources */,
 				A46AC88C17820CA400BE6805 /* Rtt_ShapeAdapterRect.cpp in Sources */,
 				A4B66B2517728D070077B2BF /* Rtt_ShapeAdapterRoundedRect.cpp in Sources */,
+				D0A0B0C0D0E05DF000000003 /* Rtt_SDFRenderer.cpp in Sources */,
 				A4328884176A621200ACB6FF /* Rtt_ShapeObject.cpp in Sources */,
 				A4328886176A621200ACB6FF /* Rtt_ShapePath.cpp in Sources */,
 				A46AC8C7178A260300BE6805 /* Rtt_SharedCount.cpp in Sources */,
@@ -7902,6 +7913,7 @@
 				C229E1511B32221B00D87A7C /* Rtt_ShapeAdapterPolygon.cpp in Sources */,
 				C229E1521B32221B00D87A7C /* Rtt_ShapeAdapterRect.cpp in Sources */,
 				C229E1531B32221B00D87A7C /* Rtt_ShapeAdapterRoundedRect.cpp in Sources */,
+				D0A0B0C0D0E05DF000000005 /* Rtt_SDFRenderer.cpp in Sources */,
 				C229E1541B32221B00D87A7C /* Rtt_ShapeObject.cpp in Sources */,
 				C229E1551B32221B00D87A7C /* Rtt_ShapePath.cpp in Sources */,
 				C229E1561B32221B00D87A7C /* Rtt_SharedCount.cpp in Sources */,
