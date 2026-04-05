@@ -89,3 +89,11 @@
 **问题**: 在支持 instancing 的设备上无法测试回退路径
 **教训**: 每个有降级的功能必须实现 `graphics.setXxx(false)` 强制开关，测试中开/关两条路径都跑
 **遗留**: SDF 和 Instancing 都需要补回退路径强制测试
+
+## Lesson: GL packed integer vs bgfx byte-wise texture format mismatch
+
+**日期**: 2026-04-06
+**场景**: Mac CoreGraphics outputs kCGImageAlphaPremultipliedFirst (ARGB component order), GL reads via GL_BGRA + GL_UNSIGNED_INT_8_8_8_8 (packed integer), bgfx uses byte-wise BGRA8
+**问题**: GL的packed integer格式和bgfx的byte-wise格式对同一字节数组有不同解释。LE系统上bytes [A,R,G,B] 被GL正确解读为BGRA(通过32-bit整数反转)，但bgfx直接按字节读取导致通道错乱
+**教训**: GL_UNSIGNED_INT_8_8_8_8是packed integer格式(component在32-bit整数中按MSB→LSB排列)，而Metal/bgfx/Vulkan都是byte-wise格式(byte[0]直接是第一个component)。在LE系统上两者差4字节反转。迁移GL代码到现代API时必须注意packed vs byte-wise格式差异
+**修复**: BgfxTexture::Create/Update中对kBGRA格式做__builtin_bswap32逐像素字节反转
