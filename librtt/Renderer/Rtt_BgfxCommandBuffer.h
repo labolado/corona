@@ -40,7 +40,7 @@ class FrameBufferObject;
 // Deferred command: captures all state needed for replay in Execute()
 struct DeferredCmd
 {
-    enum Type { kBindFBO, kSetViewport, kClear, kDraw, kDrawIndexed };
+    enum Type { kBindFBO, kSetViewport, kClear, kDraw, kDrawIndexed, kCaptureRect };
     Type type;
 
     // kBindFBO
@@ -65,6 +65,13 @@ struct DeferredCmd
     bool scissorEnabled;
     int scissorX, scissorY, scissorW, scissorH;
 
+    // kCaptureRect
+    FrameBufferObject* captureFbo;
+    Texture* captureTexture;
+    float captureRectXMin, captureRectYMin, captureRectXMax, captureRectYMax;
+    float captureRawXMin, captureRawYMin, captureRawXMax, captureRawYMax;
+    U32 captureTexW, captureTexH;
+
     // Uniform snapshots (copied values, not pointers)
     struct UniformSnapshot
     {
@@ -74,11 +81,27 @@ struct DeferredCmd
     };
     UniformSnapshot uniforms[Uniform::kNumBuiltInVariables];
 
+    // Named uniform snapshots (for custom effects via WriteNamedUniform)
+    struct NamedUniformSnapshot
+    {
+        char name[64];
+        U8 data[64]; // Max: Mat4 = 16 floats = 64 bytes
+        unsigned int size; // byte size of data
+    };
+    static const int kMaxNamedUniforms = 16;
+    int namedUniformCount;
+    NamedUniformSnapshot namedUniforms[kMaxNamedUniforms];
+
     DeferredCmd() : type(kDraw), fbo(NULL), vpX(0), vpY(0), vpW(0), vpH(0),
         clearR(0), clearG(0), clearB(0), clearA(0), clearDepth(1.0f), clearStencil(0),
         geometry(NULL), program(NULL), programVersion(Program::kMaskCount0),
         offset(0), count(0), primitiveType(Geometry::kTriangles),
-        bgfxState(0), scissorEnabled(false), scissorX(0), scissorY(0), scissorW(0), scissorH(0)
+        bgfxState(0), scissorEnabled(false), scissorX(0), scissorY(0), scissorW(0), scissorH(0),
+        captureFbo(NULL), captureTexture(NULL),
+        captureRectXMin(0), captureRectYMin(0), captureRectXMax(0), captureRectYMax(0),
+        captureRawXMin(0), captureRawYMin(0), captureRawXMax(0), captureRawYMax(0),
+        captureTexW(0), captureTexH(0),
+        namedUniformCount(0)
     {
         for (int i = 0; i < 8; i++) textures[i] = NULL;
         for (int i = 0; i < Uniform::kNumBuiltInVariables; i++)
@@ -140,6 +163,9 @@ class BgfxCommandBuffer : public CommandBuffer
 
         virtual bool WriteNamedUniform( const char * uniformName, const void * data, unsigned int size );
 
+        // Set the screen capture texture handle (for CaptureRect source)
+        void SetScreenCaptureTexture( bgfx::TextureHandle handle ) { fScreenCaptureTexture = handle; }
+
         // Execute all deferred commands - called after Swap creates GPU resources
         virtual Real Execute( bool measureGPU );
 
@@ -163,7 +189,9 @@ class BgfxCommandBuffer : public CommandBuffer
         void ExecuteClear( const DeferredCmd& cmd );
         void ExecuteDraw( const DeferredCmd& cmd );
         void ExecuteDrawIndexed( const DeferredCmd& cmd );
+        void ExecuteCaptureRect( const DeferredCmd& cmd );
         void SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd );
+        void ApplyNamedUniforms( const DeferredCmd& cmd );
 
     private:
         static const U32 kMaxTextureUnits = 8;
@@ -212,6 +240,19 @@ class BgfxCommandBuffer : public CommandBuffer
         // Instance data
         U32 fInstanceCount;
         Geometry::Vertex* fInstanceData;
+
+        // Screen capture texture - set by BgfxRenderer when scene is rendered to an
+        // offscreen FBO instead of the backbuffer, enabling CaptureRect to blit from it
+        bgfx::TextureHandle fScreenCaptureTexture;
+
+        // Pending named uniforms (set via WriteNamedUniform, snapshotted into DeferredCmd)
+        struct PendingNamedUniform
+        {
+            char name[64];
+            U8 data[64];
+            unsigned int size;
+        };
+        std::vector<PendingNamedUniform> fPendingNamedUniforms;
 
         // Deferred command list
         std::vector<DeferredCmd> fDeferredCmds;

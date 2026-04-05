@@ -65,7 +65,8 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fDefaultView( 0 ),
     fCustomCommands( allocator ),
     fInstanceCount( 0 ),
-    fInstanceData( NULL )
+    fInstanceData( NULL ),
+    fScreenCaptureTexture( BGFX_INVALID_HANDLE )
 {
     for( U32 i = 0; i < kMaxTextureUnits; ++i )
     {
@@ -158,6 +159,7 @@ BgfxCommandBuffer::ClearUserUniforms()
     fUniformUpdates[Uniform::kUserData1].uniform = NULL;
     fUniformUpdates[Uniform::kUserData2].uniform = NULL;
     fUniformUpdates[Uniform::kUserData3].uniform = NULL;
+    fPendingNamedUniforms.clear();
 }
 
 bool
@@ -200,13 +202,21 @@ BgfxCommandBuffer::BindFrameBufferObject( FrameBufferObject* fbo, bool asDrawBuf
 void
 BgfxCommandBuffer::CaptureRect( FrameBufferObject* fbo, Texture& texture, const Rect& rect, const Rect& rawRect )
 {
-    // CaptureRect needs GPU resources - for now, defer is not implemented
-    // This is rarely called during normal rendering
-    // TODO: defer CaptureRect if needed
-    Rtt_UNUSED( fbo );
-    Rtt_UNUSED( texture );
-    Rtt_UNUSED( rect );
-    Rtt_UNUSED( rawRect );
+    DeferredCmd cmd;
+    cmd.type = DeferredCmd::kCaptureRect;
+    cmd.captureFbo = fbo;
+    cmd.captureTexture = &texture;
+    cmd.captureRectXMin = rect.xMin;
+    cmd.captureRectYMin = rect.yMin;
+    cmd.captureRectXMax = rect.xMax;
+    cmd.captureRectYMax = rect.yMax;
+    cmd.captureRawXMin = rawRect.xMin;
+    cmd.captureRawYMin = rawRect.yMin;
+    cmd.captureRawXMax = rawRect.xMax;
+    cmd.captureRawYMax = rawRect.yMax;
+    cmd.captureTexW = texture.GetWidth();
+    cmd.captureTexH = texture.GetHeight();
+    fDeferredCmds.push_back( cmd );
 }
 
 void
@@ -452,6 +462,21 @@ BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
             cmd.uniforms[i].size = 0;
         }
     }
+
+    // Snapshot pending named uniforms
+    int count = (int)fPendingNamedUniforms.size();
+    if( count > DeferredCmd::kMaxNamedUniforms )
+    {
+        count = DeferredCmd::kMaxNamedUniforms;
+    }
+    cmd.namedUniformCount = count;
+    for( int i = 0; i < count; ++i )
+    {
+        strncpy( cmd.namedUniforms[i].name, fPendingNamedUniforms[i].name, 63 );
+        cmd.namedUniforms[i].name[63] = '\0';
+        memcpy( cmd.namedUniforms[i].data, fPendingNamedUniforms[i].data, fPendingNamedUniforms[i].size );
+        cmd.namedUniforms[i].size = fPendingNamedUniforms[i].size;
+    }
 }
 
 // ============================================================================
@@ -636,6 +661,54 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
 }
 
 void
+BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
+{
+    for( int i = 0; i < cmd.namedUniformCount; ++i )
+    {
+        const DeferredCmd::NamedUniformSnapshot& nu = cmd.namedUniforms[i];
+        unsigned int numFloats = nu.size / sizeof( float );
+
+        bgfx::UniformType::Enum utype;
+        U16 numElements = 1;
+
+        if( numFloats == 9 )
+        {
+            // Mat3: 9 floats compact format
+            utype = bgfx::UniformType::Mat3;
+        }
+        else if( numFloats == 16 )
+        {
+            // Mat4: 16 floats
+            utype = bgfx::UniformType::Mat4;
+        }
+        else
+        {
+            // Vec4: 1-4 floats per element, or arrays of vec4
+            utype = bgfx::UniformType::Vec4;
+            numElements = ( numFloats + 3 ) / 4;
+            if( numElements == 0 ) numElements = 1;
+        }
+
+        bgfx::UniformHandle handle = bgfx::createUniform( nu.name, utype, numElements );
+        if( bgfx::isValid( handle ) )
+        {
+            if( utype == bgfx::UniformType::Vec4 && numFloats < 4 )
+            {
+                // Pad sub-vec4 data to full vec4
+                float packed[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                memcpy( packed, nu.data, nu.size );
+                bgfx::setUniform( handle, packed, numElements );
+            }
+            else
+            {
+                bgfx::setUniform( handle, nu.data, numElements );
+            }
+            bgfx::destroy( handle ); // Release ref from createUniform
+        }
+    }
+}
+
+void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
     // Resolve GPU resources (now available after Swap)
@@ -671,6 +744,9 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
+
+    // Apply named uniforms (custom effects)
+    ApplyNamedUniforms( cmd );
 
     // Handle TriangleFan conversion
     if( cmd.primitiveType == Geometry::kTriangleFan )
@@ -800,6 +876,9 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
 
+    // Apply named uniforms (custom effects)
+    ApplyNamedUniforms( cmd );
+
     bgfx::setState( cmd.bgfxState );
 
     if( cmd.scissorEnabled )
@@ -832,6 +911,92 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
     }
 
     bgfx::submit( fCurrentView, programHandle );
+}
+
+void
+BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
+{
+    // Get the destination texture from the capture FBO
+    BgfxFrameBufferObject* dstFbo = NULL;
+    bgfx::TextureHandle dstTexHandle = BGFX_INVALID_HANDLE;
+    bgfx::ViewId blitView = fCurrentView;
+
+    if( cmd.captureFbo )
+    {
+        void* gpuRes = cmd.captureFbo->GetGPUResource();
+        dstFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
+        if( dstFbo )
+        {
+            dstTexHandle = dstFbo->GetTextureHandle();
+            blitView = dstFbo->GetViewId();
+        }
+    }
+    else if( cmd.captureTexture )
+    {
+        void* gpuRes = cmd.captureTexture->GetGPUResource();
+        BgfxTexture* bgfxTex = static_cast<BgfxTexture*>( gpuRes );
+        if( bgfxTex )
+        {
+            dstTexHandle = bgfxTex->GetHandle();
+        }
+    }
+
+    if( !bgfx::isValid( dstTexHandle ) )
+    {
+        return;
+    }
+
+    // Calculate destination coordinates (same logic as GL CaptureRect)
+    U32 w = static_cast<U32>( cmd.captureRectXMax - cmd.captureRectXMin );
+    U32 h = static_cast<U32>( cmd.captureRectYMax - cmd.captureRectYMin );
+    U32 dstX = 0, dstY = 0;
+
+    if( cmd.captureRawXMin < 0 )
+    {
+        dstX = static_cast<U32>( -cmd.captureRawXMin );
+    }
+
+    if( cmd.captureRawYMax > cmd.captureRectYMax )
+    {
+        dstY = static_cast<U32>( cmd.captureRawYMax - cmd.captureRectYMax );
+    }
+
+    // Scale if texture size differs significantly from unclipped rect (non-FBO path)
+    if( !cmd.captureFbo )
+    {
+        float rawW = cmd.captureRawXMax - cmd.captureRawXMin;
+        float rawH = cmd.captureRawYMax - cmd.captureRawYMin;
+        S32 w1 = cmd.captureTexW, w2 = static_cast<S32>( rawW );
+        S32 h1 = cmd.captureTexH, h2 = static_cast<S32>( rawH );
+
+        if( abs( w1 - w2 ) > 5 || abs( h1 - h2 ) > 5 )
+        {
+            dstX = dstX * w1 / w2;
+            dstY = dstY * h1 / h2;
+            w = w * w1 / w2;
+            h = h * w1 / w2;
+        }
+    }
+
+    // Source: the screen capture texture (set by BgfxRenderer when available).
+    // In bgfx, the backbuffer is not accessible as a texture handle.
+    // When fScreenCaptureTexture is valid, we blit from it.
+    // Otherwise, this is a no-op (capture not available from backbuffer).
+    if( bgfx::isValid( fScreenCaptureTexture ) )
+    {
+        bgfx::blit(
+            blitView,
+            dstTexHandle,
+            static_cast<uint16_t>( dstX ),
+            static_cast<uint16_t>( dstY ),
+            fScreenCaptureTexture,
+            static_cast<uint16_t>( cmd.captureRectXMin ),
+            static_cast<uint16_t>( cmd.captureRectYMin ),
+            static_cast<uint16_t>( w ),
+            static_cast<uint16_t>( h )
+        );
+        bgfx::touch( blitView );
+    }
 }
 
 Real
@@ -876,6 +1041,9 @@ BgfxCommandBuffer::Execute( bool measureGPU )
                 break;
             case DeferredCmd::kDrawIndexed:
                 ExecuteDrawIndexed( cmd );
+                break;
+            case DeferredCmd::kCaptureRect:
+                ExecuteCaptureRect( cmd );
                 break;
         }
     }
@@ -932,10 +1100,43 @@ BgfxCommandBuffer::IssueCommand( U16 id, const void * data, U32 size )
 bool
 BgfxCommandBuffer::WriteNamedUniform( const char * uniformName, const void * data, unsigned int size )
 {
-    Rtt_UNUSED( uniformName );
-    Rtt_UNUSED( data );
-    Rtt_UNUSED( size );
-    return false;
+    if( !uniformName || !data || size == 0 )
+    {
+        return false;
+    }
+
+    U32 nameLength = (U32)strlen( uniformName );
+    if( nameLength >= 64 )
+    {
+        Rtt_Log( "ERROR: Uniform name '%s' is %u characters, max is 63\n", uniformName, nameLength );
+        return false;
+    }
+
+    if( size > 64 )
+    {
+        Rtt_Log( "ERROR: Uniform data size %u exceeds max 64 bytes\n", size );
+        return false;
+    }
+
+    // Store as pending named uniform; will be snapshotted into DeferredCmd at next Draw
+    PendingNamedUniform pending;
+    strncpy( pending.name, uniformName, 63 );
+    pending.name[63] = '\0';
+    memcpy( pending.data, data, size );
+    pending.size = size;
+
+    // Update existing or append
+    for( size_t i = 0; i < fPendingNamedUniforms.size(); ++i )
+    {
+        if( strcmp( fPendingNamedUniforms[i].name, uniformName ) == 0 )
+        {
+            fPendingNamedUniforms[i] = pending;
+            return true;
+        }
+    }
+
+    fPendingNamedUniforms.push_back( pending );
+    return true;
 }
 
 bgfx::ViewId

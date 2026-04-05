@@ -3,7 +3,21 @@
 
     Comprehensive test demo for verifying bgfx rendering backend correctness.
     Uses composer for multi-scene navigation with bottom navigation bar.
+
+    Test entry system:
+      SOLAR2D_TEST=bench  → run test_bench.lua (performance benchmark)
+      SOLAR2D_TEST=xxx    → run test_xxx.lua
+      (no env var)        → normal demo with navigation
 --]]
+
+-- Check for test entry
+local testEntry = os.getenv("SOLAR2D_TEST")
+if testEntry then
+    local testFile = "test_" .. testEntry
+    print("=== Running test entry: " .. testFile .. " ===")
+    require(testFile)
+    return
+end
 
 local composer = require("composer")
 
@@ -110,10 +124,10 @@ composer.stage:insert(navGroup)
 navGroup:toFront()
 
 -- Keep navGroup on top after scene changes
-Runtime:addEventListener("show", function(event)
-    if event.phase == "did" then
-        navGroup:toFront()
-    end
+-- NOTE: composer dispatches "show" to scene objects, NOT to Runtime
+-- Use enterFrame to ensure navGroup stays on top every frame
+Runtime:addEventListener("enterFrame", function()
+    navGroup:toFront()
 end)
 
 -- Go to first scene

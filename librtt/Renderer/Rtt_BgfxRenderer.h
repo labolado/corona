@@ -12,6 +12,7 @@
 #define _Rtt_BgfxRenderer_H__
 
 #include "Renderer/Rtt_Renderer.h"
+#include "Renderer/Rtt_FrameBufferObject.h"
 #include <bgfx/bgfx.h>
 
 // ----------------------------------------------------------------------------
@@ -25,6 +26,8 @@ namespace Rtt
 
 class GPUResource;
 class CPUResource;
+class RenderingStream;
+class BufferBitmap;
 
 // ----------------------------------------------------------------------------
 
@@ -47,6 +50,10 @@ public:
     // Get renderer capabilities
     virtual const RendererCaps& GetCaps() const;
 
+    // Read back the current FBO's content to CPU bitmap (for display.capture save-to-file)
+    virtual void CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitmap, S32 x_in_pixels, S32 y_in_pixels, S32 w_in_pixels, S32 h_in_pixels );
+    virtual void EndCapture();
+
 protected:
     // Create a bgfx GPU resource appropriate for the given CPUResource
     virtual GPUResource* Create(const CPUResource* resource);
@@ -58,6 +65,11 @@ private:
     mutable RendererCaps fCaps;
     mutable bool fCapsInitialized;
     bool fBgfxInitialized;
+
+    // Staging texture for CaptureFrameBuffer readback
+    bgfx::TextureHandle fStagingTexture;
+    U32 fStagingW;
+    U32 fStagingH;
 };
 
 // ----------------------------------------------------------------------------

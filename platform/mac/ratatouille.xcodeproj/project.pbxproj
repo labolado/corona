@@ -6331,10 +6331,10 @@
 				00B737B312B707970057F594 /* Copy Frameworks */,
 				A491868C1641FE1600A39286 /* CopyFiles */,
 				00A76D3412C04C9200850EA0 /* Run script (write AppSettings: customBuildID, buildBucket, etc if defined) */,
-				00B73EE912B7311B0057F594 /* Run script (codesign utilities) */,
 				C2FD8EDF19C904DA00CBE369 /* Run Script (copy Skins files) */,
-				C2B5FEF11B336C9000DD49E6 /* Run Script (build OSXAppTemplate.zip) */,
 				C2E454671F844BFC00717681 /* Run Script (copy device-support files) */,
+				00B73EE912B7311B0057F594 /* Run script (codesign utilities) */,
+				C2B5FEF11B336C9000DD49E6 /* Run Script (build OSXAppTemplate.zip) */,
 				F5608E22257AB801000612C1 /* Run Script (copy JRE if exists) */,
 			);
 			buildRules = (
@@ -9041,6 +9041,10 @@
 					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
+				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -9069,6 +9073,10 @@
 					"../../external/bx/include",
 					"../../external/bimg/include",
 					/System/Library/Frameworks/OpenAL.framework/Headers,
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -9317,6 +9325,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					Rtt_MAC_ENV,
 					Rtt_LUA_COMPILER,
+					Rtt_BGFX,
 					LUA_USE_MODERN_MACOSX,
 					LUA_USE_APICHECK,
 					NDEBUG,
@@ -9453,6 +9462,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MTL_ENABLE_DEBUG_INFO = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -9505,6 +9515,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
+					"$(SRCROOT)/../../external/bgfx/.build/projects/xcode15",
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
