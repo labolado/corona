@@ -14,6 +14,73 @@ local scene = composer.newScene()
 -- Animation references
 local activeTransitions = {}
 
+-- Store references to animated objects for reset
+local sceneObjects = {}
+
+-- Function to start all animations (called from create and show)
+local function startAnimations()
+    print("[Scene 9: Masks] Starting animations...")
+    
+    -- Clear any existing transitions first
+    for _, t in ipairs(activeTransitions) do
+        if t and t.cancel then
+            transition.cancel(t)
+        end
+    end
+    activeTransitions = {}
+    transition.cancelAll()
+    
+    -- Reset object properties to initial values
+    if sceneObjects.rttSnapshot then
+        sceneObjects.rttSnapshot.rotation = 0
+    end
+    if sceneObjects.snapshots then
+        for i, snap in ipairs(sceneObjects.snapshots) do
+            snap.rotation = 0
+        end
+    end
+    if sceneObjects.outerSnap then
+        sceneObjects.outerSnap.rotation = 0
+    end
+    
+    -- Section 2: Animate the snapshot
+    local function animateSnapshot()
+        local t = transition.to(sceneObjects.rttSnapshot, {
+            rotation = 360,
+            time = 5000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateSnapshot()
+    
+    -- Section 3: Animate multiple snapshots
+    if sceneObjects.snapshots then
+        for i = 1, #sceneObjects.snapshots do
+            local snap = sceneObjects.snapshots[i]
+            local t = transition.to(snap, {
+                rotation = i * 90,
+                time = 2000 + i * 500,
+                iterations = 0
+            })
+            table.insert(activeTransitions, t)
+        end
+    end
+    
+    -- Section 4: Animate nested snapshot
+    local function animateOuterSnap()
+        local t = transition.to(sceneObjects.outerSnap, {
+            rotation = -360,
+            time = 4000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateOuterSnap()
+    
+    print("[Scene 9: Masks] Animations started")
+end
+
 function scene:create(event)
     local sceneGroup = self.view
     
@@ -116,6 +183,7 @@ function scene:create(event)
     local rttSnapshot = display.newSnapshot(100, 100)
     rttSnapshot.x, rttSnapshot.y = 230, 120
     sceneGroup:insert(rttSnapshot)
+    sceneObjects.rttSnapshot = rttSnapshot
     
     -- Draw content to snapshot
     local rttBg = display.newRect(rttSnapshot.group, 0, 0, 100, 100)
@@ -142,17 +210,6 @@ function scene:create(event)
     
     rttSnapshot:invalidate()
     
-    -- Animate the snapshot
-    local function animateSnapshot()
-        local t = transition.to(rttSnapshot, {
-            rotation = 360,
-            time = 5000,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateSnapshot()
-    
     local rttNote = display.newText({
         parent = sceneGroup,
         text = "Rotating snapshot",
@@ -176,7 +233,7 @@ function scene:create(event)
     multiLabel.anchorX = 0
     multiLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local snapshots = {}
+    sceneObjects.snapshots = {}
     for i = 1, 4 do
         local snap = display.newSnapshot(60, 60)
         snap.x = 50 + (i - 1) * 75
@@ -200,15 +257,7 @@ function scene:create(event)
         shape:setFillColor(1, 1, 1, 0.7)
         
         snap:invalidate()
-        table.insert(snapshots, snap)
-        
-        -- Animate each differently
-        local t = transition.to(snap, {
-            rotation = i * 90,
-            time = 2000 + i * 500,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t)
+        table.insert(sceneObjects.snapshots, snap)
     end
     
     -- Section 4: Nested snapshots
@@ -228,6 +277,7 @@ function scene:create(event)
     local outerSnap = display.newSnapshot(80, 80)
     outerSnap.x, outerSnap.y = 80, 380
     sceneGroup:insert(outerSnap)
+    sceneObjects.outerSnap = outerSnap
     
     local outerBg = display.newRect(outerSnap.group, 0, 0, 80, 80)
     outerBg:setFillColor(0.3, 0.2, 0.3)
@@ -240,14 +290,6 @@ function scene:create(event)
     local innerCircle = display.newCircle(outerSnap.group, 0, 0, 20)
     innerCircle:setFillColor(0.9, 0.6, 0.9)
     outerSnap:invalidate()
-    
-    -- Animate
-    local t = transition.to(outerSnap, {
-        rotation = -360,
-        time = 4000,
-        iterations = 0
-    })
-    table.insert(activeTransitions, t)
     
     -- Section 5: Capture simulation (using snapshot as capture)
     print("[Scene 9: Masks] Testing capture concept...")
@@ -388,6 +430,9 @@ function scene:create(event)
     })
     fallbackLabel:setFillColor(0.6, 0.6, 0.6)
     
+    -- Start animations after all objects are created
+    startAnimations()
+    
     print("[Scene 9: Masks] Creation complete - All mask and FBO tests rendered")
 end
 
@@ -398,12 +443,14 @@ function scene:show(event)
         if _G.updateNavHighlight then _G.updateNavHighlight() end
     elseif event.phase == "did" then
         print("[Scene 9: Masks] Show did")
+        -- Restart animations when scene is shown (for re-entry)
+        startAnimations()
     end
 end
 
 function scene:hide(event)
     if event.phase == "will" then
-        print("[Scene 9: Masks] Hide will - cleaning up")
+        print("[Scene 9: Masks] Hide will - cleaning up transitions")
         for _, t in ipairs(activeTransitions) do
             if t and t.cancel then
                 transition.cancel(t)

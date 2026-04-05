@@ -11,6 +11,12 @@
 local composer = require("composer")
 local scene = composer.newScene()
 
+-- Animation references
+local activeTimers = {}
+
+-- Store references to animated objects and state
+local sceneObjects = {}
+
 -- Create a procedural texture using display.newSnapshot
 local function createProceduralTexture(width, height, colorFunc)
     local snapshot = display.newSnapshot(width, height)
@@ -107,6 +113,60 @@ local function createSpritesheetData()
     end
     
     return frames
+end
+
+-- Function to start all animations (called from create and show)
+local function startAnimations()
+    print("[Scene 2: Images] Starting animations...")
+    
+    -- Cancel any existing timers first
+    for _, tm in ipairs(activeTimers) do
+        if tm then
+            timer.cancel(tm)
+        end
+    end
+    activeTimers = {}
+    
+    -- Reset sprite animation state
+    if sceneObjects.spriteFrames and sceneObjects.spriteContainer then
+        sceneObjects.currentFrame = 1
+        for i, frame in ipairs(sceneObjects.spriteFrames) do
+            frame.isVisible = (i == 1)
+        end
+    end
+    
+    if sceneObjects.spriteFrames2 and sceneObjects.spriteContainer2 then
+        sceneObjects.currentFrame2 = 3
+        for i, frame in ipairs(sceneObjects.spriteFrames2) do
+            frame.isVisible = (i == 3)
+        end
+    end
+    
+    -- Animate sprite manually
+    local function animateSprite()
+        if sceneObjects.spriteFrames and sceneObjects.currentFrame then
+            sceneObjects.spriteFrames[sceneObjects.currentFrame].isVisible = false
+            sceneObjects.currentFrame = sceneObjects.currentFrame % #sceneObjects.spriteFrames + 1
+            sceneObjects.spriteFrames[sceneObjects.currentFrame].isVisible = true
+        end
+    end
+    
+    local tm1 = timer.performWithDelay(200, animateSprite, 0)
+    table.insert(activeTimers, tm1)
+    
+    -- Multiple sprites with different timings
+    local function animateSprite2()
+        if sceneObjects.spriteFrames2 and sceneObjects.currentFrame2 then
+            sceneObjects.spriteFrames2[sceneObjects.currentFrame2].isVisible = false
+            sceneObjects.currentFrame2 = sceneObjects.currentFrame2 % #sceneObjects.spriteFrames2 + 1
+            sceneObjects.spriteFrames2[sceneObjects.currentFrame2].isVisible = true
+        end
+    end
+    
+    local tm2 = timer.performWithDelay(350, animateSprite2, 0)
+    table.insert(activeTimers, tm2)
+    
+    print("[Scene 2: Images] Animations started")
 end
 
 function scene:create(event)
@@ -271,25 +331,18 @@ function scene:create(event)
     
     -- Create sprite frames
     local spriteFrames = createSpritesheetData()
-    local currentFrame = 1
+    sceneObjects.spriteFrames = spriteFrames
+    sceneObjects.currentFrame = 1
     local spriteContainer = display.newGroup()
     spriteContainer.x, spriteContainer.y = 120, 360
     sceneGroup:insert(spriteContainer)
+    sceneObjects.spriteContainer = spriteContainer
     
     -- Add all frames to container, hide all except current
     for i, frame in ipairs(spriteFrames) do
         spriteContainer:insert(frame)
         frame.isVisible = (i == 1)
     end
-    
-    -- Animate sprite manually
-    local function animateSprite()
-        spriteFrames[currentFrame].isVisible = false
-        currentFrame = currentFrame % #spriteFrames + 1
-        spriteFrames[currentFrame].isVisible = true
-    end
-    
-    timer.performWithDelay(200, animateSprite, 0)
     
     local spriteLabel = display.newText({
         parent = sceneGroup,
@@ -305,21 +358,15 @@ function scene:create(event)
     local spriteContainer2 = display.newGroup()
     spriteContainer2.x, spriteContainer2.y = 240, 360
     sceneGroup:insert(spriteContainer2)
+    sceneObjects.spriteContainer2 = spriteContainer2
     
     local spriteFrames2 = createSpritesheetData()
-    local currentFrame2 = 3
+    sceneObjects.spriteFrames2 = spriteFrames2
+    sceneObjects.currentFrame2 = 3
     for i, frame in ipairs(spriteFrames2) do
         spriteContainer2:insert(frame)
         frame.isVisible = (i == 3)
     end
-    
-    local function animateSprite2()
-        spriteFrames2[currentFrame2].isVisible = false
-        currentFrame2 = currentFrame2 % #spriteFrames2 + 1
-        spriteFrames2[currentFrame2].isVisible = true
-    end
-    
-    timer.performWithDelay(350, animateSprite2, 0)
     
     local spriteLabel2 = display.newText({
         parent = sceneGroup,
@@ -358,6 +405,9 @@ function scene:create(event)
         stripe:setStrokeColor(0.5, 0.8, 1, 0.5)
     end
     
+    -- Start animations after all objects are created
+    startAnimations()
+    
     print("[Scene 2: Images] Creation complete - Images and sprites rendered")
 end
 
@@ -368,12 +418,21 @@ function scene:show(event)
         if _G.updateNavHighlight then _G.updateNavHighlight() end
     elseif event.phase == "did" then
         print("[Scene 2: Images] Show did")
+        -- Restart animations when scene is shown (for re-entry)
+        startAnimations()
     end
 end
 
 function scene:hide(event)
     if event.phase == "will" then
-        print("[Scene 2: Images] Hide will")
+        print("[Scene 2: Images] Hide will - cleaning up timers")
+        -- Cancel all active timers
+        for _, tm in ipairs(activeTimers) do
+            if tm then
+                timer.cancel(tm)
+            end
+        end
+        activeTimers = {}
     elseif event.phase == "did" then
         print("[Scene 2: Images] Hide did")
     end

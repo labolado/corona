@@ -15,6 +15,156 @@ local scene = composer.newScene()
 -- Animation references
 local activeTransitions = {}
 
+-- Store references to animated objects for reset
+local sceneObjects = {}
+
+-- Function to start all animations (called from create and show)
+local function startAnimations()
+    print("[Scene 7: Groups] Starting animations...")
+    
+    -- Clear any existing transitions first
+    for _, t in ipairs(activeTransitions) do
+        if t and t.cancel then
+            transition.cancel(t)
+        end
+    end
+    activeTransitions = {}
+    transition.cancelAll()
+    
+    -- Reset object properties to initial values
+    if sceneObjects.basicGroup then
+        sceneObjects.basicGroup.rotation = 0
+    end
+    if sceneObjects.outerGroup then
+        sceneObjects.outerGroup.rotation = 0
+    end
+    if sceneObjects.innerGroup then
+        sceneObjects.innerGroup.rotation = 0
+    end
+    if sceneObjects.transformGroup then
+        sceneObjects.transformGroup.x = 100
+        sceneObjects.transformGroup.y = 230
+        sceneObjects.transformGroup.rotation = 0
+        sceneObjects.transformGroup.xScale = 1
+        sceneObjects.transformGroup.yScale = 1
+    end
+    if sceneObjects.insertGroup then
+        sceneObjects.insertGroup.rotation = 0
+    end
+    if sceneObjects.indGroup then
+        sceneObjects.indGroup.x = 120
+        sceneObjects.indGroup.y = 490
+    end
+    if sceneObjects.indObj1 then
+        sceneObjects.indObj1.rotation = 0
+    end
+    if sceneObjects.indObj2 then
+        sceneObjects.indObj2.rotation = 0
+    end
+    if sceneObjects.indObj3 then
+        sceneObjects.indObj3.rotation = 0
+    end
+    
+    -- Section 1: Animate basic group
+    local function animateBasicGroup()
+        local t = transition.to(sceneObjects.basicGroup, {
+            rotation = 360,
+            time = 4000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateBasicGroup()
+    
+    -- Section 2: Animate nested groups
+    local function animateNestedGroups()
+        local t1 = transition.to(sceneObjects.outerGroup, {
+            rotation = 360,
+            time = 6000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t1)
+        
+        local t2 = transition.to(sceneObjects.innerGroup, {
+            rotation = -720,
+            time = 3000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t2)
+    end
+    animateNestedGroups()
+    
+    -- Section 3: Complex group animation
+    local function animateTransformGroup()
+        local t = transition.to(sceneObjects.transformGroup, {
+            x = 200,
+            rotation = 180,
+            xScale = 1.5,
+            yScale = 1.5,
+            time = 2000,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.transformGroup, {
+                    x = 100,
+                    rotation = 0,
+                    xScale = 1,
+                    yScale = 1,
+                    time = 2000,
+                    transition = easing.inOutQuad,
+                    onComplete = animateTransformGroup
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateTransformGroup()
+    
+    -- Section 4: Animate insert group
+    local function animateInsertGroup()
+        local t = transition.to(sceneObjects.insertGroup, {
+            rotation = 360,
+            time = 3000,
+            iterations = 0
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateInsertGroup()
+    
+    -- Section 6: Animate independent transforms group
+    local t1 = transition.to(sceneObjects.indGroup, {
+        x = 240,
+        time = 2000,
+        iterations = 0,
+        transition = easing.continuousLoop
+    })
+    table.insert(activeTransitions, t1)
+    
+    -- Animate objects independently within group
+    local t2 = transition.to(sceneObjects.indObj1, {
+        rotation = 360,
+        time = 1500,
+        iterations = 0
+    })
+    table.insert(activeTransitions, t2)
+    
+    local t3 = transition.to(sceneObjects.indObj2, {
+        rotation = -360,
+        time = 2000,
+        iterations = 0
+    })
+    table.insert(activeTransitions, t3)
+    
+    local t4 = transition.to(sceneObjects.indObj3, {
+        rotation = 360,
+        time = 1000,
+        iterations = 0
+    })
+    table.insert(activeTransitions, t4)
+    
+    print("[Scene 7: Groups] Animations started")
+end
+
 function scene:create(event)
     local sceneGroup = self.view
     
@@ -52,6 +202,7 @@ function scene:create(event)
     local basicGroup = display.newGroup()
     basicGroup.x, basicGroup.y = 80, 100
     sceneGroup:insert(basicGroup)
+    sceneObjects.basicGroup = basicGroup
     
     -- Add objects to group
     local rect1 = display.newRect(basicGroup, 0, -20, 30, 30)
@@ -62,17 +213,6 @@ function scene:create(event)
     
     local rect3 = display.newRect(basicGroup, 20, 20, 30, 30)
     rect3:setFillColor(0.4, 0.4, 0.9)
-    
-    -- Animate entire group
-    local function animateBasicGroup()
-        local t = transition.to(basicGroup, {
-            rotation = 360,
-            time = 4000,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateBasicGroup()
     
     -- Section 2: Nested groups
     print("[Scene 7: Groups] Testing nested groups...")
@@ -90,9 +230,11 @@ function scene:create(event)
     local outerGroup = display.newGroup()
     outerGroup.x, outerGroup.y = 240, 100
     sceneGroup:insert(outerGroup)
+    sceneObjects.outerGroup = outerGroup
     
     local innerGroup = display.newGroup()
     outerGroup:insert(innerGroup)
+    sceneObjects.innerGroup = innerGroup
     
     -- Outer group objects
     local outerRect = display.newRect(outerGroup, 0, 0, 70, 70)
@@ -106,24 +248,6 @@ function scene:create(event)
     
     local innerRect2 = display.newRect(innerGroup, 15, 0, 25, 25)
     innerRect2:setFillColor(0.2, 0.6, 0.9)
-    
-    -- Animate outer and inner groups differently
-    local function animateNestedGroups()
-        local t1 = transition.to(outerGroup, {
-            rotation = 360,
-            time = 6000,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t1)
-        
-        local t2 = transition.to(innerGroup, {
-            rotation = -720,
-            time = 3000,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t2)
-    end
-    animateNestedGroups()
     
     -- Section 3: Group transform affecting children
     print("[Scene 7: Groups] Testing group transform inheritance...")
@@ -141,6 +265,7 @@ function scene:create(event)
     local transformGroup = display.newGroup()
     transformGroup.x, transformGroup.y = 100, 230
     sceneGroup:insert(transformGroup)
+    sceneObjects.transformGroup = transformGroup
     
     -- Add various objects
     local tRect = display.newRect(transformGroup, -30, 0, 25, 25)
@@ -159,32 +284,6 @@ function scene:create(event)
     })
     tText:setFillColor(0.3, 0.3, 1)
     
-    -- Complex group animation
-    local function animateTransformGroup()
-        local t = transition.to(transformGroup, {
-            x = 200,
-            rotation = 180,
-            xScale = 1.5,
-            yScale = 1.5,
-            time = 2000,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                local t2 = transition.to(transformGroup, {
-                    x = 100,
-                    rotation = 0,
-                    xScale = 1,
-                    yScale = 1,
-                    time = 2000,
-                    transition = easing.inOutQuad,
-                    onComplete = animateTransformGroup
-                })
-                table.insert(activeTransitions, t2)
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateTransformGroup()
-    
     -- Section 4: Insert/Remove operations
     print("[Scene 7: Groups] Testing insert/remove operations...")
     local insertLabel = display.newText({
@@ -201,6 +300,7 @@ function scene:create(event)
     local insertGroup = display.newGroup()
     insertGroup.x, insertGroup.y = 90, 350
     sceneGroup:insert(insertGroup)
+    sceneObjects.insertGroup = insertGroup
     
     -- Container outline
     local container = display.newRect(sceneGroup, 90, 350, 120, 80)
@@ -243,17 +343,6 @@ function scene:create(event)
     end
     
     timer.performWithDelay(1500, toggleInsert, 0)
-    
-    -- Animate the group to show the effect
-    local function animateInsertGroup()
-        local t = transition.to(insertGroup, {
-            rotation = 360,
-            time = 3000,
-            iterations = 0
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateInsertGroup()
     
     -- Section 5: toFront/toBack ordering
     print("[Scene 7: Groups] Testing toFront/toBack ordering...")
@@ -326,6 +415,7 @@ function scene:create(event)
     local indGroup = display.newGroup()
     indGroup.x, indGroup.y = 120, 490
     sceneGroup:insert(indGroup)
+    sceneObjects.indGroup = indGroup
     
     local indBase = display.newRect(indGroup, 0, 0, 80, 40)
     indBase:setFillColor(0.3, 0.3, 0.3, 0.5)
@@ -334,43 +424,18 @@ function scene:create(event)
     
     local indObj1 = display.newRect(indGroup, -25, 0, 20, 20)
     indObj1:setFillColor(0.9, 0.5, 0.2)
+    sceneObjects.indObj1 = indObj1
     
     local indObj2 = display.newRect(indGroup, 0, 0, 20, 20)
     indObj2:setFillColor(0.2, 0.9, 0.5)
+    sceneObjects.indObj2 = indObj2
     
     local indObj3 = display.newRect(indGroup, 25, 0, 20, 20)
     indObj3:setFillColor(0.2, 0.5, 0.9)
+    sceneObjects.indObj3 = indObj3
     
-    -- Animate group
-    local t1 = transition.to(indGroup, {
-        x = 240,
-        time = 2000,
-        iterations = 0,
-        transition = easing.continuousLoop
-    })
-    table.insert(activeTransitions, t1)
-    
-    -- Animate objects independently within group
-    local t2 = transition.to(indObj1, {
-        rotation = 360,
-        time = 1500,
-        iterations = 0
-    })
-    table.insert(activeTransitions, t2)
-    
-    local t3 = transition.to(indObj2, {
-        rotation = -360,
-        time = 2000,
-        iterations = 0
-    })
-    table.insert(activeTransitions, t3)
-    
-    local t4 = transition.to(indObj3, {
-        rotation = 360,
-        time = 1000,
-        iterations = 0
-    })
-    table.insert(activeTransitions, t4)
+    -- Start animations after all objects are created
+    startAnimations()
     
     print("[Scene 7: Groups] Creation complete - All group tests rendered")
 end
@@ -382,6 +447,8 @@ function scene:show(event)
         if _G.updateNavHighlight then _G.updateNavHighlight() end
     elseif event.phase == "did" then
         print("[Scene 7: Groups] Show did")
+        -- Restart animations when scene is shown (for re-entry)
+        startAnimations()
     end
 end
 
