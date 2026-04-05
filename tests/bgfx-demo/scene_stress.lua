@@ -20,10 +20,109 @@ local fps = 60
 local objects = {}
 local updateTimer = nil
 local fpsTimer = nil
+local objectsGroup = nil
 
 -- Configuration
 local NUM_OBJECTS = 500
 local OBJECT_SIZE = 8
+
+-- Per-frame update function
+local function updateObjects()
+    local bounds = {
+        left = 5,
+        right = display.contentWidth - 5,
+        top = 5,
+        bottom = display.contentHeight - 135
+    }
+    
+    for i = 1, #objects do
+        local obj = objects[i]
+        
+        -- Update position
+        obj.x = obj.x + obj.vx
+        obj.y = obj.y + obj.vy
+        obj.rotation = obj.rotation + obj.rotationSpeed
+        
+        -- Bounce off walls
+        if obj.x < bounds.left or obj.x > bounds.right then
+            obj.vx = -obj.vx
+            obj.x = math.max(bounds.left, math.min(bounds.right, obj.x))
+        end
+        if obj.y < bounds.top or obj.y > bounds.bottom then
+            obj.vy = -obj.vy
+            obj.y = math.max(bounds.top, math.min(bounds.bottom, obj.y))
+        end
+    end
+    
+    frameCount = frameCount + 1
+end
+
+-- FPS update function
+local function updateFPS()
+    local currentTime = system.getTimer()
+    local deltaTime = currentTime - lastTime
+    
+    if deltaTime > 0 then
+        fps = frameCount / (deltaTime / 1000)
+        frameCount = 0
+        lastTime = currentTime
+        
+        -- Update FPS display
+        if fpsText then
+            fpsText.text = string.format("FPS: %.1f", fps)
+            
+            -- Color code FPS
+            if fps >= 55 then
+                fpsText:setFillColor(0.3, 1, 0.3)  -- Green
+            elseif fps >= 30 then
+                fpsText:setFillColor(1, 1, 0.3)    -- Yellow
+            else
+                fpsText:setFillColor(1, 0.3, 0.3)  -- Red
+            end
+        end
+        
+        print("[Scene 10: Stress] FPS: " .. string.format("%.1f", fps))
+    end
+end
+
+-- Runtime enter frame listener for updates
+local function onEnterFrame(event)
+    updateObjects()
+end
+
+-- Function to start animations (called from create and show)
+local function startAnimations()
+    print("[Scene 10: Stress] Starting animations...")
+    
+    -- Cancel any existing timers/listeners first
+    if fpsTimer then
+        timer.cancel(fpsTimer)
+        fpsTimer = nil
+    end
+    
+    -- Reset frame count and time
+    frameCount = 0
+    lastTime = system.getTimer()
+    
+    -- Reset object positions to random positions within bounds
+    local bounds = {
+        left = 10,
+        right = display.contentWidth - 10,
+        top = 10,
+        bottom = display.contentHeight - 140
+    }
+    for i = 1, #objects do
+        local obj = objects[i]
+        obj.x = math.random(bounds.left, bounds.right)
+        obj.y = math.random(bounds.top, bounds.bottom)
+        obj.rotation = 0
+    end
+    
+    -- Restart FPS timer (update every 500ms)
+    fpsTimer = timer.performWithDelay(500, updateFPS, 0)
+    
+    print("[Scene 10: Stress] Animation loop started")
+end
 
 function scene:create(event)
     local sceneGroup = self.view
@@ -87,7 +186,7 @@ function scene:create(event)
     objectCountText:setFillColor(0.8, 0.8, 0.8)
     
     -- Create objects container group
-    local objectsGroup = display.newGroup()
+    objectsGroup = display.newGroup()
     objectsGroup.y = 75  -- Offset to account for UI
     sceneGroup:insert(objectsGroup)
     
@@ -140,74 +239,12 @@ function scene:create(event)
     })
     noteText:setFillColor(0.5, 0.5, 0.5)
     
-    -- Per-frame update function
-    local function updateObjects()
-        local bounds = {
-            left = 5,
-            right = display.contentWidth - 5,
-            top = 5,
-            bottom = display.contentHeight - 135
-        }
-        
-        for i = 1, #objects do
-            local obj = objects[i]
-            
-            -- Update position
-            obj.x = obj.x + obj.vx
-            obj.y = obj.y + obj.vy
-            obj.rotation = obj.rotation + obj.rotationSpeed
-            
-            -- Bounce off walls
-            if obj.x < bounds.left or obj.x > bounds.right then
-                obj.vx = -obj.vx
-                obj.x = math.max(bounds.left, math.min(bounds.right, obj.x))
-            end
-            if obj.y < bounds.top or obj.y > bounds.bottom then
-                obj.vy = -obj.vy
-                obj.y = math.max(bounds.top, math.min(bounds.bottom, obj.y))
-            end
-        end
-        
-        frameCount = frameCount + 1
-    end
+    -- Start animations
+    startAnimations()
     
-    -- FPS update function
-    local function updateFPS()
-        local currentTime = system.getTimer()
-        local deltaTime = currentTime - lastTime
-        
-        if deltaTime > 0 then
-            fps = frameCount / (deltaTime / 1000)
-            frameCount = 0
-            lastTime = currentTime
-            
-            -- Update FPS display
-            fpsText.text = string.format("FPS: %.1f", fps)
-            
-            -- Color code FPS
-            if fps >= 55 then
-                fpsText:setFillColor(0.3, 1, 0.3)  -- Green
-            elseif fps >= 30 then
-                fpsText:setFillColor(1, 1, 0.3)    -- Yellow
-            else
-                fpsText:setFillColor(1, 0.3, 0.3)  -- Red
-            end
-            
-            print("[Scene 10: Stress] FPS: " .. string.format("%.1f", fps))
-        end
-    end
-    
-    -- Runtime enter frame listener for updates
-    local function onEnterFrame(event)
-        updateObjects()
-    end
-    
+    -- Runtime enter frame listener for updates (only added once in create)
     Runtime:addEventListener("enterFrame", onEnterFrame)
     self.enterFrameListener = onEnterFrame
-    
-    -- FPS timer (update every 500ms)
-    lastTime = system.getTimer()
-    fpsTimer = timer.performWithDelay(500, updateFPS, 0)
     
     print("[Scene 10: Stress] Animation loop started")
 end
@@ -219,6 +256,13 @@ function scene:show(event)
         if _G.updateNavHighlight then _G.updateNavHighlight() end
     elseif event.phase == "did" then
         print("[Scene 10: Stress] Show did")
+        -- Restart animations when scene is shown (for re-entry)
+        startAnimations()
+        -- Re-add enter frame listener if needed
+        if not self.enterFrameListener then
+            Runtime:addEventListener("enterFrame", onEnterFrame)
+            self.enterFrameListener = onEnterFrame
+        end
     end
 end
 
