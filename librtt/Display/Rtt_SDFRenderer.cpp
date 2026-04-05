@@ -11,6 +11,7 @@
 
 #include "Display/Rtt_SDFRenderer.h"
 #include "Core/Rtt_Assert.h"
+#include "Renderer/Rtt_BgfxShaderData_sdf_metal.h"
 
 #include <string.h>
 
@@ -60,15 +61,25 @@ SDFRenderer::Initialize()
 	fFillColorUniform = bgfx::createUniform( "u_sdfFillColor", bgfx::UniformType::Vec4 );
 	fStrokeColorUniform = bgfx::createUniform( "u_sdfStrokeColor", bgfx::UniformType::Vec4 );
 
-	// SDF shader programs are stubs for now (BGFX_INVALID_HANDLE).
-	// They will be populated when SDF shader binaries are compiled
-	// and embedded via Rtt_BgfxShaderData_effects_metal.h.
-	// Until then, IsAvailable() returns false and the SDF code path
-	// is never taken.
-	for ( int i = 0; i < kNumShapeTypes; ++i )
-	{
-		fPrograms[i] = BGFX_INVALID_HANDLE;
-	}
+	// Create SDF shader programs from embedded shader binaries
+	// Vertex shader is shared across all shape types
+	const bgfx::Memory* vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	bgfx::ShaderHandle vsHandle = bgfx::createShader(vsMemory);
+	
+	// Circle program
+	const bgfx::Memory* fsCircleMemory = bgfx::copy(s_fs_sdf_circle_metal, s_fs_sdf_circle_metal_size);
+	bgfx::ShaderHandle fsCircleHandle = bgfx::createShader(fsCircleMemory);
+	fPrograms[kCircle] = bgfx::createProgram(vsHandle, fsCircleHandle, true);
+	
+	// Rect program (re-create vs since previous createProgram destroyed it)
+	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsHandle = bgfx::createShader(vsMemory);
+	const bgfx::Memory* fsRectMemory = bgfx::copy(s_fs_sdf_rect_metal, s_fs_sdf_rect_metal_size);
+	bgfx::ShaderHandle fsRectHandle = bgfx::createShader(fsRectMemory);
+	fPrograms[kRect] = bgfx::createProgram(vsHandle, fsRectHandle, true);
+	
+	// Rounded rect uses same shader as rect
+	fPrograms[kRoundedRect] = fPrograms[kRect];
 
 	fInitialized = true;
 }
@@ -81,14 +92,19 @@ SDFRenderer::Finalize()
 		return;
 	}
 
-	for ( int i = 0; i < kNumShapeTypes; ++i )
+	// Destroy programs (kRoundedRect shares program with kRect, so skip it)
+	if ( bgfx::isValid( fPrograms[kCircle] ) )
 	{
-		if ( bgfx::isValid( fPrograms[i] ) )
-		{
-			bgfx::destroy( fPrograms[i] );
-			fPrograms[i] = BGFX_INVALID_HANDLE;
-		}
+		bgfx::destroy( fPrograms[kCircle] );
+		fPrograms[kCircle] = BGFX_INVALID_HANDLE;
 	}
+	if ( bgfx::isValid( fPrograms[kRect] ) )
+	{
+		bgfx::destroy( fPrograms[kRect] );
+		fPrograms[kRect] = BGFX_INVALID_HANDLE;
+	}
+	// kRoundedRect uses same program as kRect, already destroyed above
+	fPrograms[kRoundedRect] = BGFX_INVALID_HANDLE;
 
 	if ( bgfx::isValid( fParamsUniform ) )
 	{
