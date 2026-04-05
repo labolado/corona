@@ -23,6 +23,7 @@
 #include "Display/Rtt_ImageSheet.h"
 #include "Display/Rtt_ImageSheetPaint.h"
 #include "Display/Rtt_ImageSheetUserdata.h"
+#include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShaderTypes.h"
 #include "Display/Rtt_TextureResource.h"
@@ -96,6 +97,7 @@ class GraphicsLibrary
         static int releaseTextures( lua_State *L );
         static int undefineEffect( lua_State *L );
         static int getFontMetrics( lua_State *L );
+        static int newAtlas( lua_State *L );
 
     private:
         Display& fDisplay;
@@ -141,6 +143,7 @@ GraphicsLibrary::Open( lua_State *L )
         { "releaseTextures", releaseTextures },
         { "undefineEffect", undefineEffect },
         { "getFontMetrics", getFontMetrics },
+        { "newAtlas", newAtlas },
 
         { NULL, NULL }
     };
@@ -309,6 +312,13 @@ GraphicsLibrary::newImageSheet( lua_State *L )
 //
 //    return result;
 //}
+
+// graphics.newAtlas( { "a.png", "b.png" } [, options] )
+int
+GraphicsLibrary::newAtlas( lua_State *L )
+{
+    return TextureAtlas_newAtlas( L );
+}
 
 // graphics.defineEffect( params )
 int
@@ -1552,6 +1562,7 @@ LuaLibGraphics::Initialize( lua_State *L, Display& display )
 
     FilePath::Initialize( L );
     ImageSheet::Initialize( L );
+    TextureAtlasUserdata::Initialize( L );
 
     lua_pushlightuserdata( L, & display );
     CoronaLuaRegisterModuleLoader( L, GraphicsLibrary::kName, GraphicsLibrary::Open, 1 );
