@@ -57,6 +57,10 @@ public:
     // Check if program is valid for given version
     bool IsValid(Program::Version version) const;
 
+    // Access to default shader binaries (for use by InstancedBatchRenderer)
+    static const unsigned char* GetDefaultFSData();
+    static unsigned int GetDefaultFSSize();
+
 private:
     // Per-version data (5 versions: mask0-3 + wireframe)
     struct VersionData

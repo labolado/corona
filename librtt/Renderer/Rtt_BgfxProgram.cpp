@@ -531,6 +531,18 @@ void BgfxProgram::DestroyUniforms()
     fUniformsCreated = false;
 }
 
+const unsigned char*
+BgfxProgram::GetDefaultFSData()
+{
+    return s_fs_default_metal;
+}
+
+unsigned int
+BgfxProgram::GetDefaultFSSize()
+{
+    return s_fs_default_metal_size;
+}
+
 // ----------------------------------------------------------------------------
 
 } // namespace Rtt
