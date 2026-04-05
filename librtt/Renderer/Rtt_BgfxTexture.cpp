@@ -196,6 +196,37 @@ BgfxTexture::Create( CPUResource* resource )
 			mem = rgbaMem;
 			format = bgfx::TextureFormat::RGBA8;
 		}
+		else if( texture->GetFormat() == Texture::kBGRA )
+		{
+			// Mac CoreGraphics outputs kCGImageAlphaPremultipliedFirst (ARGB component order).
+			// GL correctly reads this via GL_BGRA + GL_UNSIGNED_INT_8_8_8_8 (packed integer),
+			// where the 32-bit LE integer is decoded as: B=bits[24-31], G=bits[16-23],
+			// R=bits[8-15], A=bits[0-7], effectively byte-reversing [byte0,byte1,byte2,byte3]
+			// to get [byte3,byte2,byte1,byte0] = [B,G,R,A].
+			//
+			// bgfx uses byte-wise format (Metal MTLPixelFormatBGRA8Unorm: byte[0]=B, byte[1]=G,
+			// byte[2]=R, byte[3]=A). Without conversion, the raw bytes are misinterpreted.
+			// Fix: byte-reverse each 32-bit pixel to match bgfx's byte-wise BGRA layout.
+			uint32_t pixelCount = w * h;
+			const bgfx::Memory* swapMem = bgfx::alloc( pixelCount * 4 );
+			const U32* src32 = reinterpret_cast<const U32*>( data );
+			U32* dst32 = reinterpret_cast<U32*>( swapMem->data );
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				U32 px = src32[i];
+				dst32[i] = __builtin_bswap32( px );
+			}
+			mem = swapMem;
+			// format stays BGRA8
+		}
+		else if( texture->GetFormat() == Texture::kARGB )
+		{
+			// Mac desktop kARGB: GL uses GL_BGRA + GL_UNSIGNED_INT_8_8_8_8_REV
+			// which reads as: B=bits[0-7], G=bits[8-15], R=bits[16-23], A=bits[24-31]
+			// On LE, bytes are already [B,G,R,A] - matches BGRA8 byte-wise format directly.
+			mem = bgfx::copy( data, dataSize );
+			format = bgfx::TextureFormat::BGRA8;
+		}
 		else
 		{
 			mem = bgfx::copy( data, dataSize );
@@ -319,6 +350,24 @@ BgfxTexture::Update( CPUResource* resource )
 				dst[i * 4 + 3] = a;
 			}
 			actualFormat = bgfx::TextureFormat::RGBA8;
+		}
+		else if( format == Texture::kBGRA )
+		{
+			// Same byte-reverse as Create(): packed integer → byte-wise BGRA
+			uint32_t pixelCount = w * h;
+			expandedMem = bgfx::alloc( pixelCount * 4 );
+			const U32* src32 = reinterpret_cast<const U32*>( data );
+			U32* dst32 = reinterpret_cast<U32*>( expandedMem->data );
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				dst32[i] = __builtin_bswap32( src32[i] );
+			}
+			actualFormat = bgfx::TextureFormat::BGRA8;
+		}
+		else if( format == Texture::kARGB )
+		{
+			// kARGB on LE: bytes are already [B,G,R,A] matching BGRA8 byte-wise
+			actualFormat = bgfx::TextureFormat::BGRA8;
 		}
 		else
 		{
