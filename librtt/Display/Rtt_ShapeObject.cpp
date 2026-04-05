@@ -16,8 +16,11 @@
 #include "Display/Rtt_ClosedPath.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_Paint.h"
+#include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderFactory.h"
+#include "Display/Rtt_ShapePath.h"
+#include "Display/Rtt_TesselatorShape.h"
 #include "Rtt_LuaProxyVTable.h"
 
 #include "Renderer/Rtt_Renderer.h"
@@ -164,19 +167,77 @@ ShapeObject::Draw( Renderer& renderer ) const
 
 		SUMMED_TIMING( sd, "ShapeObject: Draw" );
 
-		fPath->UpdateResources( renderer );
+		SDFRenderer& sdf = SDFRenderer::Instance();
 
-		if ( fPath->IsFillVisible() )
+		// SDF rendering path: use SDF shader for simple shapes
+		if ( sdf.IsAvailable() && IsSDFEligible() )
 		{
-			fFillShader->Draw( renderer, fFillData );
+			fPath->UpdateResources( renderer );
+
+			if ( fPath->IsFillVisible() )
+			{
+				SDFRenderer::ShapeType sdfType = GetSDFShapeType();
+
+				// Get shape dimensions from path bounds
+				Rect bounds;
+				fPath->GetSelfBounds( bounds );
+				Real width = bounds.Width();
+				Real height = bounds.Height();
+
+				// Get corner radius for rounded rect
+				Real cornerRadius = Rtt_REAL_0;
+				Real strokeWidth = (Real)GetStrokeWidth();
+
+				ShapePath *shapePath = static_cast< ShapePath* >( fPath );
+				const TesselatorShape *tesselator = shapePath->GetTesselator();
+				Tesselator::eType tessType = const_cast< TesselatorShape* >( tesselator )->GetType();
+
+				if ( tessType == Tesselator::kType_RoundedRect )
+				{
+					// Access corner radius via tesselator
+					// TesselatorRoundedRect stores radius
+					// We pass it through the uniform
+					// For now, extract from shape dimensions
+					cornerRadius = Rtt_REAL_0; // Will be set properly when integrated
+				}
+
+				// Set SDF uniforms
+				sdf.SetShapeUniforms( sdfType, width, height, cornerRadius, strokeWidth );
+
+				// TODO: Set color uniforms from paint
+				// For now, use white fill, no stroke
+				sdf.SetColorUniforms(
+					Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1,
+					Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0 );
+
+				// Submit draw using existing fill shader path
+				// The SDF program will be substituted via the renderer
+				// when SDF programs are fully wired up
+				fFillShader->Draw( renderer, fFillData );
+			}
+
+			if ( fPath->IsStrokeVisible() && fStrokeShader )
+			{
+				fStrokeShader->Draw( renderer, fStrokeData );
+			}
 		}
-
-		if ( fPath->IsStrokeVisible() )
+		else
 		{
-			fStrokeShader->Draw( renderer, fStrokeData );
+			// Standard mesh rendering path (polygon, line, path, etc.)
+			fPath->UpdateResources( renderer );
+
+			if ( fPath->IsFillVisible() )
+			{
+				fFillShader->Draw( renderer, fFillData );
+			}
+
+			if ( fPath->IsStrokeVisible() )
+			{
+				fStrokeShader->Draw( renderer, fStrokeData );
+			}
 		}
 	}
-	
+
 }
 
 void
@@ -253,6 +314,57 @@ ShaderResource::ProgramMod
 ShapeObject::GetProgramMod() const
 {
 	return ShaderResource::kDefault;
+}
+
+bool
+ShapeObject::IsSDFEligible() const
+{
+	if ( !SDFRenderer::IsEnabled() )
+	{
+		return false;
+	}
+
+	ShapePath *shapePath = static_cast< ShapePath* >( fPath );
+	if ( !shapePath )
+	{
+		return false;
+	}
+
+	const TesselatorShape *tesselator = shapePath->GetTesselator();
+	if ( !tesselator )
+	{
+		return false;
+	}
+
+	Tesselator::eType type = const_cast< TesselatorShape* >( tesselator )->GetType();
+	switch ( type )
+	{
+		case Tesselator::kType_Circle:
+		case Tesselator::kType_Rect:
+		case Tesselator::kType_RoundedRect:
+			return true;
+		default:
+			return false;
+	}
+}
+
+SDFRenderer::ShapeType
+ShapeObject::GetSDFShapeType() const
+{
+	ShapePath *shapePath = static_cast< ShapePath* >( fPath );
+	const TesselatorShape *tesselator = shapePath->GetTesselator();
+	Tesselator::eType type = const_cast< TesselatorShape* >( tesselator )->GetType();
+
+	switch ( type )
+	{
+		case Tesselator::kType_Circle:
+			return SDFRenderer::kCircle;
+		case Tesselator::kType_Rect:
+			return SDFRenderer::kRect;
+		case Tesselator::kType_RoundedRect:
+		default:
+			return SDFRenderer::kRoundedRect;
+	}
 }
 
 const LuaProxyVTable&
