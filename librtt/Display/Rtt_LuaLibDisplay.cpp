@@ -32,6 +32,8 @@
 #include "Display/Rtt_ShapePath.h"
 #include "Display/Rtt_SnapshotObject.h"
 #include "Display/Rtt_StageObject.h"
+#include "Display/Rtt_TextureAtlas.h"
+#include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_TextureFactory.h"
 #include "Renderer/Rtt_Texture.h"
 #include "Renderer/Rtt_VideoSource.h"
@@ -1153,6 +1155,46 @@ DisplayLibrary::newImage( lua_State *L )
             result = NULL != PushImage( L, p, paint, display, parent, replacement );
         }
     }
+    else if ( lua_isuserdata( L, nextArg ) && TextureAtlasUserdata::IsAtlas( L, nextArg ) )
+    {
+        // display.newImage( atlas, "frameName" [, x, y] )
+        TextureAtlas* atlas = TextureAtlasUserdata::ToAtlas( L, nextArg );
+        if ( atlas )
+        {
+            nextArg++;
+            const char* frameName = luaL_checkstring( L, nextArg++ );
+            const TextureAtlas::Frame* frame = atlas->GetFrame( frameName );
+
+            if ( !frame )
+            {
+                CoronaLuaError( L, "display.newImage( atlas, '%s' ): frame not found in atlas", frameName );
+            }
+            else
+            {
+                // [, x, y]
+                Vertex2* p = NULL;
+                Vertex2 topLeft = { Rtt_REAL_0, Rtt_REAL_0 };
+                if ( lua_isnumber( L, nextArg ) && lua_isnumber( L, nextArg + 1 ) )
+                {
+                    topLeft.x = luaL_toreal( L, nextArg++ );
+                    topLeft.y = luaL_toreal( L, nextArg++ );
+                }
+                p = & topLeft;
+
+                Real w = Rtt_IntToReal( frame->w );
+                Real h = Rtt_IntToReal( frame->h );
+
+                AtlasBitmapPaint* paint = Rtt_NEW( display.GetAllocator(),
+                    AtlasBitmapPaint( atlas->GetTextureResource(),
+                        frame->u0, frame->v0, frame->u1, frame->v1 ) );
+
+                if ( paint )
+                {
+                    result = NULL != PushImage( L, p, paint, display, parent, w, h, replacement );
+                }
+            }
+        }
+    }
     else if ( lua_isuserdata( L, nextArg ) )
     {
         ImageSheetUserdata *ud = ImageSheet::ToUserdata( L, nextArg );
@@ -1181,7 +1223,7 @@ DisplayLibrary::newImage( lua_State *L )
                 topLeft.y = luaL_toreal( L, nextArg++ );
             }
             p = & topLeft;
-            
+
             if( sheet->GetNumFrames() <= frameIndex )
             {
                 CoronaLuaWarning( L, "display.newImage( imageGroup, frameIndex ) given an invalid frameIndex (%d). Defaulting to max frame", frameIndex+1 );
