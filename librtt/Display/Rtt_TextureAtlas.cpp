@@ -305,6 +305,7 @@ TextureAtlas::Create(
 		frame.v1 = Rtt_RealMul( Rtt_IntToReal( pr.y + (S32)entry.h ), invH );
 
 		atlas->fFrames.Append( frame );
+		atlas->fFrameMap[frame.name] = i;  // Build name->index map
 	}
 
 	// Clean up source bitmaps (the atlas bitmap is now owned by the texture resource)
@@ -318,12 +319,10 @@ TextureAtlas::GetFrame( const char* name ) const
 {
 	if ( !name ) return NULL;
 
-	for ( S32 i = 0, iMax = fFrames.Length(); i < iMax; i++ )
+	auto it = fFrameMap.find( name );
+	if ( it != fFrameMap.end() )
 	{
-		if ( fFrames[i].name == name )
-		{
-			return &fFrames[i];
-		}
+		return &fFrames[it->second];
 	}
 
 	return NULL;
@@ -332,7 +331,15 @@ TextureAtlas::GetFrame( const char* name ) const
 bool
 TextureAtlas::HasFrame( const char* name ) const
 {
-	return GetFrame( name ) != NULL;
+	return fFrameMap.find( name ) != fFrameMap.end();
+}
+
+ImageSheet*
+TextureAtlas::CreateImageSheet( const char* frameName, int frameWidth, int frameHeight, int numFrames ) const
+{
+	// TODO: Implement CreateImageSheet - stub for now
+	Rtt_TRACE_SIM( ( "WARNING: TextureAtlas::CreateImageSheet() not yet implemented\n" ) );
+	return NULL;
 }
 
 // ----------------------------------------------------------------------------

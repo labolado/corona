@@ -103,6 +103,36 @@ atlas_has( lua_State* L )
 	return 1;
 }
 
+// atlas:reload() -> bool (stub)
+static int
+atlas_reload( lua_State* L )
+{
+	TextureAtlas* atlas = GetAtlasSelf( L );
+	if ( !atlas ) return 0;
+
+	CoronaLuaWarning( L, "atlas:reload() not yet implemented" );
+	lua_pushboolean( L, false );
+	return 1;
+}
+
+// atlas:getImageSheet( frameName, frameWidth, frameHeight, numFrames ) -> ImageSheet
+static int
+atlas_getImageSheet( lua_State* L )
+{
+	TextureAtlas* atlas = GetAtlasSelf( L );
+	if ( !atlas ) return 0;
+
+	const char* frameName = luaL_checkstring( L, 2 );
+	int frameWidth = (int)luaL_checkinteger( L, 3 );
+	int frameHeight = (int)luaL_checkinteger( L, 4 );
+	int numFrames = (int)luaL_checkinteger( L, 5 );
+
+	// Stub implementation
+	CoronaLuaWarning( L, "atlas:getImageSheet() not yet implemented" );
+	lua_pushnil( L );
+	return 1;
+}
+
 // atlas:list() -> { "a.png", "b.png", ... }
 static int
 atlas_list( lua_State* L )
@@ -192,8 +222,10 @@ TextureAtlasUserdata::Initialize( lua_State* L )
 	const luaL_Reg kVTable[] =
 	{
 		{ "getFrame", atlas_getFrame },
+		{ "getImageSheet", atlas_getImageSheet },
 		{ "has", atlas_has },
 		{ "list", atlas_list },
+		{ "reload", atlas_reload },
 		{ "removeSelf", atlas_removeSelf },
 		{ "__gc", atlas_gc },
 		{ "__index", atlas_index },
