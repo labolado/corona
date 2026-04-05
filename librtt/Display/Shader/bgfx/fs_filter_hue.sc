@@ -65,6 +65,7 @@ void main()
 	if ( texColor.a == 0.0 )
 	{
     gl_FragColor = texColor;
+    return;
 	}
 
 	// Remove the alpha from the texColor.
