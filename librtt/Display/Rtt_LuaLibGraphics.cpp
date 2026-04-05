@@ -40,6 +40,7 @@
 #include "Rtt_LuaLibNative.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
 
+#include <bgfx/bgfx.h>
 
 #include <float.h>
 
@@ -106,6 +107,7 @@ class GraphicsLibrary
         static int setInstancing( lua_State *L );
         static int getInstancing( lua_State *L );
         static int getDirtyStats( lua_State *L );
+        static int getTextureCapabilities( lua_State *L );
 
     private:
         Display& fDisplay;
@@ -157,6 +159,7 @@ GraphicsLibrary::Open( lua_State *L )
         { "setInstancing", setInstancing },
         { "getInstancing", getInstancing },
         { "getDirtyStats", getDirtyStats },
+        { "getTextureCapabilities", getTextureCapabilities },
 
         { NULL, NULL }
     };
@@ -418,6 +421,93 @@ GraphicsLibrary::getDirtyStats( lua_State *L )
         lua_pushnumber( L, 0 );
     }
     lua_setfield( L, -2, "cacheHitRate" );
+
+    return 1;
+}
+
+// graphics.getTextureCapabilities() -> table
+// Returns GPU texture format support and limits.
+// Fields: astc, bc, etc2, pvrtc (bool), maxSize (int), renderer (string)
+int
+GraphicsLibrary::getTextureCapabilities( lua_State *L )
+{
+    GraphicsLibrary *library = GraphicsLibrary::ToLibrary( L );
+    Display& display = library->GetDisplay();
+    const RendererCaps& caps = display.GetRenderer().GetCaps();
+
+    lua_newtable( L );
+
+    // Renderer info
+    lua_pushstring( L, caps.rendererString ? caps.rendererString : "unknown" );
+    lua_setfield( L, -2, "renderer" );
+
+    lua_pushinteger( L, caps.maxTextureSize );
+    lua_setfield( L, -2, "maxSize" );
+
+    // Check if bgfx backend (vendor == "bgfx")
+    bool isBgfx = caps.vendorString && strcmp( caps.vendorString, "bgfx" ) == 0;
+
+    if ( isBgfx )
+    {
+        // Query compressed texture format support via bgfx
+        bool astc = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::ASTC4x4, BGFX_TEXTURE_NONE );
+        bool bc1 = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::BC1, BGFX_TEXTURE_NONE );
+        bool bc3 = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::BC3, BGFX_TEXTURE_NONE );
+        bool bc7 = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::BC7, BGFX_TEXTURE_NONE );
+        bool etc2 = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::ETC2, BGFX_TEXTURE_NONE );
+        bool pvrtc = bgfx::isTextureValid( 0, false, 1, bgfx::TextureFormat::PTC14, BGFX_TEXTURE_NONE );
+
+        lua_pushboolean( L, astc );
+        lua_setfield( L, -2, "astc" );
+
+        lua_pushboolean( L, bc1 || bc3 || bc7 );
+        lua_setfield( L, -2, "bc" );
+
+        // Individual BC formats for detailed queries
+        lua_pushboolean( L, bc1 );
+        lua_setfield( L, -2, "bc1" );
+        lua_pushboolean( L, bc3 );
+        lua_setfield( L, -2, "bc3" );
+        lua_pushboolean( L, bc7 );
+        lua_setfield( L, -2, "bc7" );
+
+        lua_pushboolean( L, etc2 );
+        lua_setfield( L, -2, "etc2" );
+
+        lua_pushboolean( L, pvrtc );
+        lua_setfield( L, -2, "pvrtc" );
+
+        // Best format recommendation
+        const char* bestFormat = "rgba";
+        if ( astc ) bestFormat = "astc";
+        else if ( bc7 ) bestFormat = "bc7";
+        else if ( bc3 ) bestFormat = "bc3";
+        else if ( etc2 ) bestFormat = "etc2";
+        else if ( pvrtc ) bestFormat = "pvrtc";
+
+        lua_pushstring( L, bestFormat );
+        lua_setfield( L, -2, "bestFormat" );
+    }
+    else
+    {
+        // GL fallback: no compressed format queries available
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "astc" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "bc" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "bc1" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "bc3" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "bc7" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "etc2" );
+        lua_pushboolean( L, 0 );
+        lua_setfield( L, -2, "pvrtc" );
+        lua_pushstring( L, "rgba" );
+        lua_setfield( L, -2, "bestFormat" );
+    }
 
     return 1;
 }

@@ -30,6 +30,10 @@
 #include "Rtt_Runtime.h"
 #include "CoronaLua.h"
 
+#include <bgfx/bgfx.h>
+#include <string.h>
+#include <stdio.h>
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -230,6 +234,80 @@ TextureFactory::Preload( Renderer& renderer )
 	fCreateQueue.Empty();
 }
 
+bool
+TextureFactory::FindCompressedVariant(
+	const char *originalPath,
+	String& compressedPath )
+{
+	// Check if bgfx renderer is active
+	const RendererCaps& caps = fDisplay.GetRenderer().GetCaps();
+	if ( !caps.vendorString || strcmp( caps.vendorString, "bgfx" ) != 0 )
+	{
+		return false;
+	}
+
+	// Strip extension from original path
+	const char *dot = strrchr( originalPath, '.' );
+	if ( !dot )
+	{
+		return false;
+	}
+
+	size_t baseLen = dot - originalPath;
+
+	// Build compressed variant paths in priority order.
+	// KTX is the standard container format for GPU-compressed textures.
+	// The file contains format metadata, so we check support after parsing.
+	struct Variant
+	{
+		const char *ext;
+		bgfx::TextureFormat::Enum format;
+	};
+
+	// Try format-specific files first, then generic KTX container
+	Variant variants[] = {
+		{ ".astc",  bgfx::TextureFormat::ASTC4x4 },
+		{ ".bc3",   bgfx::TextureFormat::BC3 },
+		{ ".etc2",  bgfx::TextureFormat::ETC2 },
+		{ ".ktx",   bgfx::TextureFormat::Count }, // KTX: format determined at load time
+	};
+
+	char variantPath[1024];
+	for ( size_t i = 0; i < sizeof(variants) / sizeof(variants[0]); ++i )
+	{
+		if ( baseLen + strlen(variants[i].ext) >= sizeof(variantPath) )
+		{
+			continue;
+		}
+
+		memcpy( variantPath, originalPath, baseLen );
+		strcpy( variantPath + baseLen, variants[i].ext );
+
+		// Check if file exists
+		FILE *f = fopen( variantPath, "rb" );
+		if ( f )
+		{
+			fclose( f );
+
+			// For format-specific files, verify GPU support
+			if ( variants[i].format != bgfx::TextureFormat::Count )
+			{
+				if ( !bgfx::isTextureValid( 0, false, 1, variants[i].format, BGFX_TEXTURE_NONE ) )
+				{
+					Rtt_LogException( "TextureFactory: found %s but GPU does not support format, skipping\n", variantPath );
+					continue;
+				}
+			}
+
+			compressedPath.Set( variantPath );
+			Rtt_LogException( "TextureFactory: found compressed variant: %s\n", variantPath );
+			return true;
+		}
+	}
+
+	return false;
+}
+
 SharedPtr< TextureResource >
 TextureFactory::FindOrCreate(
 	const char *filename,
@@ -238,7 +316,7 @@ TextureFactory::FindOrCreate(
 	bool isMask )
 {
 	SharedPtr< TextureResource > result;
-	
+
 	if( MPlatform::kVirtualTexturesDir == baseDir )
 	{
 		// Virtual textures can come only from Cache.
@@ -267,6 +345,19 @@ TextureFactory::FindOrCreate(
 
 		Rtt_ASSERT( result.IsNull() );
 		return result;
+	}
+
+	// Try to find a compressed texture variant (e.g. .astc, .ktx)
+	// before falling back to the original uncompressed file.
+	String compressedPath( fDisplay.GetAllocator() );
+	if ( !isMask && FindCompressedVariant( filePath.GetString(), compressedPath ) )
+	{
+		// Found a compressed variant - use it as the cache key and file path.
+		// Note: actual compressed file loading (bimg::imageParse) will be
+		// implemented when pre-compressed assets are available. For now,
+		// this logs the detected variant and falls through to normal loading.
+		Rtt_LogException( "TextureFactory: would prefer compressed: %s over %s\n",
+			compressedPath.GetString(), filePath.GetString() );
 	}
 
 	// Lookup cache

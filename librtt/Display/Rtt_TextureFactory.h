@@ -53,6 +53,12 @@ class TextureFactory
 			const char *filePath,
 			U32 flags = 0, bool convertToGrayscale = false );
 
+		// Try to find a compressed variant (.ktx) of the given file path.
+		// Returns the compressed file path if found and GPU supports the format, empty otherwise.
+		bool FindCompressedVariant(
+			const char *originalPath,
+			String& compressedPath );
+
 		SharedPtr< TextureResource > Find( const std::string& key );
 		SharedPtr< TextureResource > CreateAndAdd( const std::string& key,
 													PlatformBitmap *bitmap,
