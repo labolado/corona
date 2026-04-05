@@ -1,8 +1,5 @@
 --[[
     test_batch.lua - Batch functionality tests
-    
-    NOTE: Some tests are skipped due to potential C++ implementation issues.
-    These should be re-enabled once the C++ code is stabilized.
 --]]
 
 display.setStatusBar(display.HiddenStatusBar)
@@ -50,20 +47,7 @@ end
 -- Short delay
 timer.performWithDelay(200, function()
     print("\n--- Test 1: Create Atlas ---")
-    local atlas
-    local atlasOk, atlasResult = pcall(function()
-        return graphics.newAtlas(imageFiles, { baseDir = system.DocumentsDirectory })
-    end)
-    
-    if not atlasOk then
-        print("ERROR: Atlas creation crashed: " .. tostring(atlasResult))
-        check("Atlas created", false)
-        print(string.format("\n=== RESULTS: Pass %d | Fail %d ===", pass, fail))
-        os.exit(1)
-        return
-    end
-    
-    atlas = atlasResult
+    local atlas = graphics.newAtlas(imageFiles, { baseDir = system.DocumentsDirectory })
     check("Atlas created", atlas ~= nil)
     
     if not atlas then
@@ -73,20 +57,7 @@ timer.performWithDelay(200, function()
     end
     
     print("\n--- Test 2: Create Batch ---")
-    local batch
-    local batchOk, batchResult = pcall(function()
-        return display.newBatch(atlas, 100)
-    end)
-    
-    if not batchOk then
-        print("ERROR: Batch creation crashed: " .. tostring(batchResult))
-        check("Batch created", false)
-        print(string.format("\n=== RESULTS: Pass %d | Fail %d ===", pass, fail))
-        os.exit(1)
-        return
-    end
-    
-    batch = batchResult
+    local batch = display.newBatch(atlas, 100)
     check("Batch created", batch ~= nil)
     
     if not batch then
@@ -99,53 +70,74 @@ timer.performWithDelay(200, function()
     
     -- Test add()
     print("Testing batch:add()...")
-    local slot1Ok, slot1 = pcall(function()
-        return batch:add(imageFiles[1], 50, 60)
-    end)
-    if not slot1Ok then
-        print("batch:add() crashed: " .. tostring(slot1))
-        check("add() works", false)
-    else
-        print("batch:add() returned " .. tostring(slot1))
-        check("add() returns slot", slot1 ~= nil)
-    end
+    local slot1 = batch:add(imageFiles[1], 50, 60)
+    print("batch:add() returned " .. tostring(slot1))
+    check("add() returns slot", slot1 ~= nil)
     
     -- Test numSlots (property, not method)
     print("Testing batch.numSlots...")
-    local countOk, count = pcall(function()
-        return batch.numSlots
-    end)
-    if not countOk then
-        print("batch.numSlots crashed: " .. tostring(count))
-        check("numSlots works", false)
-    else
-        print("batch.numSlots = " .. tostring(count))
-        check("numSlots returns number", type(count) == "number")
-    end
+    local count = batch.numSlots
+    print("batch.numSlots = " .. tostring(count))
+    check("numSlots returns number", type(count) == "number")
+    check("numSlots is 1 after one add", count == 1)
     
     print("\n--- Test 4: Multiple Add Operations ---")
     local addOk = true
     for i = 1, 10 do
-        local ok, slot = pcall(function()
-            return batch:add(imageFiles[(i % 3) + 1], i * 10, i * 10)
-        end)
-        if not ok then
+        local slot = batch:add(imageFiles[(i % 3) + 1], i * 10, i * 10)
+        if not slot then
             addOk = false
-            print("add() failed at iteration " .. i .. ": " .. tostring(slot))
+            print("add() returned nil at iteration " .. i)
             break
         end
     end
     check("Multiple add() operations", addOk)
+    check("numSlots is 11 after 11 adds", batch.numSlots == 11)
     
-    print("\n--- Test 5: Cleanup ---")
-    -- Skip removeSelf due to potential crash
-    print("SKIPPED: batch:removeSelf() - potential crash bug")
-    print("SKIPPED: atlas:removeSelf() - potential crash bug")
+    print("\n--- Test 5: batch:removeSelf() ---")
+    
+    -- Test removeSelf does not crash
+    local removeOk = true
+    local removeErr = nil
+    local ok, err = pcall(function()
+        batch:removeSelf()
+    end)
+    if not ok then
+        removeOk = false
+        removeErr = err
+        print("batch:removeSelf() crashed: " .. tostring(err))
+    end
+    check("removeSelf() does not crash", removeOk)
+    
+    -- Test batch is unusable after removeSelf
+    local unusableOk, unusableErr = pcall(function()
+        return batch.numSlots
+    end)
+    check("batch unusable after removeSelf", not unusableOk)
+    
+    -- Test atlas:removeSelf()
+    print("\n--- Test 6: atlas:removeSelf() ---")
+    local atlasRemoveOk = true
+    local atlasRemoveErr = nil
+    local aok, aerr = pcall(function()
+        atlas:removeSelf()
+    end)
+    if not aok then
+        atlasRemoveOk = false
+        atlasRemoveErr = aerr
+        print("atlas:removeSelf() crashed: " .. tostring(aerr))
+    end
+    check("atlas removeSelf() does not crash", atlasRemoveOk)
+    
+    -- Test atlas is unusable after removeSelf
+    local atlasUnusableOk, atlasUnusableErr = pcall(function()
+        return atlas:has(imageFiles[1])
+    end)
+    check("atlas unusable after removeSelf", not atlasUnusableOk)
     
     -- Final summary
     print(string.format("\n=== BATCH TEST RESULTS (%s) ===", backend))
     print(string.format("Pass: %d | Fail: %d", pass, fail))
-    print("Note: Some tests skipped due to potential C++ issues")
     print("=== END ===")
     
     timer.performWithDelay(500, function()

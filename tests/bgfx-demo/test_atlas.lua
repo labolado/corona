@@ -1,12 +1,5 @@
 --[[
     test_atlas.lua - Atlas functionality tests
-    
-    NOTE: Some tests are skipped due to known C++ implementation bugs:
-    - atlas:has() crashes
-    - atlas:getFrame() crashes  
-    - atlas:removeSelf() may crash
-    
-    These should be re-enabled once the C++ bugs are fixed.
 --]]
 
 display.setStatusBar(display.HiddenStatusBar)
@@ -81,65 +74,72 @@ timer.performWithDelay(200, function()
     end
     
     print("\n--- Test 2: atlas:list() ---")
-    local listSuccess, listResult = pcall(function()
-        return atlas:list()
-    end)
-    if not listSuccess then
-        print("atlas:list() crashed: " .. tostring(listResult))
-        check("list() works", false)
-    else
-        print("atlas:list() returned " .. type(listResult) .. " with " .. (listResult and #listResult or 0) .. " items")
-        check("list() returns table", type(listResult) == "table")
-        check("list() has correct count", #listResult == #imageFiles)
+    local listResult = atlas:list()
+    print("atlas:list() returned " .. type(listResult) .. " with " .. (listResult and #listResult or 0) .. " items")
+    check("list() returns table", type(listResult) == "table")
+    check("list() has correct count", #listResult == #imageFiles)
+    
+    print("\n--- Test 3: atlas:has() ---")
+    local hasResult = atlas:has("atlas_test_1.png")
+    check("has() returns true for existing file", hasResult == true)
+    local hasMissing = atlas:has("nonexistent.png")
+    check("has() returns false for missing file", hasMissing == false)
+    
+    print("\n--- Test 4: atlas:getFrame() ---")
+    local frame = atlas:getFrame("atlas_test_1.png")
+    check("getFrame() returns value", frame ~= nil)
+    
+    print("\n--- Test 5: Atlas Properties ---")
+    local fc = atlas.frameCount
+    check("frameCount is number", type(fc) == "number")
+    local w = atlas.width
+    check("width is number", type(w) == "number")
+    local h = atlas.height
+    check("height is number", type(h) == "number")
+    
+    print("\n--- Test 6: display.newImage with Atlas ---")
+    local imgResult = display.newImage(atlas, "atlas_test_1.png", 100, 100)
+    print("display.newImage returned " .. tostring(imgResult))
+    check("newImage creates object", imgResult ~= nil)
+    if imgResult then
+        imgResult:removeSelf()
     end
     
-    -- NOTE: Skipping has(), getFrame(), removeSelf() due to C++ bugs
-    print("\n--- Test 3: SKIPPED (C++ bugs) ---")
-    print("SKIPPED: atlas:has() - known crash bug")
-    print("SKIPPED: atlas:getFrame() - known crash bug")  
-    print("SKIPPED: atlas:removeSelf() - potential crash bug")
-    print("SKIPPED: atlas.frameCount - potential crash bug")
-    
-    -- Count skipped tests as warnings
-    print("\n--- Known Bugs Summary ---")
-    print("1. atlas:has() crashes when called")
-    print("2. atlas:getFrame() crashes when called")
-    print("3. atlas:removeSelf() may crash")
-    print("4. Atlas properties (frameCount, width, height) may crash")
-    
-    print("\n--- Test 4: display.newImage with Atlas ---")
-    local imgSuccess, imgResult = pcall(function()
-        return display.newImage(atlas, "atlas_test_1.png", 100, 100)
+    print("\n--- Test 7: atlas:removeSelf() ---")
+    local removeOk = true
+    local removeErr = nil
+    -- Use pcall only to catch crash, but we assert it succeeds
+    local ok, err = pcall(function()
+        atlas:removeSelf()
     end)
-    if not imgSuccess then
-        print("display.newImage(atlas, ...) crashed: " .. tostring(imgResult))
-        check("newImage with atlas works", false)
-    else
-        print("display.newImage returned " .. tostring(imgResult))
-        check("newImage creates object", imgResult ~= nil)
-        if imgResult then
-            imgResult:removeSelf()
-        end
+    if not ok then
+        removeOk = false
+        removeErr = err
+        print("removeSelf() crashed: " .. tostring(err))
     end
+    check("removeSelf() does not crash", removeOk)
     
-    print("\n--- Test 5: Multiple Atlas Creation ---")
+    -- Verify atlas is no longer usable after removeSelf
+    local unusableOk, unusableErr = pcall(function()
+        return atlas:has("atlas_test_1.png")
+    end)
+    check("atlas unusable after removeSelf", not unusableOk)
+    
+    print("\n--- Test 8: Multiple Atlas Creation ---")
     local multiSuccess = true
     for i = 1, 5 do
-        local ok, testAtlas = pcall(function()
-            return graphics.newAtlas(imageFiles, { baseDir = system.DocumentsDirectory })
-        end)
-        if not ok or not testAtlas then
+        local testAtlas = graphics.newAtlas(imageFiles, { baseDir = system.DocumentsDirectory })
+        if not testAtlas then
             multiSuccess = false
             break
         end
-        -- Don't call removeSelf() due to potential crash
+        testAtlas:removeSelf()
     end
     check("Multiple atlas creation", multiSuccess)
     
     -- Final summary
     print(string.format("\n=== ATLAS TEST RESULTS (%s) ===", backend))
     print(string.format("Pass: %d | Fail: %d", pass, fail))
-    print("Note: Some tests skipped due to C++ implementation bugs")
     print("=== END ===")
     
     timer.performWithDelay(500, function()
