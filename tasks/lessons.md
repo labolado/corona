@@ -97,3 +97,12 @@
 **问题**: GL的packed integer格式和bgfx的byte-wise格式对同一字节数组有不同解释。LE系统上bytes [A,R,G,B] 被GL正确解读为BGRA(通过32-bit整数反转)，但bgfx直接按字节读取导致通道错乱
 **教训**: GL_UNSIGNED_INT_8_8_8_8是packed integer格式(component在32-bit整数中按MSB→LSB排列)，而Metal/bgfx/Vulkan都是byte-wise格式(byte[0]直接是第一个component)。在LE系统上两者差4字节反转。迁移GL代码到现代API时必须注意packed vs byte-wise格式差异
 **修复**: BgfxTexture::Create/Update中对kBGRA格式做__builtin_bswap32逐像素字节反转
+
+### 测试必须包含真实图片文件加载
+**日期**: 2026-04-06
+**场景**: bgfx 纹理渲染从迁移之初就白屏，但所有测试只用程序化形状，从未发现
+**根因**: Mac CoreGraphics BGRA packed integer vs bgfx byte-wise 格式不匹配（bswap32 修复）
+**教训**: 
+- 测试不能只用程序化对象，必须包含真实文件加载（PNG/JPG）
+- 用真实项目做集成验证（labo_tank 等）
+- 测试覆盖盲区 = 生产 bug
