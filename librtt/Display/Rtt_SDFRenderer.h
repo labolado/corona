@@ -32,8 +32,13 @@ class SDFRenderer
 			kCircle = 0,
 			kRect,
 			kRoundedRect,
+			kLine,
+			kPolygon,
 			kNumShapeTypes
 		};
+
+		// Maximum polygon vertices for SDF rendering (16 verts packed in 8 vec4s)
+		static const int kMaxPolygonVerts = 16;
 
 	public:
 		static SDFRenderer& Instance();
@@ -67,6 +72,12 @@ class SDFRenderer
 			Real fillR, Real fillG, Real fillB, Real fillA,
 			Real strokeR, Real strokeG, Real strokeB, Real strokeA );
 
+		// Set line endpoints in normalized [-1,1] space for line SDF
+		void SetLineUniforms( Real x0, Real y0, Real x1, Real y1 );
+
+		// Set polygon vertices for polygon SDF. Returns false if numVerts > kMaxPolygonVerts.
+		bool SetPolygonUniforms( const Real* verts, int numVerts );
+
 	private:
 		SDFRenderer();
 		~SDFRenderer();
@@ -80,6 +91,9 @@ class SDFRenderer
 		bgfx::UniformHandle fParamsUniform;       // u_sdfParams: vec4(width, height, cornerRadius, strokeWidth)
 		bgfx::UniformHandle fFillColorUniform;    // u_sdfFillColor: vec4(r, g, b, a)
 		bgfx::UniformHandle fStrokeColorUniform;  // u_sdfStrokeColor: vec4(r, g, b, a)
+		bgfx::UniformHandle fLineParamsUniform;   // u_lineParams: vec4(x0, y0, x1, y1)
+		bgfx::UniformHandle fPolyParamsUniform;   // u_polyParams: vec4(numVerts, 0, 0, 0)
+		bgfx::UniformHandle fPolyVertsUniform;    // u_polyVerts: vec4[8]
 		bool fInitialized;
 
 		static bool sEnabled;
