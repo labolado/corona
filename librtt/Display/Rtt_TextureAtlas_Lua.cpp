@@ -40,7 +40,7 @@ const char TextureAtlasUserdata::kMetatableName[] = "TextureAtlas";
 static TextureAtlas*
 GetAtlasSelf( lua_State* L )
 {
-	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)Lua::CheckUserdata( L, 1, TextureAtlasUserdata::kMetatableName );
+	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)luaL_checkudata( L, 1, TextureAtlasUserdata::kMetatableName );
 	return ud ? ud->GetAtlas() : NULL;
 }
 
@@ -190,7 +190,7 @@ atlas_index( lua_State* L )
 static int
 atlas_removeSelf( lua_State* L )
 {
-	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)Lua::CheckUserdata( L, 1, TextureAtlasUserdata::kMetatableName );
+	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)luaL_checkudata( L, 1, TextureAtlasUserdata::kMetatableName );
 	if ( ud && ud->GetAtlas() )
 	{
 		Rtt_DELETE( ud->GetAtlas() );
@@ -203,7 +203,7 @@ atlas_removeSelf( lua_State* L )
 static int
 atlas_gc( lua_State* L )
 {
-	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)Lua::ToUserdata( L, 1, TextureAtlasUserdata::kMetatableName );
+	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)lua_touserdata( L, 1 );
 	if ( ud && ud->GetAtlas() )
 	{
 		Rtt_DELETE( ud->GetAtlas() );
@@ -268,7 +268,7 @@ TextureAtlasUserdata::ToAtlas( lua_State* L, int index )
 TextureAtlas*
 TextureAtlasUserdata::CheckAtlas( lua_State* L, int index )
 {
-	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)Lua::CheckUserdata( L, index, kMetatableName );
+	TextureAtlasUserdata* ud = (TextureAtlasUserdata*)luaL_checkudata( L, index, kMetatableName );
 	return ud ? ud->GetAtlas() : NULL;
 }
 

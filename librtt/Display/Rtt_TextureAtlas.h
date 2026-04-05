@@ -67,6 +67,7 @@ class TextureAtlas
 	public:
 		const Frame* GetFrame( const char* name ) const;
 		bool HasFrame( const char* name ) const;
+		int GetFrameIndex( const char* name ) const;  // Returns -1 if not found
 		int GetFrameCount() const { return fFrames.Length(); }
 		const Frame& GetFrameByIndex( int index ) const { return fFrames[index]; }
 		const SharedPtr< TextureResource >& GetTextureResource() const { return fTexture; }

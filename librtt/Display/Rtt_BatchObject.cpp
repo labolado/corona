@@ -204,22 +204,6 @@ BatchObject::Clear()
 }
 
 void
-BatchObject::EnsureCapacity( int needed )
-{
-	int totalVertices = needed * VERTICES_PER_QUAD;
-	if ( fGeometry->GetVerticesAllocated() < (U32)totalVertices )
-	{
-		int newCapacity = fGeometry->GetVerticesAllocated();
-		if ( newCapacity == 0 ) newCapacity = VERTICES_PER_QUAD;
-		while ( newCapacity < totalVertices )
-		{
-			newCapacity *= 2;
-		}
-		fGeometry->Resize( newCapacity, false );
-	}
-}
-
-void
 BatchObject::RebuildVertices() const
 {
 	if ( !fVerticesDirty ) return;
@@ -384,10 +368,13 @@ BatchObject::GetSelfBounds( Rect& rect ) const
 		Real halfW = Rtt_RealDiv2( Rtt_IntToReal( frame.w ) ) * slot.scaleX;
 		Real halfH = Rtt_RealDiv2( Rtt_IntToReal( frame.h ) ) * slot.scaleY;
 
-		Real left = slot.x - halfW;
-		Real right = slot.x + halfW;
-		Real top = slot.y - halfH;
-		Real bottom = slot.y + halfH;
+		// Account for rotation: use bounding radius as half-extent
+		Real boundRadius = Rtt_RealSqrt( Rtt_RealMul( halfW, halfW ) + Rtt_RealMul( halfH, halfH ) );
+
+		Real left = slot.x - boundRadius;
+		Real right = slot.x + boundRadius;
+		Real top = slot.y - boundRadius;
+		Real bottom = slot.y + boundRadius;
 
 		if ( left < xMin ) xMin = left;
 		if ( right > xMax ) xMax = right;
