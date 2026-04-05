@@ -654,10 +654,12 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 				|| fCaptureGroups.Length() > 0 
                 || dirtyIndices.Length() > 0 );
 
-        // Only triangle strips are batched. All other primitive types
-        // force the previous batch to draw and a new one to be started.
+        // Triangle strips and triangle lists can be batched. Other
+        // primitive types force the previous batch to draw.
         Geometry::PrimitiveType primitiveType = geometry->GetPrimitiveType();
-        if( primitiveType != fPreviousPrimitiveType || primitiveType != Geometry::kTriangleStrip )
+        bool canBatchPrimitive = (primitiveType == Geometry::kTriangleStrip ||
+                                  primitiveType == Geometry::kTriangles);
+        if( primitiveType != fPreviousPrimitiveType || !canBatchPrimitive )
         {
             batch = false;
         }
