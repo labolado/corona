@@ -28,6 +28,7 @@
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShaderTypes.h"
 #include "Display/Rtt_TextureResource.h"
+#include "Renderer/Rtt_Renderer.h"
 #include "Rtt_LuaAux.h"
 #include "Rtt_LuaLibSystem.h"
 #include "Display/Rtt_BitmapPaint.h"
@@ -101,6 +102,7 @@ class GraphicsLibrary
         static int newAtlas( lua_State *L );
         static int setSDF( lua_State *L );
         static int getSDF( lua_State *L );
+        static int getDirtyStats( lua_State *L );
 
     private:
         Display& fDisplay;
@@ -149,6 +151,7 @@ GraphicsLibrary::Open( lua_State *L )
         { "newAtlas", newAtlas },
         { "setSDF", setSDF },
         { "getSDF", getSDF },
+        { "getDirtyStats", getDirtyStats },
 
         { NULL, NULL }
     };
@@ -339,6 +342,61 @@ int
 GraphicsLibrary::getSDF( lua_State *L )
 {
     lua_pushboolean( L, SDFRenderer::IsEnabled() ? 1 : 0 );
+    return 1;
+}
+
+// graphics.getDirtyStats() -> table
+// First call enables statistics permanently; data is valid from the next frame.
+int
+GraphicsLibrary::getDirtyStats( lua_State *L )
+{
+    GraphicsLibrary *library = GraphicsLibrary::ToLibrary( L );
+    Display& display = library->GetDisplay();
+    Renderer& renderer = display.GetRenderer();
+
+    // Enable stats permanently on first call so next frame collects all counters
+    if ( !renderer.GetStatisticsEnabled() )
+    {
+        renderer.SetStatisticsEnabled( true );
+    }
+
+    const Renderer::Statistics& stats = renderer.GetFrameStatistics();
+
+    lua_newtable( L );
+
+    // geometryUploads: always valid (not gated by fStatisticsEnabled)
+    lua_pushinteger( L, stats.fGeometryCacheMisses );
+    lua_setfield( L, -2, "geometryUploads" );
+
+    // These require stats enabled from before the render pass
+    lua_pushinteger( L, stats.fGeometryBindCount );
+    lua_setfield( L, -2, "geometryBinds" );
+
+    lua_pushinteger( L, stats.fDrawCallCount );
+    lua_setfield( L, -2, "drawCalls" );
+
+    lua_pushinteger( L, stats.fTriangleCount );
+    lua_setfield( L, -2, "triangles" );
+
+    lua_pushnumber( L, stats.fResourceUpdateTime );
+    lua_setfield( L, -2, "updateTimeMs" );
+
+    // Cache hit = geometry bound but not re-uploaded
+    U32 hits = stats.fGeometryBindCount > stats.fGeometryCacheMisses
+             ? stats.fGeometryBindCount - stats.fGeometryCacheMisses : 0;
+    lua_pushinteger( L, hits );
+    lua_setfield( L, -2, "geometryCacheHits" );
+
+    if ( hits + stats.fGeometryCacheMisses > 0 )
+    {
+        lua_pushnumber( L, (double)hits / (hits + stats.fGeometryCacheMisses) * 100.0 );
+    }
+    else
+    {
+        lua_pushnumber( L, 0 );
+    }
+    lua_setfield( L, -2, "cacheHitRate" );
+
     return 1;
 }
 

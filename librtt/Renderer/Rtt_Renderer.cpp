@@ -137,7 +137,9 @@ Renderer::Statistics::Statistics()
     fGeometryBindCount( 0 ),
     fProgramBindCount( 0 ),
     fTextureBindCount( 0 ),
-    fUniformBindCount( 0 )
+    fUniformBindCount( 0 ),
+    fGeometryCacheHits( 0 ),
+    fGeometryCacheMisses( 0 )
 {
 }
 
@@ -147,6 +149,7 @@ void Renderer::Statistics::Log() const
     Rtt_LogException("PrepTime(%3.2f) CPUTime(%3.2f) GPUTime(%3.2f)",fPreparationTime, fRenderTimeCPU, fRenderTimeGPU );
     Rtt_LogException("\tDrawCount(%d) TriangleCount(%d) LineCount(%d)\n", fDrawCallCount, fTriangleCount, fLineCount );
     Rtt_LogException("\tResourceTimes (create, update, destroy) = (%3.2f, %3.2f, %3.2f)\n", fResourceCreateTime, fResourceUpdateTime, fResourceDestroyTime );
+    Rtt_LogException("\tGeometryCache (hits, misses) = (%d, %d)\n", fGeometryCacheHits, fGeometryCacheMisses );
 }
 
 Renderer::Renderer( Rtt_Allocator* allocator )
@@ -996,6 +999,7 @@ Renderer::Swap()
 
     // Update GPUResources
     start = START_TIMING();
+    fStatistics.fGeometryCacheMisses = fUpdateQueue.Length();
     for(S32 i = 0; i < fUpdateQueue.Length(); ++i)
     {
         CPUResource* data = fUpdateQueue[i];
