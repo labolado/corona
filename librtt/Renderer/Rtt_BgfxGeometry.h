@@ -52,6 +52,7 @@ class BgfxGeometry : public GPUResource
 
         // Debug accessors
         bool IsDynamic() const { return fIsDynamic; }
+        bool IsTransient() const { return fIsTransient; }
         bgfx::VertexBufferHandle GetStaticVBHandle() const { return fVertexBufferHandle; }
         bgfx::DynamicVertexBufferHandle GetDynamicVBHandle() const { return fDynamicVertexBufferHandle; }
         static const bgfx::VertexLayout& GetVertexLayout() { InitializeVertexLayout(); return sVertexLayout; }
@@ -62,6 +63,7 @@ class BgfxGeometry : public GPUResource
         void CreateDynamic( Geometry* geometry );
         void UpdateStatic( Geometry* geometry );
         void UpdateDynamic( Geometry* geometry );
+        void UpdateTransient( Geometry* geometry );
         void DestroyStatic();
         void DestroyDynamic();
 
@@ -79,6 +81,11 @@ class BgfxGeometry : public GPUResource
         // Instance buffer for instancing
         bgfx::InstanceDataBuffer fInstanceDataBuffer;
         bool fHasInstanceBuffer;
+
+        // Transient vertex buffer (for pool geometries)
+        bgfx::TransientVertexBuffer fTransientVB;
+        bool fIsTransient;
+        bool fHasTransientVB;
 
         // State
         U32 fVertexCount;

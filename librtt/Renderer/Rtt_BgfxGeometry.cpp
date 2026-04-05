@@ -58,6 +58,8 @@ BgfxGeometry::BgfxGeometry()
 	fIndexBufferHandle( BGFX_INVALID_HANDLE ),
 	fDynamicIndexBufferHandle( BGFX_INVALID_HANDLE ),
 	fHasInstanceBuffer( false ),
+	fIsTransient( false ),
+	fHasTransientVB( false ),
 	fVertexCount( 0 ),
 	fIndexCount( 0 ),
 	fInstancesAllocated( 0 ),
@@ -162,7 +164,7 @@ BgfxGeometry::Create( CPUResource* resource )
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
 	bool shouldStoreOnGPU = geometry->GetStoredOnGPU();
-	
+
 	if( shouldStoreOnGPU )
 	{
 		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (stored on GPU): Create" );
@@ -170,10 +172,11 @@ BgfxGeometry::Create( CPUResource* resource )
 	}
 	else
 	{
-		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (dynamic): Create" );
-		CreateDynamic( geometry );
-		// Also update with initial data
-		Update( resource );
+		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (transient): Create" );
+		// Use transient buffers for pool geometries - no persistent GPU allocation needed
+		fIsTransient = true;
+		fVertexCount = geometry->GetVerticesAllocated();
+		UpdateTransient( geometry );
 	}
 
 	fIndexCount = geometry->GetIndicesAllocated();
@@ -245,6 +248,36 @@ BgfxGeometry::UpdateDynamic( Geometry* geometry )
 }
 
 void
+BgfxGeometry::UpdateTransient( Geometry* geometry )
+{
+	const Geometry::Vertex* vertexData = geometry->GetVertexData();
+	if( !vertexData )
+	{
+		fHasTransientVB = false;
+		return;
+	}
+
+	const U32 vertexCount = geometry->GetVerticesAllocated();
+	if( vertexCount == 0 )
+	{
+		fHasTransientVB = false;
+		return;
+	}
+
+	// Check transient buffer availability
+	if( bgfx::getAvailTransientVertexBuffer( vertexCount, sVertexLayout ) < vertexCount )
+	{
+		fHasTransientVB = false;
+		return;
+	}
+
+	bgfx::allocTransientVertexBuffer( &fTransientVB, vertexCount, sVertexLayout );
+	memcpy( fTransientVB.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
+	fVertexCount = vertexCount;
+	fHasTransientVB = true;
+}
+
+void
 BgfxGeometry::Update( CPUResource* resource )
 {
 	SUMMED_TIMING( bgfxgu, "Bgfx Geometry GPU Resource: Update" );
@@ -252,7 +285,11 @@ BgfxGeometry::Update( CPUResource* resource )
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
-	if( fIsDynamic )
+	if( fIsTransient )
+	{
+		UpdateTransient( geometry );
+	}
+	else if( fIsDynamic )
 	{
 		UpdateDynamic( geometry );
 	}
@@ -299,7 +336,12 @@ BgfxGeometry::DestroyDynamic()
 void
 BgfxGeometry::Destroy()
 {
-	if( fIsDynamic )
+	if( fIsTransient )
+	{
+		// Transient buffers have no persistent handles to destroy
+		fHasTransientVB = false;
+	}
+	else if( fIsDynamic )
 	{
 		DestroyDynamic();
 	}
@@ -323,7 +365,14 @@ BgfxGeometry::Bind()
 void
 BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 {
-	if( fIsDynamic )
+	if( fIsTransient )
+	{
+		if( fHasTransientVB )
+		{
+			bgfx::setVertexBuffer( 0, &fTransientVB, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
+		}
+	}
+	else if( fIsDynamic )
 	{
 		if( bgfx::isValid( fDynamicVertexBufferHandle ) )
 		{
