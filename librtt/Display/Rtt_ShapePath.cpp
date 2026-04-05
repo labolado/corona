@@ -18,8 +18,10 @@
 #include "Display/Rtt_ShapeAdapterPolygon.h"
 #include "Display/Rtt_ShapeAdapterRoundedRect.h"
 #include "Display/Rtt_ShapeAdapterMesh.h"
+#include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_TesselatorCircle.h"
 #include "Display/Rtt_TesselatorPolygon.h"
+#include "Display/Rtt_TesselatorRect.h"
 #include "Display/Rtt_TesselatorRoundedRect.h"
 #include "Display/Rtt_TesselatorShape.h"
 #include "Renderer/Rtt_Geometry_Renderer.h"
@@ -480,6 +482,95 @@ ShapePath::GetStrokeVertexCount() const
     }
 
     return count;
+}
+
+bool
+ShapePath::GenerateSDFQuad( ArrayVertex2& outVertices, ArrayVertex2& outTexCoords )
+{
+    if ( !fTesselator )
+    {
+        return false;
+    }
+
+    Tesselator::eType type = fTesselator->GetType();
+
+    Real halfW = Rtt_REAL_0;
+    Real halfH = Rtt_REAL_0;
+
+    switch ( type )
+    {
+        case Tesselator::kType_Circle:
+        {
+            TesselatorCircle *circTess = static_cast< TesselatorCircle* >( fTesselator );
+            Real r = circTess->GetRadius();
+            halfW = r;
+            halfH = r;
+            break;
+        }
+        case Tesselator::kType_Rect:
+        {
+            TesselatorRect *rectTess = static_cast< TesselatorRect* >( fTesselator );
+            halfW = Rtt_RealDiv2( rectTess->GetWidth() );
+            halfH = Rtt_RealDiv2( rectTess->GetHeight() );
+            break;
+        }
+        case Tesselator::kType_RoundedRect:
+        {
+            TesselatorRoundedRect *rrTess = static_cast< TesselatorRoundedRect* >( fTesselator );
+            halfW = Rtt_RealDiv2( rrTess->GetWidth() );
+            halfH = Rtt_RealDiv2( rrTess->GetHeight() );
+            break;
+        }
+        default:
+            return false;
+    }
+
+    // Add a small margin for anti-aliasing at edges (2 pixels)
+    Real margin = Rtt_IntToReal( 2 );
+
+    // Account for stroke width
+    Real strokeW = fTesselator->GetWidth(); // total stroke width
+    halfW += strokeW + margin;
+    halfH += strokeW + margin;
+
+    // Generate 4 quad vertices (triangle strip order: TL, TR, BL, BR)
+    outVertices.Clear();
+    Vertex2 v;
+
+    // Top-left
+    v.x = -halfW; v.y = -halfH;
+    outVertices.Append( v );
+
+    // Top-right
+    v.x =  halfW; v.y = -halfH;
+    outVertices.Append( v );
+
+    // Bottom-left
+    v.x = -halfW; v.y =  halfH;
+    outVertices.Append( v );
+
+    // Bottom-right
+    v.x =  halfW; v.y =  halfH;
+    outVertices.Append( v );
+
+    // Generate UV coordinates in [0,1] range
+    // The SDF shader maps these to [-1,1] internally
+    outTexCoords.Clear();
+    Vertex2 uv;
+
+    uv.x = Rtt_REAL_0; uv.y = Rtt_REAL_0;
+    outTexCoords.Append( uv );
+
+    uv.x = Rtt_REAL_1; uv.y = Rtt_REAL_0;
+    outTexCoords.Append( uv );
+
+    uv.x = Rtt_REAL_0; uv.y = Rtt_REAL_1;
+    outTexCoords.Append( uv );
+
+    uv.x = Rtt_REAL_1; uv.y = Rtt_REAL_1;
+    outTexCoords.Append( uv );
+
+    return true;
 }
 
 // ----------------------------------------------------------------------------
