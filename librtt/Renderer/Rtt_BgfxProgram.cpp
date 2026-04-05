@@ -353,12 +353,31 @@ void BgfxProgram::ResetVersion(VersionData& data)
     data.Reset();
 }
 
+// Helper: look up a shader in the embedded effects table by filename.
+// Returns true and sets outData/outSize if found.
+static bool FindEffectShader(const char* filename, const unsigned char*& outData, size_t& outSize)
+{
+    for (int i = 0; i < s_bgfxShaderTableCount; ++i)
+    {
+        if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
+        {
+            outData = s_bgfxShaderTable[i].data;
+            outSize = s_bgfxShaderTable[i].size;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
     const unsigned char* data = NULL;
     size_t size = 0;
 
-    // Try to find effect-specific shader via ShaderResource name/category
+    // Try to find effect-specific shader via ShaderResource name/category.
+    // Only use effect shaders when BOTH vs and fs exist in the table,
+    // because mixing a default vs with an effect fs produces incompatible
+    // varying signatures and bgfx::createProgram will fail.
     Program* program = static_cast<Program*>(fResource);
     ShaderResource* shaderRes = program ? program->GetShaderResource() : NULL;
 
@@ -371,20 +390,23 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
         {
             const char* categoryStr = ShaderTypes::StringForCategory(category);
 
-            // Build filename: {type}_{category}_{name}.bin
-            char filename[128];
-            snprintf(filename, sizeof(filename), "%s_%s_%s.bin", type, categoryStr, name.c_str());
+            // Check that BOTH vs and fs exist before using either
+            char vsFilename[128], fsFilename[128];
+            snprintf(vsFilename, sizeof(vsFilename), "vs_%s_%s.bin", categoryStr, name.c_str());
+            snprintf(fsFilename, sizeof(fsFilename), "fs_%s_%s.bin", categoryStr, name.c_str());
 
-            // Search the embedded shader table
-            for (int i = 0; i < s_bgfxShaderTableCount; ++i)
+            const unsigned char* vsData = NULL; size_t vsSize = 0;
+            const unsigned char* fsData = NULL; size_t fsSize = 0;
+            bool hasVs = FindEffectShader(vsFilename, vsData, vsSize);
+            bool hasFs = FindEffectShader(fsFilename, fsData, fsSize);
+
+            if (hasVs && hasFs)
             {
-                if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
-                {
-                    data = s_bgfxShaderTable[i].data;
-                    size = s_bgfxShaderTable[i].size;
-                    break;
-                }
+                // Both shaders available — use the requested one
+                if (strcmp(type, "vs") == 0) { data = vsData; size = vsSize; }
+                else                         { data = fsData; size = fsSize; }
             }
+            // else: fall through to default shaders for both
         }
     }
 
