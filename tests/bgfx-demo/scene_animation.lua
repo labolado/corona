@@ -15,6 +15,277 @@ local scene = composer.newScene()
 local activeTransitions = {}
 local activeTimers = {}
 
+-- Store references to display objects for reset
+local sceneObjects = {}
+
+-- Function to start all animations (called from create and show)
+local function startAnimations(sceneGroup)
+    print("[Scene 6: Animation] Starting animations...")
+    
+    -- Clear any existing animations first
+    for _, t in ipairs(activeTransitions) do
+        if t and t.cancel then
+            transition.cancel(t)
+        end
+    end
+    activeTransitions = {}
+    
+    for _, tm in ipairs(activeTimers) do
+        if tm then
+            timer.cancel(tm)
+        end
+    end
+    activeTimers = {}
+    
+    -- Reset all object properties to initial values
+    if sceneObjects.moveRect then
+        sceneObjects.moveRect.x = 40
+        sceneObjects.moveRect.y = 90
+    end
+    if sceneObjects.rotateRect then
+        sceneObjects.rotateRect.rotation = 0
+    end
+    if sceneObjects.scaleRect then
+        sceneObjects.scaleRect.xScale = 1.0
+        sceneObjects.scaleRect.yScale = 1.0
+    end
+    if sceneObjects.fadeRect then
+        sceneObjects.fadeRect.alpha = 1.0
+    end
+    if sceneObjects.multiRect then
+        sceneObjects.multiRect.x = 160
+        sceneObjects.multiRect.rotation = 0
+        sceneObjects.multiRect.xScale = 1.0
+        sceneObjects.multiRect.yScale = 1.0
+        sceneObjects.multiRect.alpha = 1.0
+    end
+    if sceneObjects.chainRect then
+        sceneObjects.chainRect.x = 60
+        sceneObjects.chainRect.y = 320
+        sceneObjects.chainRect.rotation = 0
+        sceneObjects.chainRect.xScale = 1
+        sceneObjects.chainRect.yScale = 1
+    end
+    if sceneObjects.chainText then
+        sceneObjects.chainText.text = "Step 1"
+    end
+    if sceneObjects.timerRect then
+        sceneObjects.timerRect.rotation = 0
+        sceneObjects.timerRect:setFillColor(0.2, 0.8, 0.6)
+    end
+    if sceneObjects.timerText then
+        sceneObjects.timerCounter = 0
+        sceneObjects.timerText.text = "Count: 0"
+    end
+    -- Reset stagger rects
+    if sceneObjects.staggerRects then
+        for i, rect in ipairs(sceneObjects.staggerRects) do
+            rect.y = 465
+        end
+    end
+    
+    -- Section 1: Basic transitions (move, rotate, scale, fade)
+    
+    -- Move animation
+    local function animateMove()
+        local t = transition.to(sceneObjects.moveRect, {
+            x = 100,
+            time = 1000,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.moveRect, {
+                    x = 40,
+                    time = 1000,
+                    transition = easing.inOutQuad,
+                    onComplete = animateMove
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateMove()
+    
+    -- Rotate animation
+    local function animateRotate()
+        local t = transition.to(sceneObjects.rotateRect, {
+            rotation = 360,
+            time = 2000,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                sceneObjects.rotateRect.rotation = 0
+                animateRotate()
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateRotate()
+    
+    -- Scale animation
+    local function animateScale()
+        local t = transition.to(sceneObjects.scaleRect, {
+            xScale = 1.5,
+            yScale = 1.5,
+            time = 1000,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.scaleRect, {
+                    xScale = 1.0,
+                    yScale = 1.0,
+                    time = 1000,
+                    transition = easing.inOutQuad,
+                    onComplete = animateScale
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateScale()
+    
+    -- Fade animation
+    local function animateFade()
+        local t = transition.to(sceneObjects.fadeRect, {
+            alpha = 0.2,
+            time = 1000,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.fadeRect, {
+                    alpha = 1.0,
+                    time = 1000,
+                    transition = easing.inOutQuad,
+                    onComplete = animateFade
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateFade()
+    
+    -- Section 2: Multiple simultaneous animations
+    local function animateMulti()
+        local t = transition.to(sceneObjects.multiRect, {
+            x = 240,
+            rotation = 180,
+            xScale = 1.5,
+            yScale = 0.7,
+            alpha = 0.5,
+            time = 1500,
+            transition = easing.inOutQuad,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.multiRect, {
+                    x = 160,
+                    rotation = 0,
+                    xScale = 1.0,
+                    yScale = 1.0,
+                    alpha = 1.0,
+                    time = 1500,
+                    transition = easing.inOutQuad,
+                    onComplete = animateMulti
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    animateMulti()
+    
+    -- Section 3: Chained animations (onComplete)
+    local function chainAnimation1()
+        sceneObjects.chainText.text = "Move →"
+        local t = transition.to(sceneObjects.chainRect, {
+            x = 160,
+            time = 500,
+            onComplete = function()
+                local t2 = transition.to(sceneObjects.chainRect, {
+                    rotation = 90,
+                    time = 500,
+                    onComplete = function()
+                        sceneObjects.chainText.text = "Rotate ↓"
+                        local t3 = transition.to(sceneObjects.chainRect, {
+                            y = 360,
+                            time = 500,
+                            onComplete = function()
+                                local t4 = transition.to(sceneObjects.chainRect, {
+                                    xScale = 1.5,
+                                    yScale = 1.5,
+                                    time = 500,
+                                    onComplete = function()
+                                        sceneObjects.chainText.text = "Scale ←"
+                                        local t5 = transition.to(sceneObjects.chainRect, {
+                                            x = 60,
+                                            y = 320,
+                                            rotation = 0,
+                                            xScale = 1,
+                                            yScale = 1,
+                                            time = 800,
+                                            onComplete = function()
+                                                sceneObjects.chainText.text = "Reset ↻"
+                                                local tm = timer.performWithDelay(200, chainAnimation1)
+                                                table.insert(activeTimers, tm)
+                                            end
+                                        })
+                                        table.insert(activeTransitions, t5)
+                                    end
+                                })
+                                table.insert(activeTransitions, t4)
+                            end
+                        })
+                        table.insert(activeTransitions, t3)
+                    end
+                })
+                table.insert(activeTransitions, t2)
+            end
+        })
+        table.insert(activeTransitions, t)
+    end
+    chainAnimation1()
+    
+    -- Section 4: Timer-based animations
+    local tm = timer.performWithDelay(500, function()
+        sceneObjects.timerCounter = sceneObjects.timerCounter + 1
+        sceneObjects.timerText.text = "Count: " .. sceneObjects.timerCounter
+        sceneObjects.timerRect.rotation = sceneObjects.timerRect.rotation + 30
+        sceneObjects.timerRect:setFillColor(
+            0.2 + (sceneObjects.timerCounter % 3) * 0.3,
+            0.6 + (sceneObjects.timerCounter % 2) * 0.2,
+            0.4 + (sceneObjects.timerCounter % 4) * 0.15
+        )
+    end, 0)
+    table.insert(activeTimers, tm)
+    
+    -- Section 5: Multiple objects with staggered timing
+    for i = 1, 5 do
+        local rect = sceneObjects.staggerRects[i]
+        local function staggerAnim()
+            local t = transition.to(rect, {
+                y = 505,
+                time = 600,
+                delay = (i - 1) * 100,
+                transition = easing.outBounce,
+                onComplete = function()
+                    local t2 = transition.to(rect, {
+                        y = 465,
+                        time = 400,
+                        transition = easing.inQuad,
+                        onComplete = function()
+                            local tm2 = timer.performWithDelay(500, staggerAnim)
+                            table.insert(activeTimers, tm2)
+                        end
+                    })
+                    table.insert(activeTransitions, t2)
+                end
+            })
+            table.insert(activeTransitions, t)
+        end
+        local tm3 = timer.performWithDelay(i * 200, staggerAnim)
+        table.insert(activeTimers, tm3)
+    end
+    
+    print("[Scene 6: Animation] Animations started")
+end
+
 function scene:create(event)
     local sceneGroup = self.view
     
@@ -50,8 +321,8 @@ function scene:create(event)
     basicLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Move animation
-    local moveRect = display.newRect(sceneGroup, 40, 90, 30, 30)
-    moveRect:setFillColor(0.9, 0.4, 0.4)
+    sceneObjects.moveRect = display.newRect(sceneGroup, 40, 90, 30, 30)
+    sceneObjects.moveRect:setFillColor(0.9, 0.4, 0.4)
     local moveLabel = display.newText({
         parent = sceneGroup,
         text = "Move",
@@ -62,27 +333,9 @@ function scene:create(event)
     })
     moveLabel:setFillColor(0.6, 0.6, 0.6)
     
-    local function animateMove()
-        local t = transition.to(moveRect, {
-            x = 100,
-            time = 1000,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                transition.to(moveRect, {
-                    x = 40,
-                    time = 1000,
-                    transition = easing.inOutQuad,
-                    onComplete = animateMove
-                })
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateMove()
-    
     -- Rotate animation
-    local rotateRect = display.newRect(sceneGroup, 140, 90, 30, 30)
-    rotateRect:setFillColor(0.4, 0.9, 0.4)
+    sceneObjects.rotateRect = display.newRect(sceneGroup, 140, 90, 30, 30)
+    sceneObjects.rotateRect:setFillColor(0.4, 0.9, 0.4)
     local rotateLabel = display.newText({
         parent = sceneGroup,
         text = "Rotate",
@@ -93,23 +346,9 @@ function scene:create(event)
     })
     rotateLabel:setFillColor(0.6, 0.6, 0.6)
     
-    local function animateRotate()
-        local t = transition.to(rotateRect, {
-            rotation = 360,
-            time = 2000,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                rotateRect.rotation = 0
-                animateRotate()
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateRotate()
-    
     -- Scale animation
-    local scaleRect = display.newRect(sceneGroup, 220, 90, 30, 30)
-    scaleRect:setFillColor(0.4, 0.4, 0.9)
+    sceneObjects.scaleRect = display.newRect(sceneGroup, 220, 90, 30, 30)
+    sceneObjects.scaleRect:setFillColor(0.4, 0.4, 0.9)
     local scaleLabel = display.newText({
         parent = sceneGroup,
         text = "Scale",
@@ -120,29 +359,9 @@ function scene:create(event)
     })
     scaleLabel:setFillColor(0.6, 0.6, 0.6)
     
-    local function animateScale()
-        local t = transition.to(scaleRect, {
-            xScale = 1.5,
-            yScale = 1.5,
-            time = 1000,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                transition.to(scaleRect, {
-                    xScale = 1.0,
-                    yScale = 1.0,
-                    time = 1000,
-                    transition = easing.inOutQuad,
-                    onComplete = animateScale
-                })
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateScale()
-    
     -- Fade animation
-    local fadeRect = display.newRect(sceneGroup, 290, 90, 30, 30)
-    fadeRect:setFillColor(0.9, 0.9, 0.4)
+    sceneObjects.fadeRect = display.newRect(sceneGroup, 290, 90, 30, 30)
+    sceneObjects.fadeRect:setFillColor(0.9, 0.9, 0.4)
     local fadeLabel = display.newText({
         parent = sceneGroup,
         text = "Fade",
@@ -152,24 +371,6 @@ function scene:create(event)
         fontSize = 9
     })
     fadeLabel:setFillColor(0.6, 0.6, 0.6)
-    
-    local function animateFade()
-        local t = transition.to(fadeRect, {
-            alpha = 0.2,
-            time = 1000,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                transition.to(fadeRect, {
-                    alpha = 1.0,
-                    time = 1000,
-                    transition = easing.inOutQuad,
-                    onComplete = animateFade
-                })
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateFade()
     
     -- Section 2: Multiple simultaneous animations
     print("[Scene 6: Animation] Setting up simultaneous animations...")
@@ -184,8 +385,8 @@ function scene:create(event)
     multiLabel.anchorX = 0
     multiLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local multiRect = display.newRect(sceneGroup, 160, 195, 40, 40)
-    multiRect:setFillColor(0.9, 0.5, 0.2)
+    sceneObjects.multiRect = display.newRect(sceneGroup, 160, 195, 40, 40)
+    sceneObjects.multiRect:setFillColor(0.9, 0.5, 0.2)
     local multiSublabel = display.newText({
         parent = sceneGroup,
         text = "Move+Rotate+Scale+Fade",
@@ -195,33 +396,6 @@ function scene:create(event)
         fontSize = 10
     })
     multiSublabel:setFillColor(0.6, 0.6, 0.6)
-    
-    local function animateMulti()
-        local t = transition.to(multiRect, {
-            x = 240,
-            rotation = 180,
-            xScale = 1.5,
-            yScale = 0.7,
-            alpha = 0.5,
-            time = 1500,
-            transition = easing.inOutQuad,
-            onComplete = function()
-                local t2 = transition.to(multiRect, {
-                    x = 160,
-                    rotation = 0,
-                    xScale = 1.0,
-                    yScale = 1.0,
-                    alpha = 1.0,
-                    time = 1500,
-                    transition = easing.inOutQuad,
-                    onComplete = animateMulti
-                })
-                table.insert(activeTransitions, t2)
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    animateMulti()
     
     -- Section 3: Chained animations (onComplete)
     print("[Scene 6: Animation] Setting up chained animations...")
@@ -236,10 +410,10 @@ function scene:create(event)
     chainLabel.anchorX = 0
     chainLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local chainRect = display.newRect(sceneGroup, 60, 320, 35, 35)
-    chainRect:setFillColor(0.6, 0.3, 0.9)
+    sceneObjects.chainRect = display.newRect(sceneGroup, 60, 320, 35, 35)
+    sceneObjects.chainRect:setFillColor(0.6, 0.3, 0.9)
     
-    local chainText = display.newText({
+    sceneObjects.chainText = display.newText({
         parent = sceneGroup,
         text = "Step 1",
         x = 60,
@@ -247,56 +421,7 @@ function scene:create(event)
         font = native.systemFont,
         fontSize = 10
     })
-    chainText:setFillColor(0.6, 0.6, 0.6)
-    
-    local function chainAnimation1()
-        chainText.text = "Move →"
-        local t = transition.to(chainRect, {
-            x = 160,
-            time = 500,
-            onComplete = function()
-                local t2 = transition.to(chainRect, {
-                    rotation = 90,
-                    time = 500,
-                    onComplete = function()
-                        chainText.text = "Rotate ↓"
-                        local t3 = transition.to(chainRect, {
-                            y = 360,
-                            time = 500,
-                            onComplete = function()
-                                local t4 = transition.to(chainRect, {
-                                    xScale = 1.5,
-                                    yScale = 1.5,
-                                    time = 500,
-                                    onComplete = function()
-                                        chainText.text = "Scale ←"
-                                        local t5 = transition.to(chainRect, {
-                                            x = 60,
-                                            y = 320,
-                                            rotation = 0,
-                                            xScale = 1,
-                                            yScale = 1,
-                                            time = 800,
-                                            onComplete = function()
-                                                chainText.text = "Reset ↻"
-                                                timer.performWithDelay(200, chainAnimation1)
-                                            end
-                                        })
-                                        table.insert(activeTransitions, t5)
-                                    end
-                                })
-                                table.insert(activeTransitions, t4)
-                            end
-                        })
-                        table.insert(activeTransitions, t3)
-                    end
-                })
-                table.insert(activeTransitions, t2)
-            end
-        })
-        table.insert(activeTransitions, t)
-    end
-    chainAnimation1()
+    sceneObjects.chainText:setFillColor(0.6, 0.6, 0.6)
     
     -- Section 4: Timer-based animations
     print("[Scene 6: Animation] Setting up timer animations...")
@@ -311,11 +436,11 @@ function scene:create(event)
     timerLabel.anchorX = 0
     timerLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local timerRect = display.newRect(sceneGroup, 220, 330, 30, 30)
-    timerRect:setFillColor(0.2, 0.8, 0.6)
+    sceneObjects.timerRect = display.newRect(sceneGroup, 220, 330, 30, 30)
+    sceneObjects.timerRect:setFillColor(0.2, 0.8, 0.6)
     
-    local timerCounter = 0
-    local timerText = display.newText({
+    sceneObjects.timerCounter = 0
+    sceneObjects.timerText = display.newText({
         parent = sceneGroup,
         text = "Count: 0",
         x = 220,
@@ -323,19 +448,7 @@ function scene:create(event)
         font = native.systemFont,
         fontSize = 10
     })
-    timerText:setFillColor(0.6, 0.6, 0.6)
-    
-    local tm = timer.performWithDelay(500, function()
-        timerCounter = timerCounter + 1
-        timerText.text = "Count: " .. timerCounter
-        timerRect.rotation = timerRect.rotation + 30
-        timerRect:setFillColor(
-            0.2 + (timerCounter % 3) * 0.3,
-            0.6 + (timerCounter % 2) * 0.2,
-            0.4 + (timerCounter % 4) * 0.15
-        )
-    end, 0)
-    table.insert(activeTimers, tm)
+    sceneObjects.timerText:setFillColor(0.6, 0.6, 0.6)
     
     -- Section 5: Multiple objects with staggered timing
     print("[Scene 6: Animation] Setting up staggered animations...")
@@ -350,36 +463,17 @@ function scene:create(event)
     staggerLabel.anchorX = 0
     staggerLabel:setFillColor(0.7, 0.7, 0.7)
     
-    local staggerRects = {}
+    sceneObjects.staggerRects = {}
     for i = 1, 5 do
         local rect = display.newRect(sceneGroup, 120 + i * 30, 465, 20, 20)
         rect:setFillColor(0.5 + i * 0.1, 0.4, 0.9 - i * 0.1)
-        table.insert(staggerRects, rect)
-        
-        local function staggerAnim()
-            local t = transition.to(rect, {
-                y = 505,
-                time = 600,
-                delay = (i - 1) * 100,
-                transition = easing.outBounce,
-                onComplete = function()
-                    local t2 = transition.to(rect, {
-                        y = 465,
-                        time = 400,
-                        transition = easing.inQuad,
-                        onComplete = function()
-                            timer.performWithDelay(500, staggerAnim)
-                        end
-                    })
-                    table.insert(activeTransitions, t2)
-                end
-            })
-            table.insert(activeTransitions, t)
-        end
-        timer.performWithDelay(i * 200, staggerAnim)
+        table.insert(sceneObjects.staggerRects, rect)
     end
     
-    print("[Scene 6: Animation] Creation complete - All animations started")
+    -- Start animations after all objects are created
+    startAnimations(sceneGroup)
+    
+    print("[Scene 6: Animation] Creation complete")
 end
 
 function scene:show(event)
@@ -389,6 +483,8 @@ function scene:show(event)
         if _G.updateNavHighlight then _G.updateNavHighlight() end
     elseif event.phase == "did" then
         print("[Scene 6: Animation] Show did")
+        -- Restart animations when scene is shown (for re-entry)
+        startAnimations(self.view)
     end
 end
 
