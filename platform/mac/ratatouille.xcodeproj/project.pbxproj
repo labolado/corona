@@ -325,6 +325,8 @@
 		03D1C59F1D70E66400DB02EE /* Rtt_Preference.h in Headers */ = {isa = PBXBuildFile; fileRef = 03C89D531D6FE7B2004CD668 /* Rtt_Preference.h */; };
 		03D1C5A01D70E66500DB02EE /* Rtt_Preference.h in Headers */ = {isa = PBXBuildFile; fileRef = 03C89D531D6FE7B2004CD668 /* Rtt_Preference.h */; };
 		05236243B77D8E67124621C0 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		05B0A1C1D2F3E4A5B6C7D8E9 /* Rtt_BatchObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */; };
+		05B0A1C2D2F3E4A5B6C7D8EA /* Rtt_BatchObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */; };
 		05D40216D188D115DBFC019D /* Rtt_TextureAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */; };
 		0718C13916E94A9D00FD5F45 /* Rtt_TargetAndroidAppStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0718C13716E94A9D00FD5F45 /* Rtt_TargetAndroidAppStore.cpp */; };
 		072020ED17C58DA100B6D424 /* kernel_filter_bloom_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = 072020E517C58D8A00B6D424 /* kernel_filter_bloom_gl.lua */; };
@@ -1663,6 +1665,8 @@
 		DBA03E91D0918D01D299BB6A /* Rtt_EmitterObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7725D5D102C160CF90A1525A /* Rtt_EmitterObject_Lua.cpp */; };
 		DF3A93ABD4A82A100A6B0F29 /* Rtt_BgfxTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */; };
 		E0128EC347AB13DC3C9A2C50 /* Rtt_TextureAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */; };
+		E0B0A1C3D2F3E4A5B6C7D8EB /* Rtt_BatchObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */; };
+		E0B0A1C4D2F3E4A5B6C7D8EC /* Rtt_BatchObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */; };
 		E23CD30D147C725200BC9038 /* BuildSessionState.mm in Sources */ = {isa = PBXBuildFile; fileRef = E23CD30C147C725200BC9038 /* BuildSessionState.mm */; };
 		E2A81B8B0DCA0F6C34EE443B /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
 		E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
@@ -2844,6 +2848,10 @@
 		2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxTexture.h; path = ../../librtt/Renderer/Rtt_BgfxTexture.h; sourceTree = "<group>"; };
 		2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxExports.h; path = ../../librtt/Renderer/Rtt_BgfxExports.h; sourceTree = "<group>"; };
 		323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureAtlas.cpp; path = Display/Rtt_TextureAtlas.cpp; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject.cpp; path = Display/Rtt_BatchObject.cpp; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject_Lua.cpp; path = Display/Rtt_BatchObject_Lua.cpp; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5E /* Rtt_BatchObject.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject.h; path = Display/Rtt_BatchObject.h; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5F /* Rtt_BatchObject_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject_Lua.h; path = Display/Rtt_BatchObject_Lua.h; sourceTree = "<group>"; };
 		3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = ../../librtt/Renderer/Rtt_BgfxRenderer.cpp; sourceTree = "<group>"; };
 		3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CompositeObject_Lua.cpp; path = ../../librtt/Display/Rtt_CompositeObject_Lua.cpp; sourceTree = "<group>"; };
 		4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_KeyName.cpp; sourceTree = "<group>"; };
@@ -5099,6 +5107,10 @@
 				A432883F176A621200ACB6FF /* Rtt_VertexCache.cpp */,
 				A4328840176A621200ACB6FF /* Rtt_VertexCache.h */,
 				A43288A0176A625F00ACB6FF /* Shader */,
+				A1B2C3D4E5F60718293A4B5E /* Rtt_BatchObject.h */,
+				A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */,
+				A1B2C3D4E5F60718293A4B5F /* Rtt_BatchObject_Lua.h */,
+				A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */,
 				E978C2CD57765C5A466E0FA1 /* Rtt_TextureAtlas.h */,
 				323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */,
 				F3DA624CFE341B5429521C87 /* Rtt_TextureAtlas_Lua.h */,
@@ -7435,6 +7447,8 @@
 				F5DE5C6529810F0800BE463F /* kernel_filter_blurLinearVertical_gl.lua in Sources */,
 				E0128EC347AB13DC3C9A2C50 /* Rtt_TextureAtlas.cpp in Sources */,
 				70A3C9F252A24877FE2D4A2A /* Rtt_TextureAtlas_Lua.cpp in Sources */,
+				E0B0A1C3D2F3E4A5B6C7D8EB /* Rtt_BatchObject.cpp in Sources */,
+				E0B0A1C4D2F3E4A5B6C7D8EC /* Rtt_BatchObject_Lua.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8067,6 +8081,8 @@
 				F5DE5C6729810F6800BE463F /* CoronaObjects.cpp in Sources */,
 				05D40216D188D115DBFC019D /* Rtt_TextureAtlas.cpp in Sources */,
 				30165D4C9FE7243BB8B5012B /* Rtt_TextureAtlas_Lua.cpp in Sources */,
+				05B0A1C1D2F3E4A5B6C7D8E9 /* Rtt_BatchObject.cpp in Sources */,
+				05B0A1C2D2F3E4A5B6C7D8EA /* Rtt_BatchObject_Lua.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

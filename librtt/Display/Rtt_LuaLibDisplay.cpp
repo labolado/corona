@@ -32,6 +32,8 @@
 #include "Display/Rtt_ShapePath.h"
 #include "Display/Rtt_SnapshotObject.h"
 #include "Display/Rtt_StageObject.h"
+#include "Display/Rtt_BatchObject.h"
+#include "Display/Rtt_BatchObject_Lua.h"
 #include "Display/Rtt_TextureAtlas.h"
 #include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_TextureFactory.h"
@@ -151,6 +153,7 @@ class DisplayLibrary
         static int newImage( lua_State *L );
         static int newImageRect( lua_State *L );
         static int newEmitter( lua_State *L );
+        static int newBatch( lua_State *L );
         static int newText( lua_State *L );
         static int newEmbossedText( lua_State *L );
         static int newGroup( lua_State *L );
@@ -231,6 +234,7 @@ DisplayLibrary::Open( lua_State *L )
         { "newImage", newImage },
         { "newImageRect", newImageRect },
         { "newEmitter", newEmitter },
+        { "newBatch", newBatch },
         { "newText", newText },
         { "newEmbossedText", newEmbossedText },
         { "newGroup", newGroup },
@@ -1408,6 +1412,13 @@ DisplayLibrary::newEmitter( lua_State *L )
 	}
 
     return result;
+}
+
+// display.newBatch( [parentGroup,] atlas [, capacity] )
+int
+DisplayLibrary::newBatch( lua_State *L )
+{
+	return BatchObject_newBatch( L );
 }
 
 static TextObject *
@@ -3226,6 +3237,8 @@ void
 LuaLibDisplay::Initialize( lua_State *L, Display& display )
 {
     Rtt_LUA_STACK_GUARD( L );
+
+    BatchSlotProxy::Initialize( L );
 
     lua_pushlightuserdata( L, & display );
     CoronaLuaRegisterModuleLoader( L, DisplayLibrary::kName, DisplayLibrary::Open, 1 );
