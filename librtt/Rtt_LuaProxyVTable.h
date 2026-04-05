@@ -418,6 +418,29 @@ class LuaPlatformVideoObjectProxyVTable : public LuaPlatformDisplayObjectProxyVT
 		virtual const LuaProxyVTable& Parent() const;
 };
 
+class LuaBatchObjectProxyVTable : public LuaDisplayObjectProxyVTable
+{
+	public:
+		typedef LuaBatchObjectProxyVTable Self;
+		typedef LuaDisplayObjectProxyVTable Super;
+
+	public:
+		static const Self& Constant();
+
+	public:
+		static int add( lua_State *L );
+		static int clear( lua_State *L );
+		static int count( lua_State *L );
+
+	protected:
+		LuaBatchObjectProxyVTable() {}
+
+	public:
+		virtual int ValueForKey( lua_State *L, const MLuaProxyable& object, const char key[], bool overrideRestriction = false ) const;
+		virtual bool SetValueForKey( lua_State *L, MLuaProxyable& object, const char key[], int valueIndex ) const;
+		virtual const LuaProxyVTable& Parent() const;
+};
+
 class LuaSpriteObjectProxyVTable : public LuaShapeObjectProxyVTable
 {
 	public:
