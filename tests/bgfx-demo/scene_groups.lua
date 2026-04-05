@@ -12,6 +12,10 @@
 local composer = require("composer")
 local scene = composer.newScene()
 
+local W = display.contentWidth
+local H = display.contentHeight
+local S = W / 320
+
 -- Animation references
 local activeTransitions = {}
 
