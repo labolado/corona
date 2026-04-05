@@ -38,6 +38,9 @@ class InstancedBatchRenderer
 	public:
 		static InstancedBatchRenderer& Instance();
 
+		static bool IsEnabled() { return sEnabled; }
+		static void SetEnabled( bool value ) { sEnabled = value; }
+
 		void Initialize();
 		void Finalize();
 
@@ -63,6 +66,8 @@ class InstancedBatchRenderer
 		void CreateProgram();
 
 	private:
+		static bool sEnabled;
+
 		bgfx::ProgramHandle fProgram;
 		bgfx::VertexBufferHandle fBaseQuadVB;
 		bgfx::IndexBufferHandle fBaseQuadIB;

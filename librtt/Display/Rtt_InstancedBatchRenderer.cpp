@@ -22,6 +22,8 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+bool InstancedBatchRenderer::sEnabled = true;
+
 InstancedBatchRenderer::InstancedBatchRenderer()
 :	fInitialized( false )
 {
@@ -52,7 +54,7 @@ InstancedBatchRenderer::IsSupported() const
 bool
 InstancedBatchRenderer::IsAvailable() const
 {
-	return fInitialized && bgfx::isValid( fProgram ) && IsSupported();
+	return fInitialized && sEnabled && bgfx::isValid( fProgram ) && IsSupported();
 }
 
 void
