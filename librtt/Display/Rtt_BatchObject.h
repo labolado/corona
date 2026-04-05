@@ -87,7 +87,6 @@ class BatchObject : public DisplayObject
 		BatchObject( Rtt_Allocator* allocator, Display& display );
 
 		void RebuildVertices() const;
-		void EnsureCapacity( int needed );
 
 	private:
 		TextureAtlas* fAtlas;

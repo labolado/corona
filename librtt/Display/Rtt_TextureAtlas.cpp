@@ -335,6 +335,20 @@ TextureAtlas::HasFrame( const char* name ) const
 	return fFrameMap.find( name ) != fFrameMap.end();
 }
 
+int
+TextureAtlas::GetFrameIndex( const char* name ) const
+{
+	if ( !name ) return -1;
+
+	auto it = fFrameMap.find( name );
+	if ( it != fFrameMap.end() )
+	{
+		return it->second;
+	}
+
+	return -1;
+}
+
 ImageSheet*
 TextureAtlas::CreateImageSheet( const char* frameName, int frameWidth, int frameHeight, int numFrames ) const
 {

@@ -153,7 +153,10 @@ slotProxy_newindex( lua_State* L )
 	}
 	else if ( strcmp( key, "alpha" ) == 0 )
 	{
-		slot->alpha = (Real)lua_tonumber( L, 3 );
+		Real alpha = (Real)lua_tonumber( L, 3 );
+		if ( alpha < Rtt_REAL_0 ) alpha = Rtt_REAL_0;
+		if ( alpha > Rtt_REAL_1 ) alpha = Rtt_REAL_1;
+		slot->alpha = alpha;
 	}
 	else if ( strcmp( key, "isVisible" ) == 0 )
 	{
@@ -231,16 +234,8 @@ LuaBatchObjectProxyVTable::add( lua_State* L )
 		return 1;
 	}
 
-	// Find frame index
-	int frameIndex = -1;
-	for ( int i = 0, count = atlas->GetFrameCount(); i < count; i++ )
-	{
-		if ( atlas->GetFrameByIndex( i ).name == frameName )
-		{
-			frameIndex = i;
-			break;
-		}
-	}
+	// Find frame index (O(1) lookup using hash map)
+	int frameIndex = atlas->GetFrameIndex( frameName );
 
 	int slotId = batch->AddSlot( frameIndex, x, y );
 
