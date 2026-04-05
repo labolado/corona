@@ -10,12 +10,17 @@
 
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_Program.h"
+#include "Display/Rtt_ShaderResource.h"
+#include "Display/Rtt_ShaderTypes.h"
 #include "Core/Rtt_Assert.h"
 #include <string.h>
 #include <stdio.h>
 
 // Embedded precompiled Metal shaders (vs_default.bin / fs_default.bin)
 #include "Renderer/Rtt_BgfxShaderData_metal.h"
+
+// Embedded precompiled Metal shaders for all effects (filters, composites, generators)
+#include "Renderer/Rtt_BgfxShaderData_effects_metal.h"
 
 // ----------------------------------------------------------------------------
 
@@ -350,26 +355,57 @@ void BgfxProgram::ResetVersion(VersionData& data)
 
 bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
-    // Use embedded precompiled shaders
-    // Currently only Metal shaders are embedded; all program versions
-    // (mask0-3, wireframe) use the same default shader for now.
     const unsigned char* data = NULL;
     size_t size = 0;
 
-    if (strcmp(type, "vs") == 0)
+    // Try to find effect-specific shader via ShaderResource name/category
+    Program* program = static_cast<Program*>(fResource);
+    ShaderResource* shaderRes = program ? program->GetShaderResource() : NULL;
+
+    if (shaderRes)
     {
-        data = s_vs_default_metal;
-        size = s_vs_default_metal_size;
+        const std::string& name = shaderRes->GetName();
+        ShaderTypes::Category category = shaderRes->GetCategory();
+
+        if (category != ShaderTypes::kCategoryDefault && !name.empty())
+        {
+            const char* categoryStr = ShaderTypes::StringForCategory(category);
+
+            // Build filename: {type}_{category}_{name}.bin
+            char filename[128];
+            snprintf(filename, sizeof(filename), "%s_%s_%s.bin", type, categoryStr, name.c_str());
+
+            // Search the embedded shader table
+            for (int i = 0; i < s_bgfxShaderTableCount; ++i)
+            {
+                if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
+                {
+                    data = s_bgfxShaderTable[i].data;
+                    size = s_bgfxShaderTable[i].size;
+                    break;
+                }
+            }
+        }
     }
-    else if (strcmp(type, "fs") == 0)
+
+    // Fall back to default shaders
+    if (!data)
     {
-        data = s_fs_default_metal;
-        size = s_fs_default_metal_size;
-    }
-    else
-    {
-        Rtt_LogException("Unknown shader type: %s\n", type);
-        return false;
+        if (strcmp(type, "vs") == 0)
+        {
+            data = s_vs_default_metal;
+            size = s_vs_default_metal_size;
+        }
+        else if (strcmp(type, "fs") == 0)
+        {
+            data = s_fs_default_metal;
+            size = s_fs_default_metal_size;
+        }
+        else
+        {
+            Rtt_LogException("Unknown shader type: %s\n", type);
+            return false;
+        }
     }
 
     if (!data || size == 0)

@@ -1529,6 +1529,12 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		else
 		{
 			[self runApp:appPath];
+
+			// When relaunched via NSTask (bgfx restart), the app won't be frontmost.
+			// Activate after a short delay to ensure the window is ready.
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+				[NSApp activateIgnoringOtherApps:YES];
+			});
 		}
 	}
 #endif // Rtt_PROJECTOR
@@ -2659,10 +2665,17 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		if (backend && strcmp(backend, "bgfx") == 0)
 		{
 			NSString *execPath = [[NSBundle mainBundle] executablePath];
-			NSMutableArray *args = [NSMutableArray arrayWithArray:[[NSProcessInfo processInfo] arguments]];
+			NSMutableArray *args = [NSMutableArray array];
+			[args addObject:@"-no-console"];
+			[args addObject:@"YES"];
+			if (self.fAppPath != nil)
+			{
+				[args addObject:@"-project"];
+				[args addObject:self.fAppPath];
+			}
 			NSTask *task = [[NSTask alloc] init];
 			[task setLaunchPath:execPath];
-			[task setArguments:[args subarrayWithRange:NSMakeRange(1, args.count - 1)]];
+			[task setArguments:args];
 			// Pass SOLAR2D_BACKEND to the new process
 			NSMutableDictionary *env = [NSMutableDictionary dictionaryWithDictionary:[[NSProcessInfo processInfo] environment]];
 			[task setEnvironment:env];

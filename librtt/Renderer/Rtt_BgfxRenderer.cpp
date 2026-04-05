@@ -16,8 +16,11 @@
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxTexture.h"
 #include "Renderer/Rtt_CPUResource.h"
+#include "Display/Rtt_BufferBitmap.h"
+#include "Rtt_GPUStream.h"
 #include "Core/Rtt_Assert.h"
 #include <stdio.h>
+#include <string.h>
 
 // ----------------------------------------------------------------------------
 
@@ -30,7 +33,10 @@ BgfxRenderer::BgfxRenderer(Rtt_Allocator* allocator)
 :   Super(allocator),
     fCaps(),
     fCapsInitialized(false),
-    fBgfxInitialized(false)
+    fBgfxInitialized(false),
+    fStagingTexture( BGFX_INVALID_HANDLE ),
+    fStagingW( 0 ),
+    fStagingH( 0 )
 {
     memset(&fCaps, 0, sizeof(fCaps));
 
@@ -76,6 +82,12 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
 void
 BgfxRenderer::ShutdownBgfx()
 {
+    if( bgfx::isValid( fStagingTexture ) )
+    {
+        bgfx::destroy( fStagingTexture );
+        fStagingTexture = BGFX_INVALID_HANDLE;
+    }
+
     if (fBgfxInitialized)
     {
         bgfx::shutdown();
@@ -108,6 +120,131 @@ BgfxRenderer::GetCaps() const
         const_cast<BgfxRenderer*>(this)->InitCaps();
     }
     return fCaps;
+}
+
+void
+BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitmap, S32 x_in_pixels, S32 y_in_pixels, S32 w_in_pixels, S32 h_in_pixels )
+{
+    // Get the current FBO - Display::Capture() renders to an FBO and we need to read it back
+    FrameBufferObject* fbo = GetFrameBufferObject();
+    if( !fbo )
+    {
+        // No FBO bound - fall back to base (which uses glReadPixels, may not work)
+        Super::CaptureFrameBuffer( stream, bitmap, x_in_pixels, y_in_pixels, w_in_pixels, h_in_pixels );
+        return;
+    }
+
+    // Get the FBO's texture handle
+    BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( fbo->GetGPUResource() );
+    if( !bgfxFbo )
+    {
+        return;
+    }
+
+    bgfx::TextureHandle srcTexture = bgfxFbo->GetTextureHandle();
+    if( !bgfx::isValid( srcTexture ) )
+    {
+        return;
+    }
+
+    U32 readW = static_cast<U32>( w_in_pixels );
+    U32 readH = static_cast<U32>( h_in_pixels );
+
+    // Create or resize staging texture for readback
+    // bgfx::readTexture requires BGFX_TEXTURE_READ_BACK flag
+    if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
+    {
+        if( bgfx::isValid( fStagingTexture ) )
+        {
+            bgfx::destroy( fStagingTexture );
+        }
+
+        fStagingTexture = bgfx::createTexture2D(
+            static_cast<uint16_t>( readW ),
+            static_cast<uint16_t>( readH ),
+            false, 1,
+            bgfx::TextureFormat::RGBA8,
+            BGFX_TEXTURE_BLIT_DST | BGFX_TEXTURE_READ_BACK
+        );
+        fStagingW = readW;
+        fStagingH = readH;
+    }
+
+    if( !bgfx::isValid( fStagingTexture ) )
+    {
+        return;
+    }
+
+    // Use a dedicated blit view (view 255 is reserved for capture blits)
+    const bgfx::ViewId kBlitView = 255;
+    bgfx::setViewRect( kBlitView, 0, 0, static_cast<uint16_t>( readW ), static_cast<uint16_t>( readH ) );
+
+    // Blit from the FBO's render target texture to the staging texture
+    bgfx::blit(
+        kBlitView,
+        fStagingTexture,
+        0, 0,                                           // dst x, y
+        srcTexture,
+        static_cast<uint16_t>( x_in_pixels ),          // src x
+        static_cast<uint16_t>( y_in_pixels ),           // src y
+        static_cast<uint16_t>( readW ),
+        static_cast<uint16_t>( readH )
+    );
+
+    // Schedule readback from staging texture
+    U32 bufferSize = readW * readH * 4; // RGBA8
+    U8* readbackBuffer = static_cast<U8*>( malloc( bufferSize ) );
+    if( !readbackBuffer )
+    {
+        return;
+    }
+    memset( readbackBuffer, 0, bufferSize );
+
+    uint32_t readyFrame = bgfx::readTexture( fStagingTexture, readbackBuffer );
+
+    // Submit the blit view and advance frame to get the data
+    bgfx::touch( kBlitView );
+    uint32_t currentFrame = bgfx::frame();
+
+    // If data not ready yet, submit another frame
+    if( currentFrame < readyFrame )
+    {
+        currentFrame = bgfx::frame();
+    }
+
+    // Copy readback data to the bitmap
+    U8* dstData = static_cast<U8*>( bitmap.WriteAccess() );
+    if( dstData )
+    {
+        U32 bitmapW = bitmap.Width();
+        U32 bitmapH = bitmap.Height();
+        U32 copyW = ( readW < bitmapW ) ? readW : bitmapW;
+        U32 copyH = ( readH < bitmapH ) ? readH : bitmapH;
+
+        // bgfx readback is RGBA8; bitmap format may differ
+        // Copy row by row, handling potential stride differences
+        for( U32 row = 0; row < copyH; ++row )
+        {
+            memcpy( dstData + row * bitmapW * 4,
+                    readbackBuffer + row * readW * 4,
+                    copyW * 4 );
+        }
+    }
+
+    free( readbackBuffer );
+}
+
+void
+BgfxRenderer::EndCapture()
+{
+    // Clean up staging texture after capture is complete
+    if( bgfx::isValid( fStagingTexture ) )
+    {
+        bgfx::destroy( fStagingTexture );
+        fStagingTexture = BGFX_INVALID_HANDLE;
+        fStagingW = 0;
+        fStagingH = 0;
+    }
 }
 
 GPUResource*
