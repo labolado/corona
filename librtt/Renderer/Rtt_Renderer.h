@@ -232,6 +232,8 @@ class Renderer
             U32 fProgramBindCount;        // Number of Program bindings
             U32 fTextureBindCount;        // Number of Texture bindings
             U32 fUniformBindCount;        // Number of Uniform bindings
+            U32 fGeometryCacheHits;       // Static geometry reused (no GPU upload)
+            U32 fGeometryCacheMisses;     // Geometry re-uploaded to GPU
         };
 
         // Return true if statistics gathering is enabled. Disabled by default.
