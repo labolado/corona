@@ -21,6 +21,7 @@
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShapePath.h"
 #include "Display/Rtt_TesselatorShape.h"
+#include "Display/Rtt_TesselatorPolygon.h"
 #include "Rtt_LuaProxyVTable.h"
 
 #include "Renderer/Rtt_Renderer.h"
@@ -204,6 +205,27 @@ ShapeObject::Draw( Renderer& renderer ) const
 				// Set SDF uniforms
 				sdf.SetShapeUniforms( sdfType, width, height, cornerRadius, strokeWidth );
 
+				// Set polygon-specific uniforms
+				if ( sdfType == SDFRenderer::kPolygon )
+				{
+					TesselatorPolygon *poly = static_cast< TesselatorPolygon* >(
+						const_cast< TesselatorShape* >( tesselator ) );
+					ArrayVertex2& contour = poly->GetContour();
+					int numVerts = contour.Length();
+
+					// Normalize contour vertices to [-1,1] within bounding box
+					Real halfW = width * Rtt_REAL_HALF;
+					Real halfH = height * Rtt_REAL_HALF;
+					Real normVerts[32]; // max 16 verts * 2 components
+					for ( int i = 0; i < numVerts; ++i )
+					{
+						Vertex2 v = contour[i];
+						normVerts[i * 2] = v.x / halfW;
+						normVerts[i * 2 + 1] = v.y / halfH;
+					}
+					sdf.SetPolygonUniforms( normVerts, numVerts );
+				}
+
 				// TODO: Set color uniforms from paint
 				// For now, use white fill, no stroke
 				sdf.SetColorUniforms(
@@ -343,6 +365,12 @@ ShapeObject::IsSDFEligible() const
 		case Tesselator::kType_Rect:
 		case Tesselator::kType_RoundedRect:
 			return true;
+		case Tesselator::kType_Polygon:
+		{
+			// Only use SDF for polygons with <= kMaxPolygonVerts vertices
+			const TesselatorPolygon *poly = static_cast< const TesselatorPolygon* >( tesselator );
+			return const_cast< TesselatorPolygon* >( poly )->GetContour().Length() <= SDFRenderer::kMaxPolygonVerts;
+		}
 		default:
 			return false;
 	}
@@ -361,6 +389,8 @@ ShapeObject::GetSDFShapeType() const
 			return SDFRenderer::kCircle;
 		case Tesselator::kType_Rect:
 			return SDFRenderer::kRect;
+		case Tesselator::kType_Polygon:
+			return SDFRenderer::kPolygon;
 		case Tesselator::kType_RoundedRect:
 		default:
 			return SDFRenderer::kRoundedRect;
