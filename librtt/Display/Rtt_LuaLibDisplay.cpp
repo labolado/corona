@@ -1168,6 +1168,8 @@ DisplayLibrary::newImage( lua_State *L )
             if ( !frame )
             {
                 CoronaLuaError( L, "display.newImage( atlas, '%s' ): frame not found in atlas", frameName );
+                lua_pushnil( L );
+                return 1;
             }
             else
             {
