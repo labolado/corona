@@ -11,6 +11,11 @@
 local composer = require("composer")
 local scene = composer.newScene()
 
+-- Scaling variables for high resolution displays
+local W = display.contentWidth
+local H = display.contentHeight
+local S = W / 320  -- Scale factor
+
 -- Animation references for cleanup
 local activeTransitions = {}
 local activeTimers = {}
@@ -39,8 +44,8 @@ local function startAnimations(sceneGroup)
     
     -- Reset all object properties to initial values
     if sceneObjects.moveRect then
-        sceneObjects.moveRect.x = 40
-        sceneObjects.moveRect.y = 90
+        sceneObjects.moveRect.x = 40*S
+        sceneObjects.moveRect.y = 90*S
     end
     if sceneObjects.rotateRect then
         sceneObjects.rotateRect.rotation = 0
@@ -53,15 +58,15 @@ local function startAnimations(sceneGroup)
         sceneObjects.fadeRect.alpha = 1.0
     end
     if sceneObjects.multiRect then
-        sceneObjects.multiRect.x = 160
+        sceneObjects.multiRect.x = 160*S
         sceneObjects.multiRect.rotation = 0
         sceneObjects.multiRect.xScale = 1.0
         sceneObjects.multiRect.yScale = 1.0
         sceneObjects.multiRect.alpha = 1.0
     end
     if sceneObjects.chainRect then
-        sceneObjects.chainRect.x = 60
-        sceneObjects.chainRect.y = 320
+        sceneObjects.chainRect.x = 60*S
+        sceneObjects.chainRect.y = 320*S
         sceneObjects.chainRect.rotation = 0
         sceneObjects.chainRect.xScale = 1
         sceneObjects.chainRect.yScale = 1
@@ -80,7 +85,7 @@ local function startAnimations(sceneGroup)
     -- Reset stagger rects
     if sceneObjects.staggerRects then
         for i, rect in ipairs(sceneObjects.staggerRects) do
-            rect.y = 465
+            rect.y = 465*S
         end
     end
     
@@ -89,12 +94,12 @@ local function startAnimations(sceneGroup)
     -- Move animation
     local function animateMove()
         local t = transition.to(sceneObjects.moveRect, {
-            x = 100,
+            x = 100*S,
             time = 1000,
             transition = easing.inOutQuad,
             onComplete = function()
                 local t2 = transition.to(sceneObjects.moveRect, {
-                    x = 40,
+                    x = 40*S,
                     time = 1000,
                     transition = easing.inOutQuad,
                     onComplete = animateMove
@@ -166,7 +171,7 @@ local function startAnimations(sceneGroup)
     -- Section 2: Multiple simultaneous animations
     local function animateMulti()
         local t = transition.to(sceneObjects.multiRect, {
-            x = 240,
+            x = 240*S,
             rotation = 180,
             xScale = 1.5,
             yScale = 0.7,
@@ -175,7 +180,7 @@ local function startAnimations(sceneGroup)
             transition = easing.inOutQuad,
             onComplete = function()
                 local t2 = transition.to(sceneObjects.multiRect, {
-                    x = 160,
+                    x = 160*S,
                     rotation = 0,
                     xScale = 1.0,
                     yScale = 1.0,
@@ -195,7 +200,7 @@ local function startAnimations(sceneGroup)
     local function chainAnimation1()
         sceneObjects.chainText.text = "Move →"
         local t = transition.to(sceneObjects.chainRect, {
-            x = 160,
+            x = 160*S,
             time = 500,
             onComplete = function()
                 local t2 = transition.to(sceneObjects.chainRect, {
@@ -204,7 +209,7 @@ local function startAnimations(sceneGroup)
                     onComplete = function()
                         sceneObjects.chainText.text = "Rotate ↓"
                         local t3 = transition.to(sceneObjects.chainRect, {
-                            y = 360,
+                            y = 360*S,
                             time = 500,
                             onComplete = function()
                                 local t4 = transition.to(sceneObjects.chainRect, {
@@ -214,8 +219,8 @@ local function startAnimations(sceneGroup)
                                     onComplete = function()
                                         sceneObjects.chainText.text = "Scale ←"
                                         local t5 = transition.to(sceneObjects.chainRect, {
-                                            x = 60,
-                                            y = 320,
+                                            x = 60*S,
+                                            y = 320*S,
                                             rotation = 0,
                                             xScale = 1,
                                             yScale = 1,
@@ -260,13 +265,13 @@ local function startAnimations(sceneGroup)
         local rect = sceneObjects.staggerRects[i]
         local function staggerAnim()
             local t = transition.to(rect, {
-                y = 505,
+                y = 505*S,
                 time = 600,
                 delay = (i - 1) * 100,
                 transition = easing.outBounce,
                 onComplete = function()
                     local t2 = transition.to(rect, {
-                        y = 465,
+                        y = 465*S,
                         time = 400,
                         transition = easing.inQuad,
                         onComplete = function()
@@ -299,10 +304,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 6: Animation",
-        x = 20,
-        y = 20,
+        x = 20*S,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -312,63 +317,63 @@ function scene:create(event)
     local basicLabel = display.newText({
         parent = sceneGroup,
         text = "Basic transitions:",
-        x = 20,
-        y = 55,
+        x = 20*S,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     basicLabel.anchorX = 0
     basicLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Move animation
-    sceneObjects.moveRect = display.newRect(sceneGroup, 40, 90, 30, 30)
+    sceneObjects.moveRect = display.newRect(sceneGroup, 40*S, 90*S, 30*S, 30*S)
     sceneObjects.moveRect:setFillColor(0.9, 0.4, 0.4)
     local moveLabel = display.newText({
         parent = sceneGroup,
         text = "Move",
-        x = 40,
-        y = 120,
+        x = 40*S,
+        y = 120*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     moveLabel:setFillColor(0.6, 0.6, 0.6)
     
     -- Rotate animation
-    sceneObjects.rotateRect = display.newRect(sceneGroup, 140, 90, 30, 30)
+    sceneObjects.rotateRect = display.newRect(sceneGroup, 140*S, 90*S, 30*S, 30*S)
     sceneObjects.rotateRect:setFillColor(0.4, 0.9, 0.4)
     local rotateLabel = display.newText({
         parent = sceneGroup,
         text = "Rotate",
-        x = 140,
-        y = 120,
+        x = 140*S,
+        y = 120*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     rotateLabel:setFillColor(0.6, 0.6, 0.6)
     
     -- Scale animation
-    sceneObjects.scaleRect = display.newRect(sceneGroup, 220, 90, 30, 30)
+    sceneObjects.scaleRect = display.newRect(sceneGroup, 220*S, 90*S, 30*S, 30*S)
     sceneObjects.scaleRect:setFillColor(0.4, 0.4, 0.9)
     local scaleLabel = display.newText({
         parent = sceneGroup,
         text = "Scale",
-        x = 220,
-        y = 120,
+        x = 220*S,
+        y = 120*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     scaleLabel:setFillColor(0.6, 0.6, 0.6)
     
     -- Fade animation
-    sceneObjects.fadeRect = display.newRect(sceneGroup, 290, 90, 30, 30)
+    sceneObjects.fadeRect = display.newRect(sceneGroup, 290*S, 90*S, 30*S, 30*S)
     sceneObjects.fadeRect:setFillColor(0.9, 0.9, 0.4)
     local fadeLabel = display.newText({
         parent = sceneGroup,
         text = "Fade",
-        x = 290,
-        y = 120,
+        x = 290*S,
+        y = 120*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     fadeLabel:setFillColor(0.6, 0.6, 0.6)
     
@@ -377,23 +382,23 @@ function scene:create(event)
     local multiLabel = display.newText({
         parent = sceneGroup,
         text = "Simultaneous properties:",
-        x = 20,
-        y = 150,
+        x = 20*S,
+        y = 150*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     multiLabel.anchorX = 0
     multiLabel:setFillColor(0.7, 0.7, 0.7)
     
-    sceneObjects.multiRect = display.newRect(sceneGroup, 160, 195, 40, 40)
+    sceneObjects.multiRect = display.newRect(sceneGroup, 160*S, 195*S, 40*S, 40*S)
     sceneObjects.multiRect:setFillColor(0.9, 0.5, 0.2)
     local multiSublabel = display.newText({
         parent = sceneGroup,
         text = "Move+Rotate+Scale+Fade",
-        x = 160,
-        y = 240,
+        x = 160*S,
+        y = 240*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     multiSublabel:setFillColor(0.6, 0.6, 0.6)
     
@@ -402,24 +407,24 @@ function scene:create(event)
     local chainLabel = display.newText({
         parent = sceneGroup,
         text = "Chained animation sequence:",
-        x = 20,
-        y = 270,
+        x = 20*S,
+        y = 270*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     chainLabel.anchorX = 0
     chainLabel:setFillColor(0.7, 0.7, 0.7)
     
-    sceneObjects.chainRect = display.newRect(sceneGroup, 60, 320, 35, 35)
+    sceneObjects.chainRect = display.newRect(sceneGroup, 60*S, 320*S, 35*S, 35*S)
     sceneObjects.chainRect:setFillColor(0.6, 0.3, 0.9)
     
     sceneObjects.chainText = display.newText({
         parent = sceneGroup,
         text = "Step 1",
-        x = 60,
-        y = 365,
+        x = 60*S,
+        y = 365*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     sceneObjects.chainText:setFillColor(0.6, 0.6, 0.6)
     
@@ -428,25 +433,25 @@ function scene:create(event)
     local timerLabel = display.newText({
         parent = sceneGroup,
         text = "Timer.performWithDelay:",
-        x = 20,
-        y = 400,
+        x = 20*S,
+        y = 400*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     timerLabel.anchorX = 0
     timerLabel:setFillColor(0.7, 0.7, 0.7)
     
-    sceneObjects.timerRect = display.newRect(sceneGroup, 220, 330, 30, 30)
+    sceneObjects.timerRect = display.newRect(sceneGroup, 220*S, 330*S, 30*S, 30*S)
     sceneObjects.timerRect:setFillColor(0.2, 0.8, 0.6)
     
     sceneObjects.timerCounter = 0
     sceneObjects.timerText = display.newText({
         parent = sceneGroup,
         text = "Count: 0",
-        x = 220,
-        y = 370,
+        x = 220*S,
+        y = 370*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     sceneObjects.timerText:setFillColor(0.6, 0.6, 0.6)
     
@@ -455,17 +460,17 @@ function scene:create(event)
     local staggerLabel = display.newText({
         parent = sceneGroup,
         text = "Staggered:",
-        x = 20,
-        y = 430,
+        x = 20*S,
+        y = 430*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     staggerLabel.anchorX = 0
     staggerLabel:setFillColor(0.7, 0.7, 0.7)
     
     sceneObjects.staggerRects = {}
     for i = 1, 5 do
-        local rect = display.newRect(sceneGroup, 120 + i * 30, 465, 20, 20)
+        local rect = display.newRect(sceneGroup, (120 + i * 30)*S, 465*S, 20*S, 20*S)
         rect:setFillColor(0.5 + i * 0.1, 0.4, 0.9 - i * 0.1)
         table.insert(sceneObjects.staggerRects, rect)
     end

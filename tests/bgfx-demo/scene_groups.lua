@@ -42,8 +42,8 @@ local function startAnimations()
         sceneObjects.innerGroup.rotation = 0
     end
     if sceneObjects.transformGroup then
-        sceneObjects.transformGroup.x = 100
-        sceneObjects.transformGroup.y = 230
+        sceneObjects.transformGroup.x = 100*S
+        sceneObjects.transformGroup.y = 230*S
         sceneObjects.transformGroup.rotation = 0
         sceneObjects.transformGroup.xScale = 1
         sceneObjects.transformGroup.yScale = 1
@@ -52,8 +52,8 @@ local function startAnimations()
         sceneObjects.insertGroup.rotation = 0
     end
     if sceneObjects.indGroup then
-        sceneObjects.indGroup.x = 120
-        sceneObjects.indGroup.y = 490
+        sceneObjects.indGroup.x = 120*S
+        sceneObjects.indGroup.y = 490*S
     end
     if sceneObjects.indObj1 then
         sceneObjects.indObj1.rotation = 0
@@ -97,7 +97,7 @@ local function startAnimations()
     -- Section 3: Complex group animation
     local function animateTransformGroup()
         local t = transition.to(sceneObjects.transformGroup, {
-            x = 200,
+            x = 200*S,
             rotation = 180,
             xScale = 1.5,
             yScale = 1.5,
@@ -105,7 +105,7 @@ local function startAnimations()
             transition = easing.inOutQuad,
             onComplete = function()
                 local t2 = transition.to(sceneObjects.transformGroup, {
-                    x = 100,
+                    x = 100*S,
                     rotation = 0,
                     xScale = 1,
                     yScale = 1,
@@ -133,7 +133,7 @@ local function startAnimations()
     
     -- Section 6: Animate independent transforms group
     local t1 = transition.to(sceneObjects.indGroup, {
-        x = 240,
+        x = 240*S,
         time = 2000,
         iterations = 0,
         transition = easing.continuousLoop
@@ -170,6 +170,11 @@ function scene:create(event)
     
     print("[Scene 7: Groups] Creating...")
     
+    -- Scaling variables for high resolution
+    local W = display.contentWidth
+    local H = display.contentHeight
+    local S = W / 320  -- Scaling factor
+    
     -- Background
     local bg = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     bg:setFillColor(0.1, 0.1, 0.15)
@@ -178,10 +183,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 7: Groups & Hierarchy",
-        x = 20,
-        y = 20,
+        x = 20*S,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -191,27 +196,27 @@ function scene:create(event)
     local basicLabel = display.newText({
         parent = sceneGroup,
         text = "Basic Group:",
-        x = 20,
-        y = 55,
+        x = 20*S,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     basicLabel.anchorX = 0
     basicLabel:setFillColor(0.7, 0.7, 0.7)
     
     local basicGroup = display.newGroup()
-    basicGroup.x, basicGroup.y = 80, 100
+    basicGroup.x, basicGroup.y = 80*S, 100*S
     sceneGroup:insert(basicGroup)
     sceneObjects.basicGroup = basicGroup
     
     -- Add objects to group
-    local rect1 = display.newRect(basicGroup, 0, -20, 30, 30)
+    local rect1 = display.newRect(basicGroup, 0, -20*S, 30*S, 30*S)
     rect1:setFillColor(0.9, 0.4, 0.4)
     
-    local rect2 = display.newRect(basicGroup, -20, 20, 30, 30)
+    local rect2 = display.newRect(basicGroup, -20*S, 20*S, 30*S, 30*S)
     rect2:setFillColor(0.4, 0.9, 0.4)
     
-    local rect3 = display.newRect(basicGroup, 20, 20, 30, 30)
+    local rect3 = display.newRect(basicGroup, 20*S, 20*S, 30*S, 30*S)
     rect3:setFillColor(0.4, 0.4, 0.9)
     
     -- Section 2: Nested groups
@@ -219,16 +224,16 @@ function scene:create(event)
     local nestedLabel = display.newText({
         parent = sceneGroup,
         text = "Nested Groups:",
-        x = 170,
-        y = 55,
+        x = 170*S,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     nestedLabel.anchorX = 0
     nestedLabel:setFillColor(0.7, 0.7, 0.7)
     
     local outerGroup = display.newGroup()
-    outerGroup.x, outerGroup.y = 240, 100
+    outerGroup.x, outerGroup.y = 240*S, 100*S
     sceneGroup:insert(outerGroup)
     sceneObjects.outerGroup = outerGroup
     
@@ -237,16 +242,16 @@ function scene:create(event)
     sceneObjects.innerGroup = innerGroup
     
     -- Outer group objects
-    local outerRect = display.newRect(outerGroup, 0, 0, 70, 70)
+    local outerRect = display.newRect(outerGroup, 0, 0, 70*S, 70*S)
     outerRect:setFillColor(0.3, 0.3, 0.3, 0.5)
-    outerRect.strokeWidth = 2
+    outerRect.strokeWidth = 2*S
     outerRect:setStrokeColor(0.6, 0.6, 0.6)
     
     -- Inner group objects
-    local innerRect1 = display.newRect(innerGroup, -15, 0, 25, 25)
+    local innerRect1 = display.newRect(innerGroup, -15*S, 0, 25*S, 25*S)
     innerRect1:setFillColor(0.9, 0.6, 0.2)
     
-    local innerRect2 = display.newRect(innerGroup, 15, 0, 25, 25)
+    local innerRect2 = display.newRect(innerGroup, 15*S, 0, 25*S, 25*S)
     innerRect2:setFillColor(0.2, 0.6, 0.9)
     
     -- Section 3: Group transform affecting children
@@ -254,33 +259,33 @@ function scene:create(event)
     local transformLabel = display.newText({
         parent = sceneGroup,
         text = "Transform Inheritance:",
-        x = 20,
-        y = 170,
+        x = 20*S,
+        y = 170*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     transformLabel.anchorX = 0
     transformLabel:setFillColor(0.7, 0.7, 0.7)
     
     local transformGroup = display.newGroup()
-    transformGroup.x, transformGroup.y = 100, 230
+    transformGroup.x, transformGroup.y = 100*S, 230*S
     sceneGroup:insert(transformGroup)
     sceneObjects.transformGroup = transformGroup
     
     -- Add various objects
-    local tRect = display.newRect(transformGroup, -30, 0, 25, 25)
+    local tRect = display.newRect(transformGroup, -30*S, 0, 25*S, 25*S)
     tRect:setFillColor(1, 0.3, 0.3)
     
-    local tCircle = display.newCircle(transformGroup, 0, 0, 15)
+    local tCircle = display.newCircle(transformGroup, 0, 0, 15*S)
     tCircle:setFillColor(0.3, 1, 0.3)
     
     local tText = display.newText({
         parent = transformGroup,
         text = "A",
-        x = 30,
+        x = 30*S,
         y = 0,
         font = native.systemFontBold,
-        fontSize = 20
+        fontSize = 20*S
     })
     tText:setFillColor(0.3, 0.3, 1)
     
@@ -289,38 +294,38 @@ function scene:create(event)
     local insertLabel = display.newText({
         parent = sceneGroup,
         text = "Insert/Remove:",
-        x = 20,
-        y = 300,
+        x = 20*S,
+        y = 300*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     insertLabel.anchorX = 0
     insertLabel:setFillColor(0.7, 0.7, 0.7)
     
     local insertGroup = display.newGroup()
-    insertGroup.x, insertGroup.y = 90, 350
+    insertGroup.x, insertGroup.y = 90*S, 350*S
     sceneGroup:insert(insertGroup)
     sceneObjects.insertGroup = insertGroup
     
     -- Container outline
-    local container = display.newRect(sceneGroup, 90, 350, 120, 80)
+    local container = display.newRect(sceneGroup, 90*S, 350*S, 120*S, 80*S)
     container:setFillColor(0.2, 0.2, 0.25)
-    container.strokeWidth = 1
+    container.strokeWidth = 1*S
     container:setStrokeColor(0.5, 0.5, 0.5)
     
     -- Dynamic object
-    local dynamicObj = display.newCircle(0, 0, 0, 15) -- Start not in group
+    local dynamicObj = display.newCircle(0, 0, 0, 15*S) -- Start not in group
     dynamicObj:setFillColor(0.9, 0.5, 0.2)
     sceneGroup:insert(dynamicObj)
-    dynamicObj.x, dynamicObj.y = 40, 350
+    dynamicObj.x, dynamicObj.y = 40*S, 350*S
     
     local insertState = display.newText({
         parent = sceneGroup,
         text = "Outside",
-        x = 40,
-        y = 380,
+        x = 40*S,
+        y = 380*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     insertState:setFillColor(0.6, 0.6, 0.6)
     
@@ -330,7 +335,7 @@ function scene:create(event)
             -- Remove from group
             insertGroup:remove(dynamicObj)
             sceneGroup:insert(dynamicObj)
-            dynamicObj.x, dynamicObj.y = 40, 350
+            dynamicObj.x, dynamicObj.y = 40*S, 350*S
             insertState.text = "Outside"
             isInside = false
         else
@@ -349,35 +354,35 @@ function scene:create(event)
     local orderLabel = display.newText({
         parent = sceneGroup,
         text = "toFront/toBack:",
-        x = 180,
-        y = 300,
+        x = 180*S,
+        y = 300*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     orderLabel.anchorX = 0
     orderLabel:setFillColor(0.7, 0.7, 0.7)
     
     local orderGroup = display.newGroup()
-    orderGroup.x, orderGroup.y = 250, 350
+    orderGroup.x, orderGroup.y = 250*S, 350*S
     sceneGroup:insert(orderGroup)
     
     -- Three overlapping objects
-    local backObj = display.newRect(orderGroup, 0, -15, 50, 50)
+    local backObj = display.newRect(orderGroup, 0, -15*S, 50*S, 50*S)
     backObj:setFillColor(0.9, 0.3, 0.3)
     
-    local midObj = display.newRect(orderGroup, 0, 0, 50, 50)
+    local midObj = display.newRect(orderGroup, 0, 0, 50*S, 50*S)
     midObj:setFillColor(0.3, 0.9, 0.3)
     
-    local frontObj = display.newRect(orderGroup, 0, 15, 50, 50)
+    local frontObj = display.newRect(orderGroup, 0, 15*S, 50*S, 50*S)
     frontObj:setFillColor(0.3, 0.3, 0.9)
     
     local orderText = display.newText({
         parent = sceneGroup,
         text = "Order: R-G-B",
-        x = 250,
-        y = 410,
+        x = 250*S,
+        y = 410*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     orderText:setFillColor(0.6, 0.6, 0.6)
     
@@ -404,33 +409,33 @@ function scene:create(event)
     local independentLabel = display.newText({
         parent = sceneGroup,
         text = "Independent Transforms:",
-        x = 20,
-        y = 440,
+        x = 20*S,
+        y = 440*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     independentLabel.anchorX = 0
     independentLabel:setFillColor(0.7, 0.7, 0.7)
     
     local indGroup = display.newGroup()
-    indGroup.x, indGroup.y = 120, 490
+    indGroup.x, indGroup.y = 120*S, 490*S
     sceneGroup:insert(indGroup)
     sceneObjects.indGroup = indGroup
     
-    local indBase = display.newRect(indGroup, 0, 0, 80, 40)
+    local indBase = display.newRect(indGroup, 0, 0, 80*S, 40*S)
     indBase:setFillColor(0.3, 0.3, 0.3, 0.5)
-    indBase.strokeWidth = 1
+    indBase.strokeWidth = 1*S
     indBase:setStrokeColor(0.6, 0.6, 0.6)
     
-    local indObj1 = display.newRect(indGroup, -25, 0, 20, 20)
+    local indObj1 = display.newRect(indGroup, -25*S, 0, 20*S, 20*S)
     indObj1:setFillColor(0.9, 0.5, 0.2)
     sceneObjects.indObj1 = indObj1
     
-    local indObj2 = display.newRect(indGroup, 0, 0, 20, 20)
+    local indObj2 = display.newRect(indGroup, 0, 0, 20*S, 20*S)
     indObj2:setFillColor(0.2, 0.9, 0.5)
     sceneObjects.indObj2 = indObj2
     
-    local indObj3 = display.newRect(indGroup, 25, 0, 20, 20)
+    local indObj3 = display.newRect(indGroup, 25*S, 0, 20*S, 20*S)
     indObj3:setFillColor(0.2, 0.5, 0.9)
     sceneObjects.indObj3 = indObj3
     

@@ -11,6 +11,11 @@
 local composer = require("composer")
 local scene = composer.newScene()
 
+-- Scaling variables for high resolution
+local W = display.contentWidth
+local H = display.contentHeight
+local S = W / 320  -- Scale factor
+
 -- Performance monitoring
 local fpsText = nil
 local objectCountText = nil
@@ -24,15 +29,15 @@ local objectsGroup = nil
 
 -- Configuration
 local NUM_OBJECTS = 500
-local OBJECT_SIZE = 8
+local OBJECT_SIZE = 8 * S
 
 -- Per-frame update function
 local function updateObjects()
     local bounds = {
-        left = 5,
-        right = display.contentWidth - 5,
-        top = 5,
-        bottom = display.contentHeight - 135
+        left = 5*S,
+        right = display.contentWidth - 5*S,
+        top = 5*S,
+        bottom = display.contentHeight - 135*S
     }
     
     for i = 1, #objects do
@@ -106,10 +111,10 @@ local function startAnimations()
     
     -- Reset object positions to random positions within bounds
     local bounds = {
-        left = 10,
-        right = display.contentWidth - 10,
-        top = 10,
-        bottom = display.contentHeight - 140
+        left = 10*S,
+        right = display.contentWidth - 10*S,
+        top = 10*S,
+        bottom = display.contentHeight - 140*S
     }
     for i = 1, #objects do
         local obj = objects[i]
@@ -137,10 +142,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 10: Stress Test",
-        x = 20,
-        y = 20,
+        x = 20*S,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -149,28 +154,28 @@ function scene:create(event)
     local infoText = display.newText({
         parent = sceneGroup,
         text = NUM_OBJECTS .. " objects updating per frame",
-        x = 20,
-        y = 45,
+        x = 20*S,
+        y = 45*S,
         font = native.systemFont,
-        fontSize = 11
+        fontSize = 11*S
     })
     infoText.anchorX = 0
     infoText:setFillColor(0.7, 0.7, 0.7)
     
     -- FPS counter background
-    local fpsBg = display.newRect(sceneGroup, display.contentWidth - 60, 35, 100, 50)
+    local fpsBg = display.newRect(sceneGroup, display.contentWidth - 60*S, 35*S, 100*S, 50*S)
     fpsBg:setFillColor(0.15, 0.15, 0.2)
-    fpsBg.strokeWidth = 2
+    fpsBg.strokeWidth = 2*S
     fpsBg:setStrokeColor(0.3, 0.3, 0.4)
     
     -- FPS text
     fpsText = display.newText({
         parent = sceneGroup,
         text = "FPS: 60",
-        x = display.contentWidth - 60,
-        y = 30,
+        x = display.contentWidth - 60*S,
+        y = 30*S,
         font = native.systemFontBold,
-        fontSize = 18
+        fontSize = 18*S
     })
     fpsText:setFillColor(0.3, 1, 0.3)
     
@@ -178,16 +183,16 @@ function scene:create(event)
     objectCountText = display.newText({
         parent = sceneGroup,
         text = "Objects: " .. NUM_OBJECTS,
-        x = display.contentWidth - 60,
-        y = 50,
+        x = display.contentWidth - 60*S,
+        y = 50*S,
         font = native.systemFont,
-        fontSize = 11
+        fontSize = 11*S
     })
     objectCountText:setFillColor(0.8, 0.8, 0.8)
     
     -- Create objects container group
     objectsGroup = display.newGroup()
-    objectsGroup.y = 75  -- Offset to account for UI
+    objectsGroup.y = 75*S  -- Offset to account for UI
     sceneGroup:insert(objectsGroup)
     
     -- Create 500 moving objects
@@ -195,8 +200,8 @@ function scene:create(event)
     local startTime = system.getTimer()
     
     for i = 1, NUM_OBJECTS do
-        local x = math.random(10, display.contentWidth - 10)
-        local y = math.random(10, display.contentHeight - 140)
+        local x = math.random(10*S, display.contentWidth - 10*S)
+        local y = math.random(10*S, display.contentHeight - 140*S)
         
         local rect = display.newRect(objectsGroup, x, y, OBJECT_SIZE, OBJECT_SIZE)
         
@@ -219,10 +224,10 @@ function scene:create(event)
     local statsText = display.newText({
         parent = sceneGroup,
         text = "Creation: " .. creationTime .. "ms",
-        x = 20,
-        y = display.contentHeight - 100,
+        x = 20*S,
+        y = display.contentHeight - 100*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     statsText.anchorX = 0
     statsText:setFillColor(0.6, 0.6, 0.6)
@@ -232,9 +237,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Compare GL vs bgfx performance\nLower is better for same FPS",
         x = display.contentCenterX,
-        y = display.contentHeight - 70,
+        y = display.contentHeight - 70*S,
         font = native.systemFont,
-        fontSize = 10,
+        fontSize = 10*S,
         align = "center"
     })
     noteText:setFillColor(0.5, 0.5, 0.5)
