@@ -362,11 +362,14 @@ SnapshotObject::RenderToFBO(
 
 	// The orthographic projection is set up so that the snapshot bounds
 	// are centered about the group's origin (0,0)
-	// TODO: Should we remove fContentBounds???
-
+	// For backends where framebuffer origin is top-left (Metal/DX/Vulkan via bgfx),
+	// we flip the Y axis so the FBO content matches GL's bottom-left convention.
+	// This ensures the texture samples correctly with standard UV coordinates.
+	bool flipY = !renderer.GetCaps().originBottomLeft;
 	Rtt::CreateOrthoMatrix(
 		bounds.xMin, bounds.xMax,
-		bounds.yMin, bounds.yMax,
+		flipY ? bounds.yMax : bounds.yMin,
+		flipY ? bounds.yMin : bounds.yMax,
 		0.0f, 1.0f, offscreenProjMatrix );
 
 	renderer.SetFrameBufferObject( dstFBO );
