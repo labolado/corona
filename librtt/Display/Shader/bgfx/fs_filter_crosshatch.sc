@@ -52,6 +52,7 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 		if( mod( ( gl_FragCoord.x + gl_FragCoord.y ), floor(v_UserData.x) ) < THRESHOLD )
 		{
     gl_FragColor = v_ColorScale;
+    return;
 		}
 	}
 
@@ -60,6 +61,7 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 		if( mod( ( gl_FragCoord.x - gl_FragCoord.y ), floor(v_UserData.x) ) < THRESHOLD )
 		{
     gl_FragColor = v_ColorScale;
+    return;
 		}
 	}
 
@@ -68,6 +70,7 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 		if( mod( ( gl_FragCoord.x + gl_FragCoord.y - 5.0 ), floor(v_UserData.x) ) < THRESHOLD )
 		{
     gl_FragColor = v_ColorScale;
+    return;
 		}
 	}
 
@@ -76,6 +79,7 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 		if( mod( ( gl_FragCoord.x - gl_FragCoord.y - 5.0 ), floor(v_UserData.x) ) < THRESHOLD )
 		{
     gl_FragColor = v_ColorScale;
+    return;
 		}
 	}
 

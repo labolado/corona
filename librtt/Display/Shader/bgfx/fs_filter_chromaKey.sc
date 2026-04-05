@@ -43,8 +43,8 @@ uniform vec4 u_UserData3;
 
 void main()
 {
-float sensitivity = u_UserData0; // threshold
-    float smoothing = u_UserData1;
+float sensitivity = u_UserData0.x; // threshold
+    float smoothing = u_UserData1.x;
     vec4 color = u_UserData2;
 
     vec4 texColor = ( texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale );

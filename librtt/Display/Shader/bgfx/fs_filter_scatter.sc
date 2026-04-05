@@ -53,7 +53,7 @@ vec2 rnd = vec2( rand( v_TexCoord.xy ),
 								rand( v_TexCoord.xy.yx ));
 
 	vec4 texColor = texture2D( u_FillSampler0,
-										( v_TexCoord.xy + ( rnd * v_UserData.x ) ) );
+										( v_TexCoord.xy + ( rnd * v_UserData.x * 0.25 ) ) );
 
     gl_FragColor = texColor * v_ColorScale;
  // FRAGMENT_SHADER_SUPPORTS_HIGHP
