@@ -43,7 +43,8 @@ BatchObject::BatchObject( Rtt_Allocator* allocator, Display& display )
 	fGeometry( NULL ),
 	fData(),
 	fShader( NULL ),
-	fVerticesDirty( true )
+	fVerticesDirty( true ),
+	fRemoved( false )
 {
 	SetObjectDesc( "BatchObject" );
 }
@@ -395,6 +396,12 @@ const LuaProxyVTable&
 BatchObject::ProxyVTable() const
 {
 	return LuaBatchObjectProxyVTable::Constant();
+}
+
+void
+BatchObject::RemovedFromParent( lua_State * L, GroupObject * parent )
+{
+	fRemoved = true;
 }
 
 // ----------------------------------------------------------------------------

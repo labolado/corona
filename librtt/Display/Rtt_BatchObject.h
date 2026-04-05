@@ -82,6 +82,8 @@ class BatchObject : public DisplayObject
 
 	public:
 		virtual const LuaProxyVTable& ProxyVTable() const;
+		virtual void RemovedFromParent( lua_State * L, GroupObject * parent );
+		bool IsRemoved() const { return fRemoved; }
 
 	private:
 		BatchObject( Rtt_Allocator* allocator, Display& display );
@@ -92,6 +94,7 @@ class BatchObject : public DisplayObject
 		TextureAtlas* fAtlas;
 		Array< Slot > fSlots;
 		int fActiveCount;
+		bool fRemoved;
 
 		// Rendering
 		mutable Geometry* fGeometry;
