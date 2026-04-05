@@ -21,6 +21,11 @@ end
 
 local composer = require("composer")
 
+-- Scaling variables for high resolution displays
+local W = display.contentWidth
+local H = display.contentHeight
+local S = W / 320  -- Scaling factor
+
 -- Disable status bar
 display.setStatusBar(display.HiddenStatusBar)
 
@@ -52,9 +57,9 @@ local function createNavigationBar()
     local navGroup = display.newGroup()
 
     -- Navigation bar background
-    local navBg = display.newRect(navGroup, display.contentCenterX, display.contentHeight - 25, display.contentWidth, 50)
+    local navBg = display.newRect(navGroup, display.contentCenterX, display.contentHeight - 25*S, display.contentWidth, 50*S)
     navBg:setFillColor(0.15, 0.15, 0.15)
-    navBg.strokeWidth = 1
+    navBg.strokeWidth = 1*S
     navBg:setStrokeColor(0.3, 0.3, 0.3)
 
     -- Scene buttons
@@ -65,7 +70,7 @@ local function createNavigationBar()
         local btnY = display.contentHeight - 25
 
         -- Button background
-        local btn = display.newRect(navGroup, btnX, btnY, buttonWidth - 2, 46)
+        local btn = display.newRect(navGroup, btnX, btnY, buttonWidth - 2, 46*S)
         btn:setFillColor(0.25, 0.25, 0.25)
         btn.sceneIndex = i
         btn.sceneName = sceneInfo.name
@@ -77,7 +82,7 @@ local function createNavigationBar()
             x = btnX,
             y = btnY,
             font = native.systemFontBold,
-            fontSize = 12
+            fontSize = 12*S
         })
         label:setFillColor(0.9, 0.9, 0.9)
 

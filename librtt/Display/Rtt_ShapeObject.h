@@ -12,6 +12,7 @@
 
 #include "Display/Rtt_DisplayObject.h"
 #include "Display/Rtt_ShaderResource.h"
+#include "Display/Rtt_SDFRenderer.h"
 
 #include "Core/Rtt_Real.h"
 #include "Renderer/Rtt_RenderData.h"
@@ -90,8 +91,17 @@ class ShapeObject : public DisplayObject
 		RenderTypes::BlendType GetBlend() const;
 
 	private:
+		// Returns true if this shape is a simple SDF-eligible type
+		// (circle, rect, roundedRect)
+		bool IsSDFEligible() const;
+
+		// Returns the SDF shape type for this object.
+		// Only valid when IsSDFEligible() returns true.
+		SDFRenderer::ShapeType GetSDFShapeType() const;
+
+	private:
 		RenderData fFillData;
-		
+
 		RenderData fStrokeData;
 		ClosedPath *fPath;
 

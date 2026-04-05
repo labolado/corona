@@ -13,6 +13,7 @@
 
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_OpenPath.h"
+#include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Renderer/Rtt_Renderer.h"
@@ -166,6 +167,42 @@ LineObject::Draw( Renderer& renderer ) const
 
 		if ( fPath->HasStroke() && fPath->IsStrokeVisible() )
 		{
+			SDFRenderer& sdf = SDFRenderer::Instance();
+
+			// SDF path for simple 2-point lines
+			if ( sdf.IsAvailable() && fPath->NumVertices() == 2 )
+			{
+				ArrayVertex2& pts = const_cast< OpenPath* >( fPath )->GetVertices();
+				Vertex2 p0 = pts[0];
+				Vertex2 p1 = pts[1];
+
+				// Compute bounding box with padding for line width
+				Real lineW = fPath->GetWidth();
+				Real pad = lineW + Rtt_IntToReal( 2 ); // AA margin
+				Real minX = ( p0.x < p1.x ? p0.x : p1.x ) - pad;
+				Real minY = ( p0.y < p1.y ? p0.y : p1.y ) - pad;
+				Real maxX = ( p0.x > p1.x ? p0.x : p1.x ) + pad;
+				Real maxY = ( p0.y > p1.y ? p0.y : p1.y ) + pad;
+				Real bboxW = maxX - minX;
+				Real bboxH = maxY - minY;
+				Real cx = (minX + maxX) * Rtt_REAL_HALF;
+				Real cy = (minY + maxY) * Rtt_REAL_HALF;
+
+				// Normalize endpoints to [-1,1] within bbox
+				Real halfW = bboxW * Rtt_REAL_HALF;
+				Real halfH = bboxH * Rtt_REAL_HALF;
+				Real nx0 = (p0.x - cx) / halfW;
+				Real ny0 = (p0.y - cy) / halfH;
+				Real nx1 = (p1.x - cx) / halfW;
+				Real ny1 = (p1.y - cy) / halfH;
+
+				sdf.SetShapeUniforms( SDFRenderer::kLine, bboxW, bboxH, Rtt_REAL_0, lineW );
+				sdf.SetLineUniforms( nx0, ny0, nx1, ny1 );
+				sdf.SetColorUniforms(
+					Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1,
+					Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0 );
+			}
+
 			fStrokeShader->Draw( renderer, fStrokeData );
 		}
 	}

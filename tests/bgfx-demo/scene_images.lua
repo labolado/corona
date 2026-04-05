@@ -174,6 +174,11 @@ function scene:create(event)
     
     print("[Scene 2: Images] Creating...")
     
+    -- Scaling variables for high resolution
+    local W = display.contentWidth
+    local H = display.contentHeight
+    local S = W / 320  -- Scale factor
+    
     -- Background
     local bg = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     bg:setFillColor(0.1, 0.1, 0.15)
@@ -182,10 +187,10 @@ function scene:create(event)
     local title = display.newText({
         parent = sceneGroup,
         text = "Scene 2: Images & Sprites",
-        x = 20,
-        y = 20,
+        x = 20*S,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -195,41 +200,41 @@ function scene:create(event)
     local label1 = display.newText({
         parent = sceneGroup,
         text = "display.newSnapshot (procedural):",
-        x = 20,
-        y = 55,
+        x = 20*S,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     label1.anchorX = 0
     label1:setFillColor(0.7, 0.7, 0.7)
     
     -- Checkerboard texture
     local checkerTex = createCheckerboardTexture(64, 16)
-    checkerTex.x, checkerTex.y = 60, 100
+    checkerTex.x, checkerTex.y = 60*S, 100*S
     sceneGroup:insert(checkerTex)
     
     local checkerLabel = display.newText({
         parent = sceneGroup,
         text = "Checker",
-        x = 60,
-        y = 140,
+        x = 60*S,
+        y = 140*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     checkerLabel:setFillColor(0.6, 0.6, 0.6)
     
     -- Gradient texture
     local gradientTex = createGradientTexture(80, 50)
-    gradientTex.x, gradientTex.y = 160, 100
+    gradientTex.x, gradientTex.y = 160*S, 100*S
     sceneGroup:insert(gradientTex)
     
     local gradientLabel = display.newText({
         parent = sceneGroup,
         text = "Gradient",
-        x = 160,
-        y = 140,
+        x = 160*S,
+        y = 140*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     gradientLabel:setFillColor(0.6, 0.6, 0.6)
     
@@ -247,16 +252,16 @@ function scene:create(event)
         end
     end
     patternSnapshot:invalidate()
-    patternSnapshot.x, patternSnapshot.y = 260, 100
+    patternSnapshot.x, patternSnapshot.y = 260*S, 100*S
     sceneGroup:insert(patternSnapshot)
     
     local patternLabel = display.newText({
         parent = sceneGroup,
         text = "Pattern",
-        x = 260,
-        y = 140,
+        x = 260*S,
+        y = 140*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     patternLabel:setFillColor(0.6, 0.6, 0.6)
     
@@ -265,10 +270,10 @@ function scene:create(event)
     local label2 = display.newText({
         parent = sceneGroup,
         text = "Scaled textures (newImageRect simulation):",
-        x = 20,
-        y = 170,
+        x = 20*S,
+        y = 170*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     label2.anchorX = 0
     label2:setFillColor(0.7, 0.7, 0.7)
@@ -276,42 +281,42 @@ function scene:create(event)
     -- Same texture at different scales
     local baseTexture = createCheckerboardTexture(64, 16)
     
-    local scaled1 = display.newRect(sceneGroup, 60, 220, 40, 40)
+    local scaled1 = display.newRect(sceneGroup, 60*S, 220*S, 40*S, 40*S)
     scaled1:setFillColor(0.5, 0.5, 0.5)
     scaled1.strokeWidth = 1
     scaled1:setStrokeColor(0.8, 0.8, 0.8)
     local t1 = createCheckerboardTexture(40, 10)
-    t1.x, t1.y = 60, 220
+    t1.x, t1.y = 60*S, 220*S
     sceneGroup:insert(t1)
     
-    local scaled2 = display.newRect(sceneGroup, 140, 220, 80, 60)
+    local scaled2 = display.newRect(sceneGroup, 140*S, 220*S, 80*S, 60*S)
     scaled2:setFillColor(0.5, 0.5, 0.5)
     scaled2.strokeWidth = 1
     scaled2:setStrokeColor(0.8, 0.8, 0.8)
     local t2 = createGradientTexture(80, 60)
-    t2.x, t2.y = 140, 220
+    t2.x, t2.y = 140*S, 220*S
     sceneGroup:insert(t2)
     
-    local scaled3 = display.newRect(sceneGroup, 260, 220, 60, 80)
+    local scaled3 = display.newRect(sceneGroup, 260*S, 220*S, 60*S, 80*S)
     scaled3:setFillColor(0.5, 0.5, 0.5)
     scaled3.strokeWidth = 1
     scaled3:setStrokeColor(0.8, 0.8, 0.8)
     local t3 = createCheckerboardTexture(60, 15)
     t3.xScale = 1
     t3.yScale = 80/64
-    t3.x, t3.y = 260, 220
+    t3.x, t3.y = 260*S, 220*S
     sceneGroup:insert(t3)
     
     -- Scale labels
-    local scaleLabels = {{"40x40", 60}, {"80x60", 140}, {"60x80", 260}}
+    local scaleLabels = {{"40x40", 60*S}, {"80x60", 140*S}, {"60x80", 260*S}}
     for _, sl in ipairs(scaleLabels) do
         local lbl = display.newText({
             parent = sceneGroup,
             text = sl[1],
             x = sl[2],
-            y = 265,
+            y = 265*S,
             font = native.systemFont,
-            fontSize = 10
+            fontSize = 10*S
         })
         lbl:setFillColor(0.6, 0.6, 0.6)
     end
@@ -321,10 +326,10 @@ function scene:create(event)
     local label3 = display.newText({
         parent = sceneGroup,
         text = "Sprite animation (manual frame cycling):",
-        x = 20,
-        y = 295,
+        x = 20*S,
+        y = 295*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     label3.anchorX = 0
     label3:setFillColor(0.7, 0.7, 0.7)
@@ -334,7 +339,7 @@ function scene:create(event)
     sceneObjects.spriteFrames = spriteFrames
     sceneObjects.currentFrame = 1
     local spriteContainer = display.newGroup()
-    spriteContainer.x, spriteContainer.y = 120, 360
+    spriteContainer.x, spriteContainer.y = 120*S, 360*S
     sceneGroup:insert(spriteContainer)
     sceneObjects.spriteContainer = spriteContainer
     
@@ -347,16 +352,16 @@ function scene:create(event)
     local spriteLabel = display.newText({
         parent = sceneGroup,
         text = "Animated Sprite",
-        x = 120,
-        y = 400,
+        x = 120*S,
+        y = 400*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     spriteLabel:setFillColor(0.6, 0.6, 0.6)
     
     -- Multiple sprites with different timings
     local spriteContainer2 = display.newGroup()
-    spriteContainer2.x, spriteContainer2.y = 240, 360
+    spriteContainer2.x, spriteContainer2.y = 240*S, 360*S
     sceneGroup:insert(spriteContainer2)
     sceneObjects.spriteContainer2 = spriteContainer2
     
@@ -371,10 +376,10 @@ function scene:create(event)
     local spriteLabel2 = display.newText({
         parent = sceneGroup,
         text = "Sprite (slower)",
-        x = 240,
-        y = 400,
+        x = 240*S,
+        y = 400*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     spriteLabel2:setFillColor(0.6, 0.6, 0.6)
     
@@ -383,24 +388,24 @@ function scene:create(event)
     local label4 = display.newText({
         parent = sceneGroup,
         text = "Snapshot as rect fill:",
-        x = 20,
-        y = 430,
+        x = 20*S,
+        y = 430*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     label4.anchorX = 0
     label4:setFillColor(0.7, 0.7, 0.7)
     
     -- Note: Since we can't easily use snapshot as fill without actual texture files,
     -- we demonstrate the concept with rects that have patterns drawn on them
-    local fillRect1 = display.newRect(sceneGroup, 100, 475, 80, 40)
+    local fillRect1 = display.newRect(sceneGroup, 100*S, 475*S, 80*S, 40*S)
     fillRect1:setFillColor(0.3, 0.6, 0.8)
     fillRect1.strokeWidth = 2
     fillRect1:setStrokeColor(0.6, 0.85, 1)
     
     -- Add stripes pattern
     for i = 1, 5 do
-        local stripe = display.newLine(sceneGroup, 65 + i * 14, 455, 65 + i * 14, 495)
+        local stripe = display.newLine(sceneGroup, (65 + i * 14)*S, 455*S, (65 + i * 14)*S, 495*S)
         stripe.strokeWidth = 2
         stripe:setStrokeColor(0.5, 0.8, 1, 0.5)
     end
