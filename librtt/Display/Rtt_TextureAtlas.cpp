@@ -272,6 +272,7 @@ TextureAtlas::Create(
 	SharedPtr< TextureResource > texture = factory.FindOrCreate( atlasBitmap, false );
 	if ( texture.IsNull() )
 	{
+		Rtt_DELETE( atlasBitmap );
 		for ( auto& e : bitmaps ) Rtt_DELETE( e.bitmap );
 		return NULL;
 	}
