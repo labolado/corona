@@ -47,6 +47,7 @@ GLRenderer::InitCaps()
 	fCaps.maxUniformVectors = (U32)CommandBuffer::GetMaxUniformVectorsCount();
 	fCaps.maxVertexTextureUnits = (U32)CommandBuffer::GetMaxVertexTextureUnits();
 	fCaps.supportsHighPrecisionFragmentShaders = CommandBuffer::GetGpuSupportsHighPrecisionFragmentShaders();
+	fCaps.originBottomLeft = true;  // OpenGL origin is bottom-left
 	fCaps.vendorString = CommandBuffer::GetGlString( "GL_VENDOR" );
 	fCaps.rendererString = CommandBuffer::GetGlString( "GL_RENDERER" );
 	fCaps.versionString = CommandBuffer::GetGlString( "GL_VERSION" );

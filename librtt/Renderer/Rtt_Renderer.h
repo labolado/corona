@@ -50,6 +50,7 @@ struct RendererCaps
     U32 maxUniformVectors;
     U32 maxVertexTextureUnits;
     bool supportsHighPrecisionFragmentShaders;
+    bool originBottomLeft;  // true for GL, false for Metal/DX/Vulkan
     const char* vendorString;
     const char* rendererString;
     const char* versionString;
@@ -69,7 +70,7 @@ class Renderer
         // Subclasses (GLRenderer, BgfxRenderer) should override with actual values.
         virtual const RendererCaps& GetCaps() const
         {
-            static const RendererCaps sDefaultCaps = { 2048, 128, 0, false, "unknown", "unknown", "unknown" };
+            static const RendererCaps sDefaultCaps = { 2048, 128, 0, false, true, "unknown", "unknown", "unknown" };
             return sDefaultCaps;
         }
 

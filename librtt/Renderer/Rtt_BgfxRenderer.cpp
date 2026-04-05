@@ -92,6 +92,7 @@ BgfxRenderer::InitCaps()
     fCaps.maxUniformVectors = 256;  // bgfx doesn't expose this directly, use safe default
     fCaps.maxVertexTextureUnits = 0;  // Not queried directly, set to 0 for now
     fCaps.supportsHighPrecisionFragmentShaders = true;  // bgfx backends generally support this
+    fCaps.originBottomLeft = caps->originBottomLeft;
     fCaps.vendorString = "bgfx";
     fCaps.rendererString = bgfx::getRendererName(bgfx::getRendererType());
     fCaps.versionString = "";
