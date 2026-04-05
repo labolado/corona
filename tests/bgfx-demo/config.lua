@@ -7,8 +7,8 @@
 
 application = {
     content = {
-        width = 320,
-        height = 480,
+        width = 1536,
+        height = 2048,
         scale = "letterbox",
         fps = 60,
         imageSuffix = {}

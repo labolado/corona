@@ -84,6 +84,11 @@ end
 function scene:create(event)
     local sceneGroup = self.view
     
+    -- Scaling variables for high resolution
+    local W = display.contentWidth
+    local H = display.contentHeight
+    local S = W / 320  -- Scaling factor
+    
     print("[Scene 9: Masks] Creating...")
     
     -- Background
@@ -95,9 +100,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Scene 9: Masks & FBO",
         x = 20,
-        y = 20,
+        y = 20*S,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     title.anchorX = 0
     title:setFillColor(0.9, 0.9, 0.9)
@@ -108,22 +113,22 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Circular Mask (Snapshot):",
         x = 20,
-        y = 55,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     maskLabel.anchorX = 0
     maskLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Create content to be masked
     local maskContent = display.newGroup()
-    maskContent.x, maskContent.y = 80, 120
+    maskContent.x, maskContent.y = 80*S, 120*S
     sceneGroup:insert(maskContent)
     
     -- Background pattern
     for i = 1, 4 do
         for j = 1, 4 do
-            local check = display.newRect(maskContent, (j - 2.5) * 20, (i - 2.5) * 20, 20, 20)
+            local check = display.newRect(maskContent, (j - 2.5) * 20*S, (i - 2.5) * 20*S, 20*S, 20*S)
             if (i + j) % 2 == 0 then
                 check:setFillColor(0.9, 0.3, 0.3)
             else
@@ -139,18 +144,18 @@ function scene:create(event)
         x = 0,
         y = 0,
         font = native.systemFontBold,
-        fontSize = 16
+        fontSize = 16*S
     })
     maskText:setFillColor(1, 1, 1)
     
     -- Create circular mask using snapshot technique
     -- Since we can't load image masks, we simulate by creating a circular snapshot
-    local maskSnapshot = display.newSnapshot(80, 80)
-    maskSnapshot.x, maskSnapshot.y = 80, 120
+    local maskSnapshot = display.newSnapshot(80*S, 80*S)
+    maskSnapshot.x, maskSnapshot.y = 80*S, 120*S
     sceneGroup:insert(maskSnapshot)
     
     -- Draw circular mask shape in snapshot
-    local maskCircle = display.newCircle(maskSnapshot.group, 0, 0, 40)
+    local maskCircle = display.newCircle(maskSnapshot.group, 0, 0, 40*S)
     maskCircle:setFillColor(1, 1, 1)
     maskSnapshot:invalidate()
     
@@ -160,9 +165,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Mask visualization",
         x = 80,
-        y = 170,
+        y = 170*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     maskNote:setFillColor(0.5, 0.5, 0.5)
     
@@ -172,30 +177,30 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Render to Texture:",
         x = 180,
-        y = 55,
+        y = 55*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     snapshotLabel.anchorX = 0
     snapshotLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Create a snapshot and draw to it
-    local rttSnapshot = display.newSnapshot(100, 100)
-    rttSnapshot.x, rttSnapshot.y = 230, 120
+    local rttSnapshot = display.newSnapshot(100*S, 100*S)
+    rttSnapshot.x, rttSnapshot.y = 230*S, 120*S
     sceneGroup:insert(rttSnapshot)
     sceneObjects.rttSnapshot = rttSnapshot
     
     -- Draw content to snapshot
-    local rttBg = display.newRect(rttSnapshot.group, 0, 0, 100, 100)
+    local rttBg = display.newRect(rttSnapshot.group, 0, 0, 100*S, 100*S)
     rttBg:setFillColor(0.2, 0.2, 0.3)
     
-    local rttCircle1 = display.newCircle(rttSnapshot.group, -20, -20, 25)
+    local rttCircle1 = display.newCircle(rttSnapshot.group, -20*S, -20*S, 25*S)
     rttCircle1:setFillColor(0.9, 0.4, 0.4)
     
-    local rttCircle2 = display.newCircle(rttSnapshot.group, 20, 20, 25)
+    local rttCircle2 = display.newCircle(rttSnapshot.group, 20*S, 20*S, 25*S)
     rttCircle2:setFillColor(0.4, 0.9, 0.4)
     
-    local rttRect = display.newRect(rttSnapshot.group, 0, 0, 40, 40)
+    local rttRect = display.newRect(rttSnapshot.group, 0, 0, 40*S, 40*S)
     rttRect:setFillColor(0.4, 0.4, 0.9)
     
     local rttText = display.newText({
@@ -204,7 +209,7 @@ function scene:create(event)
         x = 0,
         y = 0,
         font = native.systemFontBold,
-        fontSize = 14
+        fontSize = 14*S*S
     })
     rttText:setFillColor(1, 1, 1)
     
@@ -213,10 +218,10 @@ function scene:create(event)
     local rttNote = display.newText({
         parent = sceneGroup,
         text = "Rotating snapshot",
-        x = 230,
-        y = 180,
+        x = 230*S,
+        y = 180*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     rttNote:setFillColor(0.5, 0.5, 0.5)
     
@@ -226,33 +231,33 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Multiple Snapshots:",
         x = 20,
-        y = 210,
+        y = 210*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     multiLabel.anchorX = 0
     multiLabel:setFillColor(0.7, 0.7, 0.7)
     
     sceneObjects.snapshots = {}
     for i = 1, 4 do
-        local snap = display.newSnapshot(60, 60)
-        snap.x = 50 + (i - 1) * 75
-        snap.y = 265
+        local snap = display.newSnapshot(60*S, 60*S)
+        snap.x = 50*S + (i - 1) * 75*S
+        snap.y = 265*S
         sceneGroup:insert(snap)
         
         -- Different content for each
-        local bg = display.newRect(snap.group, 0, 0, 60, 60)
+        local bg = display.newRect(snap.group, 0, 0, 60*S, 60*S)
         bg:setFillColor(i * 0.2, 0.5, 1 - i * 0.2)
         
         local shape
         if i == 1 then
-            shape = display.newCircle(snap.group, 0, 0, 20)
+            shape = display.newCircle(snap.group, 0, 0, 20*S)
         elseif i == 2 then
-            shape = display.newRect(snap.group, 0, 0, 30, 30)
+            shape = display.newRect(snap.group, 0, 0, 30*S, 30*S)
         elseif i == 3 then
-            shape = display.newRoundedRect(snap.group, 0, 0, 35, 25, 8)
+            shape = display.newRoundedRect(snap.group, 0, 0, 35*S, 25*S, 8*S)
         else
-            shape = display.newPolygon(snap.group, 0, 0, {0, -20, 17, 10, -17, 10})
+            shape = display.newPolygon(snap.group, 0, 0, {0, -20*S, 17*S, 10*S, -17*S, 10*S})
         end
         shape:setFillColor(1, 1, 1, 0.7)
         
@@ -266,28 +271,28 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Nested Snapshot:",
         x = 20,
-        y = 320,
+        y = 320*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     nestedLabel.anchorX = 0
     nestedLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Outer snapshot
-    local outerSnap = display.newSnapshot(80, 80)
-    outerSnap.x, outerSnap.y = 80, 380
+    local outerSnap = display.newSnapshot(80*S, 80*S)
+    outerSnap.x, outerSnap.y = 80*S, 380*S
     sceneGroup:insert(outerSnap)
     sceneObjects.outerSnap = outerSnap
     
-    local outerBg = display.newRect(outerSnap.group, 0, 0, 80, 80)
+    local outerBg = display.newRect(outerSnap.group, 0, 0, 80*S, 80*S)
     outerBg:setFillColor(0.3, 0.2, 0.3)
     
-    local outerRect = display.newRect(outerSnap.group, 0, 0, 60, 60)
+    local outerRect = display.newRect(outerSnap.group, 0, 0, 60*S, 60*S)
     outerRect:setFillColor(0.6, 0.4, 0.6)
     outerSnap:invalidate()
     
     -- Inner content (simulated nested by drawing on top)
-    local innerCircle = display.newCircle(outerSnap.group, 0, 0, 20)
+    local innerCircle = display.newCircle(outerSnap.group, 0, 0, 20*S)
     innerCircle:setFillColor(0.9, 0.6, 0.9)
     outerSnap:invalidate()
     
@@ -297,25 +302,25 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Capture Simulation:",
         x = 180,
-        y = 320,
+        y = 320*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     captureLabel.anchorX = 0
     captureLabel:setFillColor(0.7, 0.7, 0.7)
     
     -- Create a scene to "capture"
     local captureScene = display.newGroup()
-    captureScene.x, captureScene.y = 230, 380
+    captureScene.x, captureScene.y = 230*S, 380*S
     sceneGroup:insert(captureScene)
     
-    local csBg = display.newRect(captureScene, 0, 0, 80, 80)
+    local csBg = display.newRect(captureScene, 0, 0, 80*S, 80*S)
     csBg:setFillColor(0.2, 0.3, 0.4)
     
-    local csObj1 = display.newCircle(captureScene, -15, -15, 20)
+    local csObj1 = display.newCircle(captureScene, -15*S, -15*S, 20*S)
     csObj1:setFillColor(0.9, 0.5, 0.2)
     
-    local csObj2 = display.newRect(captureScene, 15, 15, 30, 30)
+    local csObj2 = display.newRect(captureScene, 15*S, 15*S, 30*S, 30*S)
     csObj2:setFillColor(0.2, 0.7, 0.9)
     
     local csText = display.newText({
@@ -329,15 +334,15 @@ function scene:create(event)
     csText:setFillColor(1, 1, 1)
     
     -- Create a snapshot that represents the "captured" image
-    local captureSnap = display.newSnapshot(80, 80)
-    captureSnap.x, captureSnap.y = 230, 480
+    local captureSnap = display.newSnapshot(80*S, 80*S)
+    captureSnap.x, captureSnap.y = 230*S, 480*S
     sceneGroup:insert(captureSnap)
     
     -- Copy content to snapshot (simulating capture)
-    local capBg = display.newRect(captureSnap.group, 0, 0, 80, 80)
+    local capBg = display.newRect(captureSnap.group, 0, 0, 80*S, 80*S)
     capBg:setFillColor(0.4, 0.2, 0.2)
     
-    local capRect = display.newRect(captureSnap.group, 0, 0, 50, 50)
+    local capRect = display.newRect(captureSnap.group, 0, 0, 50*S, 50*S)
     capRect:setFillColor(0.8, 0.4, 0.4)
     
     local capText = display.newText({
@@ -346,7 +351,7 @@ function scene:create(event)
         x = 0,
         y = 0,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     capText:setFillColor(1, 1, 1)
     
@@ -360,9 +365,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Captured (60%)",
         x = 230,
-        y = 520,
+        y = 520*S,
         font = native.systemFont,
-        fontSize = 9
+        fontSize = 9*S
     })
     captureNote:setFillColor(0.5, 0.5, 0.5)
     
@@ -372,9 +377,9 @@ function scene:create(event)
         parent = sceneGroup,
         text = "Effects (if available):",
         x = 20,
-        y = 440,
+        y = 440*S,
         font = native.systemFont,
-        fontSize = 12
+        fontSize = 12*S
     })
     effectsLabel.anchorX = 0
     effectsLabel:setFillColor(0.7, 0.7, 0.7)
@@ -393,7 +398,7 @@ function scene:create(event)
         end
     end
     
-    local effectRect = display.newRect(sceneGroup, 80, 495, 60, 50)
+    local effectRect = display.newRect(sceneGroup, 80*S, 495*S, 60*S, 50*S)
     if effectAvailable then
         effectRect:setFillColor(0.9, 0.5, 0.2)
         -- Try to apply effect
@@ -407,26 +412,26 @@ function scene:create(event)
     local effectText = display.newText({
         parent = sceneGroup,
         text = effectAvailable and "Blur" or "N/A",
-        x = 80,
-        y = 560,
+        x = 80*S,
+        y = 560*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     effectText:setFillColor(0.6, 0.6, 0.6)
     
     -- Fallback visual effect (transparency)
-    local fallbackEffect = display.newRect(sceneGroup, 160, 495, 60, 50)
+    local fallbackEffect = display.newRect(sceneGroup, 160*S, 495*S, 60*S, 50*S)
     fallbackEffect:setFillColor(0.2, 0.7, 0.9, 0.5)
-    fallbackEffect.strokeWidth = 2
+    fallbackEffect.strokeWidth = 2*S
     fallbackEffect:setStrokeColor(0.5, 0.9, 1)
     
     local fallbackLabel = display.newText({
         parent = sceneGroup,
         text = "Alpha",
-        x = 160,
-        y = 560,
+        x = 160*S,
+        y = 560*S,
         font = native.systemFont,
-        fontSize = 10
+        fontSize = 10*S
     })
     fallbackLabel:setFillColor(0.6, 0.6, 0.6)
     
