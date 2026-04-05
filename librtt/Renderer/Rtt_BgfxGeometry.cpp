@@ -299,6 +299,7 @@ BgfxGeometry::Update( CPUResource* resource )
 	}
 
 	fIndexCount = geometry->GetIndicesAllocated();
+	geometry->ClearGPUDirty();
 }
 
 void

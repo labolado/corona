@@ -340,12 +340,12 @@ ShapePath::Update( RenderData& data, const Matrix& srcToDstSpace )
 void
 ShapePath::UpdateResources( Renderer& renderer ) const
 {
-    if ( HasFill() && IsFillVisible() && fFillGeometry->GetStoredOnGPU() )
+    if ( HasFill() && IsFillVisible() && fFillGeometry->GetStoredOnGPU() && fFillGeometry->IsGPUDirty() )
     {
         renderer.QueueUpdate( fFillGeometry );
     }
 
-    if ( HasStroke() && IsStrokeVisible() && fStrokeGeometry->GetStoredOnGPU() )
+    if ( HasStroke() && IsStrokeVisible() && fStrokeGeometry->GetStoredOnGPU() && fStrokeGeometry->IsGPUDirty() )
     {
         renderer.QueueUpdate( fStrokeGeometry );
     }
@@ -363,6 +363,7 @@ ShapePath::Translate( Real dx, Real dy )
         v.x += dx;
         v.y += dy;
     }
+    fFillGeometry->SetGPUDirty();
 
     if ( HasStroke() )
     {
@@ -375,6 +376,7 @@ ShapePath::Translate( Real dx, Real dy )
             v.x += dx;
             v.y += dy;
         }
+        fStrokeGeometry->SetGPUDirty();
     }
 }
 

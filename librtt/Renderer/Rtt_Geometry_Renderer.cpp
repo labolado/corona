@@ -245,6 +245,7 @@ Geometry::Geometry(Rtt_Allocator* allocator, PrimitiveType type, U32 vertexCount
     fIndexData(NULL),
     fVerticesUsed(0),
     fIndicesUsed(0),
+    fGPUDirty(true),
     fExtension(NULL)
 {
     // Indexed triangles are only supported for the VBO path
@@ -263,6 +264,7 @@ Geometry::Geometry(const Geometry& geometry)
     fIndexData(NULL),
     fVerticesUsed(geometry.fVerticesUsed),
     fIndicesUsed(geometry.fIndicesUsed),
+    fGPUDirty(true),
     fExtension(NULL)
 {
     // Indexed triangles are only supported for the VBO path
@@ -459,6 +461,8 @@ void
     {
         SyncPerVertexColors(fPerVertexColors, fVerticesAllocated);
     }
+
+    fGPUDirty = true;
 }
 
 void
@@ -627,8 +631,10 @@ bool
 
     U32& entry = fPerVertexColors->WriteAccess()[index];
     bool changed = entry != color;
-        
+
     entry = color;
+
+    if (changed) { fGPUDirty = true; }
 
     return changed;
 }
