@@ -47,8 +47,7 @@ uniform vec4 u_UserData3;
 
  vec4 FragmentKernel(vec2 texCoord, vec4 v_ColorScale, vec4 v_UserData)
 {
-#if FRAGMENT_SHADER_SUPPORTS_HIGHP
-	 float time = fract(u_TotalTime);
+	 float time = fract(u_TotalTime.x);
 
 	 float v0 = rand(vec2((time + texCoord.x),
 									(time + texCoord.y)));
@@ -72,9 +71,6 @@ uniform vec4 u_UserData3;
 		return (vec4(v0, v1, v2, 1.0) * v_ColorScale);
 
 	#endif
-#else // FRAGMENT_SHADER_SUPPORTS_HIGHP
-	return vec4(0);
-#endif // FRAGMENT_SHADER_SUPPORTS_HIGHP
 }
 
 void main()

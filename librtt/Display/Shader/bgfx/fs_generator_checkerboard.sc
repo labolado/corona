@@ -39,8 +39,8 @@ uniform vec4 u_UserData3;
 {
 	 vec4 color1 = u_UserData0;
 	 vec4 color2 = u_UserData1;
-	 float xStep = u_UserData2;
-	 float yStep = u_UserData3;
+	 float xStep = u_UserData2.x;
+	 float yStep = u_UserData3.x;
 
 	// "xStep" is the number of time the pattern is repeated by texCoord.x.
 	// "yStep" is the number of time the pattern is repeated by texCoord.y.

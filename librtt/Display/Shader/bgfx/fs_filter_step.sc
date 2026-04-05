@@ -50,11 +50,11 @@ vec4 texColorResult;
 
 	// This sets the color to lowerColor.
 	// step( a, b ) = ( ( a <= b ) ? 1.0 : 0.0 ).
-	texColorResult = ( u_UserData1 * step( u_UserData0, texColor.x ) );
+	texColorResult = ( u_UserData1 * step( u_UserData0.x, texColor.x ) );
 
 	// This sets the color to higherColor.
 	// step( a, b ) = ( ( a <= b ) ? 1.0 : 0.0 ).
-	texColorResult += ( colorDelta * step( u_UserData2, texColor.x ) );
+	texColorResult += ( colorDelta * step( u_UserData2.x, texColor.x ) );
 
     gl_FragColor = texColorResult * v_ColorScale;
 }
