@@ -36,7 +36,8 @@ RenderData::RenderData()
 //	fMinDepthRange( 0.0 ),
 //	fMaxDepthRange( 1.0 ),
 	fBlendMode(),
-	fBlendEquation( RenderTypes::kAddEquation )
+	fBlendEquation( RenderTypes::kAddEquation ),
+	fInstanceDraw( NULL )
 {
 }
 

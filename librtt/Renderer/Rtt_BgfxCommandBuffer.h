@@ -92,6 +92,9 @@ struct DeferredCmd
     int namedUniformCount;
     NamedUniformSnapshot namedUniforms[kMaxNamedUniforms];
 
+    // Instance draw data (opaque, cast to InstanceDrawData* by bgfx backend)
+    void* instanceDraw;
+
     DeferredCmd() : type(kDraw), fbo(NULL), vpX(0), vpY(0), vpW(0), vpH(0),
         clearR(0), clearG(0), clearB(0), clearA(0), clearDepth(1.0f), clearStencil(0),
         geometry(NULL), program(NULL), programVersion(Program::kMaskCount0),
@@ -101,7 +104,8 @@ struct DeferredCmd
         captureRectXMin(0), captureRectYMin(0), captureRectXMax(0), captureRectYMax(0),
         captureRawXMin(0), captureRawYMin(0), captureRawXMax(0), captureRawYMax(0),
         captureTexW(0), captureTexH(0),
-        namedUniformCount(0)
+        namedUniformCount(0),
+        instanceDraw(NULL)
     {
         for (int i = 0; i < 8; i++) textures[i] = NULL;
         for (int i = 0; i < Uniform::kNumBuiltInVariables; i++)
@@ -162,6 +166,7 @@ class BgfxCommandBuffer : public CommandBuffer
         virtual const unsigned char * GetBaseAddress() const { return NULL; }
 
         virtual bool WriteNamedUniform( const char * uniformName, const void * data, unsigned int size );
+        virtual void SetPendingInstanceDraw( void* data );
 
         // Set the screen capture texture handle (for CaptureRect source)
         void SetScreenCaptureTexture( bgfx::TextureHandle handle ) { fScreenCaptureTexture = handle; }
@@ -237,9 +242,12 @@ class BgfxCommandBuffer : public CommandBuffer
         UniformUpdate fUniformUpdates[Uniform::kNumBuiltInVariables];
         static U32 gUniformTimestamp;
 
-        // Instance data
+        // Instance data (legacy)
         U32 fInstanceCount;
         Geometry::Vertex* fInstanceData;
+
+        // Pending instance draw (for GPU instancing via BatchObject)
+        void* fPendingInstanceDraw;
 
         // Screen capture texture - set by BgfxRenderer when scene is rendered to an
         // offscreen FBO instead of the backbuffer, enabling CaptureRect to blit from it

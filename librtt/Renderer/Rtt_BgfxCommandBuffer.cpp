@@ -24,6 +24,7 @@
 #include "Renderer/Rtt_FormatExtensionList.h"
 #include "Display/Rtt_ShaderData.h"
 #include "Display/Rtt_ShaderResource.h"
+#include "Display/Rtt_InstancedBatchRenderer.h"
 #include "Core/Rtt_Config.h"
 #include "Core/Rtt_Allocator.h"
 #include "Core/Rtt_Assert.h"
@@ -66,6 +67,7 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fCustomCommands( allocator ),
     fInstanceCount( 0 ),
     fInstanceData( NULL ),
+    fPendingInstanceDraw( NULL ),
     fScreenCaptureTexture( BGFX_INVALID_HANDLE )
 {
     for( U32 i = 0; i < kMaxTextureUnits; ++i )
@@ -276,6 +278,12 @@ BgfxCommandBuffer::BindInstancing( U32 count, Geometry::Vertex* instanceData )
     Rtt_LogException( "bgfx backend: instancing not yet implemented\n" );
     fInstanceCount = count;
     fInstanceData = instanceData;
+}
+
+void
+BgfxCommandBuffer::SetPendingInstanceDraw( void* data )
+{
+    fPendingInstanceDraw = data;
 }
 
 void
@@ -537,6 +545,10 @@ BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
         cmd.textures[i] = fBoundTextures[i];
     }
 
+    // Capture pending instance draw data
+    cmd.instanceDraw = fPendingInstanceDraw;
+    fPendingInstanceDraw = NULL; // consume it
+
     SnapshotUniforms( cmd );
 
     fDeferredCmds.push_back( cmd );
@@ -711,6 +723,71 @@ BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
+    // GPU instancing path (BatchObject)
+    if ( cmd.instanceDraw )
+    {
+        const InstanceDrawData* idd = static_cast<const InstanceDrawData*>( cmd.instanceDraw );
+        if ( idd->instanceCount == 0 ) return;
+        if ( !bgfx::isValid( idd->programHandle ) ) return;
+        if ( !bgfx::isValid( idd->baseQuadVB ) ) return;
+        if ( !bgfx::isValid( idd->baseQuadIB ) ) return;
+
+        // Apply uniforms (viewProjection matrix)
+        BgfxProgram* prog = cmd.program ? static_cast<BgfxProgram*>( cmd.program->GetGPUResource() ) : NULL;
+        if ( prog )
+        {
+            prog->Bind( cmd.programVersion );
+            for ( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+            {
+                if ( cmd.uniforms[i].valid )
+                {
+                    prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+                }
+            }
+        }
+
+        bgfx::setState( cmd.bgfxState );
+
+        if ( cmd.scissorEnabled )
+        {
+            bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
+        }
+
+        // Set base quad geometry
+        bgfx::setVertexBuffer( 0, idd->baseQuadVB );
+        bgfx::setIndexBuffer( idd->baseQuadIB );
+
+        // Set instance data
+        bgfx::setInstanceDataBuffer( &idd->instanceBuffer );
+
+        // Set textures
+        for ( U32 i = 0; i < kMaxTextureUnits; i++ )
+        {
+            if ( cmd.textures[i] )
+            {
+                BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+                if ( tex )
+                {
+                    bgfx::TextureHandle texHandle = tex->GetHandle();
+                    if ( bgfx::isValid( texHandle ) )
+                    {
+                        if ( prog )
+                        {
+                            bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                            if ( bgfx::isValid( sampler ) )
+                            {
+                                bgfx::setTexture( i, sampler, texHandle );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bgfx::submit( fCurrentView, idd->programHandle );
+        return;
+    }
+
     // Resolve GPU resources (now available after Swap)
     BgfxGeometry* geo = cmd.geometry ? static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() ) : NULL;
     if( !geo )

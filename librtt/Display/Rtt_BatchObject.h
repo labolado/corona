@@ -12,6 +12,7 @@
 #define _Rtt_BatchObject_H__
 
 #include "Display/Rtt_DisplayObject.h"
+#include "Display/Rtt_InstancedBatchRenderer.h"
 #include "Core/Rtt_Real.h"
 #include "Core/Rtt_Array.h"
 #include "Core/Rtt_SharedPtr.h"
@@ -89,6 +90,7 @@ class BatchObject : public DisplayObject
 		BatchObject( Rtt_Allocator* allocator, Display& display );
 
 		void RebuildVertices() const;
+		void FillInstanceData() const;
 
 	private:
 		TextureAtlas* fAtlas;
@@ -101,6 +103,10 @@ class BatchObject : public DisplayObject
 		RenderData fData;
 		Shader* fShader;
 		mutable bool fVerticesDirty;
+
+		// GPU instancing
+		mutable bool fUseInstancing;
+		mutable InstanceDrawData fInstanceDrawData;
 };
 
 // ----------------------------------------------------------------------------

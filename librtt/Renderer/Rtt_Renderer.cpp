@@ -555,6 +555,12 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     Rtt_ASSERT( fBackCommandBuffer != NULL );
     Rtt_ASSERT( fFrontCommandBuffer != NULL );
 
+	// Pass through instance draw data for GPU instancing
+	if ( data->fInstanceDraw )
+	{
+		fBackCommandBuffer->SetPendingInstanceDraw( data->fInstanceDraw );
+	}
+
 	bool blendDirty = data->fBlendMode != fPrevious.fBlendMode;
 	bool blendEquationDirty = data->fBlendEquation != fPrevious.fBlendEquation;
 	bool fillDirty0 = data->fFillTexture0 != fPrevious.fFillTexture0 && data->fFillTexture0;
