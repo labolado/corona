@@ -194,6 +194,32 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
         return result;
     }
 
+    // 2b. Extract any code before FragmentKernel (helper functions, constants, etc.)
+    //     Walk back from funcPos to find the return type ("vec4") to get the real start
+    std::string preamble;
+    {
+        size_t declStart = funcPos;
+        // Walk back over whitespace and the return type
+        if (declStart > 0)
+        {
+            size_t pos = declStart - 1;
+            // Skip whitespace
+            while (pos > 0 && (src[pos] == ' ' || src[pos] == '\t' || src[pos] == '\n' || src[pos] == '\r'))
+                --pos;
+            // Find start of return type token (e.g. "vec4")
+            size_t tokenEnd = pos + 1;
+            while (pos > 0 && (isalnum(src[pos]) || src[pos] == '_'))
+                --pos;
+            if (!isalnum(src[pos]) && src[pos] != '_')
+                ++pos;
+            declStart = pos;
+        }
+        if (declStart > 0)
+        {
+            preamble = src.substr(0, declStart);
+        }
+    }
+
     // Find the opening parenthesis of the parameter list
     size_t parenOpen = src.find('(', funcPos);
     size_t parenClose = src.find(')', parenOpen);
@@ -279,6 +305,14 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
 
     // 6. Build the complete .sc source
     std::string result = kFragmentScTemplate;
+
+    // Include helper functions/constants defined before FragmentKernel
+    if (!preamble.empty())
+    {
+        result += preamble;
+        result += "\n";
+    }
+
     result += "void main()\n{";
     result += body;
     result += "}\n";
