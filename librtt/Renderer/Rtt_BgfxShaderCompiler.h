@@ -45,7 +45,8 @@ public:
     // shaderType: 'f' for fragment, 'v' for vertex
     // Returns true on success; on failure, outError contains the error message.
     static bool CompileShader(const std::string& scSource, char shaderType,
-                              std::vector<uint8_t>& outBinary, std::string& outError);
+                              std::vector<uint8_t>& outBinary, std::string& outError,
+                              const char* effectName = NULL);
 
     // Compile a custom effect's fragment (and optionally vertex) kernel.
     // Stores results in the shader cache on success.

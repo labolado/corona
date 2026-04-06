@@ -832,6 +832,19 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
+    // Diagnostic: dump uniform values for custom shaders
+    {
+        static int sDiagDrawCount = 0;
+        bool hasUserData = cmd.uniforms[Uniform::kUserData0].valid;
+        if ( hasUserData && sDiagDrawCount < 5 )
+        {
+            sDiagDrawCount++;
+            const float* ud0 = reinterpret_cast<const float*>( cmd.uniforms[Uniform::kUserData0].data );
+            Rtt_LogException("=== BGFX DRAW DIAG [%d] UserData0=(%.4f,%.4f,%.4f,%.4f) offset=%d count=%d ===\n",
+                sDiagDrawCount, ud0[0], ud0[1], ud0[2], ud0[3], cmd.offset, cmd.count);
+        }
+    }
+
     // Handle TriangleFan conversion
     if( cmd.primitiveType == Geometry::kTriangleFan )
     {

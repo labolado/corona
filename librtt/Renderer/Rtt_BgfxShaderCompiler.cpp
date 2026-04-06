@@ -74,8 +74,10 @@ static void AutoDetectPaths()
 }
 
 // The bgfx .sc fragment shader template for custom effects.
-// This matches the structure used by built-in effects like fs_filter_brightness.sc.
-static const char kFragmentScTemplate[] =
+// Split into header (always included) and user data uniforms (conditionally included).
+// User data uniforms are skipped when the preamble already declares them,
+// because the preamble may use different types (e.g. vec2 instead of vec4).
+static const char kFragmentScHeader[] =
     "$input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2\n"
     "\n"
     "#include <bgfx_shader.sh>\n"
@@ -93,13 +95,21 @@ static const char kFragmentScTemplate[] =
     "uniform vec4 u_TexelSize;\n"
     "uniform vec4 u_ContentScale;\n"
     "uniform vec4 u_ContentSize;\n"
-    "\n"
-    "// User data uniforms\n"
-    "uniform vec4 u_UserData0;\n"
-    "uniform vec4 u_UserData1;\n"
-    "uniform vec4 u_UserData2;\n"
-    "uniform vec4 u_UserData3;\n"
-    "\n"
+    "\n";
+
+// User data uniforms — only emitted when preamble doesn't already declare them.
+static const char* kUserDataUniformDecls[] = {
+    "uniform vec4 u_UserData0;\n",
+    "uniform vec4 u_UserData1;\n",
+    "uniform vec4 u_UserData2;\n",
+    "uniform vec4 u_UserData3;\n",
+};
+static const char* kUserDataUniformNames[] = {
+    "u_UserData0", "u_UserData1", "u_UserData2", "u_UserData3",
+};
+static const int kNumUserDataUniforms = 4;
+
+static const char kFragmentScFooter[] =
     "// Texture flags\n"
     "uniform vec4 u_TexFlags;\n"
     "\n"
@@ -113,6 +123,47 @@ static const char kFragmentScTemplate[] =
     "#define CoronaSampler0 u_FillSampler0\n"
     "#define CoronaSampler1 u_FillSampler1\n"
     "\n";
+
+// Helper: check if a preamble already declares a uniform by name.
+// Looks for "uniform <type> <name>" pattern to avoid false positives from comments.
+static bool PreambleDeclaresUniform(const std::string& preamble, const char* uniformName)
+{
+    size_t pos = 0;
+    while ((pos = preamble.find(uniformName, pos)) != std::string::npos)
+    {
+        // Walk backward to check if preceded by "uniform <type> "
+        // Simple heuristic: search for "uniform" before this position on same logical line
+        size_t lineStart = preamble.rfind('\n', pos);
+        if (lineStart == std::string::npos) lineStart = 0; else ++lineStart;
+        std::string line = preamble.substr(lineStart, pos - lineStart + strlen(uniformName));
+        if (line.find("uniform") != std::string::npos)
+        {
+            return true;
+        }
+        pos += strlen(uniformName);
+    }
+    return false;
+}
+
+// Build the complete template, skipping user data uniforms that preamble already declares.
+static std::string BuildFragmentTemplate(const std::string& preamble)
+{
+    std::string result = kFragmentScHeader;
+
+    // Emit user data uniforms only if preamble doesn't already declare them
+    result += "// User data uniforms\n";
+    for (int i = 0; i < kNumUserDataUniforms; ++i)
+    {
+        if (!PreambleDeclaresUniform(preamble, kUserDataUniformNames[i]))
+        {
+            result += kUserDataUniformDecls[i];
+        }
+    }
+    result += "\n";
+
+    result += kFragmentScFooter;
+    return result;
+}
 
 void BgfxShaderCompiler::SetShadercPath(const char* path)
 {
@@ -187,7 +238,7 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
     {
         // No FragmentKernel function — return raw source wrapped in main()
         // This handles edge cases where the kernel is already in main() format
-        std::string result = kFragmentScTemplate;
+        std::string result = BuildFragmentTemplate(src);
         result += "void main()\n{\n";
         result += src;
         result += "\n}\n";
@@ -308,12 +359,16 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
         }
     }
 
-    // 6. Build the complete .sc source
-    std::string result = kFragmentScTemplate;
+    // 6. Build the complete .sc source, deduplicating uniform declarations
+    std::string result = BuildFragmentTemplate(preamble);
 
     // Include helper functions/constants defined before FragmentKernel
     if (!preamble.empty())
     {
+        // Strip any uniform declarations from preamble that are already in the template
+        // (e.g. u_TotalTime, u_TexelSize, etc.) to avoid double declarations.
+        // User data uniforms (u_UserData0-3) from preamble are kept as-is since
+        // BuildFragmentTemplate already skipped the template versions.
         result += preamble;
         result += "\n";
     }
@@ -341,7 +396,8 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel)
 // ----------------------------------------------------------------------------
 
 bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderType,
-                                       std::vector<uint8_t>& outBinary, std::string& outError)
+                                       std::vector<uint8_t>& outBinary, std::string& outError,
+                                       const char* effectName)
 {
     if (!IsAvailable())
     {
@@ -353,9 +409,10 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     const char* tmpDir = "/tmp/solar2d_shader_compile";
     mkdir(tmpDir, 0755);
 
-    // Write .sc source to temp file
-    std::string scPath = std::string(tmpDir) + "/custom_shader." + shaderType + "s.sc";
-    std::string binPath = std::string(tmpDir) + "/custom_shader." + shaderType + "s.bin";
+    // Write .sc source to temp file — use effect name for easier debugging
+    std::string nameTag = effectName ? effectName : "custom";
+    std::string scPath = std::string(tmpDir) + "/" + nameTag + "." + shaderType + "s.sc";
+    std::string binPath = std::string(tmpDir) + "/" + nameTag + "." + shaderType + "s.bin";
 
     {
         std::ofstream ofs(scPath);
@@ -410,8 +467,7 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     if (exitCode != 0)
     {
         outError = "shaderc compilation failed:\n" + shadercOutput;
-        // Clean up temp files
-        unlink(scPath.c_str());
+        // Keep .sc file for debugging (don't delete on failure)
         unlink(binPath.c_str());
         return false;
     }
@@ -430,9 +486,8 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     outBinary.resize(fileSize);
     ifs.read(reinterpret_cast<char*>(outBinary.data()), fileSize);
 
-    // Clean up temp files
-    unlink(scPath.c_str());
-    unlink(binPath.c_str());
+    // Keep .sc and .bin files in /tmp/solar2d_shader_compile/ for debugging
+    // (previously deleted — now retained for inspection)
 
     return true;
 }
@@ -455,10 +510,12 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         return false;
     }
 
-    // Compile fragment shader
+    // Compile fragment shader — pass effect name for debug file naming
     std::vector<uint8_t> fsBinary;
     std::string fsError;
-    if (!CompileShader(fragSc, 'f', fsBinary, fsError))
+    char effectTag[256];
+    snprintf(effectTag, sizeof(effectTag), "%s_%s", category, name);
+    if (!CompileShader(fragSc, 'f', fsBinary, fsError, effectTag))
     {
         outError = "Fragment shader compilation failed: " + fsError;
         return false;

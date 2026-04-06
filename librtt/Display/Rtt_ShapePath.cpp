@@ -154,6 +154,20 @@ ShapePath::CalculateUV( ArrayVertex2& texVertices, Paint *paint, bool canTransfo
     texVertices.Clear();
     fTesselator->GenerateFillTexture( texVertices, t );
     paint->ApplyPaintUVTransformations( texVertices );
+
+    // UV diagnostic: dump first few UV values when texture transform is non-identity
+    static int sUVDiagCount = 0;
+    if ( sUVDiagCount < 5 && texVertices.Length() > 0 )
+    {
+        sUVDiagCount++;
+        Rtt_LogException("=== UV DIAG [%d] transform: sx=%.4f sy=%.4f rot=%.4f tx=%.4f ty=%.4f identity=%d ===\n",
+            sUVDiagCount, t.GetSx(), t.GetSy(), t.GetRotation(), t.GetX(), t.GetY(), t.IsIdentity());
+        int n = texVertices.Length() < 6 ? texVertices.Length() : 6;
+        for ( int i = 0; i < n; i++ )
+        {
+            Rtt_LogException("  UV[%d] = (%.6f, %.6f)\n", i, texVertices[i].x, texVertices[i].y);
+        }
+    }
 }
 
 void
