@@ -22,6 +22,14 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+// Mapping from user varying name (e.g. "outlineColor") to bgfx slot info.
+struct VaryingInfo
+{
+    std::string type;   // e.g. "vec4", "vec3", "vec2", "float"
+    std::string slot;   // e.g. "v_Custom0"
+};
+typedef std::unordered_map<std::string, VaryingInfo> VaryingMapping;
+
 // Runtime compiler for Solar2D custom GLSL shaders → bgfx/Metal binary.
 // Transforms GLSL kernel source to bgfx .sc format, then compiles
 // via the shaderc binary (glslang → SPIR-V → spirv-cross → Metal).
@@ -33,13 +41,19 @@ public:
     static void SetBgfxIncludeDir(const char* path);
     static void SetVaryingDefPath(const char* path);
 
+    // Parse custom varying declarations from vertex and fragment kernels.
+    // Returns a mapping of user varying names to bgfx v_CustomN slots.
+    static VaryingMapping ParseCustomVaryings(const char* kernelVert, const char* kernelFrag);
+
     // Transform a Solar2D GLSL fragment kernel into bgfx .sc format.
     // Input: the raw kernel string from defineEffect (FragmentKernel function).
     // Output: complete .sc source ready for shaderc compilation.
-    static std::string TransformFragmentKernel(const char* kernel);
+    static std::string TransformFragmentKernel(const char* kernel,
+                                                const VaryingMapping& varyings = VaryingMapping());
 
     // Transform a Solar2D GLSL vertex kernel into bgfx .sc format.
-    static std::string TransformVertexKernel(const char* kernel);
+    static std::string TransformVertexKernel(const char* kernel,
+                                              const VaryingMapping& varyings = VaryingMapping());
 
     // Compile a .sc source string to bgfx binary using the shaderc binary.
     // shaderType: 'f' for fragment, 'v' for vertex

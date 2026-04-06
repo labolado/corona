@@ -288,17 +288,17 @@ bool BgfxProgram::IsValid(Program::Version version) const
 void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
 {
     data.fAttemptedCreation = true;
-    
+
     // Load precompiled shader binaries
     const bgfx::Memory* vsMem = NULL;
     const bgfx::Memory* fsMem = NULL;
-    
+
     if (!LoadShaderBinary(version, "vs", vsMem) || !LoadShaderBinary(version, "fs", fsMem))
     {
         Rtt_LogException("Failed to load shader binaries for version %d\n", version);
         return;
     }
-    
+
     // Create shaders from memory
     data.fVertexShader = bgfx::createShader(vsMem);
     data.fFragmentShader = bgfx::createShader(fsMem);

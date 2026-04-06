@@ -77,8 +77,10 @@ static void AutoDetectPaths()
 // Split into header (always included) and user data uniforms (conditionally included).
 // User data uniforms are skipped when the preamble already declares them,
 // because the preamble may use different types (e.g. vec2 instead of vec4).
-static const char kFragmentScHeader[] =
-    "$input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2\n"
+static const char kFragmentScInputBase[] =
+    "$input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2";
+
+static const char kFragmentScHeaderBody[] =
     "\n"
     "#include <bgfx_shader.sh>\n"
     "\n"
@@ -145,10 +147,85 @@ static bool PreambleDeclaresUniform(const std::string& preamble, const char* uni
     return false;
 }
 
-// Build the complete template, skipping user data uniforms that preamble already declares.
-static std::string BuildFragmentTemplate(const std::string& preamble)
+// Helper: build the $input line with optional custom varying slots
+static std::string BuildFragmentInputLine(const VaryingMapping& varyings)
 {
-    std::string result = kFragmentScHeader;
+    std::string line = kFragmentScInputBase;
+    // Append custom varying slots in order (v_Custom0, v_Custom1, ...)
+    for (int i = 0; i < 4; i++)
+    {
+        char slot[16];
+        snprintf(slot, sizeof(slot), "v_Custom%d", i);
+        for (const auto& p : varyings)
+        {
+            if (p.second.slot == slot)
+            {
+                line += ", ";
+                line += slot;
+                break;
+            }
+        }
+    }
+    return line;
+}
+
+// Helper: remove "varying <type> <name>;" declarations from source
+static std::string RemoveVaryingDeclarations(const std::string& src)
+{
+    std::string result;
+    std::istringstream iss(src);
+    std::string line;
+    while (std::getline(iss, line))
+    {
+        size_t firstNonSpace = line.find_first_not_of(" \t");
+        if (firstNonSpace != std::string::npos)
+        {
+            std::string content = line.substr(firstNonSpace);
+            if (content.find("varying") == 0 &&
+                (content.size() <= 7 || content[7] == ' ' || content[7] == '\t'))
+            {
+                continue; // skip varying declaration
+            }
+        }
+        result += line + "\n";
+    }
+    return result;
+}
+
+// Helper: replace user varying names with v_CustomN slots (word-boundary safe)
+static std::string ReplaceVaryingNames(const std::string& src, const VaryingMapping& varyings)
+{
+    std::string result = src;
+    for (const auto& pair : varyings)
+    {
+        const std::string& varName = pair.first;
+        const std::string& slotName = pair.second.slot;
+        size_t pos = 0;
+        while ((pos = result.find(varName, pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || (!isalnum(result[pos - 1]) && result[pos - 1] != '_');
+            size_t endPos = pos + varName.size();
+            bool rightOk = (endPos >= result.size()) || (!isalnum(result[endPos]) && result[endPos] != '_');
+            if (leftOk && rightOk)
+            {
+                result.replace(pos, varName.size(), slotName);
+                pos += slotName.size();
+            }
+            else
+            {
+                pos += varName.size();
+            }
+        }
+    }
+    return result;
+}
+
+// Build the complete template, skipping user data uniforms that preamble already declares.
+static std::string BuildFragmentTemplate(const std::string& preamble,
+                                          const VaryingMapping& varyings = VaryingMapping())
+{
+    std::string result = BuildFragmentInputLine(varyings) + "\n";
+    result += kFragmentScHeaderBody;
 
     // Emit user data uniforms only if preamble doesn't already declare them
     result += "// User data uniforms\n";
@@ -221,7 +298,74 @@ static size_t FindMatchingBrace(const std::string& src, size_t openPos)
     return std::string::npos;
 }
 
-std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
+// ----------------------------------------------------------------------------
+// ParseCustomVaryings: scan vertex + fragment kernels for "varying <type> <name>;"
+// Returns mapping of user names → v_CustomN slots (max 4).
+// ----------------------------------------------------------------------------
+
+VaryingMapping BgfxShaderCompiler::ParseCustomVaryings(const char* kernelVert, const char* kernelFrag)
+{
+    VaryingMapping mapping;
+    int slotIndex = 0;
+
+    auto parseSource = [&](const char* raw)
+    {
+        if (!raw || !*raw) return;
+        std::string src = StripPrecisionMacros(std::string(raw));
+        size_t pos = 0;
+        while ((pos = src.find("varying", pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || (!isalnum(src[pos - 1]) && src[pos - 1] != '_');
+            size_t afterKw = pos + 7;
+            bool rightOk = (afterKw < src.size()) && (src[afterKw] == ' ' || src[afterKw] == '\t');
+            if (!leftOk || !rightOk) { pos = afterKw; continue; }
+
+            size_t semi = src.find(';', afterKw);
+            if (semi == std::string::npos) { pos = afterKw; continue; }
+
+            std::string decl = src.substr(afterKw, semi - afterKw);
+            std::istringstream iss(decl);
+            std::string type, name;
+            iss >> type >> name;
+
+            if (!name.empty() && mapping.find(name) == mapping.end())
+            {
+                if (slotIndex >= 4)
+                {
+                    Rtt_LogException("WARNING: Too many custom varyings (max 4), skipping '%s'\n", name.c_str());
+                }
+                else
+                {
+                    char slot[16];
+                    snprintf(slot, sizeof(slot), "v_Custom%d", slotIndex);
+                    mapping[name] = { type, std::string(slot) };
+                    ++slotIndex;
+                }
+            }
+            pos = semi + 1;
+        }
+    };
+
+    // Parse vertex first so its varyings get lower slot indices
+    parseSource(kernelVert);
+    parseSource(kernelFrag);
+
+    if (!mapping.empty())
+    {
+        Rtt_LogException("ParseCustomVaryings: found %d varying(s):\n", (int)mapping.size());
+        for (const auto& p : mapping)
+            Rtt_LogException("  %s (%s) -> %s\n", p.first.c_str(), p.second.type.c_str(), p.second.slot.c_str());
+    }
+
+    return mapping;
+}
+
+// ----------------------------------------------------------------------------
+// TransformFragmentKernel
+// ----------------------------------------------------------------------------
+
+std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
+                                                         const VaryingMapping& varyings)
 {
     if (!kernel || !*kernel) return "";
 
@@ -231,34 +375,25 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
     src = StripPrecisionMacros(src);
 
     // 2. Find FragmentKernel function signature
-    //    Pattern: "vec4 FragmentKernel( vec2 <paramName> )"
-    //    or: "vec4 FragmentKernel(vec2 <paramName>)"
     size_t funcPos = src.find("FragmentKernel");
     if (funcPos == std::string::npos)
     {
-        // No FragmentKernel function — return raw source wrapped in main()
-        // This handles edge cases where the kernel is already in main() format
-        std::string result = BuildFragmentTemplate(src);
+        std::string result = BuildFragmentTemplate(src, varyings);
         result += "void main()\n{\n";
         result += src;
         result += "\n}\n";
         return result;
     }
 
-    // 2b. Extract any code before FragmentKernel (helper functions, constants, etc.)
-    //     Walk back from funcPos to find the return type ("vec4") to get the real start
+    // 2b. Extract preamble (code before FragmentKernel)
     std::string preamble;
     {
         size_t declStart = funcPos;
-        // Walk back over whitespace and the return type
         if (declStart > 0)
         {
             size_t pos = declStart - 1;
-            // Skip whitespace
             while (pos > 0 && (src[pos] == ' ' || src[pos] == '\t' || src[pos] == '\n' || src[pos] == '\r'))
                 --pos;
-            // Find start of return type token (e.g. "vec4")
-            size_t tokenEnd = pos + 1;
             while (pos > 0 && (isalnum(src[pos]) || src[pos] == '_'))
                 --pos;
             if (!isalnum(src[pos]) && src[pos] != '_')
@@ -266,21 +401,16 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
             declStart = pos;
         }
         if (declStart > 0)
-        {
             preamble = src.substr(0, declStart);
-        }
     }
 
-    // Find the opening parenthesis of the parameter list
+    // Find parameter name
     size_t parenOpen = src.find('(', funcPos);
     size_t parenClose = src.find(')', parenOpen);
     if (parenOpen == std::string::npos || parenClose == std::string::npos)
         return "";
 
-    // Extract parameter name (the last word before ')')
     std::string paramStr = src.substr(parenOpen + 1, parenClose - parenOpen - 1);
-    // paramStr is like "vec2 texCoord" or " vec2 uv "
-    // Find the last token
     std::string paramName;
     {
         std::istringstream iss(paramStr);
@@ -289,41 +419,32 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
     }
     if (paramName.empty()) paramName = "texCoord";
 
-    // 3. Find the function body (between { and })
+    // 3. Extract function body
     size_t bodyOpen = src.find('{', parenClose);
     if (bodyOpen == std::string::npos) return "";
-
     size_t bodyClose = FindMatchingBrace(src, bodyOpen);
     if (bodyClose == std::string::npos) return "";
-
     std::string body = src.substr(bodyOpen + 1, bodyClose - bodyOpen - 1);
 
-    // 4. Declare a local variable initialized from the varying, then replace
-    //    the parameter name with it. This avoids writing to the varying input
-    //    (v_TexCoord) which can fail on Metal shaders.
-    //    Use word boundary replacement to avoid replacing substrings.
+    // 4. Parameter → local variable
     {
         std::string localVar = "_" + paramName;
         std::string localDecl = "vec2 " + localVar + " = v_TexCoord.xy;\n";
         body = "\n    " + localDecl + body;
 
-        size_t pos = localDecl.size() + 5; // skip past the declaration we just inserted
+        size_t pos = localDecl.size() + 5;
         while ((pos = body.find(paramName, pos)) != std::string::npos)
         {
-            // Check word boundaries
-            bool leftBoundary = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
+            bool leftOk = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
             size_t endPos = pos + paramName.size();
-            bool rightBoundary = (endPos >= body.size()) || (!isalnum(body[endPos]) && body[endPos] != '_');
-
-            if (leftBoundary && rightBoundary)
+            bool rightOk = (endPos >= body.size()) || (!isalnum(body[endPos]) && body[endPos] != '_');
+            if (leftOk && rightOk)
             {
                 body.replace(pos, paramName.size(), localVar);
                 pos += localVar.size();
             }
             else
-            {
                 pos += paramName.size();
-            }
         }
     }
 
@@ -332,11 +453,9 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
         size_t pos = 0;
         while ((pos = body.find("return", pos)) != std::string::npos)
         {
-            // Check word boundaries
             bool leftOk = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
             size_t afterReturn = pos + 6;
             bool rightOk = (afterReturn >= body.size()) || (!isalnum(body[afterReturn]) && body[afterReturn] != '_');
-
             if (leftOk && rightOk)
             {
                 size_t semiPos = body.find(';', afterReturn);
@@ -348,27 +467,26 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
                     pos += replacement.size();
                 }
                 else
-                {
                     pos = afterReturn;
-                }
             }
             else
-            {
                 pos = afterReturn;
-            }
         }
     }
 
-    // 6. Build the complete .sc source, deduplicating uniform declarations
-    std::string result = BuildFragmentTemplate(preamble);
+    // 6. Process varyings in preamble and body
+    if (!varyings.empty())
+    {
+        preamble = RemoveVaryingDeclarations(preamble);
+        preamble = ReplaceVaryingNames(preamble, varyings);
+        body = ReplaceVaryingNames(body, varyings);
+    }
 
-    // Include helper functions/constants defined before FragmentKernel
+    // 7. Build complete .sc source
+    std::string result = BuildFragmentTemplate(preamble, varyings);
+
     if (!preamble.empty())
     {
-        // Strip any uniform declarations from preamble that are already in the template
-        // (e.g. u_TotalTime, u_TexelSize, etc.) to avoid double declarations.
-        // User data uniforms (u_UserData0-3) from preamble are kept as-is since
-        // BuildFragmentTemplate already skipped the template versions.
         result += preamble;
         result += "\n";
     }
@@ -377,18 +495,217 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
     result += body;
     result += "}\n";
 
-    // Diagnostic: print the generated .sc code
     Rtt_LogException("=== TransformFragmentKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
-
     return result;
 }
 
-std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel)
+// ----------------------------------------------------------------------------
+// TransformVertexKernel
+// ----------------------------------------------------------------------------
+
+std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
+                                                       const VaryingMapping& varyings)
 {
-    // For now, custom vertex kernels are not supported in bgfx mode.
-    // The default vertex shader will be used.
-    (void)kernel;
-    return "";
+    if (!kernel || !*kernel) return "";
+
+    std::string src(kernel);
+    src = StripPrecisionMacros(src);
+
+    // Find VertexKernel function
+    size_t funcPos = src.find("VertexKernel");
+    if (funcPos == std::string::npos)
+    {
+        Rtt_LogException("TransformVertexKernel: no VertexKernel function found\n");
+        return "";
+    }
+
+    // Extract preamble (code before VertexKernel declaration)
+    std::string preamble;
+    {
+        size_t declStart = funcPos;
+        if (declStart > 0)
+        {
+            size_t p = declStart - 1;
+            while (p > 0 && (src[p] == ' ' || src[p] == '\t' || src[p] == '\n' || src[p] == '\r'))
+                --p;
+            while (p > 0 && (isalnum(src[p]) || src[p] == '_'))
+                --p;
+            if (!isalnum(src[p]) && src[p] != '_')
+                ++p;
+            declStart = p;
+        }
+        if (declStart > 0)
+            preamble = src.substr(0, declStart);
+    }
+
+    // Extract parameter name
+    size_t parenOpen = src.find('(', funcPos);
+    size_t parenClose = src.find(')', parenOpen);
+    if (parenOpen == std::string::npos || parenClose == std::string::npos) return "";
+
+    std::string paramStr = src.substr(parenOpen + 1, parenClose - parenOpen - 1);
+    std::string paramName;
+    {
+        std::istringstream iss(paramStr);
+        std::string token;
+        while (iss >> token) paramName = token;
+    }
+    if (paramName.empty()) paramName = "position";
+
+    // Extract function body
+    size_t bodyOpen = src.find('{', parenClose);
+    if (bodyOpen == std::string::npos) return "";
+    size_t bodyClose = FindMatchingBrace(src, bodyOpen);
+    if (bodyClose == std::string::npos) return "";
+    std::string body = src.substr(bodyOpen + 1, bodyClose - bodyOpen - 1);
+
+    // Clean preamble: remove varying declarations, replace varying names
+    preamble = RemoveVaryingDeclarations(preamble);
+    preamble = ReplaceVaryingNames(preamble, varyings);
+
+    // Replace varying names in body
+    body = ReplaceVaryingNames(body, varyings);
+
+    // Replace parameter name with _position (word-boundary safe)
+    {
+        size_t pos = 0;
+        while ((pos = body.find(paramName, pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
+            size_t endPos = pos + paramName.size();
+            bool rightOk = (endPos >= body.size()) || (!isalnum(body[endPos]) && body[endPos] != '_');
+            if (leftOk && rightOk)
+            {
+                body.replace(pos, paramName.size(), "_position");
+                pos += 9; // strlen("_position")
+            }
+            else
+                pos += paramName.size();
+        }
+    }
+
+    // Replace "return <expr>;" → "gl_Position = mul(u_ViewProjectionMatrix, vec4(<expr>, 0.0, 1.0));"
+    {
+        size_t pos = 0;
+        while ((pos = body.find("return", pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
+            size_t afterReturn = pos + 6;
+            bool rightOk = (afterReturn >= body.size()) || (!isalnum(body[afterReturn]) && body[afterReturn] != '_');
+            if (leftOk && rightOk)
+            {
+                size_t semiPos = body.find(';', afterReturn);
+                if (semiPos != std::string::npos)
+                {
+                    std::string expr = body.substr(afterReturn, semiPos - afterReturn);
+                    // Trim whitespace
+                    size_t fs = expr.find_first_not_of(" \t\n\r");
+                    size_t ls = expr.find_last_not_of(" \t\n\r");
+                    if (fs != std::string::npos)
+                        expr = expr.substr(fs, ls - fs + 1);
+
+                    std::string replacement = "gl_Position = mul(u_ViewProjectionMatrix, vec4("
+                                              + expr + ", 0.0, 1.0));";
+                    body.replace(pos, semiPos - pos + 1, replacement);
+                    pos += replacement.size();
+                }
+                else
+                    pos = afterReturn;
+            }
+            else
+                pos = afterReturn;
+        }
+    }
+
+    // Build $output line
+    std::string outputLine = "$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2";
+    for (int i = 0; i < 4; i++)
+    {
+        char slot[16];
+        snprintf(slot, sizeof(slot), "v_Custom%d", i);
+        for (const auto& p : varyings)
+        {
+            if (p.second.slot == slot)
+            {
+                outputLine += ", ";
+                outputLine += slot;
+                break;
+            }
+        }
+    }
+
+    // Build complete .sc source
+    std::string result;
+    result += "$input a_position, a_texcoord0, a_color0, a_texcoord1\n";
+    result += outputLine + "\n";
+    result += "\n#include <bgfx_shader.sh>\n\n";
+    result += "uniform mat4 u_ViewProjectionMatrix;\n";
+    result += "uniform mat3 u_MaskMatrix0;\n";
+    result += "uniform mat3 u_MaskMatrix1;\n";
+    result += "uniform mat3 u_MaskMatrix2;\n";
+    result += "uniform vec4 u_TotalTime;\n";
+    result += "uniform vec4 u_DeltaTime;\n";
+    result += "uniform vec4 u_TexelSize;\n";
+    result += "uniform vec4 u_ContentScale;\n";
+    result += "uniform vec4 u_ContentSize;\n";
+    result += "\n";
+
+    // User data uniforms (skip duplicates from preamble)
+    for (int i = 0; i < kNumUserDataUniforms; ++i)
+    {
+        if (!PreambleDeclaresUniform(preamble, kUserDataUniformNames[i]))
+            result += kUserDataUniformDecls[i];
+    }
+    result += "\n";
+
+    result += "#define CoronaVertexUserData a_texcoord1\n";
+    result += "#define CoronaTexCoord a_texcoord0.xy\n";
+    result += "#define CoronaTotalTime u_TotalTime.x\n";
+    result += "#define CoronaDeltaTime u_DeltaTime.x\n";
+    result += "#define CoronaTexelSize u_TexelSize\n";
+    result += "#define CoronaContentScale u_ContentScale.xy\n";
+    result += "\n";
+
+    // User preamble (helper functions, uniforms — varying decls already removed)
+    if (!preamble.empty())
+    {
+        result += preamble;
+        result += "\n";
+    }
+
+    result += "void main()\n{\n";
+    result += "    // Standard varying passthrough\n";
+    result += "    v_TexCoord = vec3(a_texcoord0.xy, 0.0);\n";
+    result += "    v_ColorScale = a_color0;\n";
+    result += "    v_UserData = a_texcoord1;\n";
+    result += "    vec3 maskPos = vec3(a_position.xy, 1.0);\n";
+    result += "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n";
+    result += "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n";
+    result += "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n";
+    result += "\n";
+
+    // Initialize custom varyings to default
+    for (int i = 0; i < 4; i++)
+    {
+        char slot[16];
+        snprintf(slot, sizeof(slot), "v_Custom%d", i);
+        for (const auto& p : varyings)
+        {
+            if (p.second.slot == slot)
+            {
+                result += "    " + std::string(slot) + " = vec4(0.0, 0.0, 0.0, 0.0);\n";
+                break;
+            }
+        }
+    }
+
+    result += "\n    // User vertex kernel\n";
+    result += "    vec2 _position = a_position.xy;\n";
+    result += body;
+    result += "\n}\n";
+
+    Rtt_LogException("=== TransformVertexKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -502,8 +819,11 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         return false;
     }
 
-    // Transform fragment kernel → .sc format
-    std::string fragSc = TransformFragmentKernel(kernelFrag);
+    // Parse custom varyings from both kernels (shared mapping for consistency)
+    VaryingMapping varyings = ParseCustomVaryings(kernelVert, kernelFrag);
+
+    // Transform fragment kernel → .sc format (with varying mapping)
+    std::string fragSc = TransformFragmentKernel(kernelFrag, varyings);
     if (fragSc.empty())
     {
         outError = "Failed to transform fragment kernel to .sc format";
@@ -526,23 +846,27 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     snprintf(fsKey, sizeof(fsKey), "fs_%s_%s.bin", category, name);
     CacheCompiledShader(fsKey, fsBinary);
 
-    // For vertex shader: use default (don't compile custom)
-    // The default VS binary from the embedded table will be used
-    // Only compile custom VS if provided and different from default
+    // Compile custom vertex shader if provided
     if (kernelVert && *kernelVert)
     {
-        std::string vertSc = TransformVertexKernel(kernelVert);
+        std::string vertSc = TransformVertexKernel(kernelVert, varyings);
         if (!vertSc.empty())
         {
             std::vector<uint8_t> vsBinary;
             std::string vsError;
-            if (CompileShader(vertSc, 'v', vsBinary, vsError))
+            if (CompileShader(vertSc, 'v', vsBinary, vsError, effectTag))
             {
                 char vsKey[256];
                 snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
                 CacheCompiledShader(vsKey, vsBinary);
             }
-            // VS compilation failure is non-fatal — default VS will be used
+            else
+            {
+                // VS compilation failure is non-fatal — default VS will be used
+                Rtt_LogException("WARNING: Custom vertex shader compilation failed for '%s.%s': %s\n"
+                                 "Falling back to default vertex shader.\n",
+                                 category, name, vsError.c_str());
+            }
         }
     }
 
