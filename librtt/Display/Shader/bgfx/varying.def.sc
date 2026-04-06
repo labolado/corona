@@ -18,6 +18,11 @@ vec2 v_opennessOffsetMatrix0       : TEXCOORD16 = vec2(0.0, 0.0);
 vec2 v_opennessOffsetMatrix1       : TEXCOORD17 = vec2(0.0, 0.0);
 vec2 v_feathering_edges_radians    : TEXCOORD18 = vec2(0.0, 0.0);
 
+vec4 v_Custom0                     : TEXCOORD19 = vec4(0.0, 0.0, 0.0, 0.0);
+vec4 v_Custom1                     : TEXCOORD20 = vec4(0.0, 0.0, 0.0, 0.0);
+vec4 v_Custom2                     : TEXCOORD21 = vec4(0.0, 0.0, 0.0, 0.0);
+vec4 v_Custom3                     : TEXCOORD22 = vec4(0.0, 0.0, 0.0, 0.0);
+
 vec3 a_position  : POSITION;
 vec3 a_texcoord0 : TEXCOORD0;
 vec4 a_color0    : COLOR0;
