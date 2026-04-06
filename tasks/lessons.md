@@ -106,3 +106,13 @@
 - 测试不能只用程序化对象，必须包含真实文件加载（PNG/JPG）
 - 用真实项目做集成验证（labo_tank 等）
 - 测试覆盖盲区 = 生产 bug
+
+### 不能在 worker 有未提交改动时杀掉
+**日期**: 2026-04-06
+**场景**: w-tex-fix2 在加诊断日志，有未提交改动，被 coordinator 直接 kill 重开新 worker
+**问题**: 丢失工作进度，新 worker 不知道前一个做了什么
+**教训**: 
+- 杀 worker 前必须 `git diff --stat` 检查有无改动
+- 有改动 → 催它继续，不杀
+- 必须重启 → 先 `git stash` 保存，重启后 `git stash pop` 恢复
+- 绝不直接 kill 正在工作的 worker

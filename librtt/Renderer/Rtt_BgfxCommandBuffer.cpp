@@ -118,6 +118,11 @@ BgfxCommandBuffer::InitializeFBO()
     // bgfx renders views in ascending ID order by default
     fDefaultView = 200;
     fCurrentView = fDefaultView;
+
+    // CRITICAL: Solar2D uses painter's algorithm (draw order = layer order).
+    // Without Sequential mode, bgfx may reorder draws by state for performance,
+    // causing incorrect overlapping (e.g., background drawn over foreground).
+    bgfx::setViewMode( fDefaultView, bgfx::ViewMode::Sequential );
 }
 
 void
@@ -723,6 +728,8 @@ BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
+    // (diagnostic removed - texture binding verified correct)
+
     // GPU instancing path (BatchObject)
     if ( cmd.instanceDraw )
     {

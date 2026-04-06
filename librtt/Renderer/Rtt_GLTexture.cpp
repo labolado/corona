@@ -160,7 +160,7 @@ GLTexture::Create( CPUResource* resource )
 
     SUMMED_TIMING( gltc, "Texture GPU Resource: Create" );
 
-    // Debug: log texture creation
+    // Debug: log texture creation with per-pixel byte dump for kBGRA
     {
         static int sDbg = 0;
         if (sDbg < 20)
@@ -169,6 +169,17 @@ GLTexture::Create( CPUResource* resource )
             Rtt_LogException("GL_TEX_CREATE: fmt=%d w=%u h=%u data_first4bytes=%02x%02x%02x%02x\n",
                 (int)texture->GetFormat(), texture->GetWidth(), texture->GetHeight(),
                 data ? data[0] : 0, data ? data[1] : 0, data ? data[2] : 0, data ? data[3] : 0);
+            if (data && (texture->GetFormat() == Texture::kBGRA || texture->GetFormat() == Texture::kARGB))
+            {
+                uint32_t pixCount = texture->GetWidth() * texture->GetHeight();
+                uint32_t diagN = (pixCount < 8) ? pixCount : 8;
+                for (uint32_t i = 0; i < diagN; ++i)
+                {
+                    const U8* p = data + i * 4;
+                    Rtt_LogException("GL_TEX_DIAG pixel[%u] bytes: [%02x, %02x, %02x, %02x]\n",
+                        i, p[0], p[1], p[2], p[3]);
+                }
+            }
             sDbg++;
         }
     }
