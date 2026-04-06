@@ -49,6 +49,7 @@ public:
 
     // Get renderer capabilities
     virtual const RendererCaps& GetCaps() const;
+    virtual bool IsBgfx() const override { return true; }
 
     // Read back the current FBO's content to CPU bitmap (for display.capture save-to-file)
     virtual void CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitmap, S32 x_in_pixels, S32 y_in_pixels, S32 w_in_pixels, S32 h_in_pixels );

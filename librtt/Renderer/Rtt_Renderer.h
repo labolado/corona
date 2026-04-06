@@ -74,6 +74,8 @@ class Renderer
             return sDefaultCaps;
         }
 
+        virtual bool IsBgfx() const { return false; }
+
         virtual ~Renderer();
 
         // Called once at the start of the application. This function may only

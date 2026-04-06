@@ -832,16 +832,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
-    // Diagnostic: dump uniform values for custom shaders
-    {
-        static int sDiagDrawCount = 0;
-        bool hasUserData = cmd.uniforms[Uniform::kUserData0].valid;
-        if ( hasUserData && sDiagDrawCount < 5 )
-        {
-            sDiagDrawCount++;
-            const float* ud0 = reinterpret_cast<const float*>( cmd.uniforms[Uniform::kUserData0].data );
-        }
-    }
+    // Diagnostic: removed
 
     // Handle TriangleFan conversion
     if( cmd.primitiveType == Geometry::kTriangleFan )
@@ -981,8 +972,15 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
     }
 
-    // Use transient IB for indexed draws (static IB causes corruption on Metal)
+    if( !geo->IsTransient() && geo->HasStaticVB() && geo->HasStaticIB() )
     {
+        // storedOnGPU: use existing static buffers directly
+        geo->SetVertexBuffer( 0, cmd.geometry->GetVerticesUsed() );
+        geo->SetIndexBuffer( 0, cmd.geometry->GetIndicesUsed() );
+    }
+    else
+    {
+        // Transient/dynamic path: copy data into transient buffers
         const Geometry::Index* indexData = cmd.geometry->GetIndexData();
         U32 indexCount = cmd.geometry->GetIndicesUsed();
         if( !indexData || indexCount == 0 )
@@ -998,7 +996,6 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         bgfx::allocTransientIndexBuffer( &tib, indexCount );
         memcpy( tib.data, indexData, indexCount * sizeof( Geometry::Index ) );
 
-        // Also use transient VB to match
         const Geometry::Vertex* vertexData = cmd.geometry->GetVertexData();
         U32 vertexCount = cmd.geometry->GetVerticesUsed();
         if( !vertexData || vertexCount == 0 )
@@ -1016,30 +1013,30 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 
         bgfx::setVertexBuffer( 0, &tvb );
         bgfx::setIndexBuffer( &tib );
+    }
 
-        // Set textures
-        for( U32 i = 0; i < kMaxTextureUnits; i++ )
+    // Set textures
+    for( U32 i = 0; i < kMaxTextureUnits; i++ )
+    {
+        if( cmd.textures[i] )
         {
-            if( cmd.textures[i] )
+            BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+            if( tex )
             {
-                BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
-                if( tex )
+                bgfx::TextureHandle texHandle = tex->GetHandle();
+                if( bgfx::isValid( texHandle ) )
                 {
-                    bgfx::TextureHandle texHandle = tex->GetHandle();
-                    if( bgfx::isValid( texHandle ) )
+                    bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                    if( bgfx::isValid( sampler ) )
                     {
-                        bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
-                        if( bgfx::isValid( sampler ) )
-                        {
-                            bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
-                        }
+                        bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
                     }
                 }
             }
         }
-
-        bgfx::submit( fCurrentView, programHandle );
     }
+
+    bgfx::submit( fCurrentView, programHandle );
 }
 
 void

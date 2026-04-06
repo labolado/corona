@@ -100,7 +100,7 @@ void
 BgfxGeometry::CreateStatic( Geometry* geometry )
 {
 	const Geometry::Vertex* vertexData = geometry->GetVertexData();
-	
+
 	if( !vertexData )
 	{
 		Rtt_LogException( "Unable to initialize BgfxGeometry. Data is NULL" );
@@ -126,6 +126,7 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 		fIndexBufferHandle = bgfx::createIndexBuffer( indexMem, BGFX_BUFFER_NONE );
 		fHasIndexBuffer = true;
 	}
+
 
 	fVertexCount = vertexCount;
 	fIsDynamic = false;
@@ -397,6 +398,7 @@ BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 		{
 			bgfx::setVertexBuffer( 0, &fTransientVB, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}
+		// No transient VB available - skip
 	}
 	else if( fIsDynamic )
 	{
