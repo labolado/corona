@@ -783,7 +783,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
                             bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
                             if ( bgfx::isValid( sampler ) )
                             {
-                                bgfx::setTexture( i, sampler, texHandle );
+                                bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
                             }
                         }
                     }
@@ -879,7 +879,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
                             bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
                             if( bgfx::isValid( sampler ) )
                             {
-                                bgfx::setTexture( i, sampler, texHandle );
+                                bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
                             }
                         }
                     }

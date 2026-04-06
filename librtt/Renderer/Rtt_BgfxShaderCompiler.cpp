@@ -247,22 +247,27 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
 
     std::string body = src.substr(bodyOpen + 1, bodyClose - bodyOpen - 1);
 
-    // 4. Replace parameter name with v_TexCoord.xy
-    //    Use word boundary replacement to avoid replacing substrings
+    // 4. Declare a local variable initialized from the varying, then replace
+    //    the parameter name with it. This avoids writing to the varying input
+    //    (v_TexCoord) which can fail on Metal shaders.
+    //    Use word boundary replacement to avoid replacing substrings.
     {
-        std::string replacement = "v_TexCoord.xy";
-        size_t pos = 0;
+        std::string localVar = "_" + paramName;
+        std::string localDecl = "vec2 " + localVar + " = v_TexCoord.xy;\n";
+        body = "\n    " + localDecl + body;
+
+        size_t pos = localDecl.size() + 5; // skip past the declaration we just inserted
         while ((pos = body.find(paramName, pos)) != std::string::npos)
         {
             // Check word boundaries
-            bool leftBoundary = (pos == 0) || !isalnum(body[pos - 1]) && body[pos - 1] != '_';
+            bool leftBoundary = (pos == 0) || (!isalnum(body[pos - 1]) && body[pos - 1] != '_');
             size_t endPos = pos + paramName.size();
             bool rightBoundary = (endPos >= body.size()) || (!isalnum(body[endPos]) && body[endPos] != '_');
 
             if (leftBoundary && rightBoundary)
             {
-                body.replace(pos, paramName.size(), replacement);
-                pos += replacement.size();
+                body.replace(pos, paramName.size(), localVar);
+                pos += localVar.size();
             }
             else
             {
@@ -316,6 +321,9 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel)
     result += "void main()\n{";
     result += body;
     result += "}\n";
+
+    // Diagnostic: print the generated .sc code
+    Rtt_LogException("=== TransformFragmentKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
 
     return result;
 }
