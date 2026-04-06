@@ -39,7 +39,8 @@ BgfxTexture::BgfxTexture()
 	fBoundUnit( 0 ),
 	fCachedFormat( -1 ),
 	fCachedWidth( 0 ),
-	fCachedHeight( 0 )
+	fCachedHeight( 0 ),
+	fSamplerFlags( 0 )
 {
 }
 
@@ -81,13 +82,27 @@ BgfxTexture::ConvertFilter( Texture::Filter filter )
 }
 
 uint64_t
-BgfxTexture::ConvertWrap( Texture::Wrap wrap )
+BgfxTexture::ConvertWrapX( Texture::Wrap wrap )
 {
 	switch( wrap )
 	{
-		case Texture::kClampToEdge:		return BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+		case Texture::kClampToEdge:		return BGFX_SAMPLER_U_CLAMP;
 		case Texture::kRepeat:			return 0; // Default is repeat
-		case Texture::kMirroredRepeat:	return BGFX_SAMPLER_U_MIRROR | BGFX_SAMPLER_V_MIRROR;
+		case Texture::kMirroredRepeat:	return BGFX_SAMPLER_U_MIRROR;
+		default:
+			Rtt_ASSERT_NOT_REACHED();
+			return 0;
+	}
+}
+
+uint64_t
+BgfxTexture::ConvertWrapY( Texture::Wrap wrap )
+{
+	switch( wrap )
+	{
+		case Texture::kClampToEdge:		return BGFX_SAMPLER_V_CLAMP;
+		case Texture::kRepeat:			return 0; // Default is repeat
+		case Texture::kMirroredRepeat:	return BGFX_SAMPLER_V_MIRROR;
 		default:
 			Rtt_ASSERT_NOT_REACHED();
 			return 0;
@@ -111,8 +126,11 @@ BgfxTexture::Create( CPUResource* resource )
 	// Build sampler flags from filter and wrap modes
 	uint64_t flags = BGFX_TEXTURE_NONE;
 	flags |= ConvertFilter( texture->GetFilter() );
-	flags |= ConvertWrap( texture->GetWrapX() );
-	flags |= ConvertWrap( texture->GetWrapY() );
+	flags |= ConvertWrapX( texture->GetWrapX() );
+	flags |= ConvertWrapY( texture->GetWrapY() );
+
+	// Cache sampler flags for use during setTexture calls
+	fSamplerFlags = static_cast<uint32_t>( flags & 0xFFFFFFFF );
 
 	// Convert texture format
 	bgfx::TextureFormat::Enum format = ConvertFormat( texture->GetFormat() );
@@ -376,8 +394,9 @@ BgfxTexture::Update( CPUResource* resource )
 
 			uint64_t flags = BGFX_TEXTURE_NONE;
 			flags |= ConvertFilter( texture->GetFilter() );
-			flags |= ConvertWrap( texture->GetWrapX() );
-			flags |= ConvertWrap( texture->GetWrapY() );
+			flags |= ConvertWrapX( texture->GetWrapX() );
+			flags |= ConvertWrapY( texture->GetWrapY() );
+			fSamplerFlags = static_cast<uint32_t>( flags & 0xFFFFFFFF );
 
 			const bgfx::Memory* mem = expandedMem ? expandedMem : bgfx::copy( data, dataSize );
 			fHandle = bgfx::createTexture2D(

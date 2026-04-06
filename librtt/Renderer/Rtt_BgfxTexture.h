@@ -42,11 +42,13 @@ class BgfxTexture : public GPUResource
 		S32 GetCachedFormat() const { return fCachedFormat; }
 		U32 GetCachedWidth() const { return fCachedWidth; }
 		U32 GetCachedHeight() const { return fCachedHeight; }
+		uint32_t GetSamplerFlags() const { return fSamplerFlags; }
 
 	private:
 		static bgfx::TextureFormat::Enum ConvertFormat( Texture::Format format );
 		static uint64_t ConvertFilter( Texture::Filter filter );
-		static uint64_t ConvertWrap( Texture::Wrap wrap );
+		static uint64_t ConvertWrapX( Texture::Wrap wrap );
+		static uint64_t ConvertWrapY( Texture::Wrap wrap );
 
 	private:
 		bgfx::TextureHandle fHandle;
@@ -54,6 +56,7 @@ class BgfxTexture : public GPUResource
 		S32 fCachedFormat;
 		U32 fCachedWidth;
 		U32 fCachedHeight;
+		uint32_t fSamplerFlags;
 };
 
 // ----------------------------------------------------------------------------
