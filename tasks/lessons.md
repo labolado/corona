@@ -132,3 +132,58 @@
 - shaderc 可作为外部进程使用，不需要链接为库
 - GLSL kernel → bgfx .sc 转换的关键：替换 FragmentKernel→main、texCoord→v_TexCoord.xy、return→gl_FragColor
 - Metal varying 按 `[[user(locnN)]]` 匹配不按名字，必须用同一个 varying.def.sc 保证 VS/FS 兼容
+
+### Worker 调 gemma4-ask 不要包 timeout 脚本
+**日期**: 2026-04-06
+**场景**: Kimi worker 调 gemma4-ask 做截图对比，用 `wait $pid` 包了一层超时逻辑，两个进程卡住互相等，死锁
+**根因**: gemma4-ask 内部已有超时处理，外面再包一层 timeout/wait 会导致进程残留和死锁
+**修复**: 清掉卡住的进程（`kill`），重新直接调用
+**教训**:
+- 派活时明确告诉 worker：直接调 `bash gemma4-ask.sh`，不要包 timeout、不要用 subprocess 包装
+- gemma4-ask 超时就直接再执行一次同样的命令，不要换分析方式
+- gemma4 服务器是 nohup 后台进程，正常不会停，首次调用可能慢（模型加载），重试即可
+
+### gemma4-ask 在非终端环境阻塞（根因：stdin cat）
+**日期**: 2026-04-06
+**场景**: Kimi worker 调 gemma4-ask 每次都卡住，几分钟无响应
+**根因**: 脚本第 76 行 `if [ ! -t 0 ]` 检测到非终端 stdin → `cat` 读 stdin 永远阻塞。Kimi 的 shell 执行环境 stdin 不是 tty 但也没有管道数据
+**修复**: 加条件 `&& [ $# -eq 0 ]`，有参数（图片文件）时跳过 stdin 读取。同时修复 Argument list too long（base64 改用 stdin + 临时文件传递）
+**教训**: 供 agent 使用的脚本必须考虑非交互式 shell 环境，`[ ! -t 0 ]` 检测不可靠
+
+### Worker 截图必须用标准命令，不要改写
+**日期**: 2026-04-06
+**场景**: Worker 每次截图都自己"改进"Python 脚本，导致变量名错、路径错、截图失败
+**教训**:
+- 派活时给完整的截图 shell 命令，worker 只需替换输出文件名
+- 不允许 worker 改写截图脚本逻辑
+- 标准命令见 CLAUDE.md 的「截图方法」章节
+
+### Kimi worker SAME 汇报不可信（再次验证）
+- **场景**：Kimi worker 汇报 test_compare.sh 结果 "SAME（像素完全一致）"
+- **实际**：bgfx 渲染仍然严重错乱，GL vs bgfx 差异巨大
+- **根因**：Worker 可能没有正确运行测试，或对比了错误的文件
+- **教训**：Kimi 的"修复完成"和"测试通过"一律不信。Coordinator 必须自己验证
+
+### tank_test_copy 必须从 src/main 复制
+- **场景**：从 labo_tank 根目录复制，测试结果 SAME（假阳性）
+- **根因**：Solar2D 项目入口是 src/main/main.lua，根目录没有有效的 main.lua
+- **正确路径**：`cp -a /Users/yee/data/dev/app/labo_tank/src/main /tmp/tank_test_copy`
+- **教训**：每次重建 tank_test_copy 要用正确路径，并 git init 防止被改坏无法恢复
+
+### bgfx tank 渲染 bug 排除的方向
+- samplerFlags 缺失：已修复，但不是根因（修复后仍然错乱）
+- index buffer 丢失：排除（index data 始终有效）
+- MVP 全零：排除（是 printf 精度问题，实际值非零）
+- indexed draw 本身：排除（跳过 ExecuteDrawIndexed 仍然错乱）
+- tiling shader：排除（注释掉仍然错乱）
+- Lua 文件被改坏：排除（干净副本仍然错乱）
+- **未排除方向**：behind[3] 的 display.newMesh + display.fillWithTexture 的 C++ 创建路径对全局渲染状态的影响
+
+### bgfx indexed mesh 导致后续文字消失 bug（已定位，待修复）
+- **场景**：任何包含 `display.newMesh{ mode="indexed" }` 的场景
+- **现象**：mesh 本身渲染正确（红色方块），但 mesh 之后创建的所有文字（display.newText）完全消失
+- **最简复现**：/tmp/test_mesh_project/main.lua（背景+mesh+两行文字，文字全消失）
+- **排除**：transient VB 有效（hasVB=1）、MVP 正确、samplerFlags 已修复
+- **关键线索**：即使用 bgfx::discard() 替代 submit()，后续文字仍消失 → 问题在 ExecuteDrawIndexed 的 state 设置阶段，不在 submit
+- **根因方向**：indexed mesh 的 storedOnGPU geometry 的 Insert/FlushBatch 流程影响了后续 pool geometry 的 batch 或 texture binding
+- **测试项目**：/tmp/test_mesh_project（git init 过，可追踪修改）
