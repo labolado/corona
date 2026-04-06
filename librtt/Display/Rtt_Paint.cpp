@@ -236,16 +236,13 @@ namespace Rtt
 			}
 		}
 
-		// VertexData diagnostic: dump first time for custom shaders
-		static int sVtxDiagCount = 0;
-		if (shouldUpdateShader && sVtxDiagCount < 5 && g->GetVerticesUsed() > 0)
+		// If geometry is stored on GPU (static buffer), mark dirty so bgfx
+		// re-uploads the buffer with updated vertex colors.
+		// Without this, storedOnGPU geometry keeps stale color from creation time
+		// (e.g. during fade-in animation alpha != 255).
+		if (g->GetStoredOnGPU())
 		{
-			sVtxDiagCount++;
-			Geometry::Vertex& v0 = vertices[0];
-			Rtt_LogException("=== VTX DIAG [%d] vertices=%d ux=%.4f uy=%.4f uz=%.4f uw=%.4f ===\n",
-				sVtxDiagCount, g->GetVerticesUsed(), v0.ux, v0.uy, v0.uz, v0.uw);
-			Rtt_LogException("  v0: pos=(%.2f,%.2f) uv=(%.6f,%.6f,%.6f) color=(%d,%d,%d,%d)\n",
-				v0.x, v0.y, v0.u, v0.v, v0.q, v0.rs, v0.gs, v0.bs, v0.as);
+			g->Invalidate();
 		}
 
 		SetValid(kShaderVertexDataFlag);
