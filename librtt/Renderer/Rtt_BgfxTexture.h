@@ -40,6 +40,8 @@ class BgfxTexture : public GPUResource
 		bgfx::TextureHandle GetHandle() const { return fHandle; }
 		U32 GetBoundUnit() const { return fBoundUnit; }
 		S32 GetCachedFormat() const { return fCachedFormat; }
+		U32 GetCachedWidth() const { return fCachedWidth; }
+		U32 GetCachedHeight() const { return fCachedHeight; }
 
 	private:
 		static bgfx::TextureFormat::Enum ConvertFormat( Texture::Format format );

@@ -198,23 +198,17 @@ BgfxTexture::Create( CPUResource* resource )
 		}
 		else if( texture->GetFormat() == Texture::kBGRA )
 		{
-			// Mac CoreGraphics outputs kCGImageAlphaPremultipliedFirst (ARGB component order).
-			// GL correctly reads this via GL_BGRA + GL_UNSIGNED_INT_8_8_8_8 (packed integer),
-			// where the 32-bit LE integer is decoded as: B=bits[24-31], G=bits[16-23],
-			// R=bits[8-15], A=bits[0-7], effectively byte-reversing [byte0,byte1,byte2,byte3]
-			// to get [byte3,byte2,byte1,byte0] = [B,G,R,A].
-			//
-			// bgfx uses byte-wise format (Metal MTLPixelFormatBGRA8Unorm: byte[0]=B, byte[1]=G,
-			// byte[2]=R, byte[3]=A). Without conversion, the raw bytes are misinterpreted.
-			// Fix: byte-reverse each 32-bit pixel to match bgfx's byte-wise BGRA layout.
+			// Mac CoreGraphics with kCGImageAlphaPremultipliedFirst (default byte order):
+			// Bytes in memory: [A, R, G, B].
+			// bgfx BGRA8 is byte-wise: byte[0]=B, byte[1]=G, byte[2]=R, byte[3]=A.
+			// Byte-reverse [A,R,G,B] → [B,G,R,A] to match bgfx BGRA8.
 			uint32_t pixelCount = w * h;
 			const bgfx::Memory* swapMem = bgfx::alloc( pixelCount * 4 );
 			const U32* src32 = reinterpret_cast<const U32*>( data );
 			U32* dst32 = reinterpret_cast<U32*>( swapMem->data );
 			for( uint32_t i = 0; i < pixelCount; ++i )
 			{
-				U32 px = src32[i];
-				dst32[i] = __builtin_bswap32( px );
+				dst32[i] = __builtin_bswap32( src32[i] );
 			}
 			mem = swapMem;
 			// format stays BGRA8
