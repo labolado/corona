@@ -117,11 +117,18 @@
 - 必须重启 → 先 `git stash` 保存，重启后 `git stash pop` 恢复
 - 绝不直接 kill 正在工作的 worker
 
-### 自定义 GLSL shader 在 bgfx 下静默失败
+### 自定义 GLSL shader 在 bgfx 下静默失败 → 已解决
 **日期**: 2026-04-06
 **场景**: Tank 项目用 graphics.defineEffect 的 tiling shader，bgfx 下地面纹理极度放大
-**根因**: bgfx 使用 Metal，自定义 GLSL shader 无法编译为 Metal，静默回退到默认着色器
-**教训**: 
-- 静默失败最危险，必须在 shader 不可用时打 warning
-- 测试必须覆盖 graphics.defineEffect 自定义 shader
-- 按 API 分块排查法非常有效（基础→隔离→组合→逐步还原）
+**根因**: BgfxProgram::LoadShaderBinary() 只查嵌入式 Metal 二进制表，自定义 effect 不在表中→静默回退默认 shader
+**修复**: 实现运行时 GLSL→Metal 编译：
+1. 在 NewShaderBuiltin 检测 bgfx 模式下的自定义 effect（name 含 `.`）
+2. 用 BgfxShaderCompiler::TransformFragmentKernel 把 GLSL kernel 转为 bgfx .sc 格式
+3. 调外部 shaderc 二进制编译 .sc → Metal binary（glslang→SPIR-V→spirv-cross→MSL）
+4. 缓存编译结果，LoadShaderBinary 先查缓存
+5. 编译失败→CORONA_LOG_ERROR 明确报错（不再静默）
+**教训**:
+- 静默失败最危险，必须有明确 ERROR 而非 warning
+- shaderc 可作为外部进程使用，不需要链接为库
+- GLSL kernel → bgfx .sc 转换的关键：替换 FragmentKernel→main、texCoord→v_TexCoord.xy、return→gl_FragColor
+- Metal varying 按 `[[user(locnN)]]` 匹配不按名字，必须用同一个 varying.def.sc 保证 VS/FS 兼容

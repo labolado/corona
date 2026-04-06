@@ -337,6 +337,7 @@
 		0797EB57181F0C0300FA57B5 /* Rtt_PlatformVideoProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0797EB55181F0C0300FA57B5 /* Rtt_PlatformVideoProvider.cpp */; };
 		0797EB5D181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0797EB5C181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm */; };
 		0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
+		0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */; };
 		0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		1203659D565B1E4816695932 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
 		1BE7054EFC6E7BF77BECD8FB /* Rtt_GroupObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */; };
@@ -1786,6 +1787,7 @@
 		F5FFADBC23FFC7DB004E61A9 /* CoronaOfflineiOSPackager.lua in Sources */ = {isa = PBXBuildFile; fileRef = F5FFADB123FFC798004E61A9 /* CoronaOfflineiOSPackager.lua */; };
 		F5FFADBE23FFC80E004E61A9 /* CoronaOfflineiOSPackager.lua in Sources */ = {isa = PBXBuildFile; fileRef = F5FFADB123FFC798004E61A9 /* CoronaOfflineiOSPackager.lua */; };
 		F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
+		F6AC543DB03A1BC8B2B29234 /* Rtt_BgfxShaderCompiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */; };
 		F79481FEAD9ADCF0F97D70C9 /* Rtt_ParticleSystemObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D5F461973D381AB3919AC22 /* Rtt_ParticleSystemObject_Lua.cpp */; };
 		F818407317E3C221003072C4 /* widget_theme_ios7_sheet.lua in Sources */ = {isa = PBXBuildFile; fileRef = F818407117E3C221003072C4 /* widget_theme_ios7_sheet.lua */; };
 		F818407417E3C221003072C4 /* widget_theme_ios7.lua in Sources */ = {isa = PBXBuildFile; fileRef = F818407217E3C221003072C4 /* widget_theme_ios7.lua */; };
@@ -3346,6 +3348,7 @@
 		A4F36554146C44200019808D /* AndroidAppBuildController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AndroidAppBuildController.mm; sourceTree = "<group>"; };
 		A4FBC4F71A2D5479004D9A01 /* libCoronaCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libCoronaCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxProgram.cpp; path = ../../librtt/Renderer/Rtt_BgfxProgram.cpp; sourceTree = "<group>"; };
+		A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxShaderCompiler.cpp; path = ../../librtt/Renderer/Rtt_BgfxShaderCompiler.cpp; sourceTree = "<group>"; };
 		AA2C69A0291476D90093B0BE /* kernel_filter_blurGaussianLinear_gl.lua */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = kernel_filter_blurGaussianLinear_gl.lua; path = Display/Shader/kernel_filter_blurGaussianLinear_gl.lua; sourceTree = "<group>"; };
 		AA2C69A7291476D90093B0BE /* kernel_filter_blurLinearHorizontal_gl.lua */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = kernel_filter_blurLinearHorizontal_gl.lua; path = Display/Shader/kernel_filter_blurLinearHorizontal_gl.lua; sourceTree = "<group>"; };
 		AA2C69A8291476D90093B0BE /* kernel_filter_blurLinearVertical_gl.lua */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = kernel_filter_blurLinearVertical_gl.lua; path = Display/Shader/kernel_filter_blurLinearVertical_gl.lua; sourceTree = "<group>"; };
@@ -3364,6 +3367,7 @@
 		AF5B66F89FFC6126A9B5DE10 /* Rtt_SnapshotObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SnapshotObject_Lua.cpp; path = ../../librtt/Display/Rtt_SnapshotObject_Lua.cpp; sourceTree = "<group>"; };
 		AFF2271DF05502C13A35A2E7 /* Rtt_TextObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextObject_Lua.cpp; path = ../../librtt/Display/Rtt_TextObject_Lua.cpp; sourceTree = "<group>"; };
 		B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxProgram.h; path = ../../librtt/Renderer/Rtt_BgfxProgram.h; sourceTree = "<group>"; };
+		B15F32CA67E350CDC68BF0E5 /* Rtt_BgfxShaderCompiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxShaderCompiler.h; path = ../../librtt/Renderer/Rtt_BgfxShaderCompiler.h; sourceTree = "<group>"; };
 		B5C34561E307CC8B13FF96D9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		B75B111780BD5095C657FA19 /* Rtt_SpriteObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SpriteObject_Lua.cpp; path = ../../librtt/Display/Rtt_SpriteObject_Lua.cpp; sourceTree = "<group>"; };
 		BF8DB6A0D48B31822910E547 /* Rtt_PlatformDisplayObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_PlatformDisplayObject_Lua.cpp; path = ../../librtt/Rtt_PlatformDisplayObject_Lua.cpp; sourceTree = "<group>"; };
@@ -4682,6 +4686,7 @@
 				EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */,
 				ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */,
 				A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */,
+				A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */,
 				3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */,
 				5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */,
 				8C52BCA21BF78A826020BA7F /* Rtt_BgfxCommandBuffer.h */,
@@ -4689,6 +4694,7 @@
 				1806E595B7CF5C51593DF089 /* Rtt_BgfxFrameBufferObject.h */,
 				FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */,
 				B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */,
+				B15F32CA67E350CDC68BF0E5 /* Rtt_BgfxShaderCompiler.h */,
 				86E69617C47C8930B0EF5814 /* Rtt_BgfxRenderer.h */,
 				2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */,
 				62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */,
@@ -7106,6 +7112,7 @@
 				D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
 				AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */,
 				F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */,
+				F6AC543DB03A1BC8B2B29234 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
 				0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */,
 				516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */,
 				F53C328C2404E2A300BC2BED /* CoronaBuilderPluginCollector.lua in Sources */,
@@ -7706,6 +7713,7 @@
 				D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
 				C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */,
 				0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */,
+				0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
 				6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */,
 				DF3A93ABD4A82A100A6B0F29 /* Rtt_BgfxTexture.cpp in Sources */,
 				A47290011AE827C400BC088D /* CoronaLuaObjC.mm in Sources */,

@@ -9,6 +9,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "Renderer/Rtt_BgfxProgram.h"
+#include "Renderer/Rtt_BgfxShaderCompiler.h"
 #include "Renderer/Rtt_Program.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_ShaderTypes.h"
@@ -406,7 +407,32 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                 if (strcmp(type, "vs") == 0) { data = vsData; size = vsSize; }
                 else                         { data = fsData; size = fsSize; }
             }
-            // else: fall through to default shaders for both
+            else
+            {
+                // Not in embedded table — check runtime-compiled cache
+                const char* cacheKey = (strcmp(type, "vs") == 0) ? vsFilename : fsFilename;
+                const unsigned char* cachedData = NULL;
+                size_t cachedSize = 0;
+
+                if (BgfxShaderCompiler::FindCachedShader(cacheKey, cachedData, cachedSize))
+                {
+                    data = cachedData;
+                    size = cachedSize;
+                }
+                else if (strcmp(type, "vs") == 0 && !hasVs)
+                {
+                    // No VS in cache — use default VS (this is expected for custom effects)
+                    // Only log error if FS is also missing (means compilation failed or wasn't attempted)
+                    const unsigned char* fsCachedData = NULL;
+                    size_t fsCachedSize = 0;
+                    if (!hasFs && !BgfxShaderCompiler::FindCachedShader(fsFilename, fsCachedData, fsCachedSize))
+                    {
+                        Rtt_LogException("ERROR: Custom effect '%s' (category '%s') has no compiled bgfx/Metal shader. "
+                            "Falling back to default shader — the effect WILL NOT render correctly.\n",
+                            name.c_str(), categoryStr);
+                    }
+                }
+            }
         }
     }
 

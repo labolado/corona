@@ -21,6 +21,7 @@
 #include "Display/Rtt_ShaderName.h"
 #include "Display/Rtt_ShaderResource.h"
 
+#include "Renderer/Rtt_BgfxShaderCompiler.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
 #include "Renderer/Rtt_Program.h"
 #if defined( Rtt_USE_PRECOMPILED_SHADERS )
@@ -1013,6 +1014,33 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
                             const char *kernelFrag = lua_tostring( L, -1 );
 
 							resource = NewShaderResource( category, name, kernelVert, kernelFrag, localStubsIndex );
+
+							// Custom effects in bgfx mode: compile GLSL→Metal at runtime
+							if (resource.NotNull() && strcmp( fBackend, "bgfxBackend" ) == 0
+								&& name && strchr( name, '.' ) != NULL)
+							{
+								const char* categoryStr = ShaderTypes::StringForCategory( category );
+								if (BgfxShaderCompiler::IsAvailable())
+								{
+									std::string compileError;
+									if (!BgfxShaderCompiler::CompileCustomEffect(
+										categoryStr, name, kernelFrag, kernelVert, compileError))
+									{
+										CORONA_LOG_ERROR(
+											"Custom effect '%s' (category '%s') failed to compile for bgfx/Metal: %s",
+											name, categoryStr, compileError.c_str() );
+									}
+								}
+								else
+								{
+									CORONA_LOG_ERROR(
+										"Custom effect '%s' uses GLSL source which cannot run in bgfx/Metal mode. "
+										"Runtime shader compiler (shaderc) not available. "
+										"The effect will fall back to the default shader and WILL NOT render correctly.",
+										name );
+								}
+							}
+
 							lua_pop( L, 2 ); // pop 2 strings
 #endif
 
