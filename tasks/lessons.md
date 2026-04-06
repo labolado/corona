@@ -116,3 +116,12 @@
 - 有改动 → 催它继续，不杀
 - 必须重启 → 先 `git stash` 保存，重启后 `git stash pop` 恢复
 - 绝不直接 kill 正在工作的 worker
+
+### 自定义 GLSL shader 在 bgfx 下静默失败
+**日期**: 2026-04-06
+**场景**: Tank 项目用 graphics.defineEffect 的 tiling shader，bgfx 下地面纹理极度放大
+**根因**: bgfx 使用 Metal，自定义 GLSL shader 无法编译为 Metal，静默回退到默认着色器
+**教训**: 
+- 静默失败最危险，必须在 shader 不可用时打 warning
+- 测试必须覆盖 graphics.defineEffect 自定义 shader
+- 按 API 分块排查法非常有效（基础→隔离→组合→逐步还原）
