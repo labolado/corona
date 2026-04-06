@@ -612,6 +612,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     const Geometry::ExtensionBlock* block = geometry->GetExtensionBlock();
     bool isInstanced = Geometry::UsesInstancing( block, extensionList );
 	bool mustReconcileFormats = formatsDirty;
+	bool resumingFromGPU = false;
 
     // Geometry that is stored on the GPU does not need to be copied
     // over each frame. As a consequence, they can not be batched.
@@ -696,6 +697,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         {
             batch = false;
             mustReconcileFormats = true; // pointers out of date
+            resumingFromGPU = true;
         }
         fPrevious.fGeometry = geometry;
         
@@ -958,8 +960,11 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     if (mustReconcileFormats)
     {
         FormatExtensionList::ReconcileFormats( fAllocator, fBackCommandBuffer, programList, extensionList, previousVerticesUsed );
-        
-        fVertexOffset = 0; // off-GPU offset rebased to end of previous vertices
+
+        if ( !resumingFromGPU || !IsBgfx() )
+        {
+            fVertexOffset = 0; // off-GPU offset rebased to end of previous vertices
+        }
     }
     
     if (dirtyIndices.Length() > 0)

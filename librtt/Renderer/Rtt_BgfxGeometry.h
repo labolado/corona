@@ -53,6 +53,8 @@ class BgfxGeometry : public GPUResource
         // Debug accessors
         bool IsDynamic() const { return fIsDynamic; }
         bool IsTransient() const { return fIsTransient; }
+        bool HasStaticVB() const { return bgfx::isValid( fVertexBufferHandle ); }
+        bool HasStaticIB() const { return bgfx::isValid( fIndexBufferHandle ); }
         bgfx::VertexBufferHandle GetStaticVBHandle() const { return fVertexBufferHandle; }
         bgfx::DynamicVertexBufferHandle GetDynamicVBHandle() const { return fDynamicVertexBufferHandle; }
         static const bgfx::VertexLayout& GetVertexLayout() { InitializeVertexLayout(); return sVertexLayout; }
