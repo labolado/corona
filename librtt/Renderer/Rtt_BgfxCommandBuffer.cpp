@@ -840,8 +840,6 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         {
             sDiagDrawCount++;
             const float* ud0 = reinterpret_cast<const float*>( cmd.uniforms[Uniform::kUserData0].data );
-            Rtt_LogException("=== BGFX DRAW DIAG [%d] UserData0=(%.4f,%.4f,%.4f,%.4f) offset=%d count=%d ===\n",
-                sDiagDrawCount, ud0[0], ud0[1], ud0[2], ud0[3], cmd.offset, cmd.count);
         }
     }
 
@@ -927,7 +925,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
                         bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
                         if( bgfx::isValid( sampler ) )
                         {
-                            bgfx::setTexture( i, sampler, texHandle );
+                            bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
                         }
                     }
                 }
@@ -983,31 +981,65 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
     }
 
-    geo->SetVertexBuffer( 0, 0 );  // Full vertex buffer
-    geo->SetIndexBuffer( cmd.offset, cmd.count );
-
-    // Set textures
-    for( U32 i = 0; i < kMaxTextureUnits; i++ )
+    // Use transient IB for indexed draws (static IB causes corruption on Metal)
     {
-        if( cmd.textures[i] )
+        const Geometry::Index* indexData = cmd.geometry->GetIndexData();
+        U32 indexCount = cmd.geometry->GetIndicesUsed();
+        if( !indexData || indexCount == 0 )
         {
-            BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
-            if( tex )
+            return;
+        }
+
+        bgfx::TransientIndexBuffer tib;
+        if( bgfx::getAvailTransientIndexBuffer( indexCount ) < indexCount )
+        {
+            return;
+        }
+        bgfx::allocTransientIndexBuffer( &tib, indexCount );
+        memcpy( tib.data, indexData, indexCount * sizeof( Geometry::Index ) );
+
+        // Also use transient VB to match
+        const Geometry::Vertex* vertexData = cmd.geometry->GetVertexData();
+        U32 vertexCount = cmd.geometry->GetVerticesUsed();
+        if( !vertexData || vertexCount == 0 )
+        {
+            return;
+        }
+
+        bgfx::TransientVertexBuffer tvb;
+        if( bgfx::getAvailTransientVertexBuffer( vertexCount, BgfxGeometry::GetVertexLayout() ) < vertexCount )
+        {
+            return;
+        }
+        bgfx::allocTransientVertexBuffer( &tvb, vertexCount, BgfxGeometry::GetVertexLayout() );
+        memcpy( tvb.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
+
+        bgfx::setVertexBuffer( 0, &tvb );
+        bgfx::setIndexBuffer( &tib );
+
+        // Set textures
+        for( U32 i = 0; i < kMaxTextureUnits; i++ )
+        {
+            if( cmd.textures[i] )
             {
-                bgfx::TextureHandle texHandle = tex->GetHandle();
-                if( bgfx::isValid( texHandle ) )
+                BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+                if( tex )
                 {
-                    bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
-                    if( bgfx::isValid( sampler ) )
+                    bgfx::TextureHandle texHandle = tex->GetHandle();
+                    if( bgfx::isValid( texHandle ) )
                     {
-                        bgfx::setTexture( i, sampler, texHandle );
+                        bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                        if( bgfx::isValid( sampler ) )
+                        {
+                            bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
+                        }
                     }
                 }
             }
         }
-    }
 
-    bgfx::submit( fCurrentView, programHandle );
+        bgfx::submit( fCurrentView, programHandle );
+    }
 }
 
 void

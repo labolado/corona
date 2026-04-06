@@ -60,6 +60,7 @@ BgfxGeometry::BgfxGeometry()
 	fHasInstanceBuffer( false ),
 	fIsTransient( false ),
 	fHasTransientVB( false ),
+	fHasTransientIB( false ),
 	fVertexCount( 0 ),
 	fIndexCount( 0 ),
 	fInstancesAllocated( 0 ),
@@ -115,11 +116,12 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 
 	// Create index buffer if present
 	const Geometry::Index* indexData = geometry->GetIndexData();
+	const U32 indexCount = geometry->GetIndicesAllocated();
+
 	if( indexData )
 	{
-		const U32 indexCount = geometry->GetIndicesAllocated();
 		const size_t indexDataSize = indexCount * sizeof( Geometry::Index );
-		
+
 		const bgfx::Memory* indexMem = bgfx::copy( indexData, static_cast<uint32_t>( indexDataSize ) );
 		fIndexBufferHandle = bgfx::createIndexBuffer( indexMem, BGFX_BUFFER_NONE );
 		fHasIndexBuffer = true;
@@ -164,6 +166,9 @@ BgfxGeometry::Create( CPUResource* resource )
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
 	bool shouldStoreOnGPU = geometry->GetStoredOnGPU();
+	const Geometry::Index* indexData = geometry->GetIndexData();
+	U32 indexCount = geometry->GetIndicesAllocated();
+
 
 	if( shouldStoreOnGPU )
 	{
@@ -186,6 +191,8 @@ void
 BgfxGeometry::UpdateStatic( Geometry* geometry )
 {
 	const Geometry::Vertex* vertexData = geometry->GetVertexData();
+	const Geometry::Index* indexData = geometry->GetIndexData();
+
 	if( !vertexData )
 	{
 		Rtt_LogException( "Unable to update BgfxGeometry. Data is NULL" );
@@ -275,6 +282,20 @@ BgfxGeometry::UpdateTransient( Geometry* geometry )
 	memcpy( fTransientVB.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
 	fVertexCount = vertexCount;
 	fHasTransientVB = true;
+
+	// Allocate transient index buffer if geometry has indices
+	const Geometry::Index* indexData = geometry->GetIndexData();
+	U32 indexCount = geometry->GetIndicesUsed();
+	if( indexData && indexCount > 0 && bgfx::getAvailTransientIndexBuffer( indexCount ) >= indexCount )
+	{
+		bgfx::allocTransientIndexBuffer( &fTransientIB, indexCount );
+		memcpy( fTransientIB.data, indexData, indexCount * sizeof( Geometry::Index ) );
+		fHasTransientIB = true;
+	}
+	else
+	{
+		fHasTransientIB = false;
+	}
 }
 
 void
@@ -284,6 +305,9 @@ BgfxGeometry::Update( CPUResource* resource )
 
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
+
+	const Geometry::Index* indexData = geometry->GetIndexData();
+	U32 indexCount = geometry->GetIndicesAllocated();
 
 	if( fIsTransient )
 	{
@@ -341,6 +365,7 @@ BgfxGeometry::Destroy()
 	{
 		// Transient buffers have no persistent handles to destroy
 		fHasTransientVB = false;
+		fHasTransientIB = false;
 	}
 	else if( fIsDynamic )
 	{
@@ -392,6 +417,15 @@ BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 void
 BgfxGeometry::SetIndexBuffer( U32 offset, U32 count )
 {
+	if( fIsTransient )
+	{
+		if( fHasTransientIB )
+		{
+			bgfx::setIndexBuffer( &fTransientIB, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
+		}
+		return;
+	}
+
 	if( !fHasIndexBuffer )
 	{
 		return;

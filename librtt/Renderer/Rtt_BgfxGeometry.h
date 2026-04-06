@@ -84,8 +84,10 @@ class BgfxGeometry : public GPUResource
 
         // Transient vertex buffer (for pool geometries)
         bgfx::TransientVertexBuffer fTransientVB;
+        bgfx::TransientIndexBuffer fTransientIB;
         bool fIsTransient;
         bool fHasTransientVB;
+        bool fHasTransientIB = false;
 
         // State
         U32 fVertexCount;
