@@ -100,10 +100,13 @@ class Texture : public CPUResource
 		bool IsRetina(){ return fIsRetina; }
 		void SetTarget( bool newValue ){ fIsTarget = newValue; }
 		bool IsTarget() const { return fIsTarget; }
+		void SetCanvasFlipY( bool newValue ){ fCanvasFlipY = newValue; }
+		bool IsCanvasFlipY() const { return fCanvasFlipY; }
 
 	private:
 		bool fIsRetina;
 		bool fIsTarget;
+		bool fCanvasFlipY;
 };
 
 // ----------------------------------------------------------------------------

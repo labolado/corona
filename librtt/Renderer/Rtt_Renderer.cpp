@@ -110,6 +110,9 @@ struct StateBlockInfo {
     bool fIgnoredByHash;
 };
 
+// Static: set during renderer initialization based on backend caps
+bool Renderer::s_fboOriginIsTopLeft = false;
+
 struct CustomGraphicsInfo
 {
     CustomGraphicsInfo( Rtt_Allocator* allocator )
@@ -225,6 +228,9 @@ Renderer::Initialize()
 {
     fBackCommandBuffer->Initialize();
     fFrontCommandBuffer->Initialize();
+
+    // Set static flag for ShapePath UV flip logic
+    s_fboOriginIsTopLeft = !GetCaps().originBottomLeft;
 }
 
 void
