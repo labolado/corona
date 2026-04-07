@@ -29,11 +29,19 @@ local S = W / 320  -- Scaling factor
 -- Disable status bar
 display.setStatusBar(display.HiddenStatusBar)
 
+-- Detect backend
+local backend = os.getenv("SOLAR2D_BACKEND") or "?"
+-- On Android, backend is hardcoded in C++ — detect via system info
+if system.getInfo("platform") == "android" then
+    backend = system.getInfo("gpuSupportsHighPrecisionFragmentShaders") and "bgfx" or "gl"
+end
+
 -- Enable debugging output
 print("=== Solar2D bgfx Test Demo Starting ===")
 print("Display size: " .. display.contentWidth .. "x" .. display.contentHeight)
 print("Platform: " .. system.getInfo("platform"))
 print("Environment: " .. system.getInfo("environment"))
+print("Backend: " .. backend)
 
 -- Scene definitions
 local scenes = {
@@ -128,11 +136,60 @@ local navGroup = createNavigationBar()
 composer.stage:insert(navGroup)
 navGroup:toFront()
 
--- Keep navGroup on top after scene changes
--- NOTE: composer dispatches "show" to scene objects, NOT to Runtime
--- Use enterFrame to ensure navGroup stays on top every frame
+-- FPS overlay (large text, top of screen)
+local fpsGroup = display.newGroup()
+local fpsBg = display.newRect(fpsGroup, display.contentCenterX, 20*S, display.contentWidth, 40*S)
+fpsBg:setFillColor(0, 0, 0, 0.7)
+
+local fpsText = display.newText({
+    parent = fpsGroup,
+    text = backend:upper() .. "  FPS: --",
+    x = display.contentCenterX,
+    y = 20*S,
+    font = native.systemFontBold,
+    fontSize = 20*S
+})
+fpsText:setFillColor(0, 1, 0)
+
+local deviceInfo = system.getInfo("platform") .. " / " .. system.getInfo("architectureInfo")
+local infoText = display.newText({
+    parent = fpsGroup,
+    text = deviceInfo,
+    x = display.contentCenterX,
+    y = 38*S,
+    font = native.systemFont,
+    fontSize = 10*S
+})
+infoText:setFillColor(0.7, 0.7, 0.7)
+
+composer.stage:insert(fpsGroup)
+
+-- FPS calculation
+local frameCount = 0
+local lastTime = system.getTimer()
+
+-- Keep navGroup and fpsGroup on top after scene changes
 Runtime:addEventListener("enterFrame", function()
     navGroup:toFront()
+    fpsGroup:toFront()
+
+    -- FPS counter
+    frameCount = frameCount + 1
+    local now = system.getTimer()
+    local elapsed = now - lastTime
+    if elapsed >= 1000 then
+        local fps = math.floor(frameCount / (elapsed / 1000) + 0.5)
+        fpsText.text = backend:upper() .. "  FPS: " .. fps
+        if fps >= 55 then
+            fpsText:setFillColor(0, 1, 0)  -- green
+        elseif fps >= 30 then
+            fpsText:setFillColor(1, 1, 0)  -- yellow
+        else
+            fpsText:setFillColor(1, 0, 0)  -- red
+        end
+        frameCount = 0
+        lastTime = now
+    end
 end)
 
 -- Go to first scene
