@@ -17,11 +17,23 @@
 #include <string.h>
 #include <stdio.h>
 
-// Embedded precompiled Metal shaders (vs_default.bin / fs_default.bin)
-#include "Renderer/Rtt_BgfxShaderData_metal.h"
-
-// Embedded precompiled Metal shaders for all effects (filters, composites, generators)
-#include "Renderer/Rtt_BgfxShaderData_effects_metal.h"
+// Platform-specific precompiled shader data
+#if defined(Rtt_ANDROID_ENV)
+    #include "Renderer/Rtt_BgfxShaderData_essl.h"
+    #include "Renderer/Rtt_BgfxShaderData_effects_essl.h"
+    #define S_VS_DEFAULT s_vs_default_essl
+    #define S_VS_DEFAULT_SIZE s_vs_default_essl_size
+    #define S_FS_DEFAULT s_fs_default_essl
+    #define S_FS_DEFAULT_SIZE s_fs_default_essl_size
+#else
+    // macOS and iOS both use Metal
+    #include "Renderer/Rtt_BgfxShaderData_metal.h"
+    #include "Renderer/Rtt_BgfxShaderData_effects_metal.h"
+    #define S_VS_DEFAULT s_vs_default_metal
+    #define S_VS_DEFAULT_SIZE s_vs_default_metal_size
+    #define S_FS_DEFAULT s_fs_default_metal
+    #define S_FS_DEFAULT_SIZE s_fs_default_metal_size
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -441,13 +453,13 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
     {
         if (strcmp(type, "vs") == 0)
         {
-            data = s_vs_default_metal;
-            size = s_vs_default_metal_size;
+            data = S_VS_DEFAULT;
+            size = S_VS_DEFAULT_SIZE;
         }
         else if (strcmp(type, "fs") == 0)
         {
-            data = s_fs_default_metal;
-            size = s_fs_default_metal_size;
+            data = S_FS_DEFAULT;
+            size = S_FS_DEFAULT_SIZE;
         }
         else
         {
@@ -560,13 +572,13 @@ void BgfxProgram::DestroyUniforms()
 const unsigned char*
 BgfxProgram::GetDefaultFSData()
 {
-    return s_fs_default_metal;
+    return S_FS_DEFAULT;
 }
 
 unsigned int
 BgfxProgram::GetDefaultFSSize()
 {
-    return s_fs_default_metal_size;
+    return S_FS_DEFAULT_SIZE;
 }
 
 // ----------------------------------------------------------------------------
