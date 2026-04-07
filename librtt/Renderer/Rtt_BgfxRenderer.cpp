@@ -10,6 +10,8 @@
 
 #include "Renderer/Rtt_BgfxRenderer.h"
 
+#include "Display/Rtt_SDFRenderer.h"
+#include "Display/Rtt_InstancedBatchRenderer.h"
 #include "Renderer/Rtt_BgfxCommandBuffer.h"
 #include "Renderer/Rtt_BgfxFrameBufferObject.h"
 #include "Renderer/Rtt_BgfxGeometry.h"
@@ -71,8 +73,8 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     int msaaLevel = msaaEnv ? atoi(msaaEnv) : -1;
 
 #if defined(Rtt_IPHONE_ENV) || defined(Rtt_ANDROID_ENV)
-    // Mobile: no FLIP_AFTER_RENDER, MSAA off by default (battery/heat)
-    init.resolution.reset = BGFX_RESET_VSYNC;
+    // Mobile: enable MSAA X2 by default for better quality, no FLIP_AFTER_RENDER (battery/heat)
+    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X2;
 #else
     // Desktop: full quality
     init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
@@ -106,6 +108,9 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         // Set default view clear state (view 200 = screen, FBO views use 1-199)
         bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
         bgfx::setViewRect(200, 0, 0, static_cast<uint16_t>(width), static_cast<uint16_t>(height));
+
+        // Initialize SDF renderer for bgfx
+        SDFRenderer::Instance().Initialize();
     }
 
     return fBgfxInitialized;
@@ -122,6 +127,13 @@ BgfxRenderer::ShutdownBgfx()
 
     if (fBgfxInitialized)
     {
+        // Finalize singleton renderers BEFORE bgfx::shutdown() to ensure
+        // bgfx handles are destroyed while bgfx is still alive.
+        // Static singleton destructors have undefined order relative to
+        // bgfx::shutdown(), so explicit cleanup here is required.
+        SDFRenderer::Instance().Finalize();
+        InstancedBatchRenderer::Instance().Finalize();
+
         bgfx::shutdown();
         fBgfxInitialized = false;
     }
