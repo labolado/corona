@@ -36,6 +36,9 @@ include_directories (
     ${CORONA_ROOT}/external/b2Separator-cpp
     ${CORONA_ROOT}/external/smoothpolygon
     ${ANDROID_NDK_ROOT}/sources/android/cpufeatures
+    ${CORONA_ROOT}/external/bgfx/include
+    ${CORONA_ROOT}/external/bx/include
+    ${CORONA_ROOT}/external/bimg/include
 )
 
 SET( LUA_SOURCES
@@ -641,6 +644,16 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_Uniform.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_VideoTexture.cpp
 
+		# bgfx renderer
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxCommandBuffer.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxExports.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxFrameBufferObject.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxGeometry.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxProgram.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxRenderer.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxShaderCompiler.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxTexture.cpp
+
 		${CORONA_ROOT}/plugins/shared/CoronaLuaLibrary.cpp
 		${CORONA_ROOT}/plugins/shared/CoronaLuaLibraryMetadata.cpp
 
@@ -737,4 +750,8 @@ if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64
 	# NDK version <= 22
 	target_link_options(corona PRIVATE "-Wl,-z,common-page-size=16384")
 endif()
-target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES )
+target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES android
+	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbgfxRelease.a
+	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbimgRelease.a
+	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbxRelease.a
+)
