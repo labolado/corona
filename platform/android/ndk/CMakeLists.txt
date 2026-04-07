@@ -11,6 +11,7 @@ add_definitions(
 	-DDISABLE_IMPORTGL
 	-DLUA_USE_DLOPEN
 	-DLUA_USE_POSIX
+	-DRtt_BGFX
 )
 
 include_directories (

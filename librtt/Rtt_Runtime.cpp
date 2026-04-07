@@ -168,9 +168,13 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 	fArchive(NULL),
 	fPhysicsWorld(Rtt_NEW(&fAllocator, PhysicsWorld(fAllocator))),
 #ifdef Rtt_BGFX
-	fBackend(getenv("SOLAR2D_BACKEND") && strcmp(getenv("SOLAR2D_BACKEND"), "bgfx") == 0 ? "bgfxBackend" : "glBackend"),
+#if defined(Rtt_ANDROID_ENV)
+		fBackend("bgfxBackend"),  // Android: always use bgfx
 #else
-	fBackend("glBackend"),
+		fBackend(getenv("SOLAR2D_BACKEND") && strcmp(getenv("SOLAR2D_BACKEND"), "bgfx") == 0 ? "bgfxBackend" : "glBackend"),
+#endif
+#else
+		fBackend("glBackend"),
 #endif
 	fBackendState(nullptr),
 #ifdef Rtt_USE_ALMIXER

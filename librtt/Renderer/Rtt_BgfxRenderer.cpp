@@ -62,7 +62,11 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     Rtt_ASSERT(nativeWindowHandle != NULL);
 
     bgfx::Init init;
+#if defined(Rtt_ANDROID_ENV)
+    init.type = bgfx::RendererType::OpenGLES;  // Android: force GLES (Vulkan not stable on old devices)
+#else
     init.type = bgfx::RendererType::Count;  // Auto-select best backend
+#endif
     init.resolution.width = width;
     init.resolution.height = height;
     init.platformData.nwh = nativeWindowHandle;
