@@ -27,7 +27,13 @@ struct VaryingInfo
 {
     std::string type;   // e.g. "vec4", "vec3", "vec2", "float"
     std::string slot;   // e.g. "v_Custom0"
+    int arraySize;      // 0 = scalar, >0 = array (e.g. 5 for vec2[5])
 };
+// For scalar varyings: "outlineColor" → { "vec4", "v_Custom0", 0 }
+// For array varyings: "blurCoords" → { "vec2", "v_Custom0", 5 }
+//   Array elements are packed into vec4 slots:
+//     name[0] → v_Custom0.xy, name[1] → v_Custom0.zw,
+//     name[2] → v_Custom1.xy, name[3] → v_Custom1.zw, etc.
 typedef std::unordered_map<std::string, VaryingInfo> VaryingMapping;
 
 // Runtime compiler for Solar2D custom GLSL shaders → bgfx/Metal binary.
