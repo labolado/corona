@@ -318,7 +318,7 @@ function scene:create(event)
     container:setStrokeColor(0.5, 0.5, 0.5)
     
     -- Dynamic object
-    local dynamicObj = display.newCircle(0, 0, 0, 15*S) -- Start not in group
+    local dynamicObj = display.newCircle(0, 0, 15*S) -- Start not in group
     dynamicObj:setFillColor(0.9, 0.5, 0.2)
     sceneGroup:insert(dynamicObj)
     dynamicObj.x, dynamicObj.y = 40*S, 350*S
