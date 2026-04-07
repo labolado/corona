@@ -54,7 +54,17 @@ progressText:setFillColor(0.8, 0.8, 0.8)
 ----------------------------------------------------------------------------
 local function clearTestGroup()
     if testGroup and testGroup.removeSelf then
-        testGroup:removeSelf()
+        -- Remove children individually with pcall to avoid crash
+        -- when bgfx resources (FBO/snapshot) are still in-flight
+        pcall(function()
+            while testGroup.numChildren > 0 do
+                local child = testGroup[testGroup.numChildren]
+                if child and child.removeSelf then
+                    child:removeSelf()
+                end
+            end
+            testGroup:removeSelf()
+        end)
     end
     testGroup = display.newGroup()
     uiGroup:toFront()
