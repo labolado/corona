@@ -206,8 +206,8 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
     bgfx::touch( kBlitView );
     uint32_t currentFrame = bgfx::frame();
 
-    // If data not ready yet, submit another frame
-    if( currentFrame < readyFrame )
+    // If data not ready yet, submit more frames
+    while( currentFrame < readyFrame )
     {
         currentFrame = bgfx::frame();
     }
@@ -221,13 +221,30 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
         U32 copyW = ( readW < bitmapW ) ? readW : bitmapW;
         U32 copyH = ( readH < bitmapH ) ? readH : bitmapH;
 
-        // bgfx readback is RGBA8; bitmap format may differ
-        // Copy row by row, handling potential stride differences
+        // bgfx readback is RGBA8: bytes [R, G, B, A].
+        //
+        // PLATFORM-SPECIFIC byte order conversion:
+        // Mac desktop bitmap (kBGRA) uses kCGImageAlphaPremultipliedFirst with
+        // Big-endian byte order → memory is [A, R, G, B].
+        // GL reads with GL_BGRA + GL_UNSIGNED_INT_8_8_8_8 to match this layout.
+        //
+        // TODO(cross-platform): Windows kBGRA is standard LE [B,G,R,A] — needs
+        // R↔B swap instead of byte rotation. iOS/Android use kRGBA (GLES) and
+        // don't need conversion. Add #if platform guards when porting bgfx to
+        // other desktop platforms.
+        //
+        // Convert RGBA → ARGB(BE): rotate bytes right by 1.
         for( U32 row = 0; row < copyH; ++row )
         {
-            memcpy( dstData + row * bitmapW * 4,
-                    readbackBuffer + row * readW * 4,
-                    copyW * 4 );
+            const U8* src = readbackBuffer + row * readW * 4;
+            U8* dst = dstData + row * bitmapW * 4;
+            for( U32 col = 0; col < copyW; ++col )
+            {
+                dst[col * 4 + 0] = src[col * 4 + 3]; // A
+                dst[col * 4 + 1] = src[col * 4 + 0]; // R
+                dst[col * 4 + 2] = src[col * 4 + 1]; // G
+                dst[col * 4 + 3] = src[col * 4 + 2]; // B
+            }
         }
     }
 
