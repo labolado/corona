@@ -162,44 +162,10 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
     }
     memset( readbackBuffer, 0, bufferSize );
 
-#ifdef Rtt_MAC_ENV
-    // Metal path: synchronous readback via MTLTexture.getBytes.
-    // This avoids extra bgfx::frame() calls that cause black flashes
-    // (each frame() gets a new CAMetalDrawable with undefined/black content).
-    uintptr_t nativePtr = bgfx::getInternalTexturePtr( srcTexture );
-
-    // If texture not yet created on render thread, flush ONE frame to create it.
-    // This single frame() may cause a brief flash, but it's unavoidable for
-    // newly created FBO textures. Without this, we'd need 3 frame() calls
-    // via the bgfx readTexture fallback path, which causes much worse flashing.
-    if( nativePtr == 0 )
+    // Use bgfx generic path (blit + readTexture) with skipPresent protection.
+    // Metal readback via getInternalTexturePtr was removed because calling
+    // getInternal() from the API thread races with the render thread.
     {
-        bgfx::setSkipPresent( true );
-        bgfx::frame();
-        bgfx::setSkipPresent( false );
-        nativePtr = bgfx::getInternalTexturePtr( srcTexture );
-    }
-
-    if( nativePtr != 0 )
-    {
-        bool ok = BgfxMetal_ReadTextureSync(
-            reinterpret_cast<void*>( nativePtr ),
-            static_cast<uint32_t>( x_in_pixels ),
-            static_cast<uint32_t>( y_in_pixels ),
-            readW, readH,
-            readbackBuffer );
-
-        if( !ok )
-        {
-            nativePtr = 0; // fall through to bgfx path
-        }
-    }
-
-    if( nativePtr == 0 )
-#endif
-    {
-        // bgfx generic path: blit + readTexture + frame() calls.
-        // WARNING: causes black flash on Metal due to extra frame() presentations.
         if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
         {
             if( bgfx::isValid( fStagingTexture ) )
