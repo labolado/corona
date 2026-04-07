@@ -5035,12 +5035,19 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
-					"\"$(SRCROOT)/../../external/bgfx/.build/ios-arm64/bin\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/$(BGFX_IOS_PLATFORM)/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-all_load",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-Wl,-U,_MTLIOErrorDomain",
+					"-Wl,-U,_MTLTensorDomain",
 				);
 				PRODUCT_NAME = template;
 				PROVISIONING_PROFILE = "";
@@ -5066,12 +5073,19 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
-					"\"$(SRCROOT)/../../external/bgfx/.build/ios-arm64/bin\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/$(BGFX_IOS_PLATFORM)/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-all_load",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-Wl,-U,_MTLIOErrorDomain",
+					"-Wl,-U,_MTLTensorDomain",
 				);
 				PRODUCT_NAME = template;
 				PROVISIONING_PROFILE = "";
@@ -5600,7 +5614,7 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -5624,6 +5638,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					Rtt_IPHONE_ENV,
+					Rtt_BGFX,
 					Rtt_DEBUG,
 					LUA_USE_OBJC_EXCEPTIONS,
 				);
@@ -5652,6 +5667,8 @@
 					../../external/bimg/include,
 					"../../external/bx/include/compat/ios",
 				);
+				BGFX_IOS_PLATFORM = "ios-arm64";
+				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				ONLY_ACTIVE_ARCH = YES;
 				"OTHER_CFLAGS[arch=arm64]" = "-fexceptions";
@@ -5672,7 +5689,7 @@
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
@@ -5695,6 +5712,7 @@
 				GCC_OPTIMIZATION_LEVEL = 2;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					Rtt_IPHONE_ENV,
+					Rtt_BGFX,
 					NDEBUG,
 					LUA_USE_OBJC_EXCEPTIONS,
 				);
@@ -5723,6 +5741,8 @@
 					../../external/bimg/include,
 					"../../external/bx/include/compat/ios",
 				);
+				BGFX_IOS_PLATFORM = "ios-arm64";
+				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
 				"OTHER_CFLAGS[arch=arm64]" = (

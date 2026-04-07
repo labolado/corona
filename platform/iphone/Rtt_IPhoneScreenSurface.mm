@@ -21,6 +21,11 @@
 
 #import "CoronaOrientationProvider.h"
 
+#ifdef Rtt_BGFX
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
+#endif
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -30,6 +35,9 @@ namespace Rtt
 
 IPhoneScreenSurface::IPhoneScreenSurface( Rtt_GLKView *view )
 :	fView( view ) // NOTE: Weak ref b/c fView owns the Runtime instance that owns this.
+#ifdef Rtt_BGFX
+,	fMetalLayer( nil )
+#endif
 {
 	// NOTE: We assume CoronaView's didMoveToWindow is called already
 	// which for iOS8, correctly sets this value to UIScreen's nativeScale value.
@@ -143,8 +151,23 @@ IPhoneScreenSurface::NativeWindow() const
 	{
 		return NULL;
 	}
-	// bgfx on iOS accepts UIView* directly and creates CAMetalLayer internally
+#ifdef Rtt_BGFX
+	// bgfx on iOS requires a CAMetalLayer directly (not a UIView)
+	if (!fMetalLayer)
+	{
+		CAMetalLayer *layer = [CAMetalLayer layer];
+		layer.device = MTLCreateSystemDefaultDevice();
+		layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+		layer.framebufferOnly = YES;
+		layer.contentsScale = fView.contentScaleFactor;
+		layer.frame = fView.bounds;
+		[fView.layer addSublayer:layer];
+		const_cast<IPhoneScreenSurface*>(this)->fMetalLayer = layer;
+	}
+	return (__bridge void*)fMetalLayer;
+#else
 	return (__bridge void*)fView;
+#endif
 }
 
 Rtt_EAGLContext*
