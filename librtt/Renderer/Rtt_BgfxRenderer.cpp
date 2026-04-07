@@ -210,6 +210,17 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
     // Metal readback via getInternalTexturePtr was removed because calling
     // getInternal() from the API thread races with the render thread.
     {
+        // CRITICAL: Flush all pending rendering to ensure the FBO texture
+        // is fully written before we blit from it. On iOS Metal, blitting
+        // from a texture that's still an active render target crashes.
+        // Submit a frame (skip present) to complete any pending FBO renders.
+        bgfx::ViewId fboViewId = bgfxFbo->GetViewId();
+        bgfx::setViewFrameBuffer( fboViewId, BGFX_INVALID_HANDLE );
+        bgfx::touch( fboViewId );
+        bgfx::setSkipPresent( true );
+        bgfx::frame();
+        bgfx::setSkipPresent( false );
+
         if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
         {
             if( bgfx::isValid( fStagingTexture ) )
@@ -250,11 +261,20 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
             bgfx::setSkipPresent( true );
             uint32_t currentFrame = bgfx::frame();
 
-            while( currentFrame < readyFrame )
+            // Wait for readback with timeout to prevent infinite loop
+            uint32_t maxAttempts = 100;
+            uint32_t attempts = 0;
+            while( currentFrame < readyFrame && attempts < maxAttempts )
             {
                 currentFrame = bgfx::frame();
+                attempts++;
             }
             bgfx::setSkipPresent( false );
+
+            if( attempts >= maxAttempts )
+            {
+                fprintf( stderr, "BGFX CaptureFrameBuffer: readback timeout after %u frames\n", attempts );
+            }
         }
     }
 
