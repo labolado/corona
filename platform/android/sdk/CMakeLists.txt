@@ -4,6 +4,9 @@ project("CoronaAAR")
 
 add_definitions( -DNDEBUG -DANDROID_NDK -DRtt_ANDROID_ENV )
 
+# NDK 27+ Clang treats implicit function declarations as errors; suppress for legacy C code
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int -Wno-incompatible-function-pointer-types -Wno-int-conversion -Wno-incompatible-pointer-types")
+
 get_filename_component(CORONA_ROOT "${CMAKE_SOURCE_DIR}/../../.." ABSOLUTE)
 
 set(Lua2CppOutputDir "${CMAKE_CURRENT_BINARY_DIR}/generated_src")

@@ -10,8 +10,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        minSdk = 15
+        minSdk = 24
         version = 1
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
     sourceSets["main"].manifest.srcFile(file("AndroidManifest-New.xml"))
     sourceSets["main"].java.srcDirs(file("src"), file("../../../external/JNLua/src/main"), file("../../../plugins/network/android/src"))
