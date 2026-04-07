@@ -399,10 +399,11 @@ DisplayV2::Capture( DisplayObject* object,
 		w_in_content_units = ( objectBounds.xMax - x_in_content_units );
 		h_in_content_units = ( objectBounds.yMax - y_in_content_units );
 
+		bool flipY = !GetRenderer().GetCaps().originBottomLeft;
 		Rtt::CreateOrthoMatrix( x_in_content_units,
 								objectBounds.xMax,
-								y_in_content_units,
-								objectBounds.yMax,
+								flipY ? objectBounds.yMax : y_in_content_units,
+								flipY ? y_in_content_units : objectBounds.yMax,
 								0.0f,
 								1.0f,
 								offscreenProjMatrix );
@@ -430,11 +431,11 @@ DisplayV2::Capture( DisplayObject* object,
 		w_in_content_units = ( bounds_to_use->xMax - x_in_content_units );
 		h_in_content_units = ( bounds_to_use->yMax - y_in_content_units );
 
+		bool flipY = !GetRenderer().GetCaps().originBottomLeft;
 		Rtt::CreateOrthoMatrix( x_in_content_units,
 								bounds_to_use->xMax,
-								y_in_content_units,
-								bounds_to_use->yMax,
-
+								flipY ? bounds_to_use->yMax : y_in_content_units,
+								flipY ? y_in_content_units : bounds_to_use->yMax,
 								0.0f,
 								1.0f,
 								offscreenProjMatrix );
@@ -467,7 +468,16 @@ DisplayV2::Capture( DisplayObject* object,
 	//
 	// It's necessary to remove h_in_content_units because the capture region grows towards
 	// the top of the screen (that's driven by the fact that Y+ is up).
-	S32 y_in_pixels = ( contentScreen.yMax - y_in_content_units - h_in_content_units );
+	// For bgfx/Metal (origin top-left), y_in_content_units is already in the correct space.
+	S32 y_in_pixels;
+	if ( fRenderer->GetCaps().originBottomLeft )
+	{
+		y_in_pixels = ( contentScreen.yMax - y_in_content_units - h_in_content_units );
+	}
+	else
+	{
+		y_in_pixels = y_in_content_units;
+	}
 
 	S32 w_in_pixels = w_in_content_units;
 
@@ -618,10 +628,13 @@ DisplayV2::Capture( DisplayObject* object,
 										w_in_pixels,
 										h_in_pixels );
 
-		// We have to flip vertically because the origin in an OpenGL viewport
-		// is the lower left corner, while our origin is in the upper left corner.
-		// Therefore, the X axis matches, but not the Y axis.
-		bitmap->Flip( false, true );
+		// Flip vertically for GL — OpenGL viewport origin is bottom-left,
+		// while our content origin is top-left. For bgfx/Metal (top-left origin),
+		// the flipY projection already corrects the content, so no bitmap flip needed.
+		if ( fRenderer->GetCaps().originBottomLeft )
+		{
+			bitmap->Flip( false, true );
+		}
 	}
 
 	// Restore state so further rendering is unaffected

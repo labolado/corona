@@ -849,10 +849,11 @@ Display::Capture( DisplayObject *object,
         w_in_content_units = ( objectBounds.xMax - x_in_content_units );
         h_in_content_units = ( objectBounds.yMax - y_in_content_units );
 
+        bool flipY = !GetRenderer().GetCaps().originBottomLeft;
         Rtt::CreateOrthoMatrix( x_in_content_units,
                                 objectBounds.xMax,
-                                y_in_content_units,
-                                objectBounds.yMax,
+                                flipY ? objectBounds.yMax : y_in_content_units,
+                                flipY ? y_in_content_units : objectBounds.yMax,
                                 0.0f,
                                 1.0f,
                                 offscreenProjMatrix );
@@ -880,10 +881,11 @@ Display::Capture( DisplayObject *object,
         w_in_content_units = ( bounds_to_use->xMax - x_in_content_units );
         h_in_content_units = ( bounds_to_use->yMax - y_in_content_units );
 
+        bool flipY = !GetRenderer().GetCaps().originBottomLeft;
         Rtt::CreateOrthoMatrix( x_in_content_units,
                                 bounds_to_use->xMax,
-                                y_in_content_units,
-                                bounds_to_use->yMax,
+                                flipY ? bounds_to_use->yMax : y_in_content_units,
+                                flipY ? y_in_content_units : bounds_to_use->yMax,
                                 0.0f,
                                 1.0f,
                                 offscreenProjMatrix );
