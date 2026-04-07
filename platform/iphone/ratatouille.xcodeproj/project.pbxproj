@@ -82,6 +82,14 @@
 		A44D4401164B201300CFE7B3 /* liblua.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4355164B1D5200CFE7B3 /* liblua.a */; };
 		A44D4402164B201300CFE7B3 /* libluafilesystem.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4357164B1D5200CFE7B3 /* libluafilesystem.a */; };
 		A44D4404164B201300CFE7B3 /* librtt.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4353164B1D5200CFE7B3 /* librtt.a */; };
+		8F8BC9367EF77F7EDCE83A6F /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
+		68E76CDD10564DC416A61F09 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
+		19E2659C5FF0CD427DFE00E2 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
+		626BB2248FDBB056CAE15F2A /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
+		EFE3527B5A9DEB2C32292285 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
+		FF5560F274916307CB6AE6D5 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
+		EEA3511263ACEFFCA2EE7D56 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
+		745544A9B9EB2347190C91EC /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
 		A4543E80151AA23A00486F8A /* CoronaApplicationMain.h in Headers */ = {isa = PBXBuildFile; fileRef = A4543E7C151AA23A00486F8A /* CoronaApplicationMain.h */; };
 		A4543E81151AA23A00486F8A /* CoronaApplicationMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4543E7D151AA23A00486F8A /* CoronaApplicationMain.mm */; };
 		A4543E82151AA23A00486F8A /* CoronaDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = A4543E7E151AA23A00486F8A /* CoronaDelegate.h */; };
@@ -1477,6 +1485,10 @@
 		00E867DC1366435F00AAFA26 /* Rtt_AppleReachability.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleReachability.h; sourceTree = "<group>"; };
 		00F2E30812B2E3C8000C2022 /* rttplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rttplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E30A12B2E3C8000C2022 /* librtt.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = librtt.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CA3B0444965C886A79DE927 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbgfxRelease.a; sourceTree = "<absolute>"; };
+		365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbxRelease.a; sourceTree = "<absolute>"; };
+		C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimgRelease.a; sourceTree = "<absolute>"; };
+		1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimg_decodeRelease.a; sourceTree = "<absolute>"; };
 		00F2E30D12B2E3C8000C2022 /* liblua.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liblua.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E31012B2E3C8000C2022 /* libluasocket.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libluasocket.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E31312B2E3C8000C2022 /* libbox2d.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libbox2d.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1739,6 +1751,10 @@
 			files = (
 				A46935B8169D62DA00723568 /* libobjc.dylib in Frameworks */,
 				A47098E4169EAB5C00D31091 /* libplayer.a in Frameworks */,
+				68E76CDD10564DC416A61F09 /* libbgfxRelease.a in Frameworks */,
+				19E2659C5FF0CD427DFE00E2 /* libbxRelease.a in Frameworks */,
+				626BB2248FDBB056CAE15F2A /* libbimgRelease.a in Frameworks */,
+				EFE3527B5A9DEB2C32292285 /* libbimg_decodeRelease.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2036,6 +2052,10 @@
 			children = (
 				00F2E30812B2E3C8000C2022 /* rttplayer.app */,
 				00F2E30A12B2E3C8000C2022 /* librtt.a */,
+				6CA3B0444965C886A79DE927 /* libbgfxRelease.a */,
+				365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */,
+				C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */,
+				1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */,
 				00F2E30D12B2E3C8000C2022 /* liblua.a */,
 				00F2E31012B2E3C8000C2022 /* libluasocket.a */,
 				00F2E31312B2E3C8000C2022 /* libbox2d.a */,
@@ -5015,6 +5035,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/ios-arm64/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -5045,6 +5066,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/ios-arm64/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
