@@ -53,6 +53,7 @@ class IPhoneScreenSurface : public PlatformSurface
 		bool IsUpright() const;
 
 	public:
+		virtual void* NativeWindow() const;
 		Rtt_EAGLContext *GetContext() const;
 
 	private:

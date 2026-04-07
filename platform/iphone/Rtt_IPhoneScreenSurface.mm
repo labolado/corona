@@ -136,6 +136,17 @@ IPhoneScreenSurface::IsUpright() const
 	return result;
 }
 
+void*
+IPhoneScreenSurface::NativeWindow() const
+{
+	if (!fView)
+	{
+		return NULL;
+	}
+	// bgfx on iOS accepts UIView* directly and creates CAMetalLayer internally
+	return (__bridge void*)fView;
+}
+
 Rtt_EAGLContext*
 IPhoneScreenSurface::GetContext() const
 {
