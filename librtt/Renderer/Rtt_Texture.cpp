@@ -21,7 +21,8 @@ namespace Rtt
 Texture::Texture( Rtt_Allocator* allocator )
 :	Super( allocator ),
 	fIsRetina( false ),
-	fIsTarget( false )
+	fIsTarget( false ),
+	fCanvasFlipY( false )
 {
 }
 

@@ -184,9 +184,12 @@ void TextureResourceCanvas::Render(Rtt::Renderer &renderer, GroupObject *group, 
 	
 	Rtt::Real offscreenProjMatrix[16];
 	// For backends where framebuffer origin is top-left (Metal/DX/Vulkan via bgfx),
-	// flip Y axis so canvas texture content matches GL convention.
-	// Same fix as SnapshotObject::Draw.
+	// flip Y axis so canvas texture content is stored right-side-up.
 	bool flipY = !renderer.GetCaps().originBottomLeft;
+	if (flipY)
+	{
+		fDstFBO->GetTexture()->SetCanvasFlipY( true );
+	}
 	Rtt::CreateOrthoMatrix(
 						   contentBounds.xMin, contentBounds.xMax,
 						   flipY ? contentBounds.yMax : contentBounds.yMin,

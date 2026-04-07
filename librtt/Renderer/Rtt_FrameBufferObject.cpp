@@ -9,6 +9,7 @@
 
 #include "Renderer/Rtt_FrameBufferObject.h"
 #include "Renderer/Rtt_Texture.h"
+#include "Renderer/Rtt_Renderer.h"
 
 // ----------------------------------------------------------------------------
 

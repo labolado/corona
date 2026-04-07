@@ -76,6 +76,11 @@ class Renderer
 
         virtual bool IsBgfx() const { return false; }
 
+        // Static flag: true when the active backend has FBO origin at top-left (Metal/DX/Vulkan).
+        // Used by ShapePath to flip V coordinates for canvas textures so UV-to-content
+        // mapping matches GL convention, fixing directional shader operations (shadow offsets).
+        static bool s_fboOriginIsTopLeft;
+
         virtual ~Renderer();
 
         // Called once at the start of the application. This function may only

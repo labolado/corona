@@ -211,9 +211,13 @@ Shader::RenderToTexture( Renderer& renderer, Geometry& cache ) const
 			
 			
 			Rtt::Real offscreenProjMatrix[16];
+			// Match TextureResourceCanvas/SnapshotObject: flip Y for non-GL backends
+			// so intermediate composite FBO content has consistent orientation.
+			bool flipY = !renderer.GetCaps().originBottomLeft;
 			Rtt::CreateOrthoMatrix(
 								   bounds.xMin, bounds.xMax,
-								   bounds.yMin, bounds.yMax,
+								   flipY ? bounds.yMax : bounds.yMin,
+								   flipY ? bounds.yMin : bounds.yMax,
 								   0.0f, 1.0f, offscreenProjMatrix );
 			
 			
