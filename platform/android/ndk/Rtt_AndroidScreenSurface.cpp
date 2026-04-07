@@ -25,7 +25,8 @@ namespace Rtt
 AndroidScreenSurface::AndroidScreenSurface( AndroidGLView* view, S32 approximateScreenDpi )
 :	fView( view ),
 	fFramebuffer( 0 ),
-	fApproximateScreenDPI( approximateScreenDpi )
+	fApproximateScreenDPI( approximateScreenDpi ),
+	fNativeWindow( NULL )
 {
 // This gives error 0x502 invalid operation on Nexus One.
 // 	if ( supportsScreenCapture() )
@@ -41,6 +42,11 @@ AndroidScreenSurface::AndroidScreenSurface( AndroidGLView* view, S32 approximate
 
 AndroidScreenSurface::~AndroidScreenSurface()
 {
+	if (fNativeWindow)
+	{
+		ANativeWindow_release(fNativeWindow);
+		fNativeWindow = NULL;
+	}
 }
 
 void
@@ -67,7 +73,21 @@ AndroidScreenSurface::Flush() const
 void*
 AndroidScreenSurface::NativeWindow() const
 {
-	return NULL;
+	return fNativeWindow;
+}
+
+void
+AndroidScreenSurface::SetNativeWindow(ANativeWindow* window)
+{
+	if (fNativeWindow)
+	{
+		ANativeWindow_release(fNativeWindow);
+	}
+	fNativeWindow = window;
+	if (fNativeWindow)
+	{
+		ANativeWindow_acquire(fNativeWindow);
+	}
 }
 
 S32
