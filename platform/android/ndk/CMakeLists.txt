@@ -437,6 +437,25 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceExternal.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureResourceExternalAdapter.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_VertexCache.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_SDFRenderer.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_BatchObject.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_BatchObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_InstancedBatchRenderer.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_DisplayObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_ShapeObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_GroupObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_LineObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_CompositeObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_EmbossedTextObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_EmitterObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_SnapshotObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_SpriteObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_StageObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_TextObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_PlatformDisplayObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_ParticleSystemObject_Lua.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisCollection.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisDescriptor.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisType.cpp
