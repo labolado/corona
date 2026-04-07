@@ -290,7 +290,11 @@ GetLog2(unsigned int x)
 static int
 DepthForRadius( Real radius )
 {
-	Rtt_ASSERT( radius > Rtt_REAL_0 );
+	if ( radius <= Rtt_REAL_0 )
+	{
+		Rtt_LogException( "WARNING: DepthForRadius called with radius=%f, clamping to 1\n", (float)radius );
+		radius = Rtt_REAL_1;
+	}
 
 	int r = Rtt_RealToInt( radius );
 
