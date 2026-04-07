@@ -6,7 +6,7 @@ val buildDirectory = layout.buildDirectory.asFile.get()
 
 android {
     namespace = "com.ansca.corona"
-    ndkVersion = "18.1.5063045"
+    ndkVersion = "27.0.12077973"
     compileSdk = 35
 
     defaultConfig {
