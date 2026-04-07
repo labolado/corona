@@ -11,7 +11,7 @@ package com.ansca.corona.graphics.opengl;
 
 
 /** OpenGL surface which uses the Corona runtime to render its content. */
-public class CoronaGLSurfaceView extends GLSurfaceView {
+public class CoronaGLSurfaceView extends GLSurfaceView implements CoronaSurfaceViewInterface {
 	/** Reference to the Corona activity window that owns this view. */
 	private android.app.Activity fActivity;
 
@@ -297,6 +297,11 @@ public class CoronaGLSurfaceView extends GLSurfaceView {
 		return ((fRenderer != null) && fRenderer.canRender() && super.canRender());
 	}
 
+	@Override
+	public android.view.View asView() {
+		return this;
+	}
+
 	/** Internal class used to render OpenGL content via the Corona runtime. */
 	private static class CoronaRenderer implements GLSurfaceView.Renderer {
 		/** Reference to the OpenGL view that owns this renderer. */
@@ -392,13 +397,6 @@ public class CoronaGLSurfaceView extends GLSurfaceView {
 			
 			if (fIsCoronaKit) {
 				currentWindowOrientation = com.ansca.corona.WindowOrientation.PORTRAIT_UPRIGHT;
-			}
-
-			// Pass the Surface to the native side for bgfx before initializing.
-			// This must happen before resize() which triggers Init() and LoadApplication().
-			android.view.SurfaceHolder holder = fView.getHolder();
-			if (holder != null && holder.getSurface() != null) {
-				com.ansca.corona.JavaToNativeShim.setSurface(fCoronaRuntime, holder.getSurface());
 			}
 
 			// Update the OpenGL view port on the C++ side of Corona. This also happens to initialize Corona too.

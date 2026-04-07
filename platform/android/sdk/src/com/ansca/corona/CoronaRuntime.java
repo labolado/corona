@@ -35,9 +35,22 @@ public class CoronaRuntime {
 
 	private String fBaseDir;
 
-	private com.ansca.corona.graphics.opengl.CoronaGLSurfaceView fGLView;
+	private com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface fGLView;
 
 	private boolean fIsCoronaKit;
+
+	/** Whether to use bgfx backend (plain SurfaceView) instead of GL (GLSurfaceView). */
+	private static boolean sUseBgfx = true;
+
+	/**
+	 * Set whether to use the bgfx rendering backend.
+	 * When true, a plain SurfaceView is used (bgfx manages its own EGL context).
+	 * When false, the traditional GLSurfaceView is used for OpenGL ES rendering.
+	 * Must be called before any CoronaRuntime is created.
+	 */
+	public static void setUseBgfx(boolean useBgfx) {
+		sUseBgfx = useBgfx;
+	}
 
 	/**
 	 * Creates a new Corona runtime object for running a Corona project.
@@ -50,7 +63,12 @@ public class CoronaRuntime {
 		fTaskDispatcher = new CoronaRuntimeTaskDispatcher(this);
 		fBaseDir = "";
 		fIsCoronaKit = isCoronaKit;
-		fGLView = new com.ansca.corona.graphics.opengl.CoronaGLSurfaceView(context, this, isCoronaKit, wantsDepthBuffer, wantsStencilBuffer);
+
+		if (sUseBgfx) {
+			fGLView = new com.ansca.corona.graphics.opengl.CoronaBgfxSurfaceView(context, this, isCoronaKit, wantsDepthBuffer, wantsStencilBuffer);
+		} else {
+			fGLView = new com.ansca.corona.graphics.opengl.CoronaGLSurfaceView(context, this, isCoronaKit, wantsDepthBuffer, wantsStencilBuffer);
+		}
 
 		// Initialize the native side of the Corona runtime.
 		// Note that this does not load and start the Corona project.
@@ -60,13 +78,17 @@ public class CoronaRuntime {
 		fController.setGLView(fGLView);
 		fController.init();
 		fViewManager = new ViewManager(context, this);
-		fViewManager.setGLView(fGLView);
+		fViewManager.setGLView(fGLView.asView());
 	}
-	
+
 	void reset(android.content.Context context) {
-		fGLView = new com.ansca.corona.graphics.opengl.CoronaGLSurfaceView(context, this, true, false, false);
+		if (sUseBgfx) {
+			fGLView = new com.ansca.corona.graphics.opengl.CoronaBgfxSurfaceView(context, this, true, false, false);
+		} else {
+			fGLView = new com.ansca.corona.graphics.opengl.CoronaGLSurfaceView(context, this, true, false, false);
+		}
 		fController.setGLView(fGLView);
-		fViewManager.setGLView(fGLView);
+		fViewManager.setGLView(fGLView.asView());
 	}
 
 	/**
@@ -138,16 +160,18 @@ public class CoronaRuntime {
 			return;
 		}
 
+		android.view.View view = fGLView.asView();
+
 		// Temporarily remove the OpenGL view from the activity if the screen has been powered off.
 		// This works-around a bug on Galaxy SII where last rendered frame is displayed on screen lock window.
 		if (fController.getSystemMonitor() != null && fController.getSystemMonitor().isScreenOff()) {
-			if (fGLView.getParent() != null) {
-				contentView.removeView(fGLView);
+			if (view.getParent() != null) {
+				contentView.removeView(view);
 			}
 		}
 		else {
-			if (fGLView.getParent() == null) {
-				contentView.addView(fGLView, 0);
+			if (view.getParent() == null) {
+				contentView.addView(view, 0);
 				fGLView.getHolder().setSizeFromLayout();
 			}
 		}
@@ -179,7 +203,7 @@ public class CoronaRuntime {
 		return fBaseDir;
 	}
 
-	com.ansca.corona.graphics.opengl.CoronaGLSurfaceView getGLView() {
+	com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface getGLView() {
 		return fGLView;
 	}
 
