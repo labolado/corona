@@ -49,7 +49,7 @@ public class CoronaActivity extends Activity {
 	private android.content.Intent myInitialIntent = null;
 	private boolean myIsActivityResumed = false;
 	private boolean myIsOrientationLocked = false;
-	private com.ansca.corona.graphics.opengl.CoronaGLSurfaceView myGLView;
+	private com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface myGLView;
 	private android.widget.ImageView fSplashScreenView = null;
 	private com.ansca.corona.purchasing.StoreProxy myStore = null;
 	private CoronaStatusBarSettings myStatusBarMode;
@@ -991,7 +991,7 @@ public class CoronaActivity extends Activity {
 	 *         <p>
 	 *         Returns null if this activity has not been created yet or if the activity has been destroyed.
 	 */
-	com.ansca.corona.graphics.opengl.CoronaGLSurfaceView getGLView() {
+	com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface getGLView() {
 		return myGLView;
 	}
 

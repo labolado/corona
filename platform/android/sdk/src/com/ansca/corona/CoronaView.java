@@ -257,7 +257,10 @@ public class CoronaView extends FrameLayout {
 	 * <a href="http://developer.android.com/reference/android/view/WindowManager.html">WindowManager</a>.
 	 */
 	public void setZOrderMediaOverlay(boolean isMediaOverlay) {
-		fCoronaRuntime.getGLView().setZOrderMediaOverlay(isMediaOverlay);
+		android.view.View view = fCoronaRuntime.getGLView().asView();
+		if (view instanceof android.view.SurfaceView) {
+			((android.view.SurfaceView)view).setZOrderMediaOverlay(isMediaOverlay);
+		}
 	}
 
 	/**

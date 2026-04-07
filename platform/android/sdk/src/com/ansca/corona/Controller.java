@@ -112,7 +112,7 @@ public class Controller {
 
 	private EventManager myEventManager;
 
-	private com.ansca.corona.graphics.opengl.CoronaGLSurfaceView myGLView;
+	private com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface myGLView;
 
 	private Handler myHandler;
 
@@ -185,7 +185,7 @@ public class Controller {
 		myIdleEnabled = android.os.Build.VERSION.SDK_INT != 22;
 	}
 
-	void setGLView(com.ansca.corona.graphics.opengl.CoronaGLSurfaceView glView) {
+	void setGLView(com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface glView) {
 		myGLView = glView;
 	}
 	
@@ -441,7 +441,7 @@ public class Controller {
 		return myHandler;
 	}
 
-	public com.ansca.corona.graphics.opengl.CoronaGLSurfaceView getGLView() {
+	public com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface getGLView() {
 		return myGLView;
 	}
 
@@ -2089,12 +2089,13 @@ public class Controller {
     }
 	
 	void setSystemUiVisibility(final String visibility) {
-		final com.ansca.corona.graphics.opengl.CoronaGLSurfaceView glView = myGLView;
-		if (glView == null || android.os.Build.VERSION.SDK_INT < 11 ||
+		final com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface surfaceView = myGLView;
+		if (surfaceView == null || android.os.Build.VERSION.SDK_INT < 11 ||
 			android.os.Build.MANUFACTURER.equals("BN LLC")) {
 			return;
 		}
 
+		final android.view.View glView = surfaceView.asView();
 		myHandler.post(new Runnable() {
 			public void run() {
 				int vis = -1;
@@ -2151,17 +2152,17 @@ public class Controller {
 		});
 	}
 	
-	String getSystemUiVisibility() { 
-		final com.ansca.corona.graphics.opengl.CoronaGLSurfaceView glView = myGLView;
+	String getSystemUiVisibility() {
+		final com.ansca.corona.graphics.opengl.CoronaSurfaceViewInterface surfaceView = myGLView;
 
-		if (glView == null) {
+		if (surfaceView == null) {
 			return "unknown";
-		} else if (android.os.Build.VERSION.SDK_INT < 11 || 
+		} else if (android.os.Build.VERSION.SDK_INT < 11 ||
 			android.os.Build.MANUFACTURER.equals("BN LLC")) {
 			return "default";
 		}
 
-		int visibility = ApiLevel11.getSystemUiVisibility(glView);
+		int visibility = ApiLevel11.getSystemUiVisibility(surfaceView.asView());
 
 		if ((visibility & 0x00001006) == 0x00001006) {
 			return "immersiveSticky";
