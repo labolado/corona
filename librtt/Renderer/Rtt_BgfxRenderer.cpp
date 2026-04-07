@@ -73,10 +73,11 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     int msaaLevel = msaaEnv ? atoi(msaaEnv) : -1;
 
 #if defined(Rtt_IPHONE_ENV) || defined(Rtt_ANDROID_ENV)
-    // Mobile: enable MSAA X2 by default for better quality, no FLIP_AFTER_RENDER (battery/heat)
-    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X2;
+    // Mobile: MSAA X4 same as desktop, no FLIP_AFTER_RENDER
+    // Use SOLAR2D_MSAA=0 or =2 to test lower quality on low-end devices
+    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4;
 #else
-    // Desktop: full quality
+    // Desktop
     init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
 #endif
 
