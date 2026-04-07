@@ -14,6 +14,7 @@
 #include "Rtt_PlatformSurface.h"
 
 #include <GLES2/gl2.h>
+#include <android/native_window.h>
 
 // ----------------------------------------------------------------------------
 
@@ -41,7 +42,8 @@ class AndroidScreenSurface : public PlatformSurface
 		virtual void Flush() const;
 
 	public:
-		void* NativeWindow() const;
+		virtual void* NativeWindow() const;
+		void SetNativeWindow(ANativeWindow* window);
 		virtual S32 Width() const;
 		virtual S32 Height() const;
 
@@ -58,6 +60,7 @@ class AndroidScreenSurface : public PlatformSurface
 		AndroidGLView* fView;
 		GLuint fFramebuffer; // FBO id
 		S32 fApproximateScreenDPI;
+		ANativeWindow* fNativeWindow;
 };
 
 class AndroidOffscreenSurface : public PlatformSurface
