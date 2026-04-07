@@ -33,6 +33,7 @@ public class JavaToNativeShim {
     private static native void nativeDispatchEventInLua(long bridgeAddress);
     private static native void nativeApplicationOpenEvent(long bridgeAddress);
     private static native long nativeInit(CoronaRuntime runtime);
+    private static native void nativeSetSurface(long bridgeAddress, android.view.Surface surface);
     private static native void nativeResize(
     			long bridgeAddress, String signature, String documentsDir, String applicationSupportDir, String temporaryDir, String cachesDir,
     			String systemCachesDir, String expansionFileDir, int w, int h, int orientation, boolean isCoronaKit);
@@ -393,6 +394,13 @@ public class JavaToNativeShim {
 				device.getCoronaDeviceId(), eventInfo.hasConnectionStateChanged(), eventInfo.wasReconfigured());
 	}
 	
+	public static void setSurface(CoronaRuntime runtime, android.view.Surface surface) {
+		if (runtime == null || runtime.wasDisposed()) {
+			return;
+		}
+		nativeSetSurface(runtime.getJavaToNativeBridgeAddress(), surface);
+	}
+
 	public static void resize(
 		CoronaRuntime runtime, android.content.Context context, int width, int height, WindowOrientation orientation, boolean isCoronaKit)
 	{

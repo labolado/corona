@@ -13,6 +13,7 @@
 #include "Core/Rtt_Build.h"
 #include "Core/Rtt_Time.h"
 #include "jniUtils.h"
+#include <android/native_window.h>
 
 // ----------------------------------------------------------------------------
 
@@ -131,6 +132,8 @@ class JavaToNativeBridge
 		void SetCoronaRuntime(jobject runtime);
 		jobject GetCoronaRuntime();
 
+		void SetSurface(JNIEnv* env, jobject surface);
+
 	private:
 		AndroidGLView *fView;
 		Rtt::AndroidPlatform *fPlatform;
@@ -144,6 +147,7 @@ class JavaToNativeBridge
 		int fMultitouchEventCount;
 		jobject fCoronaRuntime;
 		NativeToJavaBridge *fNativeToJavaBridge;
+		ANativeWindow *fNativeWindow;
 
 		enum
 		{

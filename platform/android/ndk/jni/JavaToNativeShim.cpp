@@ -305,6 +305,13 @@ Java_com_ansca_corona_JavaToNativeShim_nativeInputDeviceStatusEvent(
 }
 
 JNIEXPORT void JNICALL
+Java_com_ansca_corona_JavaToNativeShim_nativeSetSurface(
+	JNIEnv * env, jclass c, jlong bridgeAddress, jobject surface)
+{
+	JavaToNativeBridgeFromMemoryAddress(bridgeAddress)->SetSurface(env, surface);
+}
+
+JNIEXPORT void JNICALL
 Java_com_ansca_corona_JavaToNativeShim_nativeResize(
 	JNIEnv * env, jclass c, jlong bridgeAddress, jstring package, jstring documentsDir, jstring applicationSupportDir,
 	jstring temporaryDir, jstring cachesDir, jstring systemCachesDir, jstring expansionFileDir,
