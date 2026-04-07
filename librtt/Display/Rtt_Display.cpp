@@ -1051,7 +1051,15 @@ Display::Capture( DisplayObject *object,
 
     fRenderer->EndFrame();
     fRenderer->Swap();
+
+    // Tell renderer to skip backbuffer present during this frame.
+    // This avoids Metal flash during capture (bgfx::frame() normally
+    // presents a new CAMetalDrawable with undefined content).
+    fRenderer->SetSkipPresent( true );
+
     fRenderer->Render();
+
+    fRenderer->SetSkipPresent( false );
 
     if( will_be_saved_to_file ||
         optional_output_color )

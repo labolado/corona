@@ -338,6 +338,8 @@
 		0797EB5D181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0797EB5C181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm */; };
 		0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
 		0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */; };
+		2DBFF4E099FE15A92111EE09 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
+		E3E0370A3E9F9055888AB456 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		1203659D565B1E4816695932 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
 		1BE7054EFC6E7BF77BECD8FB /* Rtt_GroupObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6341C5D960117FCF7E4AE055 /* Rtt_GroupObject_Lua.cpp */; };
@@ -494,6 +496,8 @@
 		5C532566ECBFF606DDAF230F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
 		6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
 		6B4AAC87E853A5793AD55E9A /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		A24CAF5D1FC6FD51E982FFDD /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
+		27C268D863D57AC463E8C57A /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		70A3C9F252A24877FE2D4A2A /* Rtt_TextureAtlas_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */; };
 		783BD2FB734EF0653F9A06DF /* Rtt_EmbossedTextObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87ADA1D32217C24F7998BB0E /* Rtt_EmbossedTextObject_Lua.cpp */; };
@@ -2862,6 +2866,8 @@
 		A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject_Lua.cpp; path = Display/Rtt_BatchObject_Lua.cpp; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5E /* Rtt_BatchObject.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject.h; path = Display/Rtt_BatchObject.h; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5F /* Rtt_BatchObject_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject_Lua.h; path = Display/Rtt_BatchObject_Lua.h; sourceTree = "<group>"; };
+				BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_BgfxMetalReadback.mm; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.mm; sourceTree = "<group>"; };
+				457832139A460173839236AA /* Rtt_BgfxMetalReadback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxMetalReadback.h; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.h; sourceTree = "<group>"; };
 		3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = ../../librtt/Renderer/Rtt_BgfxRenderer.cpp; sourceTree = "<group>"; };
 		3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CompositeObject_Lua.cpp; path = ../../librtt/Display/Rtt_CompositeObject_Lua.cpp; sourceTree = "<group>"; };
 		4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_KeyName.cpp; sourceTree = "<group>"; };
@@ -4687,6 +4693,8 @@
 				ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */,
 				A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */,
 				A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */,
+				BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */,
+				457832139A460173839236AA /* Rtt_BgfxMetalReadback.h */,
 				3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */,
 				5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */,
 				8C52BCA21BF78A826020BA7F /* Rtt_BgfxCommandBuffer.h */,
@@ -7113,6 +7121,8 @@
 				AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */,
 				F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */,
 				F6AC543DB03A1BC8B2B29234 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
+				2DBFF4E099FE15A92111EE09 /* Rtt_BgfxMetalReadback.mm in Sources */,
+				E3E0370A3E9F9055888AB456 /* Rtt_BgfxMetalReadback.mm in Sources */,
 				0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */,
 				516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */,
 				F53C328C2404E2A300BC2BED /* CoronaBuilderPluginCollector.lua in Sources */,
@@ -7714,6 +7724,8 @@
 				C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */,
 				0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */,
 				0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
+				A24CAF5D1FC6FD51E982FFDD /* Rtt_BgfxMetalReadback.mm in Sources */,
+				27C268D863D57AC463E8C57A /* Rtt_BgfxMetalReadback.mm in Sources */,
 				6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */,
 				DF3A93ABD4A82A100A6B0F29 /* Rtt_BgfxTexture.cpp in Sources */,
 				A47290011AE827C400BC088D /* CoronaLuaObjC.mm in Sources */,

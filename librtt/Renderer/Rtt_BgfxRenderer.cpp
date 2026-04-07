@@ -22,6 +22,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bgfx/platform.h>
+#ifdef Rtt_MAC_ENV
+#include "Renderer/Rtt_BgfxMetalReadback.h"
+#endif
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -149,49 +154,6 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
 
     U32 readW = static_cast<U32>( w_in_pixels );
     U32 readH = static_cast<U32>( h_in_pixels );
-
-    // Create or resize staging texture for readback
-    // bgfx::readTexture requires BGFX_TEXTURE_READ_BACK flag
-    if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
-    {
-        if( bgfx::isValid( fStagingTexture ) )
-        {
-            bgfx::destroy( fStagingTexture );
-        }
-
-        fStagingTexture = bgfx::createTexture2D(
-            static_cast<uint16_t>( readW ),
-            static_cast<uint16_t>( readH ),
-            false, 1,
-            bgfx::TextureFormat::RGBA8,
-            BGFX_TEXTURE_BLIT_DST | BGFX_TEXTURE_READ_BACK
-        );
-        fStagingW = readW;
-        fStagingH = readH;
-    }
-
-    if( !bgfx::isValid( fStagingTexture ) )
-    {
-        return;
-    }
-
-    // Use a dedicated blit view (view 255 is reserved for capture blits)
-    const bgfx::ViewId kBlitView = 255;
-    bgfx::setViewRect( kBlitView, 0, 0, static_cast<uint16_t>( readW ), static_cast<uint16_t>( readH ) );
-
-    // Blit from the FBO's render target texture to the staging texture
-    bgfx::blit(
-        kBlitView,
-        fStagingTexture,
-        0, 0,                                           // dst x, y
-        srcTexture,
-        static_cast<uint16_t>( x_in_pixels ),          // src x
-        static_cast<uint16_t>( y_in_pixels ),           // src y
-        static_cast<uint16_t>( readW ),
-        static_cast<uint16_t>( readH )
-    );
-
-    // Schedule readback from staging texture
     U32 bufferSize = readW * readH * 4; // RGBA8
     U8* readbackBuffer = static_cast<U8*>( malloc( bufferSize ) );
     if( !readbackBuffer )
@@ -200,16 +162,90 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
     }
     memset( readbackBuffer, 0, bufferSize );
 
-    uint32_t readyFrame = bgfx::readTexture( fStagingTexture, readbackBuffer );
+#ifdef Rtt_MAC_ENV
+    // Metal path: synchronous readback via MTLTexture.getBytes.
+    // This avoids extra bgfx::frame() calls that cause black flashes
+    // (each frame() gets a new CAMetalDrawable with undefined/black content).
+    uintptr_t nativePtr = bgfx::getInternalTexturePtr( srcTexture );
 
-    // Submit the blit view and advance frame to get the data
-    bgfx::touch( kBlitView );
-    uint32_t currentFrame = bgfx::frame();
-
-    // If data not ready yet, submit more frames
-    while( currentFrame < readyFrame )
+    // If texture not yet created on render thread, flush ONE frame to create it.
+    // This single frame() may cause a brief flash, but it's unavoidable for
+    // newly created FBO textures. Without this, we'd need 3 frame() calls
+    // via the bgfx readTexture fallback path, which causes much worse flashing.
+    if( nativePtr == 0 )
     {
-        currentFrame = bgfx::frame();
+        bgfx::setSkipPresent( true );
+        bgfx::frame();
+        bgfx::setSkipPresent( false );
+        nativePtr = bgfx::getInternalTexturePtr( srcTexture );
+    }
+
+    if( nativePtr != 0 )
+    {
+        bool ok = BgfxMetal_ReadTextureSync(
+            reinterpret_cast<void*>( nativePtr ),
+            static_cast<uint32_t>( x_in_pixels ),
+            static_cast<uint32_t>( y_in_pixels ),
+            readW, readH,
+            readbackBuffer );
+
+        if( !ok )
+        {
+            nativePtr = 0; // fall through to bgfx path
+        }
+    }
+
+    if( nativePtr == 0 )
+#endif
+    {
+        // bgfx generic path: blit + readTexture + frame() calls.
+        // WARNING: causes black flash on Metal due to extra frame() presentations.
+        if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
+        {
+            if( bgfx::isValid( fStagingTexture ) )
+            {
+                bgfx::destroy( fStagingTexture );
+            }
+
+            fStagingTexture = bgfx::createTexture2D(
+                static_cast<uint16_t>( readW ),
+                static_cast<uint16_t>( readH ),
+                false, 1,
+                bgfx::TextureFormat::RGBA8,
+                BGFX_TEXTURE_BLIT_DST | BGFX_TEXTURE_READ_BACK
+            );
+            fStagingW = readW;
+            fStagingH = readH;
+        }
+
+        if( bgfx::isValid( fStagingTexture ) )
+        {
+            const bgfx::ViewId kBlitView = 255;
+            bgfx::setViewRect( kBlitView, 0, 0, static_cast<uint16_t>( readW ), static_cast<uint16_t>( readH ) );
+
+            bgfx::blit(
+                kBlitView,
+                fStagingTexture,
+                0, 0,
+                srcTexture,
+                static_cast<uint16_t>( x_in_pixels ),
+                static_cast<uint16_t>( y_in_pixels ),
+                static_cast<uint16_t>( readW ),
+                static_cast<uint16_t>( readH )
+            );
+
+            uint32_t readyFrame = bgfx::readTexture( fStagingTexture, readbackBuffer );
+
+            bgfx::touch( kBlitView );
+            bgfx::setSkipPresent( true );
+            uint32_t currentFrame = bgfx::frame();
+
+            while( currentFrame < readyFrame )
+            {
+                currentFrame = bgfx::frame();
+            }
+            bgfx::setSkipPresent( false );
+        }
     }
 
     // Copy readback data to the bitmap
@@ -262,6 +298,12 @@ BgfxRenderer::EndCapture()
         fStagingW = 0;
         fStagingH = 0;
     }
+}
+
+void
+BgfxRenderer::SetSkipPresent( bool skip )
+{
+    bgfx::setSkipPresent( skip );
 }
 
 GPUResource*
