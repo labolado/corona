@@ -63,8 +63,38 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     init.type = bgfx::RendererType::Count;  // Auto-select best backend
     init.resolution.width = width;
     init.resolution.height = height;
-    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
     init.platformData.nwh = nativeWindowHandle;
+
+    // Platform-specific reset flags
+    // SOLAR2D_MSAA env var overrides MSAA level for testing degradation paths
+    const char* msaaEnv = getenv("SOLAR2D_MSAA");
+    int msaaLevel = msaaEnv ? atoi(msaaEnv) : -1;
+
+#if defined(Rtt_IPHONE_ENV) || defined(Rtt_ANDROID_ENV)
+    // Mobile: no FLIP_AFTER_RENDER, MSAA off by default (battery/heat)
+    init.resolution.reset = BGFX_RESET_VSYNC;
+#else
+    // Desktop: full quality
+    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
+#endif
+
+    // SOLAR2D_MSAA override (0=off, 2=X2, 4=X4)
+    if (msaaLevel >= 0)
+    {
+        init.resolution.reset &= ~BGFX_RESET_MSAA_MASK;
+        if (msaaLevel >= 4) init.resolution.reset |= BGFX_RESET_MSAA_X4;
+        else if (msaaLevel >= 2) init.resolution.reset |= BGFX_RESET_MSAA_X2;
+    }
+
+    // SOLAR2D_RENDERER override (metal/gles/vulkan) for testing
+    const char* rendererEnv = getenv("SOLAR2D_RENDERER");
+    if (rendererEnv)
+    {
+        if (strcmp(rendererEnv, "metal") == 0) init.type = bgfx::RendererType::Metal;
+        else if (strcmp(rendererEnv, "gles") == 0) init.type = bgfx::RendererType::OpenGLES;
+        else if (strcmp(rendererEnv, "vulkan") == 0) init.type = bgfx::RendererType::Vulkan;
+        else if (strcmp(rendererEnv, "gl") == 0) init.type = bgfx::RendererType::OpenGL;
+    }
 
     fBgfxInitialized = bgfx::init(init);
 
