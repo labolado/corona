@@ -154,6 +154,18 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		fRenderThread.start();
 	}
 
+	@Override
+	protected void onAttachedToWindow() {
+		super.onAttachedToWindow();
+		Log.i(TAG, "onAttachedToWindow: width=" + getWidth() + " height=" + getHeight() + " visibility=" + getVisibility());
+	}
+
+	@Override
+	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+		super.onSizeChanged(w, h, oldw, oldh);
+		Log.i(TAG, "onSizeChanged: " + w + "x" + h + " (was " + oldw + "x" + oldh + ")");
+	}
+
 	public void setActivity(android.app.Activity activity) {
 		fActivity = activity;
 		fActivityInfo = new com.ansca.corona.CoronaActivityInfo(fActivity);
