@@ -21,6 +21,8 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+std::unordered_set<const CPUResource*> CPUResource::s_aliveSet;
+
 static const char kFrameBufferObjectString[] = "fbo";
 static const char kGeometryString[] = "geometry";
 static const char kProgramString[] = "program";
@@ -66,7 +68,7 @@ CPUResource::CPUResource(Rtt_Allocator* allocator )
 	fCpuObserver( NULL ),
 	fRenderer( NULL )
 {
-	
+	s_aliveSet.insert(this);
 }
 
 CPUResource::~CPUResource()
@@ -76,7 +78,7 @@ CPUResource::~CPUResource()
 	{
 		fRenderer->QueueDestroy( fGPUResource );
 	}
-	
+	s_aliveSet.erase(this);
 }
 void
 CPUResource::ReleaseGPUResource()
@@ -139,6 +141,13 @@ CPUResource::DetachObserver()
 		fCpuObserver->DetachResource(this);
 		fCpuObserver = NULL;
 	}
+}
+
+bool
+CPUResource::IsAlive(const CPUResource* ptr)
+{
+	if (!ptr) return false;
+	return s_aliveSet.find(ptr) != s_aliveSet.end();
 }
 
 // ----------------------------------------------------------------------------
