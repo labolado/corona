@@ -18,6 +18,8 @@ add_definitions(
 )
 
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int")
+
 add_library( mpg123 SHARED
 	compat.c
 	dct64.c

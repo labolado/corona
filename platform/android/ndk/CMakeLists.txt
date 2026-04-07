@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 set(COMMON_COMPILER_FLAGS "-Wno-deprecated -O3 -fstrict-aliasing -fvisibility=hidden -ffunction-sections -fdata-sections")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_COMPILER_FLAGS} -std=c++14")
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${COMMON_COMPILER_FLAGS}")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${COMMON_COMPILER_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int")
 
 add_definitions(
 	-DALMIXER_COMPILE_WITHOUT_SDL
@@ -454,8 +454,8 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_SpriteObject_Lua.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_StageObject_Lua.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_PlatformDisplayObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_ParticleSystemObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Rtt_PlatformDisplayObject_Lua.cpp
+		${CORONA_ROOT}/librtt/Rtt_ParticleSystemObject_Lua.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisCollection.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisDescriptor.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisType.cpp
