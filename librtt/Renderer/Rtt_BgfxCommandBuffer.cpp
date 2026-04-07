@@ -11,6 +11,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Renderer/Rtt_BgfxCommandBuffer.h"
+#include "Renderer/Rtt_CPUResource.h"
 
 #include "Renderer/Rtt_BgfxFrameBufferObject.h"
 #include "Renderer/Rtt_BgfxGeometry.h"
@@ -618,7 +619,7 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
 void
 BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 {
-    if( cmd.fbo )
+    if( cmd.fbo && CPUResource::IsAlive(cmd.fbo) )
     {
         void* gpuRes = cmd.fbo->GetGPUResource();
         BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
@@ -660,7 +661,7 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
 {
     // Check if fill texture (unit 0) is alpha-only format
     float texFlags[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    if( cmd.textures[0] )
+    if( cmd.textures[0] && CPUResource::IsAlive(cmd.textures[0]) )
     {
         BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[0]->GetGPUResource() );
         if( tex && tex->GetCachedFormat() == static_cast<S32>( Texture::kAlpha ) )
@@ -770,7 +771,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         // Set textures
         for ( U32 i = 0; i < kMaxTextureUnits; i++ )
         {
-            if ( cmd.textures[i] )
+            if ( cmd.textures[i] && CPUResource::IsAlive(cmd.textures[i]) )
             {
                 BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
                 if ( tex )
@@ -796,12 +797,20 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     }
 
     // Resolve GPU resources (now available after Swap)
-    BgfxGeometry* geo = cmd.geometry ? static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() ) : NULL;
+    if ( !cmd.geometry || !CPUResource::IsAlive(cmd.geometry) )
+    {
+        return;
+    }
+    BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
     if( !geo )
     {
         return;
     }
 
+    if ( !cmd.program || !CPUResource::IsAlive(cmd.program) )
+    {
+        return;
+    }
     BgfxProgram* prog = static_cast<BgfxProgram*>( cmd.program->GetGPUResource() );
     if( !prog )
     {
@@ -870,7 +879,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
             // Set textures
             for( U32 i = 0; i < kMaxTextureUnits; i++ )
             {
-                if( cmd.textures[i] )
+                if( cmd.textures[i] && CPUResource::IsAlive(cmd.textures[i]) )
                 {
                     BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
                     if( tex )
@@ -905,7 +914,7 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         // Set textures
         for( U32 i = 0; i < kMaxTextureUnits; i++ )
         {
-            if( cmd.textures[i] )
+            if( cmd.textures[i] && CPUResource::IsAlive(cmd.textures[i]) )
             {
                 BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
                 if( tex )
@@ -930,12 +939,20 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 {
+    if ( !cmd.geometry || !CPUResource::IsAlive(cmd.geometry) )
+    {
+        return;
+    }
     BgfxGeometry* geo = static_cast<BgfxGeometry*>( cmd.geometry->GetGPUResource() );
     if( !geo )
     {
         return;
     }
 
+    if ( !cmd.program || !CPUResource::IsAlive(cmd.program) )
+    {
+        return;
+    }
     BgfxProgram* prog = static_cast<BgfxProgram*>( cmd.program->GetGPUResource() );
     if( !prog )
     {
@@ -1018,7 +1035,7 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
     // Set textures
     for( U32 i = 0; i < kMaxTextureUnits; i++ )
     {
-        if( cmd.textures[i] )
+        if( cmd.textures[i] && CPUResource::IsAlive(cmd.textures[i]) )
         {
             BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
             if( tex )
@@ -1047,7 +1064,7 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
     bgfx::TextureHandle dstTexHandle = BGFX_INVALID_HANDLE;
     bgfx::ViewId blitView = fCurrentView;
 
-    if( cmd.captureFbo )
+    if( cmd.captureFbo && CPUResource::IsAlive(cmd.captureFbo) )
     {
         void* gpuRes = cmd.captureFbo->GetGPUResource();
         dstFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
@@ -1057,7 +1074,7 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
             blitView = dstFbo->GetViewId();
         }
     }
-    else if( cmd.captureTexture )
+    else if( cmd.captureTexture && CPUResource::IsAlive(cmd.captureTexture) )
     {
         void* gpuRes = cmd.captureTexture->GetGPUResource();
         BgfxTexture* bgfxTex = static_cast<BgfxTexture*>( gpuRes );

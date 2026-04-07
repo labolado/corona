@@ -10,6 +10,8 @@
 #ifndef _Rtt_CPUResource_H__
 #define _Rtt_CPUResource_H__
 
+#include <unordered_set>
+
 //#include "Core/Rtt_Array.h"
 
 
@@ -87,6 +89,9 @@ class CPUResource
 		void AttachObserver(MCPUResourceObserver *cpuObserver);
 		void DetachObserver();
 
+		// Check if a CPUResource pointer is still alive (not freed)
+		static bool IsAlive(const CPUResource* ptr);
+
 	protected:
 		Rtt_Allocator* GetAllocator() const { return fAllocator; }
 
@@ -103,6 +108,9 @@ class CPUResource
 		bool fAddedToCleanupPool;
 		
 		MCPUResourceObserver *fCpuObserver;
+
+		// Static set tracking all alive CPUResource instances
+		static std::unordered_set<const CPUResource*> s_aliveSet;
 };
 
 // ----------------------------------------------------------------------------
