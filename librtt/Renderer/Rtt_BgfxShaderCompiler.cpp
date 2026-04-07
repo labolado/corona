@@ -328,6 +328,16 @@ VaryingMapping BgfxShaderCompiler::ParseCustomVaryings(const char* kernelVert, c
             std::string type, name;
             iss >> type >> name;
 
+            // Skip array varyings (e.g. "vec2 blurCoordinates[5]") — they can't
+            // be mapped to a single v_Custom slot. The shader will fall back to
+            // default VS which is correct behavior for these complex patterns.
+            if (!name.empty() && name.find('[') != std::string::npos)
+            {
+                Rtt_LogException("WARNING: Array varying '%s' not supported in bgfx custom VS, skipping\n", name.c_str());
+                pos = semi + 1;
+                continue;
+            }
+
             if (!name.empty() && mapping.find(name) == mapping.end())
             {
                 if (slotIndex >= 4)
@@ -475,9 +485,13 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     }
 
     // 6. Process varyings in preamble and body
+    // Always remove varying declarations — "varying" is not valid in bgfx .sc.
+    // For mapped varyings, names get replaced with v_CustomN.
+    // For array varyings (skipped by ParseCustomVaryings), the declaration is
+    // removed and the shader falls back to default behavior.
+    preamble = RemoveVaryingDeclarations(preamble);
     if (!varyings.empty())
     {
-        preamble = RemoveVaryingDeclarations(preamble);
         preamble = ReplaceVaryingNames(preamble, varyings);
         body = ReplaceVaryingNames(body, varyings);
     }
@@ -664,6 +678,10 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "#define CoronaDeltaTime u_DeltaTime.x\n";
     result += "#define CoronaTexelSize u_TexelSize\n";
     result += "#define CoronaContentScale u_ContentScale.xy\n";
+    result += "\n";
+    result += "// GL attribute compatibility — map GL names to bgfx equivalents\n";
+    result += "#define a_TexCoord a_texcoord0\n";
+    result += "#define a_UserData a_texcoord1\n";
     result += "\n";
 
     // User preamble (helper functions, uniforms — varying decls already removed)
