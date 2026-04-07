@@ -1,0 +1,18 @@
+-- build.settings - Solar2D GL Test Build Configuration
+settings = {
+    orientation = {
+        default = "portrait",
+        supported = { "portrait", "portraitUpsideDown", "landscapeLeft", "landscapeRight" },
+    },
+    iphone = {
+        plist = {
+            CFBundleDisplayName = "SolarGL",
+            CFBundleIdentifier = "com.labolado.solargl",
+            UIStatusBarHidden = true,
+            UILaunchStoryboardName = "LaunchScreen",
+        },
+    },
+    android = {
+        applicationChildElements = {},
+    },
+}
