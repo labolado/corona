@@ -75,6 +75,7 @@ class Renderer
         }
 
         virtual bool IsBgfx() const { return false; }
+        virtual void SetSkipPresent( bool skip ) { (void)skip; }
 
         // Static flag: true when the active backend has FBO origin at top-left (Metal/DX/Vulkan).
         // Used by ShapePath to flip V coordinates for canvas textures so UV-to-content
