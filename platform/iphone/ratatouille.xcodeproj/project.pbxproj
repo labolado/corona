@@ -5625,6 +5625,10 @@
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					../../external/luasocket/src,
 					"../../external/CoronaBeacon/Beacon-iOS/Release-universal/include",
+					../../external/bgfx/include,
+					../../external/bx/include,
+					../../external/bimg/include,
+					"../../external/bx/include/compat/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				ONLY_ACTIVE_ARCH = YES;
@@ -5692,6 +5696,10 @@
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 					../../external/luasocket/src,
 					"../../external/CoronaBeacon/Beacon-iOS/Release-universal/include",
+					../../external/bgfx/include,
+					../../external/bx/include,
+					../../external/bimg/include,
+					"../../external/bx/include/compat/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
