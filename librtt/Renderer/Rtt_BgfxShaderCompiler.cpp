@@ -151,19 +151,30 @@ static bool PreambleDeclaresUniform(const std::string& preamble, const char* uni
 static std::string BuildFragmentInputLine(const VaryingMapping& varyings)
 {
     std::string line = kFragmentScInputBase;
-    // Append custom varying slots in order (v_Custom0, v_Custom1, ...)
+    // Collect all used v_Custom slots (including multi-slot array varyings)
+    bool usedSlots[4] = {false, false, false, false};
+    for (const auto& p : varyings)
+    {
+        int baseNum = 0;
+        if (p.second.slot.size() > 8) baseNum = p.second.slot[8] - '0';
+        if (p.second.arraySize > 0)
+        {
+            int slotsNeeded = (p.second.arraySize + 1) / 2;
+            for (int s = 0; s < slotsNeeded && (baseNum + s) < 4; s++)
+                usedSlots[baseNum + s] = true;
+        }
+        else
+        {
+            if (baseNum >= 0 && baseNum < 4) usedSlots[baseNum] = true;
+        }
+    }
     for (int i = 0; i < 4; i++)
     {
-        char slot[16];
-        snprintf(slot, sizeof(slot), "v_Custom%d", i);
-        for (const auto& p : varyings)
+        if (usedSlots[i])
         {
-            if (p.second.slot == slot)
-            {
-                line += ", ";
-                line += slot;
-                break;
-            }
+            char slot[16];
+            snprintf(slot, sizeof(slot), ", v_Custom%d", i);
+            line += slot;
         }
     }
     return line;
@@ -192,28 +203,78 @@ static std::string RemoveVaryingDeclarations(const std::string& src)
     return result;
 }
 
+// Helper: for array varyings, get the packed slot expression for element i.
+// vec2[N] packs 2 elements per vec4 slot: [0]→slot.xy, [1]→slot.zw, [2]→(slot+1).xy, etc.
+static std::string GetArrayElementExpr(const std::string& baseSlot, int elementIndex)
+{
+    int slotOffset = elementIndex / 2;
+    bool isSecondHalf = (elementIndex % 2) == 1;
+
+    char buf[32];
+    // Parse base slot number from "v_Custom0" → 0
+    int baseNum = 0;
+    if (baseSlot.size() > 8 && baseSlot[8] >= '0' && baseSlot[8] <= '3')
+        baseNum = baseSlot[8] - '0';
+
+    snprintf(buf, sizeof(buf), "v_Custom%d.%s", baseNum + slotOffset, isSecondHalf ? "zw" : "xy");
+    return std::string(buf);
+}
+
 // Helper: replace user varying names with v_CustomN slots (word-boundary safe)
+// For array varyings, replaces "name[i]" with packed slot expressions.
 static std::string ReplaceVaryingNames(const std::string& src, const VaryingMapping& varyings)
 {
     std::string result = src;
     for (const auto& pair : varyings)
     {
         const std::string& varName = pair.first;
-        const std::string& slotName = pair.second.slot;
-        size_t pos = 0;
-        while ((pos = result.find(varName, pos)) != std::string::npos)
+        const VaryingInfo& info = pair.second;
+
+        if (info.arraySize > 0)
         {
-            bool leftOk = (pos == 0) || (!isalnum(result[pos - 1]) && result[pos - 1] != '_');
-            size_t endPos = pos + varName.size();
-            bool rightOk = (endPos >= result.size()) || (!isalnum(result[endPos]) && result[endPos] != '_');
-            if (leftOk && rightOk)
+            // Array varying: replace "name[i]" with packed slot expression
+            for (int i = 0; i < info.arraySize; i++)
             {
-                result.replace(pos, varName.size(), slotName);
-                pos += slotName.size();
+                char pattern[128];
+                snprintf(pattern, sizeof(pattern), "%s[%d]", varName.c_str(), i);
+                std::string replacement = GetArrayElementExpr(info.slot, i);
+
+                size_t pos = 0;
+                std::string pat(pattern);
+                while ((pos = result.find(pat, pos)) != std::string::npos)
+                {
+                    bool leftOk = (pos == 0) || (!isalnum(result[pos - 1]) && result[pos - 1] != '_');
+                    if (leftOk)
+                    {
+                        result.replace(pos, pat.size(), replacement);
+                        pos += replacement.size();
+                    }
+                    else
+                    {
+                        pos += pat.size();
+                    }
+                }
             }
-            else
+        }
+        else
+        {
+            // Scalar varying: direct name replacement
+            const std::string& slotName = info.slot;
+            size_t pos = 0;
+            while ((pos = result.find(varName, pos)) != std::string::npos)
             {
-                pos += varName.size();
+                bool leftOk = (pos == 0) || (!isalnum(result[pos - 1]) && result[pos - 1] != '_');
+                size_t endPos = pos + varName.size();
+                bool rightOk = (endPos >= result.size()) || (!isalnum(result[endPos]) && result[endPos] != '_');
+                if (leftOk && rightOk)
+                {
+                    result.replace(pos, varName.size(), slotName);
+                    pos += slotName.size();
+                }
+                else
+                {
+                    pos += varName.size();
+                }
             }
         }
     }
@@ -328,28 +389,57 @@ VaryingMapping BgfxShaderCompiler::ParseCustomVaryings(const char* kernelVert, c
             std::string type, name;
             iss >> type >> name;
 
-            // Skip array varyings (e.g. "vec2 blurCoordinates[5]") — they can't
-            // be mapped to a single v_Custom slot. The shader will fall back to
-            // default VS which is correct behavior for these complex patterns.
-            if (!name.empty() && name.find('[') != std::string::npos)
+            // Check for array varying: "vec2 blurCoords[5]"
+            int arraySize = 0;
+            std::string baseName = name;
+            size_t bracketPos = name.find('[');
+            if (bracketPos != std::string::npos)
             {
-                Rtt_LogException("WARNING: Array varying '%s' not supported in bgfx custom VS, skipping\n", name.c_str());
-                pos = semi + 1;
-                continue;
+                baseName = name.substr(0, bracketPos);
+                size_t closeBracket = name.find(']', bracketPos);
+                if (closeBracket != std::string::npos)
+                    arraySize = atoi(name.substr(bracketPos + 1, closeBracket - bracketPos - 1).c_str());
             }
 
-            if (!name.empty() && mapping.find(name) == mapping.end())
+            if (!baseName.empty() && mapping.find(baseName) == mapping.end())
             {
-                if (slotIndex >= 4)
+                if (arraySize > 0)
                 {
-                    Rtt_LogException("WARNING: Too many custom varyings (max 4), skipping '%s'\n", name.c_str());
+                    // Array varying: pack vec2[N] into vec4 slots (2 elements per slot)
+                    // Only vec2 arrays are supported (most common for UV coordinates)
+                    int slotsNeeded = (arraySize + 1) / 2; // ceil(N/2) for vec2
+                    if (type != "vec2")
+                    {
+                        Rtt_LogException("WARNING: Array varying '%s' type '%s' not supported (only vec2 arrays), skipping\n",
+                            baseName.c_str(), type.c_str());
+                    }
+                    else if (slotIndex + slotsNeeded > 4)
+                    {
+                        Rtt_LogException("WARNING: Array varying '%s[%d]' needs %d slots but only %d available, skipping\n",
+                            baseName.c_str(), arraySize, slotsNeeded, 4 - slotIndex);
+                    }
+                    else
+                    {
+                        char slot[16];
+                        snprintf(slot, sizeof(slot), "v_Custom%d", slotIndex);
+                        mapping[baseName] = { type, std::string(slot), arraySize };
+                        slotIndex += slotsNeeded;
+                    }
                 }
                 else
                 {
-                    char slot[16];
-                    snprintf(slot, sizeof(slot), "v_Custom%d", slotIndex);
-                    mapping[name] = { type, std::string(slot) };
-                    ++slotIndex;
+                    // Scalar varying
+                    if (slotIndex >= 4)
+                    {
+                        Rtt_LogException("WARNING: Too many custom varyings (max 4), skipping '%s'\n", baseName.c_str());
+                    }
+                    else
+                    {
+                        char slot[16];
+                        snprintf(slot, sizeof(slot), "v_Custom%d", slotIndex);
+                        mapping[baseName] = { type, std::string(slot), 0 };
+                        ++slotIndex;
+                    }
                 }
             }
             pos = semi + 1;
@@ -631,20 +721,31 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
         }
     }
 
-    // Build $output line
+    // Build $output line — collect all used v_Custom slots
+    bool usedSlots[4] = {false, false, false, false};
+    for (const auto& p : varyings)
+    {
+        int baseNum = 0;
+        if (p.second.slot.size() > 8) baseNum = p.second.slot[8] - '0';
+        if (p.second.arraySize > 0)
+        {
+            int slotsNeeded = (p.second.arraySize + 1) / 2;
+            for (int s = 0; s < slotsNeeded && (baseNum + s) < 4; s++)
+                usedSlots[baseNum + s] = true;
+        }
+        else
+        {
+            if (baseNum >= 0 && baseNum < 4) usedSlots[baseNum] = true;
+        }
+    }
     std::string outputLine = "$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2";
     for (int i = 0; i < 4; i++)
     {
-        char slot[16];
-        snprintf(slot, sizeof(slot), "v_Custom%d", i);
-        for (const auto& p : varyings)
+        if (usedSlots[i])
         {
-            if (p.second.slot == slot)
-            {
-                outputLine += ", ";
-                outputLine += slot;
-                break;
-            }
+            char slot[16];
+            snprintf(slot, sizeof(slot), ", v_Custom%d", i);
+            outputLine += slot;
         }
     }
 
@@ -702,18 +803,14 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n";
     result += "\n";
 
-    // Initialize custom varyings to default
+    // Initialize all used custom varying slots to zero
     for (int i = 0; i < 4; i++)
     {
-        char slot[16];
-        snprintf(slot, sizeof(slot), "v_Custom%d", i);
-        for (const auto& p : varyings)
+        if (usedSlots[i])
         {
-            if (p.second.slot == slot)
-            {
-                result += "    " + std::string(slot) + " = vec4(0.0, 0.0, 0.0, 0.0);\n";
-                break;
-            }
+            char buf[64];
+            snprintf(buf, sizeof(buf), "    v_Custom%d = vec4(0.0, 0.0, 0.0, 0.0);\n", i);
+            result += buf;
         }
     }
 
