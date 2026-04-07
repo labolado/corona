@@ -23,9 +23,6 @@
 #include <string.h>
 
 #include <bgfx/platform.h>
-#ifdef Rtt_MAC_ENV
-#include "Renderer/Rtt_BgfxMetalReadback.h"
-#endif
 
 // ----------------------------------------------------------------------------
 
