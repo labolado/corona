@@ -61,6 +61,8 @@
 #include <ctype.h>
 #include <android/bitmap.h>
 #include <android/log.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 
 #include "importgl.h"
 
@@ -80,7 +82,8 @@ JavaToNativeBridge::JavaToNativeBridge()
 	fRuntimeDelegate( NULL ),
 	fIsResourcesLoaded( false ),
 	fCoronaRuntime( NULL ),
-	fNativeToJavaBridge( NULL )
+	fNativeToJavaBridge( NULL ),
+	fNativeWindow( NULL )
 {
 	fGravityAccel[0] = fGravityAccel[1] = fGravityAccel[2] = 0.0f;
 	fInstantAccel[0] = fInstantAccel[1] = fInstantAccel[2] = 0.0f;
@@ -92,9 +95,29 @@ JavaToNativeBridge::JavaToNativeBridge()
 JavaToNativeBridge::~JavaToNativeBridge()
 {
 	delete[] fMultitouchEventBuffer;
+	if (fNativeWindow)
+	{
+		ANativeWindow_release(fNativeWindow);
+		fNativeWindow = NULL;
+	}
 }
 
-void 
+void
+JavaToNativeBridge::SetSurface(JNIEnv* env, jobject surface)
+{
+	if (fNativeWindow)
+	{
+		ANativeWindow_release(fNativeWindow);
+		fNativeWindow = NULL;
+	}
+
+	if (surface)
+	{
+		fNativeWindow = ANativeWindow_fromSurface(env, surface);
+	}
+}
+
+void
 JavaToNativeBridge::Init(
 	JNIEnv * env, jstring packageJ, jstring documentsDirJ, jstring applicationSupportDirJ, jstring temporaryDirJ, jstring cachesDirJ,
 	jstring systemCachesDirJ, jstring expansionFileDirJ, int width, int height, int orientation, bool isCoronaKit )
@@ -177,8 +200,16 @@ JavaToNativeBridge::Init(
 			fRuntime->SetProperty(Rtt::Runtime::kIsLuaParserAvailable, true);
 		}
 
+		// Pass the ANativeWindow to the runtime as bgfx backend context.
+		// SetSurface() was called from Java before this Init(), so fNativeWindow is ready.
+		if (fNativeWindow && fRuntime->GetBackend()
+			&& Rtt_StringCompare(fRuntime->GetBackend(), "bgfxBackend") == 0)
+		{
+			fRuntime->SetBackend(fRuntime->GetBackend(), (void*)fNativeWindow);
+		}
+
 		// Load the Corona application, starting with the "config.lua" and "shell.lua".
-		Rtt::Runtime::LoadApplicationReturnCodes retCode = fRuntime->LoadApplication(	Rtt::Runtime::kLaunchDeviceShell, 
+		Rtt::Runtime::LoadApplicationReturnCodes retCode = fRuntime->LoadApplication(	Rtt::Runtime::kLaunchDeviceShell,
 																						(Rtt::DeviceOrientation::Type)orientation);		
 
 		if (Rtt::Runtime::kSuccess == retCode)
