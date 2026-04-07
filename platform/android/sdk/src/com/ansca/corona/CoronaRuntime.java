@@ -73,12 +73,16 @@ public class CoronaRuntime {
 		// Initialize the native side of the Corona runtime.
 		// Note that this does not load and start the Corona project.
 		// That will be done by the CoronaRenderer via the OpenGL thread.
+		android.util.Log.i("CoronaRuntime", "Created view: " + fGLView.getClass().getSimpleName() + " bgfx=" + sUseBgfx);
 		JavaToNativeShim.init(this);
 		fController = new Controller(context, this);
 		fController.setGLView(fGLView);
+		android.util.Log.i("CoronaRuntime", "Controller.init starting...");
 		fController.init();
+		android.util.Log.i("CoronaRuntime", "Controller.init done, creating ViewManager...");
 		fViewManager = new ViewManager(context, this);
 		fViewManager.setGLView(fGLView.asView());
+		android.util.Log.i("CoronaRuntime", "ViewManager ready, view added to content");
 	}
 
 	void reset(android.content.Context context) {
