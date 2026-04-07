@@ -12,6 +12,10 @@
 
 #include "Rtt_PlatformSurface.h"
 #include "Rtt_MetalAngleTypes.h"
+
+#ifdef Rtt_BGFX
+@class CAMetalLayer;
+#endif
 // ----------------------------------------------------------------------------
 
 
@@ -59,6 +63,9 @@ class IPhoneScreenSurface : public PlatformSurface
 	private:
 		Rtt_GLKView *fView;
 		float fScale;
+#ifdef Rtt_BGFX
+		CAMetalLayer *fMetalLayer;
+#endif
 };
 
 // ----------------------------------------------------------------------------
