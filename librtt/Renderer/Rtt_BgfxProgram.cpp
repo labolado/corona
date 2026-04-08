@@ -388,9 +388,9 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
     size_t size = 0;
 
     // Try to find effect-specific shader via ShaderResource name/category.
-    // Only use effect shaders when BOTH vs and fs exist in the table,
-    // because mixing a default vs with an effect fs produces incompatible
-    // varying signatures and bgfx::createProgram will fail.
+    // When both VS and FS exist, use the paired set. When only one exists
+    // (e.g. generator effects have FS only, some filters have VS only),
+    // use the available one and fall through to the default for the other.
     Program* program = static_cast<Program*>(fResource);
     ShaderResource* shaderRes = program ? program->GetShaderResource() : NULL;
 
@@ -418,6 +418,21 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                 // Both shaders available — use the requested one
                 if (strcmp(type, "vs") == 0) { data = vsData; size = vsSize; }
                 else                         { data = fsData; size = fsSize; }
+            }
+            else if (!hasVs && hasFs)
+            {
+                // Only FS in embedded table (typical for generator effects that
+                // use standard varyings and don't need a custom VS).
+                // Use the embedded FS for fragment requests; VS falls through
+                // to the default below, which is compatible.
+                if (strcmp(type, "fs") == 0) { data = fsData; size = fsSize; }
+            }
+            else if (hasVs && !hasFs)
+            {
+                // Only VS in embedded table (filter with custom vertex kernel
+                // but standard fragment shader, e.g. wobble).
+                // Use the embedded VS; FS falls through to default.
+                if (strcmp(type, "vs") == 0) { data = vsData; size = vsSize; }
             }
             else
             {
