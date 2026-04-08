@@ -31,6 +31,7 @@
 #include "Core/Rtt_Assert.h"
 #include "Core/Rtt_Math.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 // ----------------------------------------------------------------------------
@@ -43,6 +44,11 @@ namespace Rtt
 // Static members
 U32 BgfxCommandBuffer::gUniformTimestamp = 0;
 bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default screen
+
+// Batch/instancing statistics
+BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0 };
+bool BgfxCommandBuffer::sBatchingEnabled = true;
+bool BgfxCommandBuffer::sInstancingEnabled = true;
 
 // ----------------------------------------------------------------------------
 
@@ -1142,6 +1148,440 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
     }
 }
 
+// ============================================================================
+// Draw call batching and instancing
+// ============================================================================
+
+bool
+BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const
+{
+    // Must be same draw type (kDraw or kDrawIndexed)
+    if( a.type != b.type ) return false;
+    if( a.type != DeferredCmd::kDraw && a.type != DeferredCmd::kDrawIndexed ) return false;
+
+    // No instanced draws (already handled)
+    if( a.instanceDraw || b.instanceDraw ) return false;
+
+    // No triangle fans
+    if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
+
+    // Must be same primitive type
+    if( a.primitiveType != b.primitiveType ) return false;
+
+    // Same program and version
+    if( a.program != b.program ) return false;
+    if( a.programVersion != b.programVersion ) return false;
+
+    // Only batch maskless draws
+    if( a.programVersion != Program::kMaskCount0 ) return false;
+
+    // Same render state
+    if( a.bgfxState != b.bgfxState ) return false;
+
+    // Same scissor
+    if( a.scissorEnabled != b.scissorEnabled ) return false;
+    if( a.scissorEnabled )
+    {
+        if( a.scissorX != b.scissorX || a.scissorY != b.scissorY ||
+            a.scissorW != b.scissorW || a.scissorH != b.scissorH ) return false;
+    }
+
+    // Same textures
+    for( U32 i = 0; i < 8; ++i )
+    {
+        if( a.textures[i] != b.textures[i] ) return false;
+    }
+
+    // No named uniforms
+    if( a.namedUniformCount > 0 || b.namedUniformCount > 0 ) return false;
+
+    // Must have valid geometry
+    if( !a.geometry || !b.geometry ) return false;
+    if( !CPUResource::IsAlive( a.geometry ) || !CPUResource::IsAlive( b.geometry ) ) return false;
+
+    return true;
+}
+
+bool
+BgfxCommandBuffer::IsQuadDraw( const DeferredCmd& cmd ) const
+{
+    // A quad draw is a non-indexed kDraw with exactly 6 vertices (2 triangles)
+    if( cmd.type != DeferredCmd::kDraw ) return false;
+    if( cmd.count != 6 ) return false;
+    if( cmd.primitiveType != Geometry::kTriangles ) return false;
+    if( cmd.instanceDraw ) return false;
+    if( !cmd.geometry || !CPUResource::IsAlive( cmd.geometry ) ) return false;
+    return true;
+}
+
+size_t
+BgfxCommandBuffer::ExecuteInstancedDraws( size_t startIdx )
+{
+    if( !sInstancingEnabled ) return 0;
+
+    InstancedBatchRenderer& inst = InstancedBatchRenderer::Instance();
+    if( !inst.IsAvailable() ) return 0;
+
+    const DeferredCmd& first = fDeferredCmds[startIdx];
+    if( !IsQuadDraw( first ) ) return 0;
+
+    // Find run of compatible quad draws
+    size_t end = startIdx + 1;
+    while( end < fDeferredCmds.size() && CanBatchDraws( first, fDeferredCmds[end] ) && IsQuadDraw( fDeferredCmds[end] ) )
+    {
+        ++end;
+    }
+
+    size_t batchSize = end - startIdx;
+    if( batchSize < 4 ) return 0; // Not worth instancing for < 4 objects
+
+    // Allocate instance data buffer
+    U32 instanceCount = static_cast<U32>( batchSize );
+    U32 stride = InstancedBatchRenderer::kInstanceStride;
+
+    if( bgfx::getAvailInstanceDataBuffer( instanceCount, static_cast<uint16_t>( stride ) ) < instanceCount )
+    {
+        return 0;
+    }
+
+    bgfx::InstanceDataBuffer idb;
+    bgfx::allocInstanceDataBuffer( &idb, instanceCount, static_cast<uint16_t>( stride ) );
+
+    float* dataPtr = (float*)idb.data;
+
+    for( size_t i = startIdx; i < end; ++i )
+    {
+        const DeferredCmd& cmd = fDeferredCmds[i];
+        const Geometry::Vertex* verts = cmd.geometry->GetVertexData();
+        if( !verts )
+        {
+            // Zero out this instance
+            memset( dataPtr, 0, stride );
+            dataPtr += stride / sizeof(float);
+            continue;
+        }
+
+        // Extract quad transform from 6 vertices (2 triangles: 0,1,2 / 1,3,2 pattern)
+        // Vertex order: TL(0), TR(1), BL(2), TR(1), BR(3), BL(2)
+        // Unique corners: v[0]=TL, v[1]=TR, v[2]=BL, v[3]=BR (from tri 1: v[3])
+        const Geometry::Vertex& vTL = verts[cmd.offset + 0];
+        const Geometry::Vertex& vTR = verts[cmd.offset + 1];
+        const Geometry::Vertex& vBL = verts[cmd.offset + 2];
+        // v[3] = BR is at index 3 in the second triangle (indices 3,4,5 -> TR,BR,BL)
+        const Geometry::Vertex& vBR = verts[cmd.offset + 4]; // second tri: v[1(TR)], v[3(BR)], v[2(BL)]
+
+        // Build model matrix from quad corners
+        // Base quad is -0.5..0.5, so:
+        // col0 = TR - TL (X axis = right direction * width)
+        // col1 = BL - TL (Y axis = down direction * height)
+        // col3 = center = (TL + BR) / 2
+        float col0x = (float)(vTR.x - vTL.x);
+        float col0y = (float)(vTR.y - vTL.y);
+        float col1x = (float)(vBL.x - vTL.x);
+        float col1y = (float)(vBL.y - vTL.y);
+        float cx = (float)(vTL.x + vBR.x) * 0.5f;
+        float cy = (float)(vTL.y + vBR.y) * 0.5f;
+
+        // i_data0 = col 0 of model matrix (4 floats)
+        dataPtr[0] = col0x;
+        dataPtr[1] = col0y;
+        dataPtr[2] = 0.0f;
+        dataPtr[3] = 0.0f;
+
+        // i_data1 = col 1 of model matrix (4 floats)
+        dataPtr[4] = col1x;
+        dataPtr[5] = col1y;
+        dataPtr[6] = 0.0f;
+        dataPtr[7] = 0.0f;
+
+        // i_data2 = col 3 (translation) (4 floats)
+        dataPtr[8]  = cx;
+        dataPtr[9]  = cy;
+        dataPtr[10] = 0.0f;
+        dataPtr[11] = 1.0f;
+
+        // i_data3 = UV rect (u0, v0, u1, v1)
+        dataPtr[12] = (float)vTL.u;
+        dataPtr[13] = (float)vTL.v;
+        dataPtr[14] = (float)vBR.u;
+        dataPtr[15] = (float)vBR.v;
+
+        // i_data4 = color (r, g, b, a) from vertex color
+        dataPtr[16] = (float)vTL.rs / 255.0f;
+        dataPtr[17] = (float)vTL.gs / 255.0f;
+        dataPtr[18] = (float)vTL.bs / 255.0f;
+        dataPtr[19] = (float)vTL.as / 255.0f;
+
+        dataPtr += stride / sizeof(float);
+    }
+
+    // Set up and submit the instanced draw
+    BgfxProgram* prog = first.program ? static_cast<BgfxProgram*>( first.program->GetGPUResource() ) : NULL;
+    if( prog )
+    {
+        prog->Bind( first.programVersion );
+        for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+        {
+            if( first.uniforms[i].valid )
+            {
+                prog->SetUniform( static_cast<Uniform::Name>( i ), first.uniforms[i].data );
+            }
+        }
+    }
+
+    bgfx::setState( first.bgfxState );
+
+    if( first.scissorEnabled )
+    {
+        bgfx::setScissor( first.scissorX, first.scissorY, first.scissorW, first.scissorH );
+    }
+
+    // Set base quad
+    bgfx::setVertexBuffer( 0, inst.GetBaseQuadVB() );
+    bgfx::setIndexBuffer( inst.GetBaseQuadIB() );
+
+    // Set instance data
+    bgfx::setInstanceDataBuffer( &idb );
+
+    // Set textures
+    for( U32 i = 0; i < kMaxTextureUnits; i++ )
+    {
+        if( first.textures[i] && CPUResource::IsAlive( first.textures[i] ) )
+        {
+            BgfxTexture* tex = static_cast<BgfxTexture*>( first.textures[i]->GetGPUResource() );
+            if( tex )
+            {
+                bgfx::TextureHandle texHandle = tex->GetHandle();
+                if( bgfx::isValid( texHandle ) )
+                {
+                    if( prog )
+                    {
+                        bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                        if( bgfx::isValid( sampler ) )
+                        {
+                            bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    bgfx::submit( fCurrentView, inst.GetProgram() );
+
+    sBatchStats.instancedCount++;
+    if( batchSize > sBatchStats.maxBatchSize )
+    {
+        sBatchStats.maxBatchSize = static_cast<U32>( batchSize );
+    }
+
+    return batchSize;
+}
+
+size_t
+BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
+{
+    if( !sBatchingEnabled ) return 0;
+
+    const DeferredCmd& first = fDeferredCmds[startIdx];
+    if( first.type != DeferredCmd::kDraw && first.type != DeferredCmd::kDrawIndexed ) return 0;
+    if( first.instanceDraw ) return 0;
+    if( first.primitiveType == Geometry::kTriangleFan ) return 0;
+
+    // Try GPU instancing first (for quad draws)
+    size_t instanced = ExecuteInstancedDraws( startIdx );
+    if( instanced > 0 ) return instanced;
+
+    // Find batchable run for CPU merge
+    size_t end = startIdx + 1;
+    while( end < fDeferredCmds.size() && CanBatchDraws( first, fDeferredCmds[end] ) )
+    {
+        ++end;
+    }
+
+    size_t batchSize = end - startIdx;
+    if( batchSize < 2 ) return 0;
+
+    bool isIndexed = ( first.type == DeferredCmd::kDrawIndexed );
+    bool isStrip = ( first.primitiveType == Geometry::kTriangleStrip );
+    bool needsIndexBuffer = isIndexed || isStrip;
+
+    // Calculate total vertices and indices
+    U32 totalVertices = 0;
+    U32 totalIndices = 0;
+
+    for( size_t i = startIdx; i < end; ++i )
+    {
+        const DeferredCmd& cmd = fDeferredCmds[i];
+        if( !cmd.geometry || !CPUResource::IsAlive( cmd.geometry ) ) continue;
+
+        if( isIndexed )
+        {
+            totalVertices += cmd.geometry->GetVerticesUsed();
+            totalIndices += cmd.geometry->GetIndicesUsed();
+        }
+        else if( isStrip )
+        {
+            U32 vCount = cmd.count;
+            totalVertices += vCount;
+            if( vCount >= 3 ) totalIndices += ( vCount - 2 ) * 3;
+        }
+        else
+        {
+            totalVertices += cmd.count;
+        }
+    }
+
+    if( totalVertices == 0 ) return 0;
+
+    // Check transient buffer availability
+    if( bgfx::getAvailTransientVertexBuffer( totalVertices, BgfxGeometry::GetVertexLayout() ) < totalVertices )
+    {
+        return 0;
+    }
+
+    bgfx::TransientVertexBuffer tvb;
+    bgfx::allocTransientVertexBuffer( &tvb, totalVertices, BgfxGeometry::GetVertexLayout() );
+
+    bgfx::TransientIndexBuffer tib;
+    if( needsIndexBuffer )
+    {
+        if( totalIndices == 0 ) return 0;
+        if( bgfx::getAvailTransientIndexBuffer( totalIndices ) < totalIndices ) return 0;
+        bgfx::allocTransientIndexBuffer( &tib, totalIndices );
+    }
+
+    // Merge vertex/index data
+    U32 vertexOffset = 0;
+    U32 indexOffset = 0;
+    U32 vertexSize = sizeof( Geometry::Vertex );
+
+    for( size_t i = startIdx; i < end; ++i )
+    {
+        const DeferredCmd& cmd = fDeferredCmds[i];
+        if( !cmd.geometry || !CPUResource::IsAlive( cmd.geometry ) ) continue;
+
+        const Geometry::Vertex* srcVertices = cmd.geometry->GetVertexData();
+        if( !srcVertices ) continue;
+
+        if( isIndexed )
+        {
+            U32 vCount = cmd.geometry->GetVerticesUsed();
+            U32 iCount = cmd.geometry->GetIndicesUsed();
+            const Geometry::Index* srcIndices = cmd.geometry->GetIndexData();
+            if( !srcIndices || iCount == 0 || vCount == 0 ) continue;
+
+            memcpy( tvb.data + vertexOffset * vertexSize, srcVertices, vCount * vertexSize );
+
+            uint16_t* dstIndices = reinterpret_cast<uint16_t*>( tib.data ) + indexOffset;
+            for( U32 j = 0; j < iCount; ++j )
+            {
+                dstIndices[j] = static_cast<uint16_t>( srcIndices[j] + vertexOffset );
+            }
+            vertexOffset += vCount;
+            indexOffset += iCount;
+        }
+        else if( isStrip )
+        {
+            U32 vCount = cmd.count;
+            if( vCount < 3 ) continue;
+
+            memcpy( tvb.data + vertexOffset * vertexSize, srcVertices + cmd.offset, vCount * vertexSize );
+
+            uint16_t* dstIndices = reinterpret_cast<uint16_t*>( tib.data ) + indexOffset;
+            U32 triCount = vCount - 2;
+            for( U32 t = 0; t < triCount; ++t )
+            {
+                uint16_t base = static_cast<uint16_t>( vertexOffset );
+                if( ( t & 1 ) == 0 )
+                {
+                    dstIndices[t * 3 + 0] = base + static_cast<uint16_t>( t );
+                    dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t + 1 );
+                    dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
+                }
+                else
+                {
+                    dstIndices[t * 3 + 0] = base + static_cast<uint16_t>( t + 1 );
+                    dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t );
+                    dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
+                }
+            }
+            vertexOffset += vCount;
+            indexOffset += triCount * 3;
+        }
+        else
+        {
+            U32 vCount = cmd.count;
+            memcpy( tvb.data + vertexOffset * vertexSize, srcVertices + cmd.offset, vCount * vertexSize );
+            vertexOffset += vCount;
+        }
+    }
+
+    // Submit merged batch
+    BgfxProgram* prog = first.program ? static_cast<BgfxProgram*>( first.program->GetGPUResource() ) : NULL;
+    if( !prog ) return 0;
+
+    prog->Bind( first.programVersion );
+    bgfx::ProgramHandle programHandle = prog->GetHandle( first.programVersion );
+    if( !bgfx::isValid( programHandle ) ) return 0;
+
+    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    {
+        if( first.uniforms[i].valid )
+        {
+            prog->SetUniform( static_cast<Uniform::Name>( i ), first.uniforms[i].data );
+        }
+    }
+
+    SetTexFlagsUniform( prog, first );
+
+    bgfx::setState( first.bgfxState );
+    if( first.scissorEnabled )
+    {
+        bgfx::setScissor( first.scissorX, first.scissorY, first.scissorW, first.scissorH );
+    }
+
+    bgfx::setVertexBuffer( 0, &tvb, 0, vertexOffset );
+    if( needsIndexBuffer )
+    {
+        bgfx::setIndexBuffer( &tib, 0, indexOffset );
+    }
+
+    for( U32 i = 0; i < kMaxTextureUnits; i++ )
+    {
+        if( first.textures[i] && CPUResource::IsAlive( first.textures[i] ) )
+        {
+            BgfxTexture* tex = static_cast<BgfxTexture*>( first.textures[i]->GetGPUResource() );
+            if( tex )
+            {
+                bgfx::TextureHandle texHandle = tex->GetHandle();
+                if( bgfx::isValid( texHandle ) )
+                {
+                    bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                    if( bgfx::isValid( sampler ) )
+                    {
+                        bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
+                    }
+                }
+            }
+        }
+    }
+
+    bgfx::submit( fCurrentView, programHandle );
+
+    sBatchStats.batchCount++;
+    if( batchSize > sBatchStats.maxBatchSize )
+    {
+        sBatchStats.maxBatchSize = static_cast<U32>( batchSize );
+    }
+
+    return batchSize;
+}
+
+// ============================================================================
+// Execute
+// ============================================================================
+
 Real
 BgfxCommandBuffer::Execute( bool measureGPU )
 {
@@ -1149,7 +1589,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
-    
+
     // CRITICAL: Reset ALL views' framebuffer bindings every frame.
     // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
     // from previous scenes cause rendering failures after scene transitions.
@@ -1163,6 +1603,40 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // No setViewOrder needed - natural ordering handles this
 
     static uint32_t sFrameNum = 0;
+
+    // Reset batch stats
+    sBatchStats.totalDrawCmds = 0;
+    sBatchStats.actualSubmits = 0;
+    sBatchStats.batchCount = 0;
+    sBatchStats.instancedCount = 0;
+    sBatchStats.maxBatchSize = 0;
+
+    // Check env vars (first frame only)
+    static bool sCheckedEnv = false;
+    if( !sCheckedEnv )
+    {
+        const char* batchEnv = getenv( "SOLAR2D_BATCH" );
+        if( batchEnv && strcmp( batchEnv, "0" ) == 0 )
+        {
+            sBatchingEnabled = false;
+            Rtt_LogException( "Draw call batching DISABLED via SOLAR2D_BATCH=0\n" );
+        }
+
+        const char* instEnv = getenv( "SOLAR2D_INSTANCE" );
+        if( instEnv && strcmp( instEnv, "0" ) == 0 )
+        {
+            sInstancingEnabled = false;
+            InstancedBatchRenderer::SetEnabled( false );
+            Rtt_LogException( "GPU instancing DISABLED via SOLAR2D_INSTANCE=0\n" );
+        }
+        else
+        {
+            Rtt_LogException( "GPU instancing ENABLED (batching %s)\n",
+                sBatchingEnabled ? "ENABLED" : "DISABLED" );
+        }
+
+        sCheckedEnv = true;
+    }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
     for( size_t i = 0; i < fDeferredCmds.size(); ++i )
@@ -1180,15 +1654,41 @@ BgfxCommandBuffer::Execute( bool measureGPU )
                 ExecuteClear( cmd );
                 break;
             case DeferredCmd::kDraw:
-                ExecuteDraw( cmd );
-                break;
             case DeferredCmd::kDrawIndexed:
-                ExecuteDrawIndexed( cmd );
+            {
+                sBatchStats.totalDrawCmds++;
+
+                // Try batching/instancing
+                size_t batched = ExecuteBatchedDraws( i );
+                if( batched > 0 )
+                {
+                    sBatchStats.totalDrawCmds += static_cast<U32>( batched - 1 );
+                    sBatchStats.actualSubmits++;
+                    i += batched - 1; // Skip batched commands
+                }
+                else
+                {
+                    if( cmd.type == DeferredCmd::kDraw )
+                        ExecuteDraw( cmd );
+                    else
+                        ExecuteDrawIndexed( cmd );
+                    sBatchStats.actualSubmits++;
+                }
                 break;
+            }
             case DeferredCmd::kCaptureRect:
                 ExecuteCaptureRect( cmd );
                 break;
         }
+    }
+
+    // Log stats periodically (every 300 frames)
+    if( sFrameNum % 300 == 0 && sBatchStats.totalDrawCmds > 0 )
+    {
+        Rtt_LogException( "Batch stats: %u draws -> %u submits (cpu:%u instanced:%u max:%u)\n",
+            sBatchStats.totalDrawCmds, sBatchStats.actualSubmits,
+            sBatchStats.batchCount, sBatchStats.instancedCount,
+            sBatchStats.maxBatchSize );
     }
 
     sFrameNum++;

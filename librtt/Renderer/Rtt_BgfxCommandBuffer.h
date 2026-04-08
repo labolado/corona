@@ -198,6 +198,26 @@ class BgfxCommandBuffer : public CommandBuffer
         void SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd );
         void ApplyNamedUniforms( const DeferredCmd& cmd );
 
+        // Draw call batching and instancing
+        bool CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const;
+        bool IsQuadDraw( const DeferredCmd& cmd ) const;
+        size_t ExecuteInstancedDraws( size_t startIdx );
+        size_t ExecuteBatchedDraws( size_t startIdx );
+
+    public:
+        // Batch/instancing statistics (reset each frame)
+        struct BatchStats
+        {
+            U32 totalDrawCmds;    // Draw commands before batching
+            U32 actualSubmits;    // Actual bgfx::submit calls after batching
+            U32 batchCount;       // Number of batches formed (CPU merge)
+            U32 instancedCount;   // Number of instanced batches
+            U32 maxBatchSize;     // Largest batch in this frame
+        };
+        static BatchStats sBatchStats;
+        static bool sBatchingEnabled;
+        static bool sInstancingEnabled;
+
     private:
         static const U32 kMaxTextureUnits = 8;
 
