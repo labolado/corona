@@ -1,6 +1,6 @@
 [submodule "external/Box2D"]
 	path = external/Box2D
-	url = https://github.com/coronalabs/submodule-box2d.git
+	url = https://github.com/zero-meta/submodule-box2d.git
 	branch = master
 [submodule "external/CryptoPP"]
 	path = external/CryptoPP
@@ -52,8 +52,8 @@
 	branch = master
 [submodule "subrepos/enterprise"]
 	path = subrepos/enterprise
-	url = https://github.com/coronalabs/submodule-native.git
-	branch = master
+	url = https://github.com/labolado/submodule-native.git
+	branch = labolado_dev
 [submodule "subrepos/easing"]
 	path = subrepos/easing
 	url = https://github.com/coronalabs/framework-easing.git
@@ -84,10 +84,12 @@
 	branch = Solar2D-Changes-Reverted
 [submodule "external/bgfx"]
 	path = external/bgfx
-	url = https://github.com/bkaradzic/bgfx.git
+	url = https://github.com/labolado/bgfx.git
+	branch = solar2d
 [submodule "external/bx"]
 	path = external/bx
-	url = https://github.com/bkaradzic/bx.git
+	url = https://github.com/labolado/bx.git
+	branch = solar2d
 [submodule "external/bimg"]
 	path = external/bimg
 	url = https://github.com/bkaradzic/bimg.git
