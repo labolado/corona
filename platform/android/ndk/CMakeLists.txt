@@ -771,8 +771,22 @@ if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64
 	# NDK version <= 22
 	target_link_options(corona PRIVATE "-Wl,-z,common-page-size=16384")
 endif()
+
+# bgfx static libs — map ANDROID_ABI to bgfx build directory name
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+	set(BGFX_PLATFORM "android-arm64")
+elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+	set(BGFX_PLATFORM "android-arm")
+elseif(ANDROID_ABI STREQUAL "x86_64")
+	set(BGFX_PLATFORM "android-x86_64")
+elseif(ANDROID_ABI STREQUAL "x86")
+	set(BGFX_PLATFORM "android-x86")
+else()
+	set(BGFX_PLATFORM "android-arm64")
+endif()
+
 target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES android
-	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbgfxRelease.a
-	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbimgRelease.a
-	${CORONA_ROOT}/external/bgfx/.build/android-arm64/bin/libbxRelease.a
+	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbgfxRelease.a
+	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbimgRelease.a
+	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbxRelease.a
 )
