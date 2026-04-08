@@ -11,7 +11,11 @@
 
 #include "Display/Rtt_SDFRenderer.h"
 #include "Core/Rtt_Assert.h"
-#include "Renderer/Rtt_BgfxShaderData_sdf_metal.h"
+#if defined(Rtt_ANDROID_ENV)
+    #include "Renderer/Rtt_BgfxShaderData_sdf_essl.h"
+#else
+    #include "Renderer/Rtt_BgfxShaderData_sdf_metal.h"
+#endif
 
 #include <string.h>
 
@@ -67,20 +71,44 @@ SDFRenderer::Initialize()
 	fPolyParamsUniform = bgfx::createUniform( "u_polyParams", bgfx::UniformType::Vec4 );
 	fPolyVertsUniform = bgfx::createUniform( "u_polyVerts", bgfx::UniformType::Vec4, 8 );
 
-	// Create SDF shader programs from embedded shader binaries
+	// Create SDF shader programs from platform-specific embedded binaries
 	// Vertex shader is shared across all shape types
-	const bgfx::Memory* vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+#if defined(Rtt_ANDROID_ENV)
+	#define SDF_VS_DATA   s_vs_sdf_essl
+	#define SDF_VS_SIZE   s_vs_sdf_essl_size
+	#define SDF_FS_CIRCLE s_fs_sdf_circle_essl
+	#define SDF_FS_CIRCLE_SIZE s_fs_sdf_circle_essl_size
+	#define SDF_FS_RECT   s_fs_sdf_rect_essl
+	#define SDF_FS_RECT_SIZE s_fs_sdf_rect_essl_size
+	#define SDF_FS_LINE   s_fs_sdf_line_essl
+	#define SDF_FS_LINE_SIZE s_fs_sdf_line_essl_size
+	#define SDF_FS_POLY   s_fs_sdf_polygon_essl
+	#define SDF_FS_POLY_SIZE s_fs_sdf_polygon_essl_size
+#else
+	#define SDF_VS_DATA   s_vs_sdf_metal
+	#define SDF_VS_SIZE   s_vs_sdf_metal_size
+	#define SDF_FS_CIRCLE s_fs_sdf_circle_metal
+	#define SDF_FS_CIRCLE_SIZE s_fs_sdf_circle_metal_size
+	#define SDF_FS_RECT   s_fs_sdf_rect_metal
+	#define SDF_FS_RECT_SIZE s_fs_sdf_rect_metal_size
+	#define SDF_FS_LINE   s_fs_sdf_line_metal
+	#define SDF_FS_LINE_SIZE s_fs_sdf_line_metal_size
+	#define SDF_FS_POLY   s_fs_sdf_polygon_metal
+	#define SDF_FS_POLY_SIZE s_fs_sdf_polygon_metal_size
+#endif
+
+	const bgfx::Memory* vsMemory = bgfx::copy(SDF_VS_DATA, SDF_VS_SIZE);
 	bgfx::ShaderHandle vsHandle = bgfx::createShader(vsMemory);
 
 	// Circle program
-	const bgfx::Memory* fsCircleMemory = bgfx::copy(s_fs_sdf_circle_metal, s_fs_sdf_circle_metal_size);
+	const bgfx::Memory* fsCircleMemory = bgfx::copy(SDF_FS_CIRCLE, SDF_FS_CIRCLE_SIZE);
 	bgfx::ShaderHandle fsCircleHandle = bgfx::createShader(fsCircleMemory);
 	fPrograms[kCircle] = bgfx::createProgram(vsHandle, fsCircleHandle, true);
 
 	// Rect program (re-create vs since previous createProgram destroyed it)
-	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsMemory = bgfx::copy(SDF_VS_DATA, SDF_VS_SIZE);
 	vsHandle = bgfx::createShader(vsMemory);
-	const bgfx::Memory* fsRectMemory = bgfx::copy(s_fs_sdf_rect_metal, s_fs_sdf_rect_metal_size);
+	const bgfx::Memory* fsRectMemory = bgfx::copy(SDF_FS_RECT, SDF_FS_RECT_SIZE);
 	bgfx::ShaderHandle fsRectHandle = bgfx::createShader(fsRectMemory);
 	fPrograms[kRect] = bgfx::createProgram(vsHandle, fsRectHandle, true);
 
@@ -88,16 +116,16 @@ SDFRenderer::Initialize()
 	fPrograms[kRoundedRect] = fPrograms[kRect];
 
 	// Line program
-	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsMemory = bgfx::copy(SDF_VS_DATA, SDF_VS_SIZE);
 	vsHandle = bgfx::createShader(vsMemory);
-	const bgfx::Memory* fsLineMemory = bgfx::copy(s_fs_sdf_line_metal, s_fs_sdf_line_metal_size);
+	const bgfx::Memory* fsLineMemory = bgfx::copy(SDF_FS_LINE, SDF_FS_LINE_SIZE);
 	bgfx::ShaderHandle fsLineHandle = bgfx::createShader(fsLineMemory);
 	fPrograms[kLine] = bgfx::createProgram(vsHandle, fsLineHandle, true);
 
 	// Polygon program
-	vsMemory = bgfx::copy(s_vs_sdf_metal, s_vs_sdf_metal_size);
+	vsMemory = bgfx::copy(SDF_VS_DATA, SDF_VS_SIZE);
 	vsHandle = bgfx::createShader(vsMemory);
-	const bgfx::Memory* fsPolyMemory = bgfx::copy(s_fs_sdf_polygon_metal, s_fs_sdf_polygon_metal_size);
+	const bgfx::Memory* fsPolyMemory = bgfx::copy(SDF_FS_POLY, SDF_FS_POLY_SIZE);
 	bgfx::ShaderHandle fsPolyHandle = bgfx::createShader(fsPolyMemory);
 	fPrograms[kPolygon] = bgfx::createProgram(vsHandle, fsPolyHandle, true);
 

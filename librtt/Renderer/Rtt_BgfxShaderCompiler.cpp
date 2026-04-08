@@ -73,6 +73,87 @@ static void AutoDetectPaths()
         BgfxShaderCompiler::SetVaryingDefPath(varyingDef.c_str());
 }
 
+// Inline bgfx shader compatibility definitions.
+// Replaces #include <bgfx_shader.sh> so the .sc templates are self-contained
+// and don't depend on external include paths (required for ESSL cross-compilation).
+static const char kBgfxShaderInline[] =
+    "\n"
+    "// --- bgfx shader compatibility (inlined) ---\n"
+    "#if BGFX_SHADER_LANGUAGE_GLSL\n"
+    "  #define SAMPLER2D(_name, _reg) uniform sampler2D _name\n"
+    "  #define SAMPLER3D(_name, _reg) uniform sampler3D _name\n"
+    "  #define SAMPLERCUBE(_name, _reg) uniform samplerCube _name\n"
+    "  #define mul(_a, _b) ((_a) * (_b))\n"
+    "  #define saturate(_x) clamp(_x, 0.0, 1.0)\n"
+    "  #define CONST(_x) const _x\n"
+    "  #define atan2(_x, _y) atan(_x, _y)\n"
+    "  vec2 vec2_splat(float _x) { return vec2(_x, _x); }\n"
+    "  vec3 vec3_splat(float _x) { return vec3(_x, _x, _x); }\n"
+    "  vec4 vec4_splat(float _x) { return vec4(_x, _x, _x, _x); }\n"
+    "  float rcp(float _a) { return 1.0/_a; }\n"
+    "  vec2  rcp(vec2  _a) { return vec2(1.0)/_a; }\n"
+    "  vec3  rcp(vec3  _a) { return vec3(1.0)/_a; }\n"
+    "  vec4  rcp(vec4  _a) { return vec4(1.0)/_a; }\n"
+    "  #if BGFX_SHADER_LANGUAGE_GLSL >= 130\n"
+    "    #define texture2D(_sampler, _coord) texture(_sampler, _coord)\n"
+    "    #define texture2DLod(_sampler, _coord, _lod) textureLod(_sampler, _coord, _lod)\n"
+    "    #define texture2DLodOffset(_sampler, _coord, _lod, _offset) textureLodOffset(_sampler, _coord, _lod, _offset)\n"
+    "    #define texture2DBias(_sampler, _coord, _bias) texture(_sampler, _coord, _bias)\n"
+    "  #else\n"
+    "    #define texture2DBias(_sampler, _coord, _bias) texture2D(_sampler, _coord, _bias)\n"
+    "  #endif\n"
+    "#else\n"
+    "  // Metal / HLSL path\n"
+    "  #define CONST(_x) static const _x\n"
+    "  #define REGISTER(_type, _reg) register(_type ## _reg)\n"
+    "  #define dFdx(_x) ddx(_x)\n"
+    "  #define dFdy(_y) ddy(-(_y))\n"
+    "  #define inversesqrt(_x) rsqrt(_x)\n"
+    "  #define fract(_x) frac(_x)\n"
+    "  float rcp(float _a) { return 1.0/_a; }\n"
+    "  vec2  rcp(vec2  _a) { return vec2(1.0)/_a; }\n"
+    "  vec3  rcp(vec3  _a) { return vec3(1.0)/_a; }\n"
+    "  vec4  rcp(vec4  _a) { return vec4(1.0)/_a; }\n"
+    "  struct BgfxSampler2D { SamplerState m_sampler; Texture2D m_texture; };\n"
+    "  vec4 bgfxTexture2D(BgfxSampler2D _sampler, vec2 _coord) {\n"
+    "    return _sampler.m_texture.Sample(_sampler.m_sampler, _coord);\n"
+    "  }\n"
+    "  vec4 bgfxTexture2DLod(BgfxSampler2D _sampler, vec2 _coord, float _level) {\n"
+    "    return _sampler.m_texture.SampleLevel(_sampler.m_sampler, _coord, _level);\n"
+    "  }\n"
+    "  vec4 bgfxTexture2DLodOffset(BgfxSampler2D _sampler, vec2 _coord, float _level, ivec2 _offset) {\n"
+    "    return _sampler.m_texture.SampleLevel(_sampler.m_sampler, _coord, _level, _offset);\n"
+    "  }\n"
+    "  vec4 bgfxTexture2DBias(BgfxSampler2D _sampler, vec2 _coord, float _bias) {\n"
+    "    return _sampler.m_texture.SampleBias(_sampler.m_sampler, _coord, _bias);\n"
+    "  }\n"
+    "  vec4 bgfxTexture2DProj(BgfxSampler2D _sampler, vec3 _coord) {\n"
+    "    vec2 coord = _coord.xy * rcp(_coord.z);\n"
+    "    return _sampler.m_texture.Sample(_sampler.m_sampler, coord);\n"
+    "  }\n"
+    "  vec2 bgfxTextureSize(BgfxSampler2D _sampler, int _lod) {\n"
+    "    vec2 result; float mips;\n"
+    "    _sampler.m_texture.GetDimensions(_lod, result.x, result.y, mips);\n"
+    "    return result;\n"
+    "  }\n"
+    "  #define SAMPLER2D(_name, _reg) \\\n"
+    "    uniform SamplerState _name ## Sampler : REGISTER(s, _reg); \\\n"
+    "    uniform Texture2D _name ## Texture : REGISTER(t, _reg); \\\n"
+    "    static BgfxSampler2D _name = { _name ## Sampler, _name ## Texture }\n"
+    "  #define sampler2D BgfxSampler2D\n"
+    "  #define texture2D(_sampler, _coord) bgfxTexture2D(_sampler, _coord)\n"
+    "  #define texture2DLod(_sampler, _coord, _level) bgfxTexture2DLod(_sampler, _coord, _level)\n"
+    "  #define texture2DLodOffset(_sampler, _coord, _lod, _offset) bgfxTexture2DLodOffset(_sampler, _coord, _lod, _offset)\n"
+    "  #define texture2DBias(_sampler, _coord, _bias) bgfxTexture2DBias(_sampler, _coord, _bias)\n"
+    "  #define texture2DProj(_sampler, _coord) bgfxTexture2DProj(_sampler, _coord)\n"
+    "  #define mul(_a, _b) mul(_a, _b)\n"
+    "  vec2 vec2_splat(float _x) { return vec2(_x, _x); }\n"
+    "  vec3 vec3_splat(float _x) { return vec3(_x, _x, _x); }\n"
+    "  vec4 vec4_splat(float _x) { return vec4(_x, _x, _x, _x); }\n"
+    "#endif // BGFX_SHADER_LANGUAGE_GLSL\n"
+    "// --- end bgfx shader compatibility ---\n"
+    "\n";
+
 // The bgfx .sc fragment shader template for custom effects.
 // Split into header (always included) and user data uniforms (conditionally included).
 // User data uniforms are skipped when the preamble already declares them,
@@ -81,8 +162,6 @@ static const char kFragmentScInputBase[] =
     "$input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2";
 
 static const char kFragmentScHeaderBody[] =
-    "\n"
-    "#include <bgfx_shader.sh>\n"
     "\n"
     "// Sampler uniforms\n"
     "SAMPLER2D(u_FillSampler0, 0);\n"
@@ -286,6 +365,7 @@ static std::string BuildFragmentTemplate(const std::string& preamble,
                                           const VaryingMapping& varyings = VaryingMapping())
 {
     std::string result = BuildFragmentInputLine(varyings) + "\n";
+    result += kBgfxShaderInline;
     result += kFragmentScHeaderBody;
 
     // Emit user data uniforms only if preamble doesn't already declare them
@@ -753,7 +833,7 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     std::string result;
     result += "$input a_position, a_texcoord0, a_color0, a_texcoord1\n";
     result += outputLine + "\n";
-    result += "\n#include <bgfx_shader.sh>\n\n";
+    result += kBgfxShaderInline;
     result += "uniform mat4 u_ViewProjectionMatrix;\n";
     result += "uniform mat3 u_MaskMatrix0;\n";
     result += "uniform mat3 u_MaskMatrix1;\n";
@@ -862,8 +942,16 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     cmd += " -o " + binPath;
     cmd += " --type ";
     cmd += shaderType;
+#if defined(Rtt_ANDROID_ENV)
+    cmd += " --platform android";
+    cmd += " -p 320_es";
+#elif defined(Rtt_IPHONE_ENV)
+    cmd += " --platform ios";
+    cmd += " -p metal";
+#else
     cmd += " --platform osx";
     cmd += " -p metal";
+#endif
 
     // Add include directories
     if (!s_bgfxIncludeDir.empty())

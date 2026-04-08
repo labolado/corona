@@ -53,8 +53,11 @@ void main()
         d = min(d, dot(b, b));
 
         // Winding number for inside/outside
-        bvec3 cond = bvec3(p.y >= vi.y, p.y < vj.y, e.x * w.y > e.y * w.x);
-        if (all(cond) || all(not(cond))) s *= -1.0;
+        // Avoid bvec3/not() — shaderc generates invalid ESSL for not(bvec3)
+        bool c1 = p.y >= vi.y;
+        bool c2 = p.y < vj.y;
+        bool c3 = e.x * w.y > e.y * w.x;
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) s *= -1.0;
     }
 
     float dist = s * sqrt(d);
