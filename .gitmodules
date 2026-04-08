@@ -1,6 +1,6 @@
 [submodule "external/Box2D"]
 	path = external/Box2D
-	url = https://github.com/zero-meta/submodule-box2d.git
+	url = https://github.com/coronalabs/submodule-box2d.git
 	branch = master
 [submodule "external/CryptoPP"]
 	path = external/CryptoPP
@@ -52,8 +52,8 @@
 	branch = master
 [submodule "subrepos/enterprise"]
 	path = subrepos/enterprise
-	url = https://github.com/labolado/submodule-native.git
-	branch = labolado_dev
+	url = https://github.com/coronalabs/submodule-native.git
+	branch = master
 [submodule "subrepos/easing"]
 	path = subrepos/easing
 	url = https://github.com/coronalabs/framework-easing.git
