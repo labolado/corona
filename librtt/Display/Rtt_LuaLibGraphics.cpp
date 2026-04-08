@@ -26,6 +26,7 @@
 #include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
+#include "Renderer/Rtt_BgfxCommandBuffer.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShaderTypes.h"
 #include "Display/Rtt_TextureResource.h"
@@ -421,6 +422,29 @@ GraphicsLibrary::getDirtyStats( lua_State *L )
         lua_pushnumber( L, 0 );
     }
     lua_setfield( L, -2, "cacheHitRate" );
+
+    // Batch stats (bgfx backend only)
+    const BgfxCommandBuffer::BatchStats& bs = BgfxCommandBuffer::sBatchStats;
+    lua_pushinteger( L, bs.totalDrawCmds );
+    lua_setfield( L, -2, "batchTotalDraws" );
+
+    lua_pushinteger( L, bs.actualSubmits );
+    lua_setfield( L, -2, "batchActualSubmits" );
+
+    lua_pushinteger( L, bs.batchCount );
+    lua_setfield( L, -2, "batchCount" );
+
+    lua_pushinteger( L, bs.maxBatchSize );
+    lua_setfield( L, -2, "batchMaxSize" );
+
+    lua_pushboolean( L, BgfxCommandBuffer::sBatchingEnabled );
+    lua_setfield( L, -2, "batchingEnabled" );
+
+    lua_pushinteger( L, bs.drawCount );
+    lua_setfield( L, -2, "drawCount" );
+
+    lua_pushinteger( L, bs.drawIndexedCount );
+    lua_setfield( L, -2, "drawIndexedCount" );
 
     return 1;
 }
