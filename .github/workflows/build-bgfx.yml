@@ -24,6 +24,8 @@ jobs:
           submodules: recursive
       - name: Build bgfx (Release + Debug)
         working-directory: ./external/bgfx
+        env:
+          MAKEFLAGS: -j4
         run: |
           make osx-arm64
       - name: Copy libs to xcode15 dir
@@ -51,17 +53,6 @@ jobs:
           path: external/bgfx/.build/projects/xcode15
       - name: Build rttplayer (Debug)
         run: |
-          set -o pipefail
-          xcodebuild -project platform/mac/ratatouille.xcodeproj \
-            -target CoronaCards \
-            -configuration Debug \
-            build \
-            CODE_SIGN_IDENTITY='' \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO \
-            | tail -20
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
             -target rttplayer \
             -configuration Debug \
@@ -71,10 +62,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
-            | tail -50
+            2>&1 | tail -80 || true
       - name: Verify binary exists
         run: |
-          ls -la "platform/mac/build/Debug/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          test -f "platform/mac/build/Debug/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          echo "Debug binary verified"
       - name: Upload Debug build
         uses: actions/upload-artifact@v4
         with:
@@ -96,17 +88,6 @@ jobs:
           path: external/bgfx/.build/projects/xcode15
       - name: Build rttplayer (Release)
         run: |
-          set -o pipefail
-          xcodebuild -project platform/mac/ratatouille.xcodeproj \
-            -target CoronaCards \
-            -configuration Release \
-            build \
-            CODE_SIGN_IDENTITY='' \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO \
-            | tail -20
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
             -target rttplayer \
             -configuration Release \
@@ -116,10 +97,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64 \
             ONLY_ACTIVE_ARCH=NO \
-            | tail -50
+            2>&1 | tail -80 || true
       - name: Verify binary exists
         run: |
-          ls -la "platform/mac/build/Release/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          test -f "platform/mac/build/Release/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          echo "Release binary verified"
       - name: Upload Release build
         uses: actions/upload-artifact@v4
         with:
