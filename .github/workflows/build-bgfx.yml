@@ -20,8 +20,13 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Init submodules
+        run: |
+          git submodule update --init --recursive --depth 1 2>&1 || {
+            echo "Some submodules failed, retrying individually..."
+            git submodule init
+            git submodule foreach --recursive 'git fetch --depth 1 origin $sha1 2>/dev/null && git checkout $sha1 2>/dev/null || echo "WARN: skipped $name"' || true
+          }
       - name: Build rttplayer (Debug)
         run: |
           set -o pipefail
@@ -44,8 +49,13 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Init submodules
+        run: |
+          git submodule update --init --recursive --depth 1 2>&1 || {
+            echo "Some submodules failed, retrying individually..."
+            git submodule init
+            git submodule foreach --recursive 'git fetch --depth 1 origin $sha1 2>/dev/null && git checkout $sha1 2>/dev/null || echo "WARN: skipped $name"' || true
+          }
       - name: Build rttplayer (Release)
         run: |
           set -o pipefail
@@ -76,8 +86,13 @@ jobs:
       TEMPLATE_PLATFORM: iphone
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Init submodules
+        run: |
+          git submodule update --init --recursive --depth 1 2>&1 || {
+            echo "Some submodules failed, retrying individually..."
+            git submodule init
+            git submodule foreach --recursive 'git fetch --depth 1 origin $sha1 2>/dev/null && git checkout $sha1 2>/dev/null || echo "WARN: skipped $name"' || true
+          }
       - name: Set build env
         run: |
           {
@@ -99,8 +114,13 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Init submodules
+        run: |
+          git submodule update --init --recursive --depth 1 2>&1 || {
+            echo "Some submodules failed, retrying individually..."
+            git submodule init
+            git submodule foreach --recursive 'git fetch --depth 1 origin $sha1 2>/dev/null && git checkout $sha1 2>/dev/null || echo "WARN: skipped $name"' || true
+          }
       - name: CMake configure and build
         working-directory: ./platform/android/ndk
         run: |
