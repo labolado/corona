@@ -53,6 +53,16 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
+            -target CoronaCards \
+            -configuration Debug \
+            build \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            | tail -20
+          xcodebuild -project platform/mac/ratatouille.xcodeproj \
             -target rttplayer \
             -configuration Debug \
             build \
@@ -87,6 +97,16 @@ jobs:
       - name: Build rttplayer (Release)
         run: |
           set -o pipefail
+          xcodebuild -project platform/mac/ratatouille.xcodeproj \
+            -target CoronaCards \
+            -configuration Release \
+            build \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            | tail -20
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
             -target rttplayer \
             -configuration Release \
