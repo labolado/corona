@@ -290,15 +290,18 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
         // bgfx readback is RGBA8: bytes [R, G, B, A].
         //
         // PLATFORM-SPECIFIC byte order conversion:
-        // Mac desktop bitmap (kBGRA) uses kCGImageAlphaPremultipliedFirst with
-        // Big-endian byte order → memory is [A, R, G, B].
-        // GL reads with GL_BGRA + GL_UNSIGNED_INT_8_8_8_8 to match this layout.
-        //
-        // TODO(cross-platform): Windows kBGRA is standard LE [B,G,R,A] — needs
-        // R↔B swap instead of byte rotation. iOS/Android use kRGBA (GLES) and
-        // don't need conversion. Add #if platform guards when porting bgfx to
-        // other desktop platforms.
-        //
+        // - GLES (iOS/Android): bitmap is kRGBA [R,G,B,A] — no conversion needed
+        // - Mac desktop: bitmap is kBGRA with kCGImageAlphaPremultipliedFirst
+        //   Big-endian byte order → memory is [A, R, G, B] — rotate RGBA→ARGB
+#if defined( Rtt_OPENGLES )
+        // GLES readback is RGBA, bitmap is kRGBA — direct copy
+        for( U32 row = 0; row < copyH; ++row )
+        {
+            const U8* src = readbackBuffer + row * readW * 4;
+            U8* dst = dstData + row * bitmapW * 4;
+            memcpy( dst, src, copyW * 4 );
+        }
+#else
         // Convert RGBA → ARGB(BE): rotate bytes right by 1.
         for( U32 row = 0; row < copyH; ++row )
         {
@@ -312,6 +315,7 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
                 dst[col * 4 + 3] = src[col * 4 + 2]; // B
             }
         }
+#endif
     }
 
     free( readbackBuffer );
