@@ -296,6 +296,7 @@ options.frameworksOptional = {
 	'Photos',
 	'Foundation', -- NOTE: This is optional b/c libFuseAds.a references an iOS7 API
 	'Twitter',
+	'PhotosUI',
 }
 
 options.staticLibs = {
