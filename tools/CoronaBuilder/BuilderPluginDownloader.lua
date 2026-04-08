@@ -201,7 +201,7 @@ local function AppleDownloadPlugins( sdk, platform, build, pluginsToDownload, fo
 			end
 		end
 
-		if(plugin.frameworksOptional)then
+		if plugin.frameworksOptional then
 			for _, lib in pairs(plugin.frameworksOptional) do
 				frameworksWeak[lib] = true
 				frameworkSearchPaths[plugin.path] = true
