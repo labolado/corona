@@ -12,12 +12,12 @@ on:
 
 env:
   WORKSPACE: ${{ github.workspace }}
-  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 
 jobs:
   macOS-Debug:
     name: macOS Debug Build
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,10 +38,15 @@ jobs:
       - name: Verify binary exists
         run: |
           ls -la "platform/mac/build/Debug/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+      - name: Upload Debug build
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-Debug
+          path: platform/mac/build/Debug/Corona Simulator.app
 
   macOS-Release:
     name: macOS Release Build
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,10 +67,15 @@ jobs:
       - name: Verify binary exists
         run: |
           ls -la "platform/mac/build/Release/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+      - name: Upload Release build
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-Release
+          path: platform/mac/build/Release/Corona Simulator.app
 
   iOS-templates:
     name: iOS Template Build (${{ matrix.target }})
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       matrix:
         target:
