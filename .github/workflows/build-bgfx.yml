@@ -20,22 +20,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Init submodules
-        run: |
-          # Try normal init first, fix broken ones after
-          git submodule update --init --recursive --depth 1 2>&1 || true
-          # Box2D: coronalabs force-pushed, use zero-meta fork
-          if [ ! -f external/Box2D/Box2D/Box2D.h ]; then
-            rm -rf external/Box2D
-            git clone --depth 1 https://github.com/zero-meta/submodule-box2d.git external/Box2D
-          fi
-          # bgfx/bx/bimg: upstream force-pushed, clone latest
-          for lib in bgfx bx bimg; do
-            if [ ! -d "external/$lib/include" ]; then
-              rm -rf "external/$lib"
-              git clone --depth 1 "https://github.com/bkaradzic/$lib.git" "external/$lib"
-            fi
-          done
+        with:
+          submodules: recursive
       - name: Build rttplayer (Debug)
         run: |
           set -o pipefail
@@ -58,19 +44,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Init submodules
-        run: |
-          git submodule update --init --recursive --depth 1 2>&1 || true
-          if [ ! -f external/Box2D/Box2D/Box2D.h ]; then
-            rm -rf external/Box2D
-            git clone --depth 1 https://github.com/zero-meta/submodule-box2d.git external/Box2D
-          fi
-          for lib in bgfx bx bimg; do
-            if [ ! -d "external/$lib/include" ]; then
-              rm -rf "external/$lib"
-              git clone --depth 1 "https://github.com/bkaradzic/$lib.git" "external/$lib"
-            fi
-          done
+        with:
+          submodules: recursive
       - name: Build rttplayer (Release)
         run: |
           set -o pipefail
@@ -101,19 +76,8 @@ jobs:
       TEMPLATE_PLATFORM: iphone
     steps:
       - uses: actions/checkout@v4
-      - name: Init submodules
-        run: |
-          git submodule update --init --recursive --depth 1 2>&1 || true
-          if [ ! -f external/Box2D/Box2D/Box2D.h ]; then
-            rm -rf external/Box2D
-            git clone --depth 1 https://github.com/zero-meta/submodule-box2d.git external/Box2D
-          fi
-          for lib in bgfx bx bimg; do
-            if [ ! -d "external/$lib/include" ]; then
-              rm -rf "external/$lib"
-              git clone --depth 1 "https://github.com/bkaradzic/$lib.git" "external/$lib"
-            fi
-          done
+        with:
+          submodules: recursive
       - name: Set build env
         run: |
           {
@@ -135,19 +99,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Init submodules
-        run: |
-          git submodule update --init --recursive --depth 1 2>&1 || true
-          if [ ! -f external/Box2D/Box2D/Box2D.h ]; then
-            rm -rf external/Box2D
-            git clone --depth 1 https://github.com/zero-meta/submodule-box2d.git external/Box2D
-          fi
-          for lib in bgfx bx bimg; do
-            if [ ! -d "external/$lib/include" ]; then
-              rm -rf "external/$lib"
-              git clone --depth 1 "https://github.com/bkaradzic/$lib.git" "external/$lib"
-            fi
-          done
+        with:
+          submodules: recursive
       - name: CMake configure and build
         working-directory: ./platform/android/ndk
         run: |
