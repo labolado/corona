@@ -11,7 +11,11 @@
 #include "Core/Rtt_Build.h"
 
 #include "Display/Rtt_InstancedBatchRenderer.h"
-#include "Renderer/Rtt_BgfxShaderData_instanced_metal.h"
+#if defined(Rtt_ANDROID_ENV)
+    #include "Renderer/Rtt_BgfxShaderData_instanced_essl.h"
+#else
+    #include "Renderer/Rtt_BgfxShaderData_instanced_metal.h"
+#endif
 
 #include <string.h>
 
@@ -117,12 +121,15 @@ InstancedBatchRenderer::Finalize()
 void
 InstancedBatchRenderer::CreateProgram()
 {
-	// Instanced vertex shader from embedded binary
+	// Instanced shaders from platform-specific embedded binary
+#if defined(Rtt_ANDROID_ENV)
+	const bgfx::Memory* vsMemory = bgfx::copy( s_vs_batch_instanced_essl, s_vs_batch_instanced_essl_size );
+	const bgfx::Memory* fsMemory = bgfx::copy( s_fs_batch_instanced_essl, s_fs_batch_instanced_essl_size );
+#else
 	const bgfx::Memory* vsMemory = bgfx::copy( s_vs_batch_instanced_metal, s_vs_batch_instanced_metal_size );
-	bgfx::ShaderHandle vsHandle = bgfx::createShader( vsMemory );
-
-	// Custom fragment shader for instanced rendering
 	const bgfx::Memory* fsMemory = bgfx::copy( s_fs_batch_instanced_metal, s_fs_batch_instanced_metal_size );
+#endif
+	bgfx::ShaderHandle vsHandle = bgfx::createShader( vsMemory );
 	bgfx::ShaderHandle fsHandle = bgfx::createShader( fsMemory );
 
 	fProgram = bgfx::createProgram( vsHandle, fsHandle, true );

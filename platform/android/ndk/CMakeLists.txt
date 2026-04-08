@@ -12,6 +12,7 @@ add_definitions(
 	-DLUA_USE_DLOPEN
 	-DLUA_USE_POSIX
 	-DRtt_BGFX
+	-DRtt_ANDROID_ENV
 )
 
 include_directories (
