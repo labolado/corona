@@ -15,13 +15,40 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 
 jobs:
-  macOS-Debug:
-    name: macOS Debug Build
+  build-bgfx-libs:
+    name: Build bgfx static libraries
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Build bgfx (Release + Debug)
+        working-directory: ./external/bgfx
+        run: |
+          make osx-arm64
+      - name: Copy libs to xcode15 dir
+        run: |
+          mkdir -p external/bgfx/.build/projects/xcode15
+          cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
+      - name: Upload bgfx libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15/lib*.a
+
+  macOS-Debug:
+    name: macOS Debug Build
+    needs: build-bgfx-libs
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Download bgfx libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15
       - name: Build rttplayer (Debug)
         run: |
           set -o pipefail
@@ -46,11 +73,17 @@ jobs:
 
   macOS-Release:
     name: macOS Release Build
+    needs: build-bgfx-libs
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Download bgfx libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15
       - name: Build rttplayer (Release)
         run: |
           set -o pipefail
