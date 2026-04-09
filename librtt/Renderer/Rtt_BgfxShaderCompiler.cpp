@@ -1012,6 +1012,288 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     return true;
 }
 
+// ----------------------------------------------------------------------------
+// Runtime binary construction (no shaderc needed)
+// ----------------------------------------------------------------------------
+
+// Parse uniform declarations from .sc source.
+// Recognizes:
+//   SAMPLER2D(name, reg);  → Sampler type, regIndex = reg
+//   uniform vec4 name;     → Vec4 type
+//   uniform mat3 name;     → Mat3 type
+//   uniform mat4 name;     → Mat4 type
+std::vector<BgfxShaderCompiler::UniformEntry>
+BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
+{
+    std::vector<UniformEntry> uniforms;
+    std::istringstream iss(scSource);
+    std::string line;
+    uint16_t samplerIndex = 0;
+    uint16_t vec4Index = 0;
+
+    while (std::getline(iss, line))
+    {
+        // Skip comments and empty lines
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        if (line[first] == '/' && first + 1 < line.size() && line[first + 1] == '/') continue;
+        if (line[first] == '#') continue;  // preprocessor
+
+        // Check for SAMPLER2D(name, reg);
+        size_t samplerPos = line.find("SAMPLER2D(");
+        if (samplerPos == std::string::npos) samplerPos = line.find("SAMPLER3D(");
+        if (samplerPos == std::string::npos) samplerPos = line.find("SAMPLERCUBE(");
+
+        if (samplerPos != std::string::npos)
+        {
+            size_t parenOpen = line.find('(', samplerPos);
+            size_t parenClose = line.find(')', parenOpen);
+            if (parenOpen != std::string::npos && parenClose != std::string::npos)
+            {
+                std::string args = line.substr(parenOpen + 1, parenClose - parenOpen - 1);
+                // Parse "name, reg"
+                size_t comma = args.find(',');
+                if (comma != std::string::npos)
+                {
+                    std::string name = args.substr(0, comma);
+                    std::string regStr = args.substr(comma + 1);
+                    // Trim whitespace
+                    size_t ns = name.find_first_not_of(" \t");
+                    size_t ne = name.find_last_not_of(" \t");
+                    if (ns != std::string::npos) name = name.substr(ns, ne - ns + 1);
+                    size_t rs = regStr.find_first_not_of(" \t");
+                    size_t re = regStr.find_last_not_of(" \t");
+                    if (rs != std::string::npos) regStr = regStr.substr(rs, re - rs + 1);
+
+                    UniformEntry u;
+                    u.name = name;
+                    u.type = 0;  // Sampler
+                    u.num = 1;
+                    u.regIndex = (uint16_t)atoi(regStr.c_str());
+                    u.regCount = 1;
+                    uniforms.push_back(u);
+                    if (u.regIndex >= samplerIndex) samplerIndex = u.regIndex + 1;
+                }
+            }
+            continue;
+        }
+
+        // Check for "uniform <type> <name>;"
+        size_t uniformPos = line.find("uniform");
+        if (uniformPos == std::string::npos) continue;
+        // Make sure it's a keyword boundary
+        if (uniformPos > 0 && (isalnum(line[uniformPos - 1]) || line[uniformPos - 1] == '_')) continue;
+        size_t afterUniform = uniformPos + 7;
+        if (afterUniform >= line.size() || (line[afterUniform] != ' ' && line[afterUniform] != '\t')) continue;
+
+        // Extract type and name
+        std::string rest = line.substr(afterUniform);
+        std::istringstream riss(rest);
+        std::string typeStr, nameStr;
+        riss >> typeStr >> nameStr;
+        if (nameStr.empty()) continue;
+
+        // Remove trailing semicolon
+        if (!nameStr.empty() && nameStr.back() == ';')
+            nameStr.pop_back();
+        if (nameStr.empty()) continue;
+
+        // Skip sampler2D — these are handled by SAMPLER2D() macro
+        if (typeStr == "sampler2D" || typeStr == "sampler3D" || typeStr == "samplerCube")
+            continue;
+
+        UniformEntry u;
+        u.name = nameStr;
+        u.num = 1;
+
+        if (typeStr == "vec4")      { u.type = 2; u.regCount = 1; }
+        else if (typeStr == "mat3") { u.type = 3; u.regCount = 3; }
+        else if (typeStr == "mat4") { u.type = 4; u.regCount = 4; }
+        else continue;  // Skip unsupported types (vec2, vec3, float, etc. — bgfx packs as vec4)
+
+        u.regIndex = vec4Index;
+        vec4Index += u.regCount;
+        uniforms.push_back(u);
+    }
+
+    return uniforms;
+}
+
+// Transform .sc source to pure ESSL for runtime use.
+// The .sc source from TransformFragmentKernel/TransformVertexKernel contains:
+//   - $input/$output directives (bgfx-specific, stripped)
+//   - SAMPLER2D() macros (expanded to uniform sampler2D)
+//   - mul(a,b) macros (expanded to a*b)
+//   - kBgfxShaderInline already handles these when BGFX_SHADER_LANGUAGE_GLSL is defined
+//
+// For runtime binary, we need pure GLSL/ESSL that the GL driver compiles.
+// Transform .sc source to pure ESSL 300 for runtime use.
+// Strategy: Start with "#version 300 es" so bgfx does NOT add its own compatibility wrapper
+// (which would conflict with our kBgfxShaderInline macros). We define BGFX_SHADER_LANGUAGE_GLSL
+// so our inlined SAMPLER2D/mul macros expand for GLSL. We add proper in/out declarations
+// and a fragment output variable.
+std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, char shaderType)
+{
+    std::string result;
+    result.reserve(scSource.size() + 512);
+
+    // Start with #version so bgfx passes source directly to glShaderSource
+    result += "#version 300 es\n";
+    result += "precision mediump float;\n";
+    result += "precision mediump int;\n";
+    result += "\n";
+
+    // Define BGFX_SHADER_LANGUAGE_GLSL so kBgfxShaderInline's GLSL path is selected.
+    result += "#define BGFX_SHADER_LANGUAGE_GLSL 300\n";
+    result += "\n";
+
+    // Map varying names to types
+    auto getVaryingType = [](const std::string& name) -> std::string {
+        if (name == "v_TexCoord") return "vec3";
+        if (name == "v_ColorScale") return "vec4";
+        if (name == "v_UserData") return "vec4";
+        if (name.find("v_MaskUV") == 0) return "vec2";
+        if (name.find("v_Custom") == 0) return "vec4";
+        if (name == "a_position") return "vec4";
+        if (name == "a_texcoord0") return "vec4";
+        if (name == "a_color0") return "vec4";
+        if (name == "a_texcoord1") return "vec4";
+        return "vec4";
+    };
+
+    // Parse $input/$output and generate proper ESSL 300 in/out declarations
+    std::istringstream iss(scSource);
+    std::string line;
+    std::string varyingDecls;
+    std::string bodyLines;
+
+    while (std::getline(iss, line))
+    {
+        if (!line.empty() && line[0] == '$')
+        {
+            bool isInput = (line.find("$input") == 0);
+            bool isOutput = (line.find("$output") == 0);
+            if (isInput || isOutput)
+            {
+                size_t start = line.find(' ');
+                if (start != std::string::npos)
+                {
+                    std::istringstream vss(line.substr(start));
+                    std::string token;
+                    while (std::getline(vss, token, ','))
+                    {
+                        size_t fs = token.find_first_not_of(" \t");
+                        size_t ls = token.find_last_not_of(" \t\r");
+                        if (fs != std::string::npos)
+                        {
+                            std::string name = token.substr(fs, ls - fs + 1);
+                            if (isInput && (shaderType == 'V' || shaderType == 'v'))
+                                varyingDecls += "in " + getVaryingType(name) + " " + name + ";\n";
+                            else if (isInput)
+                                varyingDecls += "in " + getVaryingType(name) + " " + name + ";\n";
+                            else // isOutput (vertex shader)
+                                varyingDecls += "out " + getVaryingType(name) + " " + name + ";\n";
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
+        bodyLines += line + "\n";
+    }
+
+    // For fragment shaders: define fragment output and gl_FragColor macro
+    if (shaderType == 'F' || shaderType == 'f')
+    {
+        varyingDecls += "out vec4 bgfx_FragColor;\n";
+        varyingDecls += "#define gl_FragColor bgfx_FragColor\n";
+    }
+
+    // Insert varying declarations, then the body (which includes kBgfxShaderInline + user code)
+    result += varyingDecls;
+    result += "\n";
+    result += bodyLines;
+
+    return result;
+}
+
+// Construct a bgfx shader binary in-memory.
+// Format: Magic(4) + HashIn(4) + HashOut(4) + UniformCount(2) + Uniforms[] + ShaderSize(4) + ShaderCode(N)
+bool BgfxShaderCompiler::ConstructShaderBinary(
+    const std::string& shaderSource,
+    char shaderType,
+    std::vector<uint8_t>& outBinary)
+{
+    // Parse uniforms from the source
+    std::vector<UniformEntry> uniforms = ParseUniformsFromSc(shaderSource);
+
+    // Build the ESSL source from the .sc
+    std::string esslSource = TransformScToESSL(shaderSource, shaderType);
+    if (esslSource.empty())
+        return false;
+
+    // Calculate binary size
+    size_t binarySize = 4 + 4 + 4 + 2; // magic + hashIn + hashOut + uniformCount
+    for (const auto& u : uniforms)
+    {
+        binarySize += 1 + u.name.size() + 1 + 1 + 2 + 2 + 2 + 2; // nameSize+name+type+num+regIndex+regCount+texInfo+texFormat
+    }
+    binarySize += 4 + esslSource.size(); // shaderSize + code
+
+    outBinary.resize(binarySize);
+    uint8_t* ptr = outBinary.data();
+
+    // Helper lambdas for writing
+    auto writeU8 = [&](uint8_t v) { *ptr++ = v; };
+    auto writeU16 = [&](uint16_t v) { memcpy(ptr, &v, 2); ptr += 2; };
+    auto writeU32 = [&](uint32_t v) { memcpy(ptr, &v, 4); ptr += 4; };
+    auto writeBytes = [&](const void* data, size_t len) { memcpy(ptr, data, len); ptr += len; };
+
+    // 1. Magic: [Type][S][H][version=11]
+    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
+    writeU32(magic);
+
+    // 2. HashIn (arbitrary — bgfx uses for validation, 0 is fine)
+    writeU32(0);
+
+    // 3. HashOut (version >= 6)
+    writeU32(0);
+
+    // 4. Uniform count
+    writeU16((uint16_t)uniforms.size());
+
+    // 5. Uniforms
+    for (const auto& u : uniforms)
+    {
+        uint8_t nameLen = (uint8_t)u.name.size();
+        writeU8(nameLen);
+        writeBytes(u.name.data(), nameLen);
+        writeU8(u.type);
+        writeU8(u.num);
+        writeU16(u.regIndex);
+        writeU16(u.regCount);
+        writeU16(0); // texInfo (version >= 8)
+        writeU16(0); // texFormat (version >= 10)
+    }
+
+    // 6. Shader code size
+    uint32_t codeSize = (uint32_t)esslSource.size();
+    writeU32(codeSize);
+
+    // 7. Shader code (plain text ESSL)
+    writeBytes(esslSource.data(), codeSize);
+
+    Rtt_LogException("ConstructShaderBinary: type='%c', %d uniforms, %u bytes ESSL, %zu bytes total\n",
+                     shaderType, (int)uniforms.size(), codeSize, outBinary.size());
+
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+// CompileCustomEffect
+// ----------------------------------------------------------------------------
+
 bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* name,
                                               const char* kernelFrag, const char* kernelVert,
                                               std::string& outError)
@@ -1033,15 +1315,37 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         return false;
     }
 
-    // Compile fragment shader — pass effect name for debug file naming
-    std::vector<uint8_t> fsBinary;
-    std::string fsError;
     char effectTag[256];
     snprintf(effectTag, sizeof(effectTag), "%s_%s", category, name);
-    if (!CompileShader(fragSc, 'f', fsBinary, fsError, effectTag))
+
+    std::vector<uint8_t> fsBinary;
+    bool useShadercPath = IsAvailable();
+
+    // Check environment variable to force runtime binary path (for testing)
+    const char* forceRuntime = getenv("SOLAR2D_FORCE_RUNTIME_SHADER");
+    if (forceRuntime && (strcmp(forceRuntime, "1") == 0 || strcmp(forceRuntime, "yes") == 0))
+        useShadercPath = false;
+
+    if (useShadercPath)
     {
-        outError = "Fragment shader compilation failed: " + fsError;
-        return false;
+        // Path A: shaderc available (macOS dev) — compile via external binary
+        std::string fsError;
+        if (!CompileShader(fragSc, 'f', fsBinary, fsError, effectTag))
+        {
+            outError = "Fragment shader compilation failed: " + fsError;
+            return false;
+        }
+    }
+    else
+    {
+        // Path B: no shaderc (Android/iOS) — construct binary in-memory
+        Rtt_LogException("Using runtime shader binary construction for '%s.%s' (no shaderc)\n",
+                         category, name);
+        if (!ConstructShaderBinary(fragSc, 'F', fsBinary))
+        {
+            outError = "Failed to construct fragment shader binary for " + std::string(effectTag);
+            return false;
+        }
     }
 
     // Cache the compiled fragment shader
@@ -1049,31 +1353,50 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     snprintf(fsKey, sizeof(fsKey), "fs_%s_%s.bin", category, name);
     CacheCompiledShader(fsKey, fsBinary);
 
-    // Compile custom vertex shader if provided
+    // Compile/construct custom vertex shader if provided
     if (kernelVert && *kernelVert)
     {
         std::string vertSc = TransformVertexKernel(kernelVert, varyings);
         if (!vertSc.empty())
         {
             std::vector<uint8_t> vsBinary;
-            std::string vsError;
-            if (CompileShader(vertSc, 'v', vsBinary, vsError, effectTag))
+
+            if (useShadercPath)
             {
-                char vsKey[256];
-                snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
-                CacheCompiledShader(vsKey, vsBinary);
+                std::string vsError;
+                if (CompileShader(vertSc, 'v', vsBinary, vsError, effectTag))
+                {
+                    char vsKey[256];
+                    snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+                    CacheCompiledShader(vsKey, vsBinary);
+                }
+                else
+                {
+                    Rtt_LogException("WARNING: Custom vertex shader compilation failed for '%s.%s': %s\n"
+                                     "Falling back to default vertex shader.\n",
+                                     category, name, vsError.c_str());
+                }
             }
             else
             {
-                // VS compilation failure is non-fatal — default VS will be used
-                Rtt_LogException("WARNING: Custom vertex shader compilation failed for '%s.%s': %s\n"
-                                 "Falling back to default vertex shader.\n",
-                                 category, name, vsError.c_str());
+                if (ConstructShaderBinary(vertSc, 'V', vsBinary))
+                {
+                    char vsKey[256];
+                    snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+                    CacheCompiledShader(vsKey, vsBinary);
+                }
+                else
+                {
+                    Rtt_LogException("WARNING: Runtime VS binary construction failed for '%s.%s'\n"
+                                     "Falling back to default vertex shader.\n",
+                                     category, name);
+                }
             }
         }
     }
 
-    Rtt_LogException("Custom effect '%s.%s' compiled successfully for bgfx/Metal\n", category, name);
+    Rtt_LogException("Custom effect '%s.%s' compiled successfully (%s path)\n",
+                     category, name, useShadercPath ? "shaderc" : "runtime");
     return true;
 }
 
