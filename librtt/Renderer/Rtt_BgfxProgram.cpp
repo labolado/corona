@@ -311,6 +311,33 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
         return;
     }
 
+    // Patch interface hash: ensure VS.hashOut == FS.hashIn
+    // bgfx validates this at createProgram; mismatched precompiled shaders fail silently
+    // Binary format: Magic(4) + HashIn(4) + HashOut(4) + ...
+    if (vsMem && fsMem && vsMem->size >= 12 && fsMem->size >= 12)
+    {
+        uint32_t vsHashOut;
+        uint32_t fsHashIn;
+        memcpy(&vsHashOut, vsMem->data + 8, 4);  // offset 8: hashOut
+        memcpy(&fsHashIn, fsMem->data + 4, 4);   // offset 4: hashIn
+
+        if (vsHashOut != fsHashIn)
+        {
+            // Patch FS hashIn to match VS hashOut
+            memcpy(const_cast<uint8_t*>(fsMem->data) + 4, &vsHashOut, 4);
+        }
+
+        // Also patch VS hashIn to match FS hashOut (for custom VS + default FS case)
+        uint32_t vsHashIn;
+        uint32_t fsHashOut;
+        memcpy(&vsHashIn, vsMem->data + 4, 4);   // offset 4: hashIn
+        memcpy(&fsHashOut, fsMem->data + 8, 4);  // offset 8: hashOut
+        if (vsHashIn != fsHashOut && fsHashOut != 0)
+        {
+            memcpy(const_cast<uint8_t*>(vsMem->data) + 4, &fsHashOut, 4);
+        }
+    }
+
     // Create shaders from memory
     data.fVertexShader = bgfx::createShader(vsMem);
     data.fFragmentShader = bgfx::createShader(fsMem);
