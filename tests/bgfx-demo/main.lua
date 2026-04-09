@@ -67,6 +67,7 @@ local scenes = {
     { name = "physics",    label = "Physics" },
     { name = "masks",      label = "Mask" },
     { name = "stress",     label = "Stress" },
+    { name = "custom_shader", label = "Shader" },
 }
 
 _G.bgfxDemoScenes = scenes

@@ -1,4 +1,4 @@
-$input v_TexCoord, v_ColorScale, v_UserData
+$input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
