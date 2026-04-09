@@ -88,10 +88,20 @@ public:
     // For GLES backends, the binary wraps GLSL/ESSL source that bgfx
     // passes directly to glShaderSource/glCompileShader.
     // shaderType: 'V' for vertex, 'F' for fragment
+    // interfaceHash: the varying interface hash that must match between VS and FS.
+    //   For FS: hashIn must equal the VS's hashOut (the "output interface").
+    //   For VS: hashOut must equal the FS's hashIn (the "input interface").
+    //   Use ExtractInterfaceHash() to read this from precompiled shader binaries.
     static bool ConstructShaderBinary(
         const std::string& shaderSource,
         char shaderType,
-        std::vector<uint8_t>& outBinary);
+        std::vector<uint8_t>& outBinary,
+        uint32_t interfaceHash = 0);
+
+    // Extract hashIn and hashOut from a precompiled bgfx shader binary.
+    // Returns false if the binary is too small or has an invalid magic number.
+    static bool ExtractInterfaceHash(const unsigned char* data, size_t size,
+                                     uint32_t& outHashIn, uint32_t& outHashOut);
 
     // Transform .sc source into pure ESSL suitable for ConstructShaderBinary.
     // Strips $input/$output, resolves SAMPLER2D/mul macros, adds #version header.
