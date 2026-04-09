@@ -1,0 +1,428 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "CMakeLists.txt"
+    message: |
+      The target system is: Android - 1 - aarch64
+      The host system is: Darwin - 25.2.0 - arm64
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:67 (try_compile)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ"
+      binary: "/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ"
+    cmakeVariables:
+      ANDROID_ABI: "arm64-v8a"
+      ANDROID_ARM_MODE: "thumb"
+      ANDROID_PIE: "TRUE"
+      ANDROID_PLATFORM: "android-24"
+      ANDROID_STL: "c++_static"
+      ANDROID_TOOLCHAIN: "clang"
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND"
+      CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64"
+      CMAKE_CXX_COMPILER_TARGET: "aarch64-none-linux-android24"
+      CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64"
+      CMAKE_C_COMPILER_TARGET: "aarch64-none-linux-android24"
+      CMAKE_C_FLAGS: "-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat "
+      CMAKE_EXE_LINKER_FLAGS: "-Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl,--build-id -Wl,--warn-shared-textrel -Wl,--fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl,--no-undefined -Wl,-z,noexecstack -Qunused-arguments -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -Wl,-z,nocopyreloc -pie -fpie "
+      CMAKE_POSITION_INDEPENDENT_CODE: "TRUE"
+      CMAKE_SYSROOT: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot"
+      CMAKE_SYSROOT_COMPILE: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ'
+        
+        Run Build Command(s): /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_c4983/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_c4983.dir/build.make CMakeFiles/cmTC_c4983.dir/build
+        Building C object CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o
+        /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot   -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat   -fPIE   -v -MD -MT CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCCompilerABI.c
+        Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)
+        Target: aarch64-none-linux-android24
+        Thread model: posix
+        InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin
+        Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Candidate multilib: .;@m64
+        Selected multilib: .;@m64
+         "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang" -cc1 -triple aarch64-none-linux-android24 -emit-obj -mrelax-all -mnoexecstack -disable-free -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mthread-model posix -mdisable-fp-elim -fmath-errno -masm-verbose -mconstructor-aliases -munwind-tables -fuse-init-array -target-cpu generic -target-feature +neon -target-abi aapcs -backend-option -aarch64-fix-cortex-a53-835769=1 -fallow-half-arguments-and-returns -dwarf-column-info -debug-info-kind=limited -dwarf-version=4 -debugger-tuning=gdb -target-linker-version 241.9 -v -ffunction-sections -coverage-notes-file /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ/CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.gcno -resource-dir /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2 -dependency-file CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o.d -sys-header-deps -MT CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -D ANDROID -isysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include -Wformat -fdebug-compilation-dir /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ -ferror-limit 19 -fmessage-length 0 -stack-protector 2 -fno-signed-char -fobjc-runtime=gcc -fdiagnostics-show-option -o CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -x c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCCompilerABI.c
+        clang -cc1 version 7.0.2 based upon LLVM 7.0.2svn default target x86_64-apple-darwin25.2.0
+        ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include"
+        ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include
+        End of search list.
+        Linking C executable cmTC_c4983
+        /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c4983.dir/link.txt --verbose=1
+        /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat   -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl,--build-id -Wl,--warn-shared-textrel -Wl,--fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl,--no-undefined -Wl,-z,noexecstack -Qunused-arguments -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -Wl,-z,nocopyreloc -pie -fpie  -v CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -o cmTC_c4983
+        Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)
+        Target: aarch64-none-linux-android24
+        Thread model: posix
+        InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin
+        Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Candidate multilib: .;@m64
+        Selected multilib: .;@m64
+         "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -pie --fix-cortex-a53-843419 --enable-new-dtags --eh-frame-hdr -m aarch64linux -dynamic-linker /system/bin/linker64 -o cmTC_c4983 /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib --exclude-libs libgcc.a --exclude-libs libatomic.a --build-id --warn-shared-textrel --fatal-warnings --no-undefined -z noexecstack -z relro -z now --gc-sections -z nocopyreloc CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -lgcc -ldl -lc -lgcc -ldl /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:137 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        end of search list found
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        implicit include dirs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:173 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: '/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ']
+        ignore line: []
+        ignore line: [Run Build Command(s): /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_c4983/fast]
+        ignore line: [/Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_c4983.dir/build.make CMakeFiles/cmTC_c4983.dir/build]
+        ignore line: [Building C object CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot   -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa --noexecstack -Wformat   -fPIE   -v -MD -MT CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -MF CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o.d -o CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCCompilerABI.c]
+        ignore line: [Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)]
+        ignore line: [Target: aarch64-none-linux-android24]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin]
+        ignore line: [Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        ignore line: [ "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang" -cc1 -triple aarch64-none-linux-android24 -emit-obj -mrelax-all -mnoexecstack -disable-free -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mthread-model posix -mdisable-fp-elim -fmath-errno -masm-verbose -mconstructor-aliases -munwind-tables -fuse-init-array -target-cpu generic -target-feature +neon -target-abi aapcs -backend-option -aarch64-fix-cortex-a53-835769=1 -fallow-half-arguments-and-returns -dwarf-column-info -debug-info-kind=limited -dwarf-version=4 -debugger-tuning=gdb -target-linker-version 241.9 -v -ffunction-sections -coverage-notes-file /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ/CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.gcno -resource-dir /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2 -dependency-file CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o.d -sys-header-deps -MT CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -D ANDROID -isysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include -Wformat -fdebug-compilation-dir /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-NfqqQJ -ferror-limit 19 -fmessage-length 0 -stack-protector 2 -fno-signed-char -fobjc-runtime=gcc -fdiagnostics-show-option -o CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -x c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCCompilerABI.c]
+        ignore line: [clang -cc1 version 7.0.2 based upon LLVM 7.0.2svn default target x86_64-apple-darwin25.2.0]
+        ignore line: [ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include"]
+        ignore line: [ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Linking C executable cmTC_c4983]
+        ignore line: [/opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c4983.dir/link.txt --verbose=1]
+        ignore line: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa --noexecstack -Wformat   -Wl --exclude-libs libgcc.a -Wl --exclude-libs libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl --build-id -Wl --warn-shared-textrel -Wl --fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl --no-undefined -Wl -z noexecstack -Qunused-arguments -Wl -z relro -Wl -z now -Wl --gc-sections -Wl -z nocopyreloc -pie -fpie  -v CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -o cmTC_c4983]
+        ignore line: [Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)]
+        ignore line: [Target: aarch64-none-linux-android24]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin]
+        ignore line: [Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        link line: [ "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -pie --fix-cortex-a53-843419 --enable-new-dtags --eh-frame-hdr -m aarch64linux -dynamic-linker /system/bin/linker64 -o cmTC_c4983 /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib --exclude-libs libgcc.a --exclude-libs libatomic.a --build-id --warn-shared-textrel --fatal-warnings --no-undefined -z noexecstack -z relro -z now --gc-sections -z nocopyreloc CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o -lgcc -ldl -lc -lgcc -ldl /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld] ==> ignore
+          arg [--sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64] ==> ignore
+          arg [-pie] ==> ignore
+          arg [--fix-cortex-a53-843419] ==> ignore
+          arg [--enable-new-dtags] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [aarch64linux] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/system/bin/linker64] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_c4983] ==> ignore
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o] ==> obj [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+          arg [--exclude-libs] ==> ignore
+          arg [libgcc.a] ==> ignore
+          arg [--exclude-libs] ==> ignore
+          arg [libatomic.a] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--warn-shared-textrel] ==> ignore
+          arg [--fatal-warnings] ==> ignore
+          arg [--no-undefined] ==> ignore
+          arg [-znoexecstack] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-znow] ==> ignore
+          arg [--gc-sections] ==> ignore
+          arg [-znocopyreloc] ==> ignore
+          arg [CMakeFiles/cmTC_c4983.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [-lgcc] ==> lib [gcc]
+          arg [-ldl] ==> lib [dl]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-ldl] ==> lib [dl]
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o] ==> obj [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+        linker tool for 'C': /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib64]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+        implicit libs: [gcc;dl;c;gcc;dl]
+        implicit objs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+        implicit dirs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib64;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:40 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:210 (cmake_determine_linker_id)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Running the C compiler's linker: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" "-v"
+      GNU ld (GNU Binutils) 2.27.0.20170315
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:67 (try_compile)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA"
+      binary: "/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA"
+    cmakeVariables:
+      ANDROID_ABI: "arm64-v8a"
+      ANDROID_ARM_MODE: "thumb"
+      ANDROID_PIE: "TRUE"
+      ANDROID_PLATFORM: "android-24"
+      ANDROID_STL: "c++_static"
+      ANDROID_TOOLCHAIN: "clang"
+      CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-NOTFOUND"
+      CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64"
+      CMAKE_CXX_COMPILER_TARGET: "aarch64-none-linux-android24"
+      CMAKE_CXX_FLAGS: "-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat -std=c++11 "
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64"
+      CMAKE_C_COMPILER_TARGET: "aarch64-none-linux-android24"
+      CMAKE_EXE_LINKER_FLAGS: "-Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl,--build-id -Wl,--warn-shared-textrel -Wl,--fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl,--no-undefined -Wl,-z,noexecstack -Qunused-arguments -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -Wl,-z,nocopyreloc -pie -fpie "
+      CMAKE_POSITION_INDEPENDENT_CODE: "TRUE"
+      CMAKE_SYSROOT: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot"
+      CMAKE_SYSROOT_COMPILE: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA'
+        
+        Run Build Command(s): /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_26c5e/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_26c5e.dir/build.make CMakeFiles/cmTC_26c5e.dir/build
+        Building CXX object CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o
+        /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot  -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat -std=c++11   -fPIE   -v -MD -MT CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)
+        Target: aarch64-none-linux-android24
+        Thread model: posix
+        InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin
+        Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Candidate multilib: .;@m64
+        Selected multilib: .;@m64
+         "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++" -cc1 -triple aarch64-none-linux-android24 -emit-obj -mrelax-all -mnoexecstack -disable-free -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mthread-model posix -mdisable-fp-elim -fmath-errno -masm-verbose -mconstructor-aliases -munwind-tables -fuse-init-array -target-cpu generic -target-feature +neon -target-abi aapcs -backend-option -aarch64-fix-cortex-a53-835769=1 -fallow-half-arguments-and-returns -dwarf-column-info -debug-info-kind=limited -dwarf-version=4 -debugger-tuning=gdb -target-linker-version 241.9 -v -ffunction-sections -coverage-notes-file /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA/CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.gcno -resource-dir /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2 -dependency-file CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o.d -sys-header-deps -MT CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -D ANDROID -isysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include -Wformat -std=c++11 -fdeprecated-macro -fdebug-compilation-dir /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA -ferror-limit 19 -fmessage-length 0 -stack-protector 2 -fno-signed-char -fobjc-runtime=gcc -fcxx-exceptions -fexceptions -fdiagnostics-show-option -o CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        clang -cc1 version 7.0.2 based upon LLVM 7.0.2svn default target x86_64-apple-darwin25.2.0
+        ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include"
+        ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include
+         /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include
+        End of search list.
+        Linking CXX executable cmTC_26c5e
+        /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E cmake_link_script CMakeFiles/cmTC_26c5e.dir/link.txt --verbose=1
+        /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa,--noexecstack -Wformat -std=c++11   -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl,--build-id -Wl,--warn-shared-textrel -Wl,--fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl,--no-undefined -Wl,-z,noexecstack -Qunused-arguments -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -Wl,-z,nocopyreloc -pie -fpie  -v CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_26c5e
+        Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)
+        Target: aarch64-none-linux-android24
+        Thread model: posix
+        InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin
+        Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x
+        Candidate multilib: .;@m64
+        Selected multilib: .;@m64
+         "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -pie --fix-cortex-a53-843419 --enable-new-dtags --eh-frame-hdr -m aarch64linux -dynamic-linker /system/bin/linker64 -o cmTC_26c5e /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib --exclude-libs libgcc.a --exclude-libs libatomic.a --build-id --warn-shared-textrel --fatal-warnings --no-undefined -z noexecstack -z relro -z now --gc-sections -z nocopyreloc CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -lm -lgcc -lgcc -ldl -lc -lgcc -lgcc -ldl /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:137 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+          add: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        end of search list found
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+        collapse include dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        implicit include dirs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:173 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(\\.[a-z]+)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(\\.[a-z]+)?))("|,| |$)]
+        ignore line: [Change Dir: '/Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA']
+        ignore line: []
+        ignore line: [Run Build Command(s): /opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_26c5e/fast]
+        ignore line: [/Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_26c5e.dir/build.make CMakeFiles/cmTC_26c5e.dir/build]
+        ignore line: [Building CXX object CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot  -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa --noexecstack -Wformat -std=c++11   -fPIE   -v -MD -MT CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)]
+        ignore line: [Target: aarch64-none-linux-android24]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin]
+        ignore line: [Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        ignore line: [ "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++" -cc1 -triple aarch64-none-linux-android24 -emit-obj -mrelax-all -mnoexecstack -disable-free -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -pic-is-pie -mthread-model posix -mdisable-fp-elim -fmath-errno -masm-verbose -mconstructor-aliases -munwind-tables -fuse-init-array -target-cpu generic -target-feature +neon -target-abi aapcs -backend-option -aarch64-fix-cortex-a53-835769=1 -fallow-half-arguments-and-returns -dwarf-column-info -debug-info-kind=limited -dwarf-version=4 -debugger-tuning=gdb -target-linker-version 241.9 -v -ffunction-sections -coverage-notes-file /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA/CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.gcno -resource-dir /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2 -dependency-file CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o.d -sys-header-deps -MT CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -D ANDROID -isysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include -internal-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include -internal-externc-isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include -Wformat -std=c++11 -fdeprecated-macro -fdebug-compilation-dir /Users/yee/data/dev/app/labo/corona/platform/android/ndk/build-test/CMakeFiles/CMakeScratch/TryCompile-bLNgPA -ferror-limit 19 -fmessage-length 0 -stack-protector 2 -fno-signed-char -fobjc-runtime=gcc -fcxx-exceptions -fexceptions -fdiagnostics-show-option -o CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [clang -cc1 version 7.0.2 based upon LLVM 7.0.2svn default target x86_64-apple-darwin25.2.0]
+        ignore line: [ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/local/include"]
+        ignore line: [ignoring nonexistent directory "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/include]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++abi/include]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/include]
+        ignore line: [ /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Linking CXX executable cmTC_26c5e]
+        ignore line: [/opt/homebrew/Cellar/cmake/3.29.5/bin/cmake -E cmake_link_script CMakeFiles/cmTC_26c5e.dir/link.txt --verbose=1]
+        ignore line: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --gcc-toolchain=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64 --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot -isystem /Users/yee/Library/Android/sdk/ndk/18.1.5063045/sysroot/usr/include/aarch64-linux-android -g -DANDROID -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -Wa --noexecstack -Wformat -std=c++11   -Wl --exclude-libs libgcc.a -Wl --exclude-libs libatomic.a -nostdlib++ --sysroot /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -Wl --build-id -Wl --warn-shared-textrel -Wl --fatal-warnings -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -Wl --no-undefined -Wl -z noexecstack -Qunused-arguments -Wl -z relro -Wl -z now -Wl --gc-sections -Wl -z nocopyreloc -pie -fpie  -v CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_26c5e]
+        ignore line: [Android (4751641 based on r328903) clang version 7.0.2 (https://android.googlesource.com/toolchain/clang 003100370607242ddd5815e4a043907ea9004281) (https://android.googlesource.com/toolchain/llvm 1d739ffb0366421d383e04ff80ec2ee591315116) (based on LLVM 7.0.2svn)]
+        ignore line: [Target: aarch64-none-linux-android24]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/bin]
+        ignore line: [Found candidate GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Selected GCC installation: /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        link line: [ "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" --sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64 -pie --fix-cortex-a53-843419 --enable-new-dtags --eh-frame-hdr -m aarch64linux -dynamic-linker /system/bin/linker64 -o cmTC_26c5e /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64 -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib -L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib --exclude-libs libgcc.a --exclude-libs libatomic.a --build-id --warn-shared-textrel --fatal-warnings --no-undefined -z noexecstack -z relro -z now --gc-sections -z nocopyreloc CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o -lm -lgcc -lgcc -ldl -lc -lgcc -lgcc -ldl /Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld] ==> ignore
+          arg [--sysroot=/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64] ==> ignore
+          arg [-pie] ==> ignore
+          arg [--fix-cortex-a53-843419] ==> ignore
+          arg [--enable-new-dtags] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [aarch64linux] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/system/bin/linker64] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_26c5e] ==> ignore
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o] ==> obj [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib]
+          arg [-L/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib] ==> dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+          arg [--exclude-libs] ==> ignore
+          arg [libgcc.a] ==> ignore
+          arg [--exclude-libs] ==> ignore
+          arg [libatomic.a] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--warn-shared-textrel] ==> ignore
+          arg [--fatal-warnings] ==> ignore
+          arg [--no-undefined] ==> ignore
+          arg [-znoexecstack] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-znow] ==> ignore
+          arg [--gc-sections] ==> ignore
+          arg [-znocopyreloc] ==> ignore
+          arg [CMakeFiles/cmTC_26c5e.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-lm] ==> lib [m]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-ldl] ==> lib [dl]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-ldl] ==> lib [dl]
+          arg [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o] ==> obj [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+        linker tool for 'CXX': /Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib/../lib64] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib64]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/lib] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib]
+        collapse library dir [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib] ==> [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+        implicit libs: [m;gcc;gcc;dl;c;gcc;gcc;dl]
+        implicit objs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtbegin_dynamic.o;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib/crtend_android.o]
+        implicit dirs: [/Users/yee/Library/Android/sdk/ndk/18.1.5063045/sources/cxx-stl/llvm-libc++/libs/arm64-v8a;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/llvm/prebuilt/darwin-x86_64/lib64/clang/7.0.2/lib/linux/aarch64;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib64;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/aarch64-linux-android/lib;/Users/yee/Library/Android/sdk/ndk/18.1.5063045/platforms/android-24/arch-arm64/usr/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:40 (message)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:210 (cmake_determine_linker_id)"
+      - "/opt/homebrew/Cellar/cmake/3.29.5/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt"
+    message: |
+      Running the CXX compiler's linker: "/Users/yee/Library/Android/sdk/ndk/18.1.5063045/toolchains/aarch64-linux-android-4.9/prebuilt/darwin-x86_64/lib/gcc/aarch64-linux-android/4.9.x/../../../../aarch64-linux-android/bin/ld" "-v"
+      GNU ld (GNU Binutils) 2.27.0.20170315
+...
