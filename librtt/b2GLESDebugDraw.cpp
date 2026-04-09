@@ -199,7 +199,8 @@ b2GLESDebugDraw::b2GLESDebugDraw( Display &display )
 
 b2GLESDebugDraw::~b2GLESDebugDraw()
 {
-	/**/ //WE MUST QUEUE fData.fGeometry FOR RELEASE HERE!!!!!!!!
+	Rtt_DELETE( fData.fGeometry );
+	fData.fGeometry = NULL;
 }
 
 static b2Transform
