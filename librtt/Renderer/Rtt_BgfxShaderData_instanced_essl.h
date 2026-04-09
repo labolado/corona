@@ -1,5 +1,5 @@
 // Auto-generated: instanced essl shader data
-// Generated: 2026-04-07 21:13
+// Generated: 2026-04-09 19:21
 
 static const unsigned char s_fs_batch_instanced_essl[] = {
     0x46, 0x53, 0x48, 0x0b, 0x01, 0x83, 0xf2, 0xe1, 0x00, 0x00, 0x00, 0x00,

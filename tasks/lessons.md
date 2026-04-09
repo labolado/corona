@@ -187,3 +187,38 @@
 - **关键线索**：即使用 bgfx::discard() 替代 submit()，后续文字仍消失 → 问题在 ExecuteDrawIndexed 的 state 设置阶段，不在 submit
 - **根因方向**：indexed mesh 的 storedOnGPU geometry 的 Insert/FlushBatch 流程影响了后续 pool geometry 的 batch 或 texture binding
 - **测试项目**：/tmp/test_mesh_project（git init 过，可追踪修改）
+
+### bgfx setViewClear 在错误 view ID 上设置（2026-04-09）
+- **场景**：坦克 logo 背景黑色，应该是白色
+- **根因**：Initialize() 先调 setViewClear(fDefaultView=0)，然后 InitializeFBO() 把 fDefaultView 改成 200。view 200 从未设 clear color → 默认黑
+- **修复**：把 setViewClear 移到 InitializeFBO 之后
+- **教训**：bgfx view 状态是 per-view 的，改了 view ID 后之前设的状态不会跟过来
+
+### bgfx shader binary interface hash 必须匹配（2026-04-09）
+- **场景**：runtime 构造的 shader binary 编译成功但 createProgram 返回 INVALID_HANDLE
+- **根因**：bgfx 验证 VS.hashOut == FS.hashIn（bgfx_p.h:5025），runtime 构造的 FS 用 hashIn=0 但预编译 VS 的 hashOut=0x6258d9fe
+- **修复**：从预编译 VS binary 读取 hashOut，传给 FS 的 hashIn
+- **教训**：bgfx createProgram 静默失败（Release 构建下 BX_TRACE 被 strip），需要自己加详细日志
+
+### defineEffect 在 Android/iOS 上不工作是刚性问题（2026-04-09）
+- **场景**：坦克 50+ 自定义 shader 全部回退到默认 shader
+- **根因**：BgfxShaderCompiler 依赖外部 shaderc 二进制（只在 macOS 存在），Android/iOS 无法运行时编译
+- **修复**：C++ 直接构造 bgfx shader binary（header + uniform + ESSL 源码），绕过 shaderc
+- **教训**：bgfx shader binary 格式简单（Magic+Hash+Uniforms+源码），GLES 后端直接取源码调 glCompileShader，不需要 shaderc
+
+### 测试盲区导致 bug 长期隐藏（2026-04-09）
+- **场景**：defineEffect 问题从未被发现
+- **根因**：默认 10 场景没有一个用 defineEffect；Android 模拟器 swiftshader 全黑掩盖了所有问题；Android 真机只跑了 10 场景
+- **修复**：把 custom_shader 测试加入默认 11 场景；Android 真机必须跑完整 26 场景测试
+- **教训**：测试通过不代表功能正常——要检查测试是否覆盖了目标功能
+
+### Worker 代码在主 repo 被 coordinator 覆盖（2026-04-09）
+- **场景**：shader worker 写了 390 行代码，coordinator 切分支 git stash/pop 全部丢失
+- **修复**：Worker 写代码必须用 git worktree 隔离
+- **教训**：已加入 CLAUDE.md 铁律。纯分析不需要 worktree，写代码必须用
+
+### bgfx Release 构建吞错误日志（2026-04-09）
+- **场景**：program link 失败但看不到原因
+- **根因**：bgfx 用 BX_TRACE 输出 link error，Release 构建下被 strip
+- **修复**：在 Rtt_BgfxProgram.cpp 加 Rtt_LogException 详细日志（effect 名、handle 状态）
+- **教训**：不要依赖 bgfx 内部的错误输出，在我们的代码层加独立日志
