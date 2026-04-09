@@ -954,7 +954,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				else if ( 0 == strcmp( "referenceAngle", key ) )  // read-only
 				{
 					// Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2PrismaticJoint_ ) );
-					// lua_pushnumber( L, valueDegrees );
+					lua_pushnumber( L, 0.0f );
 				}
 				else if ( 0 == strcmp( "jointTranslation", key ) )  // read-only
 				{
@@ -1051,11 +1051,11 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				}
 				else if ( 0 == strcmp( "jointSpeed", key ) )  // read-only
 				{
-					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-					Real scale = physics.GetPixelsPerMeter();
+					// const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+					// Real scale = physics.GetPixelsPerMeter();
 					// Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( joint->GetJointSpeed() ), scale );
-					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2WheelJoint_GetMotorSpeed(baseJoint) ), scale );
-					lua_pushnumber( L, valuePixels );
+					// lua_pushnumber( L, valuePixels );
+					lua_pushnumber( L, 0.0f );
 				}
 				else if ( strcmp( "springFrequency", key ) == 0 )
 				{
