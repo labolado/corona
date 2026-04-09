@@ -66,6 +66,11 @@
 
 #include "importgl.h"
 
+#if defined( Rtt_ANDROID_ENV )
+#include <bgfx/platform.h>
+#include "Renderer/Rtt_BgfxCommandBuffer.h"
+#endif
+
 #if defined( Rtt_SUPPORTS_NOOK ) && defined( Rtt_SUPPORTS_KINDLE )
 	#define Rtt_ENTERPRISE 1
 #endif
@@ -125,6 +130,22 @@ JavaToNativeBridge::Init(
 	NativeTrace trace( "JavaToNativeBridge::Init" );
 	if ( fView != NULL )
 	{
+		// When bgfx is already initialized and the surface is being restored (e.g. after
+		// lock-screen), the ANativeWindow has changed. Update bgfx's platform data so it
+		// recreates its EGL surface on the next bgfx::reset() call (triggered by SetViewport).
+		if (fNativeWindow && fRuntime && fRuntime->GetBackend()
+			&& Rtt_StringCompare(fRuntime->GetBackend(), "bgfxBackend") == 0)
+		{
+			bgfx::PlatformData pd;
+			memset(&pd, 0, sizeof(pd));
+			pd.nwh = (void*)fNativeWindow;
+			bgfx::setPlatformData(pd);
+			// Force bgfx::reset() on next SetViewport to rebuild EGL surface with new nwh
+			Rtt::BgfxCommandBuffer::NotifyPlatformDataChanged();
+			__android_log_print(ANDROID_LOG_INFO, "Corona",
+				"JavaToNativeBridge::Init: bgfx platformData updated with new nwh=%p, forced reset on next frame", fNativeWindow);
+		}
+
 		Rtt::DeviceOrientation::Type lastOrientation = fView->GetOrientation();
 		fView->SetOrientation( (Rtt::DeviceOrientation::Type)orientation );
 		fView->Resize(width, height);

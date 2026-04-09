@@ -69,6 +69,13 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	/** Whether a swap is needed. */
 	private volatile boolean fNeedsSwap = true;
 
+	/**
+	 * Flag set when the surface is restored after being destroyed (e.g. lock-screen resume).
+	 * When true, the render thread will force-render one frame even if fPaused is still true,
+	 * to ensure the new EGL surface gets content before the compositor shows it as black.
+	 */
+	private volatile boolean fSurfaceRestored = false;
+
 	/** Queue of runnables to execute on the render thread. */
 	private final java.util.ArrayList<Runnable> fEventQueue = new java.util.ArrayList<>();
 
@@ -217,6 +224,7 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		// Re-draw what was last rendered if the surface has been replaced.
 		// This can happen when the user leaves and returns to the activity.
 		if (!sFirstSurface) {
+			fSurfaceRestored = true;
 			setNeedsSwap();
 		}
 		sFirstSurface = false;
@@ -257,9 +265,24 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		final com.ansca.corona.WindowOrientation winOrientation = fCurrentWindowOrientation;
 		final com.ansca.corona.WindowOrientation prevOrientation = fPreviousWindowOrientation;
 
+		// Latch used to block the UI thread until the render thread has committed the first frame
+		// to the new surface. This prevents the Android compositor from displaying a black frame
+		// when it acquires the surface before any content has been rendered into it.
+		final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
 		queueEvent(new Runnable() {
 			@Override
 			public void run() {
+				// Guard: if surfaceDestroyed fired before this runnable ran, skip.
+				// This can happen during the initial window visibility transition where
+				// surfaceCreated+surfaceChanged fire, then surfaceDestroyed fires before
+				// the render thread processes the queued event.
+				if (!fSurfaceValid) {
+					Log.w(TAG, "surfaceChanged event skipped: surface already destroyed");
+					latch.countDown();
+					return;
+				}
+
 				// Pass the Surface to native for bgfx before resize.
 				com.ansca.corona.JavaToNativeShim.setSurface(fCoronaRuntime, surface);
 
@@ -269,6 +292,7 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 				} else if ((orientation.isPortrait() && (w > h)) ||
 						   (orientation.isLandscape() && (w < h))) {
 					fCanRender = false;
+					latch.countDown();
 					return;
 				}
 
@@ -301,8 +325,34 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 				}
 				fLastViewWidth = w;
 				fLastViewHeight = h;
+
+				// Force-render after surface restoration to flush the bgfx pipeline.
+				// Three calls are needed to fill bgfx's 2-frame internal pipeline:
+				// calls 1+2 submit frames, call 3 blocks until eglSwapBuffers completes,
+				// guaranteeing the surface has real pixel content before the UI thread
+				// releases the compositor.
+				if (fSurfaceRestored) {
+					Log.i(TAG, "Surface restored: force-rendering with pipeline flush");
+					fSurfaceRestored = false;
+					fRenderRequested = false;
+					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
+					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
+					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
+				}
+
+				latch.countDown();
 			}
 		});
+
+		// Block the UI thread until the render thread has finished setting up the surface
+		// (and rendered the first frame on restoration). This ensures the Android compositor
+		// sees a surface with valid content rather than a black frame.
+		// 500 ms timeout prevents a deadlock if the render thread is stuck.
+		try {
+			latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+			Log.w(TAG, "surfaceChanged latch interrupted");
+		}
 	}
 
 	@Override
@@ -310,7 +360,22 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		Log.i(TAG, "surfaceDestroyed");
 		fSurfaceValid = false;
 		fCanRender = false;
+		fSurfaceRestored = false;
 		fWatchdogTimer.stop();
+
+		// Drain any pending setSurface/resize events that were queued before this call.
+		// Without this, the render thread may process a queued bgfx init with an already-abandoned
+		// ANativeWindow, causing a fatal crash in bgfx's EGL context creation.
+		synchronized (fEventQueue) {
+			if (!fEventQueue.isEmpty()) {
+				Log.w(TAG, "surfaceDestroyed: draining " + fEventQueue.size() + " pending event(s)");
+				fEventQueue.clear();
+			}
+		}
+
+		// Notify native layer that the surface is gone so it can clear fNativeWindow.
+		// This prevents bgfx from accessing an abandoned ANativeWindow.
+		com.ansca.corona.JavaToNativeShim.setSurface(fCoronaRuntime, null);
 	}
 
 	// --- State tracking for orientation/resize (used in surfaceChanged runnable) ---
@@ -444,8 +509,14 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 					}
 				}
 
-				// Render if not paused, render requested, and surface is ready.
-				if (!fPaused && fCanRender && fRenderRequested) {
+				// Render if surface is ready and render requested.
+				// Normally requires !fPaused, but fSurfaceRestored bypasses the pause check
+				// to force-render the first frame after lock-screen resume (onResume may lag).
+				if (fCanRender && fRenderRequested && (!fPaused || fSurfaceRestored)) {
+					if (fSurfaceRestored) {
+						Log.i(TAG, "RenderThread: rendering with surface-restored bypass");
+						fSurfaceRestored = false;
+					}
 					fRenderRequested = false;
 					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
 				}
