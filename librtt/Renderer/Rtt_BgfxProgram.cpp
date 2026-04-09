@@ -337,7 +337,8 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
 
     if (!bgfx::isValid(data.fProgram))
     {
-        Rtt_LogException("Failed to create program for version %d\n", version);
+        Rtt_LogException("Failed to create program for version %d (VS handle=%d, FS handle=%d)\n",
+                         version, data.fVertexShader.idx, data.fFragmentShader.idx);
         // Shaders are destroyed by createProgram on failure if true is passed
         data.fVertexShader = BGFX_INVALID_HANDLE;
         data.fFragmentShader = BGFX_INVALID_HANDLE;

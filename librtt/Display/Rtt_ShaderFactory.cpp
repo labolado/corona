@@ -1020,24 +1020,15 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 								&& name && strchr( name, '.' ) != NULL)
 							{
 								const char* categoryStr = ShaderTypes::StringForCategory( category );
-								if (BgfxShaderCompiler::IsAvailable())
 								{
 									std::string compileError;
 									if (!BgfxShaderCompiler::CompileCustomEffect(
 										categoryStr, name, kernelFrag, kernelVert, compileError))
 									{
 										CORONA_LOG_ERROR(
-											"Custom effect '%s' (category '%s') failed to compile for bgfx/Metal: %s",
+											"Custom effect '%s' (category '%s') failed to compile for bgfx: %s",
 											name, categoryStr, compileError.c_str() );
 									}
-								}
-								else
-								{
-									CORONA_LOG_ERROR(
-										"Custom effect '%s' uses GLSL source which cannot run in bgfx/Metal mode. "
-										"Runtime shader compiler (shaderc) not available. "
-										"The effect will fall back to the default shader and WILL NOT render correctly.",
-										name );
 								}
 							}
 

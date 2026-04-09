@@ -10,8 +10,20 @@
       (no env var)        → normal demo with navigation
 --]]
 
--- Check for test entry
+-- Check for test entry: env var or flag file
 local testEntry = os.getenv("SOLAR2D_TEST")
+if not testEntry then
+    -- Check flag file (for Android where env vars don't work)
+    local path = system.pathForFile("solar2d_test.txt", system.DocumentsDirectory)
+    if path then
+        local f = io.open(path, "r")
+        if f then
+            testEntry = f:read("*l")
+            f:close()
+            os.remove(path)
+        end
+    end
+end
 if testEntry then
     local testFile = "test_" .. testEntry
     print("=== Running test entry: " .. testFile .. " ===")
