@@ -56,9 +56,15 @@ jobs:
           path: external/bgfx/.build/projects/xcode15
       - name: Strip non-essential dependencies for CI
         run: |
-          sed -i '' '/C2B5FEEE1B336C3D00DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
-          sed -i '' '/C2B5FEF01B336C4200DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
-          sed -i '' '/C26DD1131BD9514100EC4F44/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          python3 -c "
+          import re
+          f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
+          t = open(f).read()
+          # Remove CoronaCards, CoronaConsole, CoronaShell from rttplayer deps list only
+          for dep_id in ['C2B5FEEE1B336C3D00DD49E6', 'C26DD1131BD9514100EC4F44', 'C2B5FEF01B336C4200DD49E6']:
+              t = t.replace('\t\t\t\t' + dep_id + ' /* PBXTargetDependency */,\n', '')
+          open(f, 'w').write(t)
+          "
       - name: Build rttplayer (Debug)
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
@@ -96,9 +102,14 @@ jobs:
           path: external/bgfx/.build/projects/xcode15
       - name: Strip non-essential dependencies for CI
         run: |
-          sed -i '' '/C2B5FEEE1B336C3D00DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
-          sed -i '' '/C2B5FEF01B336C4200DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
-          sed -i '' '/C26DD1131BD9514100EC4F44/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          python3 -c "
+          import re
+          f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
+          t = open(f).read()
+          for dep_id in ['C2B5FEEE1B336C3D00DD49E6', 'C26DD1131BD9514100EC4F44', 'C2B5FEF01B336C4200DD49E6']:
+              t = t.replace('\t\t\t\t' + dep_id + ' /* PBXTargetDependency */,\n', '')
+          open(f, 'w').write(t)
+          "
       - name: Build rttplayer (Release)
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
