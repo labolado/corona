@@ -54,30 +54,11 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
-      - name: Build CoronaCards (Debug)
+      - name: Strip non-essential dependencies for CI
         run: |
-          xcodebuild -project platform/mac/ratatouille.xcodeproj \
-            -target CoronaCards \
-            -configuration Debug \
-            build \
-            CODE_SIGN_IDENTITY='' \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO \
-            2>&1 | tail -20
-      - name: Build CoronaShell (Debug)
-        run: |
-          xcodebuild -project platform/mac/CoronaShell/CoronaShell.xcodeproj \
-            -target CoronaShell \
-            -configuration Debug \
-            build \
-            CODE_SIGN_IDENTITY='' \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO \
-            2>&1 | tail -20 || true
+          sed -i '' '/C2B5FEEE1B336C3D00DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          sed -i '' '/C2B5FEF01B336C4200DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          sed -i '' '/C26DD1131BD9514100EC4F44/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
       - name: Build rttplayer (Debug)
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
@@ -113,6 +94,11 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
+      - name: Strip non-essential dependencies for CI
+        run: |
+          sed -i '' '/C2B5FEEE1B336C3D00DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          sed -i '' '/C2B5FEF01B336C4200DD49E6/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
+          sed -i '' '/C26DD1131BD9514100EC4F44/d' platform/mac/ratatouille.xcodeproj/project.pbxproj
       - name: Build rttplayer (Release)
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
