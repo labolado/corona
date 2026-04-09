@@ -390,7 +390,7 @@ PhysicsJoint::getReactionForce( lua_State *L )
 	if ( b2Joint_IsValid(baseJoint) )
 	{
 		Runtime& runtime = * LuaContext::GetRuntime( L );
-		float inverseDeltaTime = (float)runtime.GetFPS();
+		// float inverseDeltaTime = (float)runtime.GetFPS();
 		b2Vec2 force = b2Joint_GetConstraintForce(baseJoint);
 		Rtt_Real px = Rtt_FloatToReal( force.x );
 		Rtt_Real py = Rtt_FloatToReal( force.y );
