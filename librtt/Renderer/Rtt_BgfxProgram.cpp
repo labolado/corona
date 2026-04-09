@@ -337,7 +337,22 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
 
     if (!bgfx::isValid(data.fProgram))
     {
-        Rtt_LogException("Failed to create program for version %d\n", version);
+        Rtt_LogException("ERROR: Failed to create program for version %d\n", version);
+        Rtt_LogException("  VS handle: idx=%d, valid=%d\n",
+                         data.fVertexShader.idx, bgfx::isValid(data.fVertexShader) ? 1 : 0);
+        Rtt_LogException("  FS handle: idx=%d, valid=%d\n",
+                         data.fFragmentShader.idx, bgfx::isValid(data.fFragmentShader) ? 1 : 0);
+
+        // Log shader resource info for debugging
+        Program* program = static_cast<Program*>(fResource);
+        ShaderResource* shaderRes = program ? program->GetShaderResource() : NULL;
+        if (shaderRes)
+        {
+            Rtt_LogException("  Effect: '%s' category=%d\n",
+                             shaderRes->GetName().c_str(), (int)shaderRes->GetCategory());
+        }
+        Rtt_LogException("  NOTE: On GLES, check logcat for GL link error (BX_TRACE in debug builds).\n");
+
         // Shaders are destroyed by createProgram on failure if true is passed
         data.fVertexShader = BGFX_INVALID_HANDLE;
         data.fFragmentShader = BGFX_INVALID_HANDLE;
@@ -594,6 +609,18 @@ unsigned int
 BgfxProgram::GetDefaultFSSize()
 {
     return S_FS_DEFAULT_SIZE;
+}
+
+const unsigned char*
+BgfxProgram::GetDefaultVSData()
+{
+    return S_VS_DEFAULT;
+}
+
+unsigned int
+BgfxProgram::GetDefaultVSSize()
+{
+    return S_VS_DEFAULT_SIZE;
 }
 
 // ----------------------------------------------------------------------------

@@ -60,6 +60,8 @@ public:
     // Access to default shader binaries (for use by InstancedBatchRenderer)
     static const unsigned char* GetDefaultFSData();
     static unsigned int GetDefaultFSSize();
+    static const unsigned char* GetDefaultVSData();
+    static unsigned int GetDefaultVSSize();
 
 private:
     // Per-version data (5 versions: mask0-3 + wireframe)

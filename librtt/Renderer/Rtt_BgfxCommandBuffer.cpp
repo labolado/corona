@@ -1568,7 +1568,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     sFrameNum++;
 
     // Advance static geometry cache frame counter for auto-promotion
-    BgfxGeometry::AdvanceFrame();
+    // BgfxGeometry::AdvanceFrame(); // TODO: re-enable when static geometry caching is merged
 
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch(fDefaultView);
