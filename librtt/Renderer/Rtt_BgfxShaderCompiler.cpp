@@ -9,6 +9,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#include "Renderer/Rtt_BgfxProgram.h"
 #include "Core/Rtt_Assert.h"
 
 #include <cstdio>
@@ -1218,12 +1219,42 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
     return result;
 }
 
+// Extract hashIn/hashOut from a precompiled bgfx shader binary.
+bool BgfxShaderCompiler::ExtractInterfaceHash(const unsigned char* data, size_t size,
+                                               uint32_t& outHashIn, uint32_t& outHashOut)
+{
+    if (!data || size < 12) return false;
+
+    uint32_t magic;
+    memcpy(&magic, data, 4);
+
+    // Validate magic: byte 1='S', byte 2='H'
+    if (((magic >> 8) & 0xFF) != 'S' || ((magic >> 16) & 0xFF) != 'H')
+        return false;
+
+    memcpy(&outHashIn, data + 4, 4);
+
+    // Version check: if version >= 6, hashOut is a separate field
+    uint8_t version = (magic >> 24) & 0xFF;
+    if (version >= 6)
+    {
+        memcpy(&outHashOut, data + 8, 4);
+    }
+    else
+    {
+        outHashOut = outHashIn;
+    }
+
+    return true;
+}
+
 // Construct a bgfx shader binary in-memory.
 // Format: Magic(4) + HashIn(4) + HashOut(4) + UniformCount(2) + Uniforms[] + ShaderSize(4) + ShaderCode(N)
 bool BgfxShaderCompiler::ConstructShaderBinary(
     const std::string& shaderSource,
     char shaderType,
-    std::vector<uint8_t>& outBinary)
+    std::vector<uint8_t>& outBinary,
+    uint32_t interfaceHash)
 {
     // Parse uniforms from the source
     std::vector<UniformEntry> uniforms = ParseUniformsFromSc(shaderSource);
@@ -1254,11 +1285,19 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
     uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
     writeU32(magic);
 
-    // 2. HashIn (arbitrary — bgfx uses for validation, 0 is fine)
-    writeU32(0);
+    // 2. HashIn — for FS, must match the VS's hashOut (varying interface hash).
+    //    For VS, set to 0 (VS hashIn is not checked against anything).
+    if (shaderType == 'F' || shaderType == 'f')
+        writeU32(interfaceHash);  // FS hashIn = VS hashOut
+    else
+        writeU32(0);
 
-    // 3. HashOut (version >= 6)
-    writeU32(0);
+    // 3. HashOut (version >= 6) — for VS, must match the FS's hashIn.
+    //    For FS, set to 0 (FS hashOut is not checked against anything).
+    if (shaderType == 'V' || shaderType == 'v')
+        writeU32(interfaceHash);  // VS hashOut = FS hashIn
+    else
+        writeU32(0);
 
     // 4. Uniform count
     writeU16((uint16_t)uniforms.size());
@@ -1286,6 +1325,19 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
 
     Rtt_LogException("ConstructShaderBinary: type='%c', %d uniforms, %u bytes ESSL, %zu bytes total\n",
                      shaderType, (int)uniforms.size(), codeSize, outBinary.size());
+
+    // Dump ESSL source for debugging (always, since this is the primary diagnostic for link failures)
+    Rtt_LogException("=== Runtime ESSL (%c) ===\n%s\n=== END ESSL ===\n", shaderType, esslSource.c_str());
+
+    // Dump uniform table
+    for (size_t i = 0; i < uniforms.size(); ++i)
+    {
+        const UniformEntry& u = uniforms[i];
+        const char* typeNames[] = { "Sampler", "End", "Vec4", "Mat3", "Mat4" };
+        const char* typeName = (u.type < 5) ? typeNames[u.type] : "Unknown";
+        Rtt_LogException("  uniform[%d]: '%s' type=%s(%d) num=%d reg=%d regCount=%d\n",
+                         (int)i, u.name.c_str(), typeName, u.type, u.num, u.regIndex, u.regCount);
+    }
 
     return true;
 }
@@ -1341,7 +1393,23 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         // Path B: no shaderc (Android/iOS) — construct binary in-memory
         Rtt_LogException("Using runtime shader binary construction for '%s.%s' (no shaderc)\n",
                          category, name);
-        if (!ConstructShaderBinary(fragSc, 'F', fsBinary))
+
+        // Extract the varying interface hash from the default VS binary.
+        // bgfx validates: VS.hashOut == FS.hashIn. Our runtime FS must carry
+        // the same hashIn as the precompiled default VS's hashOut, otherwise
+        // bgfx::createProgram rejects the VS+FS pair silently.
+        uint32_t vsHashIn = 0, vsHashOut = 0;
+        bool hasCustomVS = (kernelVert && *kernelVert);
+        if (!hasCustomVS)
+        {
+            // No custom VS → will pair with precompiled default VS
+            ExtractInterfaceHash(BgfxProgram::GetDefaultVSData(), BgfxProgram::GetDefaultVSSize(),
+                                 vsHashIn, vsHashOut);
+            Rtt_LogException("Default VS interface hash: hashIn=0x%08x, hashOut=0x%08x\n",
+                             vsHashIn, vsHashOut);
+        }
+
+        if (!ConstructShaderBinary(fragSc, 'F', fsBinary, vsHashOut))
         {
             outError = "Failed to construct fragment shader binary for " + std::string(effectTag);
             return false;
@@ -1379,7 +1447,11 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             }
             else
             {
-                if (ConstructShaderBinary(vertSc, 'V', vsBinary))
+                // For custom VS+FS pair, extract the FS's hashIn from our just-constructed FS binary
+                // so VS.hashOut matches. (When both are runtime, use the same hash.)
+                uint32_t fsHashIn = 0, fsHashOut = 0;
+                ExtractInterfaceHash(fsBinary.data(), fsBinary.size(), fsHashIn, fsHashOut);
+                if (ConstructShaderBinary(vertSc, 'V', vsBinary, fsHashIn))
                 {
                     char vsKey[256];
                     snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
