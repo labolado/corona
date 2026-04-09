@@ -286,47 +286,23 @@ PhysicsWorld::StopWorld()
 	{
 		SetProperty( kIsWorldRunning, false );
 
-		// fWorld->SetContactListener( NULL );
-
 		b2DestroyWorld( fWorld->GetWorldId() );
-		// fWorldId = b2_nullWorldId;
 
-		// The b2World is about to destroy the block allocator that owns
-		// the memory for b2Body objects, so we have to pre-emptively
-		// iterate over bodies and detach from display object
-		// const void *groundBodyUserdata = LuaLibPhysics::GetGroundBodyUserdata();
-
-		// for ( b2Body *body = fWorld->GetBodyList(), *nextBody = NULL;
-		// 	  NULL != body;
-		// 	  body = nextBody )
-		// {
-		// 	// Prefetch next body before we delete body
-		// 	nextBody = body->GetNext();
-
-		// 	if ( body->GetUserData() )
-		// 	{
-		// 		if ( body->GetUserData() != groundBodyUserdata )
-		// 		{
-		// 			DisplayObject *o = (DisplayObject*)body->GetUserData();
-		// 			o->RemoveExtensions();
-		// 		}
-		// 	}
-
-		// 	fWorld->DestroyBody( body );
-		// }
+		// Clear mouse body pool (all IDs are now invalid after world destruction)
+		fMouseBodys.clear();
 
 		Rtt_DELETE( fWorld );
 		fWorld = NULL;
-
-		// These need to outlive fWorld
-		// Rtt_DELETE( fWorldDestructionListener );
-		// fWorldDestructionListener = NULL;
 
 		Rtt_DELETE( fWorldContactListener );
 		fWorldContactListener = NULL;
 
 		Rtt_DELETE( fWorldDebugDraw );
 		fWorldDebugDraw = NULL;
+
+		// Shut down the task scheduler threads
+		fScheduler.WaitforAllAndShutdown();
+		fTaskCount = 0;
 	}
 }
 
