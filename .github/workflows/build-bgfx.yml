@@ -24,8 +24,7 @@ jobs:
           submodules: recursive
       - name: Generate bgfx projects
         working-directory: ./external/bgfx
-        run: |
-          make .build/projects/gmake-osx-arm64
+        run: make .build/projects/gmake-osx-arm64
       - name: Build bgfx (Debug + Release)
         working-directory: ./external/bgfx
         run: |
@@ -41,10 +40,14 @@ jobs:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15/lib*.a
 
-  macOS-Debug:
-    name: macOS Debug Build
+  macOS-build:
+    name: macOS ${{ matrix.config }} Build
     needs: build-bgfx-libs
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,24 +59,26 @@ jobs:
           path: external/bgfx/.build/projects/xcode15
       - name: Patch project for CI
         run: |
+          # Remove non-essential deps (CoronaCards/Console/Shell) from rttplayer
           python3 -c "
           f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
           t = open(f).read()
-          for dep_id in ['C2B5FEEE1B336C3D00DD49E6', 'C26DD1131BD9514100EC4F44', 'C2B5FEF01B336C4200DD49E6']:
-              t = t.replace('\t\t\t\t' + dep_id + ' /* PBXTargetDependency */,\n', '')
-          open(f, 'w').write(t)
+          for did in ['C2B5FEEE1B336C3D00DD49E6','C26DD1131BD9514100EC4F44','C2B5FEF01B336C4200DD49E6']:
+              t = t.replace('\t\t\t\t' + did + ' /* PBXTargetDependency */,\n', '')
+          open(f,'w').write(t)
           "
-          mkdir -p platform/mac/CoronaConsole/build/{Debug,Release}/CoronaConsole.app/Contents/MacOS
-          mkdir -p platform/mac/CoronaShell/build/{Debug,Release}/CoronaShell.app/Contents/MacOS
-          touch platform/mac/CoronaConsole/build/Debug/CoronaConsole.app/Contents/MacOS/CoronaConsole
-          touch platform/mac/CoronaConsole/build/Release/CoronaConsole.app/Contents/MacOS/CoronaConsole
-          touch platform/mac/CoronaShell/build/Debug/CoronaShell.app/Contents/MacOS/CoronaShell
-          touch platform/mac/CoronaShell/build/Release/CoronaShell.app/Contents/MacOS/CoronaShell
-      - name: Build rttplayer (Debug)
+          # Create placeholder app bundles for CopyFiles build phases
+          for cfg in Debug Release; do
+            for app in CoronaConsole CoronaShell; do
+              mkdir -p "platform/mac/${app}/build/${cfg}/${app}.app/Contents/MacOS"
+              touch "platform/mac/${app}/build/${cfg}/${app}.app/Contents/MacOS/${app}"
+            done
+          done
+      - name: Build rttplayer (${{ matrix.config }})
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
             -target rttplayer \
-            -configuration Debug \
+            -configuration ${{ matrix.config }} \
             build \
             CODE_SIGN_IDENTITY='' \
             CODE_SIGNING_REQUIRED=NO \
@@ -83,67 +88,20 @@ jobs:
             2>&1 | tail -80 || true
       - name: Verify binary exists
         run: |
-          test -f "platform/mac/build/Debug/Corona Simulator.app/Contents/MacOS/Corona Simulator"
-          echo "Debug binary verified"
-      - name: Upload Debug build
+          test -f "platform/mac/build/${{ matrix.config }}/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          echo "${{ matrix.config }} binary verified"
+      - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: macOS-Debug
-          path: platform/mac/build/Debug/Corona Simulator.app
-
-  macOS-Release:
-    name: macOS Release Build
-    needs: build-bgfx-libs
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Download bgfx libs
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-libs
-          path: external/bgfx/.build/projects/xcode15
-      - name: Strip non-essential dependencies for CI
-        run: |
-          python3 -c "
-          import re
-          f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
-          t = open(f).read()
-          for dep_id in ['C2B5FEEE1B336C3D00DD49E6', 'C26DD1131BD9514100EC4F44', 'C2B5FEF01B336C4200DD49E6']:
-              t = t.replace('\t\t\t\t' + dep_id + ' /* PBXTargetDependency */,\n', '')
-          open(f, 'w').write(t)
-          "
-      - name: Build rttplayer (Release)
-        run: |
-          xcodebuild -project platform/mac/ratatouille.xcodeproj \
-            -target rttplayer \
-            -configuration Release \
-            build \
-            CODE_SIGN_IDENTITY='' \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO \
-            2>&1 | tail -80 || true
-      - name: Verify binary exists
-        run: |
-          test -f "platform/mac/build/Release/Corona Simulator.app/Contents/MacOS/Corona Simulator"
-          echo "Release binary verified"
-      - name: Upload Release build
-        uses: actions/upload-artifact@v4
-        with:
-          name: macOS-Release
-          path: platform/mac/build/Release/Corona Simulator.app
+          name: macOS-${{ matrix.config }}
+          path: platform/mac/build/${{ matrix.config }}/Corona Simulator.app
 
   iOS-templates:
     name: iOS Template Build (${{ matrix.target }})
     runs-on: macos-26
     strategy:
       matrix:
-        target:
-          - template
-          - template-angle
+        target: [template, template-angle]
     env:
       TEMPLATE_TARGET: ${{ matrix.target }}
       TEMPLATE_PLATFORM: iphone
