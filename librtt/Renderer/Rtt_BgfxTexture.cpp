@@ -214,6 +214,23 @@ BgfxTexture::Create( CPUResource* resource )
 			mem = rgbaMem;
 			format = bgfx::TextureFormat::RGBA8;
 		}
+		else if( texture->GetFormat() == Texture::kRGB )
+		{
+			// RGB8 is not universally supported on mobile GPUs (PowerVR, some Mali).
+			// Expand RGB → RGBA with alpha=255 for maximum compatibility.
+			uint32_t pixelCount = w * h;
+			const bgfx::Memory* rgbaMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = rgbaMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				dst[i * 4 + 0] = data[i * 3 + 0];
+				dst[i * 4 + 1] = data[i * 3 + 1];
+				dst[i * 4 + 2] = data[i * 3 + 2];
+				dst[i * 4 + 3] = 255;
+			}
+			mem = rgbaMem;
+			format = bgfx::TextureFormat::RGBA8;
+		}
 		else if( texture->GetFormat() == Texture::kBGRA )
 		{
 			// Mac CoreGraphics with kCGImageAlphaPremultipliedFirst (default byte order):
@@ -269,6 +286,12 @@ BgfxTexture::Create( CPUResource* resource )
 		flags,
 		mem
 	);
+
+	if( !bgfx::isValid( fHandle ) )
+	{
+		Rtt_LogException( "BgfxTexture::Create FAILED: format=%d w=%u h=%u\n",
+			(int)texture->GetFormat(), w, h );
+	}
 
 	fCachedFormat = static_cast<S32>( texture->GetFormat() );
 	fCachedWidth = w;
@@ -360,6 +383,21 @@ BgfxTexture::Update( CPUResource* resource )
 				dst[i * 4 + 1] = l;
 				dst[i * 4 + 2] = l;
 				dst[i * 4 + 3] = a;
+			}
+			actualFormat = bgfx::TextureFormat::RGBA8;
+		}
+		else if( format == Texture::kRGB )
+		{
+			// RGB8 → RGBA8 expansion for mobile GPU compatibility
+			uint32_t pixelCount = w * h;
+			expandedMem = bgfx::alloc( pixelCount * 4 );
+			U8* dst = expandedMem->data;
+			for( uint32_t i = 0; i < pixelCount; ++i )
+			{
+				dst[i * 4 + 0] = data[i * 3 + 0];
+				dst[i * 4 + 1] = data[i * 3 + 1];
+				dst[i * 4 + 2] = data[i * 3 + 2];
+				dst[i * 4 + 3] = 255;
 			}
 			actualFormat = bgfx::TextureFormat::RGBA8;
 		}
