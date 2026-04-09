@@ -44,7 +44,7 @@ class PhysicsTask : public enki::ITaskSet
 };
 
 static constexpr int32_t maxTasks = 64;
-static constexpr int32_t estimateMaxMouseBodys = 32;
+static constexpr int32_t estimateMaxMouseBodies = 32;
 
 // ----------------------------------------------------------------------------
 
