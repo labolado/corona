@@ -84,6 +84,39 @@ public:
     // Check if runtime compilation is available (shaderc binary exists)
     static bool IsAvailable();
 
+    // Construct a bgfx shader binary in-memory without shaderc.
+    // For GLES backends, the binary wraps GLSL/ESSL source that bgfx
+    // passes directly to glShaderSource/glCompileShader.
+    // shaderType: 'V' for vertex, 'F' for fragment
+    // interfaceHash: the varying interface hash that must match between VS and FS.
+    //   For FS: hashIn must equal the VS's hashOut (the "output interface").
+    //   For VS: hashOut must equal the FS's hashIn (the "input interface").
+    //   Use ExtractInterfaceHash() to read this from precompiled shader binaries.
+    static bool ConstructShaderBinary(
+        const std::string& shaderSource,
+        char shaderType,
+        std::vector<uint8_t>& outBinary,
+        uint32_t interfaceHash = 0);
+
+    // Extract hashIn and hashOut from a precompiled bgfx shader binary.
+    // Returns false if the binary is too small or has an invalid magic number.
+    static bool ExtractInterfaceHash(const unsigned char* data, size_t size,
+                                     uint32_t& outHashIn, uint32_t& outHashOut);
+
+    // Transform .sc source into pure ESSL suitable for ConstructShaderBinary.
+    // Strips $input/$output, resolves SAMPLER2D/mul macros, adds #version header.
+    static std::string TransformScToESSL(const std::string& scSource, char shaderType);
+
+    // Parse uniform declarations from .sc source for binary construction.
+    struct UniformEntry {
+        std::string name;
+        uint8_t type;       // bgfx UniformType: 0=Sampler, 2=Vec4, 3=Mat3, 4=Mat4
+        uint8_t num;        // array count (1 for non-array)
+        uint16_t regIndex;  // register/binding index
+        uint16_t regCount;  // register count
+    };
+    static std::vector<UniformEntry> ParseUniformsFromSc(const std::string& scSource);
+
 private:
     static std::string s_shadercPath;
     static std::string s_bgfxIncludeDir;
