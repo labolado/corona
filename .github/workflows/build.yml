@@ -73,6 +73,9 @@ jobs:
               touch "platform/mac/${app}/build/${cfg}/${app}.app/Contents/MacOS/${app}"
             done
           done
+          # Debug OSXAppTemplate script looks for CoronaShell.app in TARGET_BUILD_DIR
+          mkdir -p "platform/mac/build/Debug/CoronaShell.app/Contents/MacOS"
+          touch "platform/mac/build/Debug/CoronaShell.app/Contents/MacOS/CoronaShell"
       - name: Build rttplayer (${{ matrix.config }})
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
