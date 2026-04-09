@@ -148,6 +148,8 @@ static const char kBgfxShaderInline[] =
     "  #define texture2DBias(_sampler, _coord, _bias) bgfxTexture2DBias(_sampler, _coord, _bias)\n"
     "  #define texture2DProj(_sampler, _coord) bgfxTexture2DProj(_sampler, _coord)\n"
     "  #define mul(_a, _b) mul(_a, _b)\n"
+    "  #define mix lerp\n"
+    "  #define mod fmod\n"
     "  vec2 vec2_splat(float _x) { return vec2(_x, _x); }\n"
     "  vec3 vec3_splat(float _x) { return vec3(_x, _x, _x); }\n"
     "  vec4 vec4_splat(float _x) { return vec4(_x, _x, _x, _x); }\n"
@@ -666,6 +668,49 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
         preamble = ReplaceVaryingNames(preamble, varyings);
         body = ReplaceVaryingNames(body, varyings);
     }
+
+    // 6b. Expand single-arg vector constructors for Metal compatibility
+    // vec4(0.0) -> vec4(0.0, 0.0, 0.0, 0.0)
+    auto ExpandVectorConstructors = [](std::string& code) {
+        // Pattern: vec2(v), vec3(v), vec4(v) where v is a number
+        // Replace with vec2(v, v), vec3(v, v, v), vec4(v, v, v, v)
+        const std::pair<const char*, int> patterns[] = {
+            {"vec2", 2}, {"vec3", 3}, {"vec4", 4}
+        };
+        for (const auto& pat : patterns)
+        {
+            const char* prefix = pat.first;
+            int count = pat.second;
+            size_t pos = 0;
+            while ((pos = code.find(prefix, pos)) != std::string::npos)
+            {
+                size_t parenOpen = code.find('(', pos);
+                if (parenOpen == std::string::npos || parenOpen > pos + 5) { ++pos; continue; }
+                size_t parenClose = code.find(')', parenOpen);
+                if (parenClose == std::string::npos) { ++pos; continue; }
+                std::string inner = code.substr(parenOpen + 1, parenClose - parenOpen - 1);
+                // Trim whitespace
+                size_t start = inner.find_first_not_of(" \t");
+                size_t end = inner.find_last_not_of(" \t");
+                if (start == std::string::npos) { ++pos; continue; }
+                std::string arg = inner.substr(start, end - start + 1);
+                // Check if single argument (no comma at top level)
+                if (arg.find(',') != std::string::npos) { ++pos; continue; }
+                // Check if it's a number or identifier
+                bool isNumber = !arg.empty() && (isdigit(arg[0]) || arg[0] == '-' || arg[0] == '.');
+                bool isIdentifier = !arg.empty() && (isalpha(arg[0]) || arg[0] == '_');
+                if (!isNumber && !isIdentifier) { ++pos; continue; }
+                // Build replacement: arg, arg, ...
+                std::string replacement = prefix + std::string("(") + arg;
+                for (int i = 1; i < count; ++i) replacement += ", " + arg;
+                replacement += ")";
+                code.replace(pos, parenClose - pos + 1, replacement);
+                pos += replacement.size();
+            }
+        }
+    };
+    ExpandVectorConstructors(preamble);
+    ExpandVectorConstructors(body);
 
     // 7. Build complete .sc source
     std::string result = BuildFragmentTemplate(preamble, varyings);
