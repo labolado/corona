@@ -49,6 +49,14 @@ bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default sc
 BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0, 0 };
 bool BgfxCommandBuffer::sBatchingEnabled = true;
 
+// Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
+static bool sPlatformDataChanged = false;
+
+void BgfxCommandBuffer::NotifyPlatformDataChanged()
+{
+    sPlatformDataChanged = true;
+}
+
 // ----------------------------------------------------------------------------
 
 BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
@@ -376,11 +384,12 @@ BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
     static uint16_t sLastWidth = 0, sLastHeight = 0;
     uint16_t w = static_cast<uint16_t>( width );
     uint16_t h = static_cast<uint16_t>( height );
-    if( w != sLastWidth || h != sLastHeight )
+    if( w != sLastWidth || h != sLastHeight || sPlatformDataChanged )
     {
         bgfx::reset( w, h, BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 );
         sLastWidth = w;
         sLastHeight = h;
+        sPlatformDataChanged = false;
     }
 
     // Defer setViewRect to Execute (needs correct view ID from FBO)
@@ -1557,6 +1566,9 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     }
 
     sFrameNum++;
+
+    // Advance static geometry cache frame counter for auto-promotion
+    BgfxGeometry::AdvanceFrame();
 
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch(fDefaultView);
