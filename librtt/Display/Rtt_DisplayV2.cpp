@@ -614,26 +614,43 @@ DisplayV2::Capture( DisplayObject* object,
 
 	fRenderer->EndFrame();
 	fRenderer->Swap();
+
+	// Tell renderer to skip backbuffer present during this frame.
+	// This avoids black flash during capture (bgfx::frame() normally
+	// presents a new drawable with undefined/black content).
+	fRenderer->SetSkipPresent( true );
+
 	fRenderer->Render();
+
+	fRenderer->SetSkipPresent( false );
 
 	if( will_be_saved_to_file )
 	{
 		// Create screen capture.
 		BufferBitmap *bitmap = static_cast< BufferBitmap * >( tex->GetBitmap() );
 
-		// This function requires coordinates in pixels.
-		fStream->CaptureFrameBuffer( *bitmap,
-										x_in_pixels,
-										y_in_pixels,
-										w_in_pixels,
-										h_in_pixels );
-
-		// Flip vertically for GL — OpenGL viewport origin is bottom-left,
-		// while our content origin is top-left. For bgfx/Metal (top-left origin),
-		// the flipY projection already corrects the content, so no bitmap flip needed.
-		if ( fRenderer->GetCaps().originBottomLeft )
+		if ( fRenderer->IsBgfx() )
 		{
-			bitmap->Flip( false, true );
+			// bgfx 后端：使用 bgfx 的 blit+readTexture 路径
+			// glReadPixels 无法读取 bgfx 管理的 GLES context 内容
+			fRenderer->CaptureFrameBuffer( *fStream, *bitmap,
+										   x_in_pixels, y_in_pixels,
+										   w_in_pixels, h_in_pixels );
+		}
+		else
+		{
+			// GL 后端：传统 glReadPixels 路径
+			fStream->CaptureFrameBuffer( *bitmap,
+										 x_in_pixels, y_in_pixels,
+										 w_in_pixels, h_in_pixels );
+
+			// Flip vertically for GL — OpenGL viewport origin is bottom-left,
+			// while our content origin is top-left. For bgfx/Metal (top-left origin),
+			// the flipY projection already corrects the content, so no bitmap flip needed.
+			if ( fRenderer->GetCaps().originBottomLeft )
+			{
+				bitmap->Flip( false, true );
+			}
 		}
 	}
 
