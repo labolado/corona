@@ -29,6 +29,7 @@ namespace Rtt
 // Static members
 bgfx::VertexLayout BgfxGeometry::sVertexLayout;
 bool BgfxGeometry::sLayoutInitialized = false;
+U32 BgfxGeometry::sFrameCount = 0;
 
 void
 BgfxGeometry::InitializeVertexLayout()
@@ -65,7 +66,9 @@ BgfxGeometry::BgfxGeometry()
 	fIndexCount( 0 ),
 	fInstancesAllocated( 0 ),
 	fIsDynamic( false ),
-	fHasIndexBuffer( false )
+	fHasIndexBuffer( false ),
+	fWasStoredOnGPU( false ),
+	fLastUpdateFrame( 0 )
 {
 	InitializeVertexLayout();
 }
@@ -175,6 +178,8 @@ BgfxGeometry::Create( CPUResource* resource )
 	{
 		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (stored on GPU): Create" );
 		CreateStatic( geometry );
+		fWasStoredOnGPU = true;
+		fLastUpdateFrame = sFrameCount;
 	}
 	else
 	{
@@ -192,7 +197,6 @@ void
 BgfxGeometry::UpdateStatic( Geometry* geometry )
 {
 	const Geometry::Vertex* vertexData = geometry->GetVertexData();
-	const Geometry::Index* indexData = geometry->GetIndexData();
 
 	if( !vertexData )
 	{
@@ -200,21 +204,30 @@ BgfxGeometry::UpdateStatic( Geometry* geometry )
 		return;
 	}
 
+	// Convert static to dynamic for efficient future updates.
+	// bgfx static buffers cannot be updated in-place, so switching to dynamic
+	// eliminates the destroy+create overhead on each subsequent update.
+	DestroyStatic();
+	CreateDynamic( geometry );
+
+	// Upload current data to the new dynamic buffer
 	const U32 vertexCount = geometry->GetVerticesAllocated();
-	
-	// Check if we need to resize
-	if( vertexCount > fVertexCount )
+	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
+	const bgfx::Memory* mem = bgfx::copy( vertexData, static_cast<uint32_t>( vertexDataSize ) );
+	bgfx::update( fDynamicVertexBufferHandle, 0, mem );
+
+	// Update index data if present
+	const Geometry::Index* indexData = geometry->GetIndexData();
+	if( indexData && fHasIndexBuffer )
 	{
-		// Destroy and recreate
-		DestroyStatic();
-		CreateStatic( geometry );
-		return;
+		const U32 indexCount = geometry->GetIndicesAllocated();
+		const size_t indexDataSize = indexCount * sizeof( Geometry::Index );
+		const bgfx::Memory* indexMem = bgfx::copy( indexData, static_cast<uint32_t>( indexDataSize ) );
+		bgfx::update( fDynamicIndexBufferHandle, 0, indexMem );
 	}
 
-	// Update vertex data - bgfx doesn't support updating static buffers
-	// So we need to destroy and recreate
-	DestroyStatic();
-	CreateStatic( geometry );
+	fWasStoredOnGPU = true;
+	fIsDynamic = true;
 }
 
 void
@@ -300,6 +313,23 @@ BgfxGeometry::UpdateTransient( Geometry* geometry )
 }
 
 void
+BgfxGeometry::PromoteToStatic( Geometry* geometry )
+{
+	// Promote dynamic buffer back to static after stability period.
+	// Static buffers may reside in GPU-local memory, offering better
+	// read performance for geometry that no longer changes.
+	const Geometry::Vertex* vertexData = geometry->GetVertexData();
+	if( !vertexData )
+	{
+		return;
+	}
+
+	DestroyDynamic();
+	CreateStatic( geometry );
+	fIsDynamic = false;
+}
+
+void
 BgfxGeometry::Update( CPUResource* resource )
 {
 	SUMMED_TIMING( bgfxgu, "Bgfx Geometry GPU Resource: Update" );
@@ -307,20 +337,29 @@ BgfxGeometry::Update( CPUResource* resource )
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
-	const Geometry::Index* indexData = geometry->GetIndexData();
-	U32 indexCount = geometry->GetIndicesAllocated();
-
 	if( fIsTransient )
 	{
 		UpdateTransient( geometry );
 	}
 	else if( fIsDynamic )
 	{
-		UpdateDynamic( geometry );
+		// Auto-promote: if this was a StoredOnGPU geometry that was converted
+		// to dynamic (on first update), and it has been stable for many frames,
+		// promote back to static for optimal GPU rendering performance.
+		if( fWasStoredOnGPU && (sFrameCount - fLastUpdateFrame) > kPromotionThreshold )
+		{
+			PromoteToStatic( geometry );
+		}
+		else
+		{
+			UpdateDynamic( geometry );
+		}
+		fLastUpdateFrame = sFrameCount;
 	}
 	else
 	{
 		UpdateStatic( geometry );
+		fLastUpdateFrame = sFrameCount;
 	}
 
 	fIndexCount = geometry->GetIndicesAllocated();

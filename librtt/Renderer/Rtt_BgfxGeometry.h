@@ -36,7 +36,7 @@ class BgfxGeometry : public GPUResource
         static bool SupportsDivisors();
         static const char* InstanceIDSuffix();
 
-        bool StoredOnGPU() const { return bgfx::isValid( fVertexBufferHandle ); }
+        bool StoredOnGPU() const { return bgfx::isValid( fVertexBufferHandle ) || fWasStoredOnGPU; }
 
         virtual void Create( CPUResource* resource );
         virtual void Update( CPUResource* resource );
@@ -59,6 +59,10 @@ class BgfxGeometry : public GPUResource
         bgfx::DynamicVertexBufferHandle GetDynamicVBHandle() const { return fDynamicVertexBufferHandle; }
         static const bgfx::VertexLayout& GetVertexLayout() { InitializeVertexLayout(); return sVertexLayout; }
 
+        // Static geometry cache: frame counter for auto-promotion
+        static void AdvanceFrame() { ++sFrameCount; }
+        static U32 GetFrameCount() { return sFrameCount; }
+
     private:
         static void InitializeVertexLayout();
         void CreateStatic( Geometry* geometry );
@@ -66,6 +70,7 @@ class BgfxGeometry : public GPUResource
         void UpdateStatic( Geometry* geometry );
         void UpdateDynamic( Geometry* geometry );
         void UpdateTransient( Geometry* geometry );
+        void PromoteToStatic( Geometry* geometry );
         void DestroyStatic();
         void DestroyDynamic();
 
@@ -73,6 +78,10 @@ class BgfxGeometry : public GPUResource
         // Vertex layout is shared across all geometries
         static bgfx::VertexLayout sVertexLayout;
         static bool sLayoutInitialized;
+        static U32 sFrameCount;
+
+        // Auto-promotion threshold: frames of stability before dynamic to static
+        static const U32 kPromotionThreshold = 120;
 
         // Handles
         bgfx::VertexBufferHandle fVertexBufferHandle;
@@ -97,6 +106,8 @@ class BgfxGeometry : public GPUResource
         U32 fInstancesAllocated;
         bool fIsDynamic;
         bool fHasIndexBuffer;
+        bool fWasStoredOnGPU;
+        U32 fLastUpdateFrame;
 };
 
 // ----------------------------------------------------------------------------
