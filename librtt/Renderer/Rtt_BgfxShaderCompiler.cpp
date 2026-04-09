@@ -418,7 +418,8 @@ static std::string StripPrecisionMacros(const std::string& src)
 {
     std::string result = src;
     // These macros are defined as empty on desktop GL
-    const char* macros[] = { "P_COLOR ", "P_UV ", "P_DEFAULT ", "P_POSITION ", "P_NORMAL ", "P_RANDOM " };
+    const char* macros[] = { "P_COLOR ", "P_UV ", "P_DEFAULT ", "P_POSITION ", "P_NORMAL ", "P_RANDOM ",
+                              "lowp ", "mediump ", "highp " };
     for (const char* macro : macros)
     {
         size_t pos;
