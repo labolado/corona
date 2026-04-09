@@ -54,17 +54,27 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
-      - name: Strip non-essential dependencies for CI
+      - name: Patch project for CI (strip deps, create placeholders)
         run: |
           python3 -c "
-          import re
           f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
           t = open(f).read()
           # Remove CoronaCards, CoronaConsole, CoronaShell from rttplayer deps list only
           for dep_id in ['C2B5FEEE1B336C3D00DD49E6', 'C26DD1131BD9514100EC4F44', 'C2B5FEF01B336C4200DD49E6']:
               t = t.replace('\t\t\t\t' + dep_id + ' /* PBXTargetDependency */,\n', '')
+          # Remove CopyFiles phases that reference CoronaConsole/CoronaShell
+          # Also remove Run Script phases for CoronaCards copy
+          import re
+          # Disable shell scripts that copy CoronaCards/CoronaConsole/CoronaShell by replacing with no-op
+          t = re.sub(r'(shellScript = \"[^\"]*CoronaCards[^\"]*\")', lambda m: 'shellScript = \"exit 0\"' if 'Copy' in m.group(0) or 'copy' in m.group(0) else m.group(0), t)
+          t = re.sub(r'(shellScript = \"[^\"]*CoronaConsole[^\"]*\")', 'shellScript = \"exit 0\"', t)
           open(f, 'w').write(t)
           "
+          # Create placeholder dirs for CopyFiles phases
+          mkdir -p platform/mac/CoronaConsole/build/Debug/CoronaConsole.app
+          mkdir -p platform/mac/CoronaConsole/build/Release/CoronaConsole.app
+          mkdir -p platform/mac/CoronaShell/build/Debug/CoronaShell.app
+          mkdir -p platform/mac/CoronaShell/build/Release/CoronaShell.app
       - name: Build rttplayer (Debug)
         run: |
           xcodebuild -project platform/mac/ratatouille.xcodeproj \
