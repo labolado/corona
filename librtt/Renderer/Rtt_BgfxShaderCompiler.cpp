@@ -632,7 +632,9 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
         }
     }
 
-    // 5. Replace "return <expr>;" with "gl_FragColor = <expr>;"
+    // 5. Replace "return <expr>;" with a block that applies mask sampling then assigns gl_FragColor.
+    // This mirrors what the GL shell does: after calling FragmentKernel(), multiply by each active mask sampler.
+    // u_TexFlags.y holds the mask count (0=none, 1=one, 2=two, 3=three).
     {
         size_t pos = 0;
         while ((pos = body.find("return", pos)) != std::string::npos)
@@ -646,7 +648,14 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
                 if (semiPos != std::string::npos)
                 {
                     std::string expr = body.substr(afterReturn, semiPos - afterReturn);
-                    std::string replacement = "gl_FragColor =" + expr + ";";
+                    // Build a block that applies mask samplers before assigning gl_FragColor,
+                    // matching the GL shell behavior for MASK_COUNT > 0/1/2.
+                    std::string replacement =
+                        "{ vec4 _fragResult =" + expr + ";\n"
+                        "    if (u_TexFlags.y > 0.5) _fragResult *= texture2D(u_MaskSampler0, v_MaskUV0).r;\n"
+                        "    if (u_TexFlags.y > 1.5) _fragResult *= texture2D(u_MaskSampler1, v_MaskUV1).r;\n"
+                        "    if (u_TexFlags.y > 2.5) _fragResult *= texture2D(u_MaskSampler2, v_MaskUV2).r;\n"
+                        "    gl_FragColor = _fragResult; }";
                     body.replace(pos, semiPos - pos + 1, replacement);
                     pos += replacement.size();
                 }
