@@ -184,68 +184,87 @@ function scene:create(event)
     })
     rightAlign:setFillColor(0.8, 0.8, 0.9)
     
-    -- Section 5: Bold text
-    print("[Scene 3: Text] Testing font styles...")
+    -- Section 5: Font styles + custom fonts
+    print("[Scene 3: Text] Testing font styles and custom fonts...")
     local styleLabel = display.newText({
         parent = sceneGroup,
         text = "Font Styles:",
         x = 20 * S,
-        y = 400 * S,
+        y = 390 * S,
         font = native.systemFont,
         fontSize = 12 * S
     })
     styleLabel.anchorX = 0
     styleLabel:setFillColor(0.7, 0.7, 0.7)
-    
-    local regularText = display.newText({
+
+    local fontTests = {
+        { font = native.systemFont,     label = "System Regular",  color = {0.9, 0.9, 0.9} },
+        { font = native.systemFontBold, label = "System Bold",     color = {0.9, 0.9, 0.9} },
+        { font = "Geneva.ttf",          label = "Geneva (TTF)",    color = {0.5, 1, 0.5} },
+        { font = "Arial Unicode.ttf",   label = "Arial Unicode",   color = {0.5, 0.8, 1} },
+    }
+
+    yPos = 410 * S
+    for _, ft in ipairs(fontTests) do
+        local ok, txt = pcall(function()
+            return display.newText({
+                parent = sceneGroup,
+                text = ft.label .. ": Hello 你好",
+                x = 30 * S, y = yPos,
+                font = ft.font, fontSize = 13 * S
+            })
+        end)
+        if ok and txt then
+            txt.anchorX = 0
+            txt:setFillColor(unpack(ft.color))
+            print("  [PASS] " .. ft.label)
+        else
+            local err = display.newText({
+                parent = sceneGroup,
+                text = "FAIL: " .. ft.label,
+                x = 30 * S, y = yPos,
+                font = native.systemFont, fontSize = 12 * S
+            })
+            err.anchorX = 0
+            err:setFillColor(1, 0, 0)
+            print("  [FAIL] " .. ft.label .. " - " .. tostring(txt))
+        end
+        yPos = yPos + 22 * S
+    end
+
+    -- Section 6: CJK + special characters
+    print("[Scene 3: Text] Testing CJK and special characters...")
+    local cjkLabel = display.newText({
         parent = sceneGroup,
-        text = "Regular Font",
-        x = 30 * S,
-        y = 425 * S,
-        font = native.systemFont,
-        fontSize = 14 * S
-    })
-    regularText.anchorX = 0
-    regularText:setFillColor(0.9, 0.9, 0.9)
-    
-    local boldText = display.newText({
-        parent = sceneGroup,
-        text = "Bold Font",
-        x = 30 * S,
-        y = 450 * S,
-        font = native.systemFontBold,
-        fontSize = 14 * S
-    })
-    boldText.anchorX = 0
-    boldText:setFillColor(0.9, 0.9, 0.9)
-    
-    -- Section 6: Long text with wrapping
-    print("[Scene 3: Text] Testing text wrapping...")
-    local wrapLabel = display.newText({
-        parent = sceneGroup,
-        text = "Text Wrapping:",
+        text = "CJK / Special:",
         x = 160 * S,
-        y = 400 * S,
+        y = 390 * S,
         font = native.systemFont,
         fontSize = 12 * S
     })
-    wrapLabel.anchorX = 0
-    wrapLabel:setFillColor(0.7, 0.7, 0.7)
-    
-    local longText = "This is a long text that should wrap automatically within the specified width boundary."
-    local wrapText = display.newText({
-        parent = sceneGroup,
-        text = longText,
-        x = 170 * S,
-        y = 445 * S,
-        width = 140 * S,
-        font = native.systemFont,
-        fontSize = 11 * S,
-        align = "left"
-    })
-    wrapText.anchorX = 0
-    wrapText:setFillColor(0.85, 0.85, 0.7)
-    
+    cjkLabel.anchorX = 0
+    cjkLabel:setFillColor(0.7, 0.7, 0.7)
+
+    local cjkTests = {
+        { text = "中文：你好世界",         color = {1, 0.8, 0.3} },
+        { text = "日本語：こんにちは",     color = {0.3, 1, 0.8} },
+        { text = "한국어: 안녕하세요",     color = {1, 0.5, 0.5} },
+        { text = "Symbols: ★ ♠ ♥ ♦ ♣ ◆", color = {0.8, 0.8, 1} },
+    }
+
+    yPos = 410 * S
+    for _, ct in ipairs(cjkTests) do
+        local txt = display.newText({
+            parent = sceneGroup,
+            text = ct.text,
+            x = 170 * S, y = yPos,
+            font = native.systemFont, fontSize = 12 * S
+        })
+        txt.anchorX = 0
+        txt:setFillColor(unpack(ct.color))
+        yPos = yPos + 22 * S
+    end
+
     print("[Scene 3: Text] Creation complete - All text tests rendered")
 end
 
