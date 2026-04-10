@@ -81,6 +81,7 @@ public:
 
 private:
     void SaveRecording();
+    void SaveRecordingToFile(const std::string& filename);  // Save to specific file
     bool LoadRecording(const char* filename);
     void InjectTouchEvent(const TouchRecord& record);
     std::string GetRecordingDirectory();
@@ -95,6 +96,9 @@ private:
     // Recording data
     std::vector<TouchRecord> fRecordedEvents;
     MetaInfo fMetaInfo;
+    std::string fRecordingFilename;  // Current recording file for auto-save
+    double fLastSaveTime;            // Last auto-save timestamp
+    static const double kAutoSaveInterval;  // Auto-save interval in ms (10 seconds)
 
     // Playback data
     std::vector<TouchRecord> fPlaybackEvents;
