@@ -11,6 +11,10 @@
 #include "Core/Rtt_Build.h"
 
 #include "Rtt_Runtime.h"
+#include "Rtt_InputRecorder.h"
+
+// Include InputRecorder implementation directly (avoids modifying Xcode project)
+#include "Rtt_InputRecorder.cpp"
 
 #include "Core/Rtt_Allocator.h"
 #include "Core/Rtt_String.h"
@@ -191,6 +195,7 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 	fDownloadablePluginsCount(0),
 	fDelegate(NULL),
 	fShowingTrialMessages(false),
+	fInputRecorder(NULL),
 #ifdef Rtt_AUTHORING_SIMULATOR
 	m_fAsyncListener(nullptr),
 	m_fAsyncResultStr(nullptr),
@@ -278,6 +283,8 @@ Runtime::~Runtime()
 #if defined(Rtt_AUTHORING_SIMULATOR)
 	FinalizeWorkingThreadWithEvent(this, nullptr);
 #endif
+
+	Rtt_DELETE(fInputRecorder);
 }
 
 // ----------------------------------------------------------------------------
@@ -1390,6 +1397,9 @@ Runtime::LoadApplication( const LoadParameters& parameters )
 	if ( result == Runtime::kSuccess )
 	{
 		SetProperty( kIsApplicationLoaded, true );
+		
+		// Initialize input recorder if triggered
+		InitializeInputRecorder();
 	}
 
 exit_gracefully:
@@ -1729,6 +1739,20 @@ void
 Runtime::DispatchEvent( const MEvent& e )
 {
 	RuntimeGuard guard( * this );
+
+	// Record touch events if recording is active
+	if (fInputRecorder)
+	{
+		// Check if this is a touch event by comparing name (avoids dynamic_cast which needs RTTI)
+		if (strcmp(e.Name(), "touch") == 0)
+		{
+			const TouchEvent* touchEvent = static_cast<const TouchEvent*>(&e);
+			if (touchEvent)
+			{
+				fInputRecorder->RecordTouchEvent(*touchEvent, touchEvent->GetId());
+			}
+		}
+	}
 
 	e.Dispatch( fVMContext->L(), * this );
 }
@@ -2077,6 +2101,65 @@ void
 Runtime::WillDispatchFrameEvent( const Display& sender )
 {
 	fPhysicsWorld->StepWorld( GetElapsedMS() );
+
+	// Update input playback if active
+	if (fInputRecorder)
+	{
+		fInputRecorder->Update(GetElapsedMS());
+	}
+}
+
+// ----------------------------------------------------------------------------
+
+void
+Runtime::InitializeInputRecorder()
+{
+	if (fInputRecorder)
+		return;
+
+	fInputRecorder = Rtt_NEW(&fAllocator, InputRecorder(*this));
+
+	// Check environment variables (Mac/Desktop)
+	const char* recordEnv = getenv("SOLAR2D_RECORD");
+	const char* replayEnv = getenv("SOLAR2D_REPLAY");
+
+	if (recordEnv && strcmp(recordEnv, "1") == 0)
+	{
+		Rtt_Log("InputRecorder: SOLAR2D_RECORD=1 detected, starting recording\n");
+		fInputRecorder->StartRecording();
+	}
+	else if (replayEnv && strlen(replayEnv) > 0)
+	{
+		Rtt_Log("InputRecorder: SOLAR2D_REPLAY=%s detected, starting playback\n", replayEnv);
+		fInputRecorder->StartPlayback(replayEnv);
+	}
+	else
+	{
+		// Check trigger files (Mobile)
+		std::string recordingPath;
+		std::string replayFilename;
+
+		if (InputRecorder::CheckRecordingTriggerFile(fPlatform, recordingPath))
+		{
+			Rtt_Log("InputRecorder: RECORD trigger file detected, starting recording\n");
+			fInputRecorder->StartRecording();
+		}
+		else if (InputRecorder::CheckPlaybackTriggerFile(fPlatform, replayFilename))
+		{
+			Rtt_Log("InputRecorder: REPLAY trigger file detected, starting playback: %s\n", replayFilename.c_str());
+			fInputRecorder->StartPlayback(replayFilename.c_str());
+		}
+	}
+}
+
+void
+Runtime::ShutdownInputRecorder()
+{
+	if (fInputRecorder)
+	{
+		Rtt_DELETE(fInputRecorder);
+		fInputRecorder = NULL;
+	}
 }
 
 // ----------------------------------------------------------------------------
