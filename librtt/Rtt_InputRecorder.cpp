@@ -35,11 +35,15 @@ namespace Rtt
 // InputRecorder Implementation
 // ============================================================================
 
+// Auto-save interval: 10 seconds (in milliseconds)
+const double InputRecorder::kAutoSaveInterval = 10000.0;
+
 InputRecorder::InputRecorder(Runtime& runtime)
     : fRuntime(runtime)
     , fMode(kModeNone)
     , fStartTime(0)
     , fPlaybackFinished(false)
+    , fLastSaveTime(0)
     , fPlaybackIndex(0)
     , fPlaybackStartTime(0)
 {
@@ -78,7 +82,11 @@ void InputRecorder::StartRecording()
     strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", localtime(&now));
     fMetaInfo.timestamp = buf;
 
-    Rtt_Log("InputRecorder: Started recording\n");
+    // Generate recording filename for auto-save
+    fRecordingFilename = GenerateFilename();
+    fLastSaveTime = fStartTime;
+
+    Rtt_Log("InputRecorder: Started recording to %s\n", fRecordingFilename.c_str());
 }
 
 void InputRecorder::StartPlayback(const char* filename)
@@ -142,24 +150,34 @@ void InputRecorder::RecordTouchEvent(const TouchEvent& event, const void* touchI
 
 void InputRecorder::Update(double currentTime)
 {
-    if (fMode != kModeReplaying || fPlaybackFinished)
-        return;
-
-    double elapsed = currentTime - fPlaybackStartTime;
-
-    // Inject all events that should happen by now
-    while (fPlaybackIndex < fPlaybackEvents.size() && 
-           fPlaybackEvents[fPlaybackIndex].timestamp <= elapsed)
+    if (fMode == kModeRecording)
     {
-        InjectTouchEvent(fPlaybackEvents[fPlaybackIndex]);
-        fPlaybackIndex++;
+        // Auto-save: check if it's time to save
+        double elapsedSinceLastSave = currentTime - fLastSaveTime;
+        if (elapsedSinceLastSave >= kAutoSaveInterval && !fRecordedEvents.empty())
+        {
+            SaveRecordingToFile(fRecordingFilename);
+            fLastSaveTime = currentTime;
+        }
     }
-
-    // Check if playback is finished
-    if (fPlaybackIndex >= fPlaybackEvents.size())
+    else if (fMode == kModeReplaying && !fPlaybackFinished)
     {
-        fPlaybackFinished = true;
-        Rtt_Log("InputRecorder: Playback finished\n");
+        double elapsed = currentTime - fPlaybackStartTime;
+
+        // Inject all events that should happen by now
+        while (fPlaybackIndex < fPlaybackEvents.size() && 
+               fPlaybackEvents[fPlaybackIndex].timestamp <= elapsed)
+        {
+            InjectTouchEvent(fPlaybackEvents[fPlaybackIndex]);
+            fPlaybackIndex++;
+        }
+
+        // Check if playback is finished
+        if (fPlaybackIndex >= fPlaybackEvents.size())
+        {
+            fPlaybackFinished = true;
+            Rtt_Log("InputRecorder: Playback finished\n");
+        }
     }
 }
 
@@ -217,7 +235,17 @@ void InputRecorder::SaveRecording()
         return;
     }
 
-    std::string filename = GenerateFilename();
+    std::string filename = fRecordingFilename.empty() ? GenerateFilename() : fRecordingFilename;
+    SaveRecordingToFile(filename);
+}
+
+void InputRecorder::SaveRecordingToFile(const std::string& filename)
+{
+    if (fRecordedEvents.empty())
+    {
+        return;
+    }
+
     FILE* fp = fopen(filename.c_str(), "w");
     if (!fp)
     {
