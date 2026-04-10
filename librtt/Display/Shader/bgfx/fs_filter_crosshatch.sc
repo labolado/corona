@@ -15,6 +15,9 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 #include <bgfx_shader.sh>
 
 SAMPLER2D(u_FillSampler0, 0);
+SAMPLER2D(u_MaskSampler0, 2);
+SAMPLER2D(u_MaskSampler1, 3);
+SAMPLER2D(u_MaskSampler2, 4);
 
 // Time and data uniforms (packed in vec4 as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;
@@ -28,6 +31,9 @@ uniform vec4 u_UserData0;
 uniform vec4 u_UserData1;
 uniform vec4 u_UserData2;
 uniform vec4 u_UserData3;
+
+// Texture flags: .x = 1.0 for alpha-only texture, .y = mask count (0..3)
+uniform vec4 u_TexFlags;
 
 // Solar2D macros for shader compatibility
 #define CoronaColorScale(color) (v_ColorScale * (color))
@@ -51,7 +57,14 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 	{
 		if( mod( ( gl_FragCoord.x + gl_FragCoord.y ), floor(v_UserData.x) ) < THRESHOLD )
 		{
-    gl_FragColor = v_ColorScale;
+    vec4 _masked = v_ColorScale;
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
     return;
 		}
 	}
@@ -60,7 +73,14 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 	{
 		if( mod( ( gl_FragCoord.x - gl_FragCoord.y ), floor(v_UserData.x) ) < THRESHOLD )
 		{
-    gl_FragColor = v_ColorScale;
+    vec4 _masked = v_ColorScale;
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
     return;
 		}
 	}
@@ -69,7 +89,14 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 	{
 		if( mod( ( gl_FragCoord.x + gl_FragCoord.y - 5.0 ), floor(v_UserData.x) ) < THRESHOLD )
 		{
-    gl_FragColor = v_ColorScale;
+    vec4 _masked = v_ColorScale;
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
     return;
 		}
 	}
@@ -78,10 +105,24 @@ vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 	{
 		if( mod( ( gl_FragCoord.x - gl_FragCoord.y - 5.0 ), floor(v_UserData.x) ) < THRESHOLD )
 		{
-    gl_FragColor = v_ColorScale;
+    vec4 _masked = v_ColorScale;
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
     return;
 		}
 	}
 
-    gl_FragColor = vec4( 0.0 );
+    vec4 _masked = vec4( 0.0 );
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
 }

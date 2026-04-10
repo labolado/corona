@@ -1,4 +1,4 @@
-$input v_TexCoord, v_ColorScale, v_UserData, v_fromPos, v_N
+$input v_TexCoord, v_ColorScale, v_UserData, v_fromPos, v_N, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -15,6 +15,9 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_fromPos, v_N
 #include <bgfx_shader.sh>
 
 SAMPLER2D(u_FillSampler0, 0);
+SAMPLER2D(u_MaskSampler0, 2);
+SAMPLER2D(u_MaskSampler1, 3);
+SAMPLER2D(u_MaskSampler2, 4);
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -26,6 +29,9 @@ uniform vec4 u_UserData0;
 uniform vec4 u_UserData1;
 uniform vec4 u_UserData2;
 uniform vec4 u_UserData3;
+
+// Texture flags: .x = 1.0 for alpha-only texture, .y = mask count (0..3)
+uniform vec4 u_TexFlags;
 
 #define CoronaColorScale(color) (v_ColorScale * (color))
 #define CoronaVertexUserData v_UserData
@@ -53,17 +59,45 @@ void main()
     #elif 0
         if (progress <= 0.0)
         {
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            vec4 _masked = vec4(1.0, 0.0, 0.0, 1.0);
+            if (u_TexFlags.y > 0.5)
+                _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+            if (u_TexFlags.y > 1.5)
+                _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+            if (u_TexFlags.y > 2.5)
+                _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+            gl_FragColor = _masked;
         }
         else if (progress >= 1.0)
         {
-            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            vec4 _masked = vec4(0.0, 1.0, 0.0, 1.0);
+            if (u_TexFlags.y > 0.5)
+                _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+            if (u_TexFlags.y > 1.5)
+                _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+            if (u_TexFlags.y > 2.5)
+                _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+            gl_FragColor = _masked;
         }
         else
         {
-            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            vec4 _masked = vec4(0.0, 0.0, 1.0, 1.0);
+            if (u_TexFlags.y > 0.5)
+                _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+            if (u_TexFlags.y > 1.5)
+                _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+            if (u_TexFlags.y > 2.5)
+                _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+            gl_FragColor = _masked;
         }
     #endif
 
-    gl_FragColor = mix(color, vec4(0.0), progress);
+    vec4 _masked = mix(color, vec4(0.0), progress);
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
 }

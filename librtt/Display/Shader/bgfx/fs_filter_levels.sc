@@ -15,6 +15,9 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 #include <bgfx_shader.sh>
 
 SAMPLER2D(u_FillSampler0, 0);
+SAMPLER2D(u_MaskSampler0, 2);
+SAMPLER2D(u_MaskSampler1, 3);
+SAMPLER2D(u_MaskSampler2, 4);
 
 // Time and data uniforms (packed in vec4 as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;
@@ -28,6 +31,9 @@ uniform vec4 u_UserData0;
 uniform vec4 u_UserData1;
 uniform vec4 u_UserData2;
 uniform vec4 u_UserData3;
+
+// Texture flags: .x = 1.0 for alpha-only texture, .y = mask count (0..3)
+uniform vec4 u_TexFlags;
 
 // Solar2D macros for shader compatibility
 #define CoronaColorScale(color) (v_ColorScale * (color))
@@ -51,7 +57,14 @@ float white = v_UserData.x;
 	float gamma = v_UserData.z;
 
 	vec4 color = texture2D(u_FillSampler0, v_TexCoord.xy);
-    gl_FragColor = vec4( LevelsControl( color.rgb, black, gamma, white, 0.0, 1.0 ), color.a );
+    vec4 _masked = vec4( LevelsControl( color.rgb, black, gamma, white, 0.0, 1.0 ), color.a );
+    if (u_TexFlags.y > 0.5)
+        _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    gl_FragColor = _masked;
 //	vec4 inPixel = texture2D(u_FillSampler0, v_TexCoord.xy);
 //	vec4 color;
 //	color.r = (pow(( (inPixel.r * 255.0) - black) / (white - black), gamma) ) / 255.0;
