@@ -48,6 +48,7 @@ class PlatformExitCallback;
 class PlatformSurface;
 class PlatformTimer;
 class Scheduler;
+class InputRecorder;
 
 // ----------------------------------------------------------------------------
 
@@ -351,6 +352,12 @@ class Runtime : public MCallback,
 		// MDisplayDelegate
 		virtual void WillDispatchFrameEvent( const Display& sender );
 
+	public:
+		// Input Recording/Playback
+		InputRecorder* GetInputRecorder() { return fInputRecorder; }
+		void InitializeInputRecorder();
+		void ShutdownInputRecorder();
+
 #if defined(Rtt_AUTHORING_SIMULATOR)
 	public:
 		static int ShellPluginCollector_Async(lua_State* L);
@@ -394,6 +401,7 @@ class Runtime : public MCallback,
 		int fDownloadablePluginsCount;
 		const MRuntimeDelegate *fDelegate;
 		mutable bool fShowingTrialMessages;
+		InputRecorder* fInputRecorder;
 
 	private:
 		friend class LoadMainTask;
