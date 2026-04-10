@@ -11,10 +11,15 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 //////////////////////////////////////////////////////////////////////////////
 
 // Filter: color
+// Original GL kernel: return CoronaColorScale(texture2D(CoronaSampler0, texCoord));
 
 #include <bgfx_shader.sh>
 
 SAMPLER2D(u_FillSampler0, 0);
+SAMPLER2D(u_FillSampler1, 1);
+SAMPLER2D(u_MaskSampler0, 2);
+SAMPLER2D(u_MaskSampler1, 3);
+SAMPLER2D(u_MaskSampler2, 4);
 
 // Time and data uniforms (packed in vec4 as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;
@@ -29,6 +34,9 @@ uniform vec4 u_UserData1;
 uniform vec4 u_UserData2;
 uniform vec4 u_UserData3;
 
+// Texture flags: .x = 1.0 for alpha-only texture, .y = mask count (0..3)
+uniform vec4 u_TexFlags;
+
 // Solar2D macros for shader compatibility
 #define CoronaColorScale(color) (v_ColorScale * (color))
 #define CoronaVertexUserData v_UserData
@@ -36,8 +44,26 @@ uniform vec4 u_UserData3;
 #define CoronaDeltaTime u_DeltaTime.x
 #define CoronaTexelSize u_TexelSize
 #define CoronaContentScale u_ContentScale.xy
+#define CoronaSampler0 u_FillSampler0
+#define CoronaSampler1 u_FillSampler1
 
 void main()
 {
-    gl_FragColor = v_ColorScale;
+    vec4 texColor = texture2D(u_FillSampler0, v_TexCoord.xy);
+
+    if (u_TexFlags.x > 0.5)
+    {
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+    }
+
+    vec4 result = texColor * v_ColorScale;
+
+    if (u_TexFlags.y > 0.5)
+        result *= texture2D(u_MaskSampler0, v_MaskUV0).r;
+    if (u_TexFlags.y > 1.5)
+        result *= texture2D(u_MaskSampler1, v_MaskUV1).r;
+    if (u_TexFlags.y > 2.5)
+        result *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+
+    gl_FragColor = result;
 }
