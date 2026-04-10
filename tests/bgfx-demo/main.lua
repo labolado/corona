@@ -43,9 +43,13 @@ display.setStatusBar(display.HiddenStatusBar)
 
 -- Detect backend
 local backend = os.getenv("SOLAR2D_BACKEND") or "?"
--- On Android, backend is hardcoded in C++ — detect via system info
-if system.getInfo("platform") == "android" then
-    backend = system.getInfo("gpuSupportsHighPrecisionFragmentShaders") and "bgfx" or "gl"
+local platform = system.getInfo("platform")
+if backend == "?" then
+    -- On Android/iOS, bgfx is hardcoded in C++ (no env var available)
+    -- Detect by checking if bgfx-specific API exists
+    if platform == "android" or platform == "ios" or platform == "tvos" then
+        backend = "bgfx"
+    end
 end
 
 -- Enable debugging output
