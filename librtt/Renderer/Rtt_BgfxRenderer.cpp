@@ -25,8 +25,56 @@
 #include <string.h>
 
 #include <bgfx/platform.h>
+#include <bgfx/bgfx.h>
 
 // ----------------------------------------------------------------------------
+
+// Custom bgfx callback that catches shader compile failures gracefully.
+// Default CallbackStub calls abort() on ALL fatal errors including shader
+// compile failures, which crashes the app. This callback logs the error
+// and only aborts on truly unrecoverable errors.
+struct Solar2dBgfxCallback : public bgfx::CallbackI
+{
+    virtual void fatal(
+        const char* _filePath, uint16_t _line,
+        bgfx::Fatal::Enum _code, const char* _str) override
+    {
+        fprintf(stderr, "BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
+        Rtt_LogException("BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
+
+        // Shader compile/link failures: log but don't abort.
+        // bgfx will use an invalid handle and rendering may glitch, but won't crash.
+        if (_code == bgfx::Fatal::InvalidShader)
+        {
+            Rtt_LogException("BGFX: Shader compilation failed — skipping (app will not crash)\n");
+            return; // Don't abort
+        }
+
+        // Other fatal errors: still abort (truly unrecoverable)
+        abort();
+    }
+    virtual void traceVargs(const char* _filePath, uint16_t _line,
+                            const char* _format, va_list _argList) override
+    {
+        // Only log on debug builds
+        char buf[2048];
+        vsnprintf(buf, sizeof(buf), _format, _argList);
+        fprintf(stderr, "BGFX TRACE [%s:%d]: %s", _filePath, _line, buf);
+    }
+    virtual void profilerBegin(const char*, uint32_t, const char*, uint16_t) override {}
+    virtual void profilerBeginLiteral(const char*, uint32_t, const char*, uint16_t) override {}
+    virtual void profilerEnd() override {}
+    virtual uint32_t cacheReadSize(uint64_t) override { return 0; }
+    virtual bool cacheRead(uint64_t, void*, uint32_t) override { return false; }
+    virtual void cacheWrite(uint64_t, const void*, uint32_t) override {}
+    virtual void screenShot(const char*, uint32_t, uint32_t, uint32_t,
+                            bgfx::TextureFormat::Enum, const void*, uint32_t, bool) override {}
+    virtual void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override {}
+    virtual void captureEnd() override {}
+    virtual void captureFrame(const void*, uint32_t) override {}
+};
+
+static Solar2dBgfxCallback s_bgfxCallback;
 
 namespace Rtt
 {
@@ -103,6 +151,7 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         else if (strcmp(rendererEnv, "gl") == 0) init.type = bgfx::RendererType::OpenGL;
     }
 
+    init.callback = &s_bgfxCallback;
     fBgfxInitialized = bgfx::init(init);
 
     if (fBgfxInitialized)

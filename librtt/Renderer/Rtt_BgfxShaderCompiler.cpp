@@ -650,12 +650,13 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
                     std::string expr = body.substr(afterReturn, semiPos - afterReturn);
                     // Build a block that applies mask samplers before assigning gl_FragColor,
                     // matching the GL shell behavior for MASK_COUNT > 0/1/2.
+                    // Don't use block scope for _fragResult — some mobile GLES drivers
+                    // (PowerVR on Samsung) have scoping bugs with variables declared in {...}.
                     std::string replacement =
-                        "{ vec4 _fragResult =" + expr + ";\n"
-                        "    if (u_TexFlags.y > 0.5) _fragResult *= texture2D(u_MaskSampler0, v_MaskUV0).r;\n"
-                        "    if (u_TexFlags.y > 1.5) _fragResult *= texture2D(u_MaskSampler1, v_MaskUV1).r;\n"
-                        "    if (u_TexFlags.y > 2.5) _fragResult *= texture2D(u_MaskSampler2, v_MaskUV2).r;\n"
-                        "    gl_FragColor = _fragResult; }";
+                        "gl_FragColor =" + expr + ";\n"
+                        "    if (u_TexFlags.y > 0.5) gl_FragColor *= texture2D(u_MaskSampler0, v_MaskUV0).r;\n"
+                        "    if (u_TexFlags.y > 1.5) gl_FragColor *= texture2D(u_MaskSampler1, v_MaskUV1).r;\n"
+                        "    if (u_TexFlags.y > 2.5) gl_FragColor *= texture2D(u_MaskSampler2, v_MaskUV2).r;\n";
                     body.replace(pos, semiPos - pos + 1, replacement);
                     pos += replacement.size();
                 }
@@ -1163,9 +1164,12 @@ BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
         u.num = 1;
 
         if (typeStr == "vec4")      { u.type = 2; u.regCount = 1; }
+        else if (typeStr == "vec3")  { u.type = 2; u.regCount = 1; } // bgfx packs as vec4
+        else if (typeStr == "vec2")  { u.type = 2; u.regCount = 1; } // bgfx packs as vec4
+        else if (typeStr == "float") { u.type = 2; u.regCount = 1; } // bgfx packs as vec4
         else if (typeStr == "mat3") { u.type = 3; u.regCount = 3; }
         else if (typeStr == "mat4") { u.type = 4; u.regCount = 4; }
-        else continue;  // Skip unsupported types (vec2, vec3, float, etc. — bgfx packs as vec4)
+        else continue;  // Skip truly unsupported types
 
         u.regIndex = vec4Index;
         vec4Index += u.regCount;
@@ -1175,32 +1179,42 @@ BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
     return uniforms;
 }
 
-// Transform .sc source to pure ESSL for runtime use.
-// The .sc source from TransformFragmentKernel/TransformVertexKernel contains:
-//   - $input/$output directives (bgfx-specific, stripped)
-//   - SAMPLER2D() macros (expanded to uniform sampler2D)
-//   - mul(a,b) macros (expanded to a*b)
-//   - kBgfxShaderInline already handles these when BGFX_SHADER_LANGUAGE_GLSL is defined
-//
-// For runtime binary, we need pure GLSL/ESSL that the GL driver compiles.
-// Transform .sc source to pure ESSL 300 for runtime use.
-// Strategy: Start with "#version 300 es" so bgfx does NOT add its own compatibility wrapper
-// (which would conflict with our kBgfxShaderInline macros). We define BGFX_SHADER_LANGUAGE_GLSL
-// so our inlined SAMPLER2D/mul macros expand for GLSL. We add proper in/out declarations
-// and a fragment output variable.
+// GLSL-only macros for ESSL output. No Metal/HLSL code, no #if branching.
+// This avoids issues with mobile GL drivers that choke on complex #else blocks.
+static const char kEsslGlslMacros[] =
+    "// --- GLSL compatibility macros ---\n"
+    "#define SAMPLER2D(_name, _reg) uniform sampler2D _name\n"
+    "#define SAMPLER3D(_name, _reg) uniform sampler3D _name\n"
+    "#define SAMPLERCUBE(_name, _reg) uniform samplerCube _name\n"
+    "#define mul(_a, _b) ((_a) * (_b))\n"
+    "#define saturate(_x) clamp(_x, 0.0, 1.0)\n"
+    "#define atan2(_x, _y) atan(_x, _y)\n"
+    "#define texture2D(_sampler, _coord) texture(_sampler, _coord)\n"
+    "#define texture2DLod(_sampler, _coord, _lod) textureLod(_sampler, _coord, _lod)\n"
+    "#define texture2DLodOffset(_sampler, _coord, _lod, _offset) textureLodOffset(_sampler, _coord, _lod, _offset)\n"
+    "#define texture2DBias(_sampler, _coord, _bias) texture(_sampler, _coord, _bias)\n"
+    "vec2 vec2_splat(float _x) { return vec2(_x, _x); }\n"
+    "vec3 vec3_splat(float _x) { return vec3(_x, _x, _x); }\n"
+    "vec4 vec4_splat(float _x) { return vec4(_x, _x, _x, _x); }\n"
+    "float rcp(float _a) { return 1.0/_a; }\n"
+    "vec2  rcp(vec2  _a) { return vec2(1.0)/_a; }\n"
+    "vec3  rcp(vec3  _a) { return vec3(1.0)/_a; }\n"
+    "vec4  rcp(vec4  _a) { return vec4(1.0)/_a; }\n"
+    "// --- end GLSL compatibility macros ---\n"
+    "\n";
+
+// Transform .sc source to pure ESSL 300 for runtime use (Android/iOS OpenGL ES).
+// Strategy: Strip kBgfxShaderInline (which has Metal/HLSL in #else blocks that
+// confuse some mobile GL drivers) and replace with clean GLSL-only macros.
 std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, char shaderType)
 {
     std::string result;
-    result.reserve(scSource.size() + 512);
+    result.reserve(scSource.size() + 1024);
 
     // Start with #version so bgfx passes source directly to glShaderSource
     result += "#version 300 es\n";
     result += "precision mediump float;\n";
     result += "precision mediump int;\n";
-    result += "\n";
-
-    // Define BGFX_SHADER_LANGUAGE_GLSL so kBgfxShaderInline's GLSL path is selected.
-    result += "#define BGFX_SHADER_LANGUAGE_GLSL 300\n";
     result += "\n";
 
     // Map varying names to types
@@ -1217,11 +1231,13 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
         return "vec4";
     };
 
-    // Parse $input/$output and generate proper ESSL 300 in/out declarations
+    // Parse $input/$output and generate proper ESSL 300 in/out declarations.
+    // Strip kBgfxShaderInline block (between marker comments) — replaced with kEsslGlslMacros.
     std::istringstream iss(scSource);
     std::string line;
     std::string varyingDecls;
     std::string bodyLines;
+    bool inBgfxInline = false;
 
     while (std::getline(iss, line))
     {
@@ -1256,6 +1272,21 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
             continue;
         }
 
+        // Strip kBgfxShaderInline block (contains Metal/HLSL code in #else that
+        // confuses Samsung and other mobile GL driver preprocessors)
+        if (line.find("// --- bgfx shader compatibility (inlined) ---") != std::string::npos)
+        {
+            inBgfxInline = true;
+            bodyLines += kEsslGlslMacros; // Replace with clean GLSL-only macros
+            continue;
+        }
+        if (inBgfxInline)
+        {
+            if (line.find("// --- end bgfx shader compatibility ---") != std::string::npos)
+                inBgfxInline = false;
+            continue; // Skip all lines in the bgfx inline block
+        }
+
         bodyLines += line + "\n";
     }
 
@@ -1266,7 +1297,88 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
         varyingDecls += "#define gl_FragColor bgfx_FragColor\n";
     }
 
-    // Insert varying declarations, then the body (which includes kBgfxShaderInline + user code)
+    // Promote uniform float/vec2/vec3 to vec4 in the ESSL source.
+    // bgfx registers ALL non-sampler/matrix uniforms as Vec4 and uses glUniform4fv.
+    // If the ESSL declares "uniform float x" but bgfx sets it with glUniform4fv,
+    // some GL drivers (PowerVR/Samsung) silently drop the value.
+    //
+    // Strategy: change declaration to vec4, then replace all body references
+    // with swizzled access (name.x / name.xy / name.xyz).
+    // The uniform name stays the same so bgfx can find it via glGetUniformLocation.
+    {
+        struct PromotedUniform { std::string name; std::string swizzle; };
+        std::vector<PromotedUniform> promoted;
+
+        struct PatSwizzle { const char* pat; const char* swizzle; };
+        PatSwizzle patterns[] = {
+            { "uniform float ", ".x" },
+            { "uniform vec2 ",  ".xy" },
+            { "uniform vec3 ",  ".xyz" },
+        };
+
+        // Pass 1: find and promote declarations
+        for (const auto& ps : patterns)
+        {
+            size_t pos = 0;
+            size_t patLen = strlen(ps.pat);
+            while ((pos = bodyLines.find(ps.pat, pos)) != std::string::npos)
+            {
+                size_t nameStart = pos + patLen;
+                size_t semi = bodyLines.find(';', nameStart);
+                if (semi == std::string::npos) { pos = nameStart; continue; }
+                std::string raw = bodyLines.substr(nameStart, semi - nameStart);
+                // Strip comments
+                size_t cm = raw.find("//");
+                if (cm != std::string::npos) raw = raw.substr(0, cm);
+                // Trim
+                size_t ns = raw.find_first_not_of(" \t");
+                size_t ne = raw.find_last_not_of(" \t");
+                if (ns == std::string::npos) { pos = semi + 1; continue; }
+                std::string name = raw.substr(ns, ne - ns + 1);
+
+                promoted.push_back({ name, ps.swizzle });
+
+                // Replace declaration: "uniform float name;" → "uniform vec4 name;"
+                std::string replacement = "uniform vec4 " + name + ";";
+                bodyLines.replace(pos, semi - pos + 1, replacement);
+                pos += replacement.size();
+            }
+        }
+
+        // Pass 2: replace all references in body with swizzled access (word-boundary safe)
+        for (const auto& pu : promoted)
+        {
+            const std::string& name = pu.name;
+            std::string swizzled = name + pu.swizzle;
+            size_t pos = 0;
+            while ((pos = bodyLines.find(name, pos)) != std::string::npos)
+            {
+                // Skip if inside the "uniform vec4 name;" declaration itself
+                // Check if preceded by "vec4 " (part of the declaration we just wrote)
+                if (pos >= 5)
+                {
+                    std::string before5 = bodyLines.substr(pos - 5, 5);
+                    if (before5 == "vec4 ") { pos += name.size(); continue; }
+                }
+
+                bool leftOk = (pos == 0) || (!isalnum(bodyLines[pos - 1]) && bodyLines[pos - 1] != '_');
+                size_t endPos = pos + name.size();
+                bool rightOk = (endPos >= bodyLines.size()) || (!isalnum(bodyLines[endPos]) && bodyLines[endPos] != '_' && bodyLines[endPos] != '.');
+                // Skip if already swizzled (next char is '.')
+                if (endPos < bodyLines.size() && bodyLines[endPos] == '.') { pos = endPos; continue; }
+
+                if (leftOk && rightOk)
+                {
+                    bodyLines.replace(pos, name.size(), swizzled);
+                    pos += swizzled.size();
+                }
+                else
+                    pos += name.size();
+            }
+        }
+    }
+
+    // Insert varying declarations, then the body
     result += varyingDecls;
     result += "\n";
     result += bodyLines;
