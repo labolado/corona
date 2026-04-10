@@ -42,15 +42,22 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
         fprintf(stderr, "BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
         Rtt_LogException("BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
 
-        // Shader compile/link failures: log but don't abort.
-        // bgfx will use an invalid handle and rendering may glitch, but won't crash.
-        if (_code == bgfx::Fatal::InvalidShader)
+        // Recoverable errors: log but don't abort.
+        // InvalidShader: bgfx uses invalid handle, rendering may glitch but won't crash.
+        // DeviceLost: common on mobile (lock screen, app suspend). bgfx may recover.
+        // UnableToCreateTexture: memory pressure, can degrade gracefully.
+        if (_code == bgfx::Fatal::InvalidShader
+            || _code == bgfx::Fatal::DeviceLost
+            || _code == bgfx::Fatal::UnableToCreateTexture)
         {
-            Rtt_LogException("BGFX: Shader compilation failed — skipping (app will not crash)\n");
+            const char* names[] = { "DebugCheck", "InvalidShader", "UnableToInitialize",
+                                    "UnableToCreateTexture", "DeviceLost" };
+            const char* name = (_code < 5) ? names[_code] : "Unknown";
+            Rtt_LogException("BGFX: %s — continuing (app will not crash)\n", name);
             return; // Don't abort
         }
 
-        // Other fatal errors: still abort (truly unrecoverable)
+        // Truly unrecoverable: DebugCheck, UnableToInitialize
         abort();
     }
     virtual void traceVargs(const char* _filePath, uint16_t _line,
