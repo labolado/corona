@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined( Rtt_ANDROID_ENV )
+#include <android/log.h>
+#endif
+
 #include <bgfx/platform.h>
 #include <bgfx/bgfx.h>
 
@@ -63,7 +67,6 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
     virtual void traceVargs(const char* _filePath, uint16_t _line,
                             const char* _format, va_list _argList) override
     {
-        // Only log on debug builds
         char buf[2048];
         vsnprintf(buf, sizeof(buf), _format, _argList);
         fprintf(stderr, "BGFX TRACE [%s:%d]: %s", _filePath, _line, buf);
@@ -87,6 +90,26 @@ namespace Rtt
 {
 
 // ----------------------------------------------------------------------------
+
+#if defined( Rtt_ANDROID_ENV )
+static void LogBgfxFrameStats( const char* phase, bool isCapture )
+{
+    const bgfx::Stats* stats = bgfx::getStats();
+    if( ! stats )
+    {
+        __android_log_print( ANDROID_LOG_INFO, "Corona", "BGFX_FRAME: %s capture=%d stats=null", phase, isCapture ? 1 : 0 );
+        return;
+    }
+
+    __android_log_print( ANDROID_LOG_INFO, "Corona",
+        "BGFX_FRAME: %s gpuFrame=%u viewCount=%u draw=%u capture=%d",
+        phase,
+        stats->gpuFrameNum,
+        stats->numViews,
+        stats->numDraw,
+        isCapture ? 1 : 0 );
+}
+#endif
 
 BgfxRenderer::BgfxRenderer(Rtt_Allocator* allocator)
 :   Super(allocator),
@@ -131,14 +154,9 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     const char* msaaEnv = getenv("SOLAR2D_MSAA");
     int msaaLevel = msaaEnv ? atoi(msaaEnv) : -1;
 
-#if defined(Rtt_IPHONE_ENV) || defined(Rtt_ANDROID_ENV)
-    // Mobile: MSAA X4 same as desktop, no FLIP_AFTER_RENDER
-    // Use SOLAR2D_MSAA=0 or =2 to test lower quality on low-end devices
-    init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4;
-#else
-    // Desktop
+    // All platforms: FLIP_AFTER_RENDER ensures present happens AFTER GPU render,
+    // reducing display latency from N-2 to N-1 frames and preventing 1-frame flash artifacts.
     init.resolution.reset = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
-#endif
 
     // SOLAR2D_MSAA override (0=off, 2=X2, 4=X4)
     if (msaaLevel >= 0)
@@ -157,6 +175,9 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         else if (strcmp(rendererEnv, "vulkan") == 0) init.type = bgfx::RendererType::Vulkan;
         else if (strcmp(rendererEnv, "gl") == 0) init.type = bgfx::RendererType::OpenGL;
     }
+
+    // Cache reset flags for SetViewport to reuse (prevents losing FLIP_AFTER_RENDER on resize)
+    BgfxCommandBuffer::SetCachedResetFlags(init.resolution.reset);
 
     init.callback = &s_bgfxCallback;
     fBgfxInitialized = bgfx::init(init);
@@ -201,6 +222,26 @@ BgfxRenderer::ShutdownBgfx()
 }
 
 void
+BgfxRenderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTimeTransform, Real contentScaleX, Real contentScaleY, bool isCapture )
+{
+#if defined( Rtt_ANDROID_ENV )
+    LogBgfxFrameStats( "begin", isCapture );
+#endif
+
+    Super::BeginFrame( totalTime, deltaTime, defTimeTransform, contentScaleX, contentScaleY, isCapture );
+}
+
+void
+BgfxRenderer::EndFrame()
+{
+#if defined( Rtt_ANDROID_ENV )
+    LogBgfxFrameStats( "end", false );
+#endif
+
+    Super::EndFrame();
+}
+
+void
 BgfxRenderer::InitCaps()
 {
     const bgfx::Caps* caps = bgfx::getCaps();
@@ -230,6 +271,19 @@ BgfxRenderer::GetCaps() const
 void
 BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitmap, S32 x_in_pixels, S32 y_in_pixels, S32 w_in_pixels, S32 h_in_pixels )
 {
+#if defined( Rtt_ANDROID_ENV )
+    static uint32_t sCaptureSeq = 0;
+    const uint32_t captureSeq = __atomic_add_fetch( &sCaptureSeq, 1u, __ATOMIC_RELAXED );
+    __android_log_print( ANDROID_LOG_INFO, "BGFX_CAPTURE",
+        "CAPTURE begin seq=%u ts=%lld rect=%d,%d %dx%d",
+        captureSeq,
+        static_cast<long long>( bgfx::getStats()->cpuTimeFrame ),
+        static_cast<int>( x_in_pixels ),
+        static_cast<int>( y_in_pixels ),
+        static_cast<int>( w_in_pixels ),
+        static_cast<int>( h_in_pixels ) );
+#endif
+
     // Get the current FBO - Display::Capture() renders to an FBO and we need to read it back
     FrameBufferObject* fbo = GetFrameBufferObject();
     if( !fbo )
@@ -266,16 +320,18 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
     // Metal readback via getInternalTexturePtr was removed because calling
     // getInternal() from the API thread races with the render thread.
     {
-        // CRITICAL: Flush all pending rendering to ensure the FBO texture
-        // is fully written before we blit from it. On iOS Metal, blitting
-        // from a texture that's still an active render target crashes.
-        // Submit a frame (skip present) to complete any pending FBO renders.
+        // Flush pending rendering while the FBO is still bound so the scene
+        // is actually rendered into the source texture before we read it back.
         bgfx::ViewId fboViewId = bgfxFbo->GetViewId();
-        bgfx::setViewFrameBuffer( fboViewId, BGFX_INVALID_HANDLE );
-        bgfx::touch( fboViewId );
+#if defined( Rtt_ANDROID_ENV )
+        __android_log_print( ANDROID_LOG_INFO, "BGFX_CAPTURE",
+            "CAPTURE setSkipPresent seq=%u value=1 view=%u",
+            captureSeq,
+            static_cast<unsigned int>( fboViewId ) );
+#endif
         bgfx::setSkipPresent( true );
         bgfx::frame();
-        bgfx::setSkipPresent( false );
+        bgfx::setViewFrameBuffer( fboViewId, BGFX_INVALID_HANDLE );
 
         if( !bgfx::isValid( fStagingTexture ) || fStagingW != readW || fStagingH != readH )
         {
@@ -300,6 +356,9 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
             const bgfx::ViewId kBlitView = 255;
             bgfx::setViewRect( kBlitView, 0, 0, static_cast<uint16_t>( readW ), static_cast<uint16_t>( readH ) );
 
+            // Touch view BEFORE blit to ensure bgfx processes this view
+            bgfx::touch( kBlitView );
+
             bgfx::blit(
                 kBlitView,
                 fStagingTexture,
@@ -314,8 +373,14 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
             uint32_t readyFrame = bgfx::readTexture( fStagingTexture, readbackBuffer );
 
             bgfx::touch( kBlitView );
-            bgfx::setSkipPresent( true );
             uint32_t currentFrame = bgfx::frame();
+#if defined( Rtt_ANDROID_ENV )
+            __android_log_print( ANDROID_LOG_INFO, "BGFX_CAPTURE",
+                "CAPTURE readback seq=%u readyFrame=%u currentFrame=%u attempts=0",
+                captureSeq,
+                readyFrame,
+                currentFrame );
+#endif
 
             // Wait for readback with timeout to prevent infinite loop
             uint32_t maxAttempts = 100;
@@ -325,13 +390,29 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
                 currentFrame = bgfx::frame();
                 attempts++;
             }
-            bgfx::setSkipPresent( false );
 
             if( attempts >= maxAttempts )
             {
                 fprintf( stderr, "BGFX CaptureFrameBuffer: readback timeout after %u frames\n", attempts );
             }
+
+#if defined( Rtt_ANDROID_ENV )
+            __android_log_print( ANDROID_LOG_INFO, "BGFX_CAPTURE",
+                "CAPTURE ready seq=%u readyFrame=%u currentFrame=%u attempts=%u",
+                captureSeq,
+                readyFrame,
+                currentFrame,
+                attempts );
+#endif
         }
+
+#if defined( Rtt_ANDROID_ENV )
+        __android_log_print( ANDROID_LOG_INFO, "BGFX_CAPTURE",
+            "CAPTURE setSkipPresent seq=%u value=0",
+            captureSeq );
+#endif
+        bgfx::setSkipPresent( false );
+        bgfx::setViewFrameBuffer( fboViewId, BGFX_INVALID_HANDLE );
     }
 
     // Copy readback data to the bitmap

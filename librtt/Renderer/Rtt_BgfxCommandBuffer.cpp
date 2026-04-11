@@ -52,9 +52,21 @@ bool BgfxCommandBuffer::sBatchingEnabled = true;
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
+// Cached reset flags from bgfx::init — reused in SetViewport to avoid losing FLIP_AFTER_RENDER etc.
+static uint32_t sResetFlags = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4;
+
+// Last screen backbuffer size applied via bgfx::reset().
+static uint16_t sLastBackbufferWidth = 0;
+static uint16_t sLastBackbufferHeight = 0;
+
 void BgfxCommandBuffer::NotifyPlatformDataChanged()
 {
     sPlatformDataChanged = true;
+}
+
+void BgfxCommandBuffer::SetCachedResetFlags(uint32_t flags)
+{
+    sResetFlags = flags;
 }
 
 // ----------------------------------------------------------------------------
@@ -111,14 +123,15 @@ void
 BgfxCommandBuffer::Initialize()
 {
     // bgfx initialization is handled by BgfxRenderer
-    // Here we just set up the default view
+    InitializeFBO();
+
+    // Configure clear state after InitializeFBO assigns the actual screen view ID.
     bgfx::setViewClear( fDefaultView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
         0x00000000,
         fClearDepth,
         fClearStencil );
 
-    InitializeFBO();
     InitializeCachedParams();
 
     // Query max texture size
@@ -380,17 +393,8 @@ BgfxCommandBuffer::SetBlendEquation( RenderTypes::BlendEquation mode )
 void
 BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
 {
-    // bgfx::reset is safe to call immediately for resolution changes
-    static uint16_t sLastWidth = 0, sLastHeight = 0;
     uint16_t w = static_cast<uint16_t>( width );
     uint16_t h = static_cast<uint16_t>( height );
-    if( w != sLastWidth || h != sLastHeight || sPlatformDataChanged )
-    {
-        bgfx::reset( w, h, BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 );
-        sLastWidth = w;
-        sLastHeight = h;
-        sPlatformDataChanged = false;
-    }
 
     // Defer setViewRect to Execute (needs correct view ID from FBO)
     DeferredCmd cmd;
@@ -653,6 +657,15 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
 {
+    if( fCurrentView == fDefaultView
+        && ( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged ) )
+    {
+        bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
+        sLastBackbufferWidth = cmd.vpW;
+        sLastBackbufferHeight = cmd.vpH;
+        sPlatformDataChanged = false;
+    }
+
     bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
 }
 
