@@ -45,6 +45,12 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	/** The render thread (replaces GLThread). */
 	private RenderThread fRenderThread;
 
+	/** Shared lock for render-thread state changes and wakeups. */
+	private final Object fRenderSignal = new Object();
+
+	/** Main-thread handler used to schedule Choreographer callbacks safely. */
+	private final android.os.Handler fUiHandler;
+
 	/** Timer used to make sure that the surface is working. */
 	private com.ansca.corona.MessageBasedTimer fWatchdogTimer;
 
@@ -76,6 +82,21 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	 */
 	private volatile boolean fSurfaceRestored = false;
 
+	/** VSync trigger flag: set by Choreographer callback, consumed by RenderThread. */
+	private volatile boolean fVSyncTriggered = false;
+
+	/** Frame scheduling flag: prevents duplicate Choreographer posts. */
+	private volatile boolean fFrameScheduled = false;
+
+	/** Choreographer for VSync-bound rendering (replaces wait(16) polling). */
+	private android.view.Choreographer fChoreographer;
+
+	/** Frame callback posted to Choreographer to trigger one render frame. */
+	private android.view.Choreographer.FrameCallback fFrameCallback;
+
+	/** Posts the next Choreographer callback from the main thread. */
+	private Runnable fPostFrameCallbackRunnable;
+
 	/** Queue of runnables to execute on the render thread. */
 	private final java.util.ArrayList<Runnable> fEventQueue = new java.util.ArrayList<>();
 
@@ -95,6 +116,7 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		fIsCoronaKit = isCoronaKit;
 		fCanRender = false;
 		fSurfaceValid = false;
+		fUiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
 		// Fetch the current orientation of the activity's window.
 		fCurrentWindowOrientation = com.ansca.corona.WindowOrientation.fromCurrentWindowUsing(getContext());
@@ -155,6 +177,32 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		// Register for surface callbacks. NO EGL setup — bgfx handles that.
 		getHolder().addCallback(this);
 		getHolder().setFormat(android.graphics.PixelFormat.RGBA_8888);
+
+		// Set up Choreographer for VSync-bound rendering.
+		fFrameCallback = new android.view.Choreographer.FrameCallback() {
+			@Override
+			public void doFrame(long frameTimeNanos) {
+				synchronized (fRenderSignal) {
+					fFrameScheduled = false;
+					fVSyncTriggered = true;
+					fRenderSignal.notifyAll();
+				}
+			}
+		};
+		fPostFrameCallbackRunnable = new Runnable() {
+			@Override
+			public void run() {
+				if (fChoreographer == null) {
+					fChoreographer = android.view.Choreographer.getInstance();
+				}
+				synchronized (fRenderSignal) {
+					if (!fFrameScheduled) {
+						return;
+					}
+				}
+				fChoreographer.postFrameCallback(fFrameCallback);
+			}
+		};
 
 		// Create and start the render thread.
 		fRenderThread = new RenderThread();
@@ -409,11 +457,27 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		return fCanRender && fSurfaceValid;
 	}
 
+	private boolean canRenderFrameNow() {
+		return fCanRender && fRenderRequested && (fVSyncTriggered || fSurfaceRestored) && (!fPaused || fSurfaceRestored);
+	}
+
 	/** Request a render frame (equivalent to GLSurfaceView.requestRender). */
 	public void requestRender() {
-		fRenderRequested = true;
-		synchronized (fRenderThread) {
-			fRenderThread.notifyAll();
+		boolean shouldScheduleFrame = false;
+		synchronized (fRenderSignal) {
+			fRenderRequested = true;
+			if (!fFrameScheduled) {
+				fFrameScheduled = true;
+				shouldScheduleFrame = true;
+			}
+			fRenderSignal.notifyAll();
+		}
+		if (shouldScheduleFrame) {
+			if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+				fPostFrameCallbackRunnable.run();
+			} else {
+				fUiHandler.post(fPostFrameCallbackRunnable);
+			}
 		}
 	}
 
@@ -435,8 +499,8 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		synchronized (fEventQueue) {
 			fEventQueue.add(r);
 		}
-		synchronized (fRenderThread) {
-			fRenderThread.notifyAll();
+		synchronized (fRenderSignal) {
+			fRenderSignal.notifyAll();
 		}
 	}
 
@@ -448,8 +512,8 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	/** Resume the render thread. */
 	public void onResume() {
 		fPaused = false;
-		synchronized (fRenderThread) {
-			fRenderThread.notifyAll();
+		synchronized (fRenderSignal) {
+			fRenderSignal.notifyAll();
 		}
 	}
 
@@ -462,8 +526,8 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	public void requestExitAndWait() {
 		if (fRenderThread != null) {
 			fRenderThread.requestExit();
-			synchronized (fRenderThread) {
-				fRenderThread.notifyAll();
+			synchronized (fRenderSignal) {
+				fRenderSignal.notifyAll();
 			}
 			try {
 				fRenderThread.join(5000);
@@ -512,25 +576,29 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 				// Render if surface is ready and render requested.
 				// Normally requires !fPaused, but fSurfaceRestored bypasses the pause check
 				// to force-render the first frame after lock-screen resume (onResume may lag).
-				if (fCanRender && fRenderRequested && (!fPaused || fSurfaceRestored)) {
+				// VSync trigger ensures at most one frame per display refresh.
+				if (canRenderFrameNow()) {
 					if (fSurfaceRestored) {
 						Log.i(TAG, "RenderThread: rendering with surface-restored bypass");
 						fSurfaceRestored = false;
 					}
+					fVSyncTriggered = false;
 					fRenderRequested = false;
 					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
 				}
 
-				// Wait for next event or render request.
-				synchronized (this) {
+				// Wait for next event or VSync trigger.
+				synchronized (fRenderSignal) {
 					try {
-						// Don't wait if there are pending events or render requests.
-						boolean hasPendingWork;
-						synchronized (fEventQueue) {
-							hasPendingWork = !fEventQueue.isEmpty();
-						}
-						if (!hasPendingWork && !fRenderRequested && !fExitRequested) {
-							this.wait(16); // ~60fps max poll rate
+						while (!fExitRequested) {
+							boolean hasPendingWork;
+							synchronized (fEventQueue) {
+								hasPendingWork = !fEventQueue.isEmpty();
+							}
+							if (hasPendingWork || canRenderFrameNow()) {
+								break;
+							}
+							fRenderSignal.wait();
 						}
 					} catch (InterruptedException e) {
 						// Continue loop.
