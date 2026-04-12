@@ -80,6 +80,10 @@ static const char* sBreadcrumbNames[] = {
     "MEMORY",
     "CUSTOM"
 };
+static_assert(
+    sizeof(sBreadcrumbNames) / sizeof(sBreadcrumbNames[0]) == kBreadcrumb_COUNT,
+    "sBreadcrumbNames must match CrashBreadcrumbType enum"
+);
 
 // ----------------------------------------------------------------------------
 // Async-signal-safe helpers (no malloc, no printf, no fwrite)
@@ -270,7 +274,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* context)
         case SIGFPE:  old = &sOldSIGFPE;  break;
     }
 
-    if (old && old->sa_sigaction) {
+    if (old && (old->sa_flags & SA_SIGINFO) && old->sa_sigaction) {
         old->sa_sigaction(sig, info, context);
     } else if (old && old->sa_handler != SIG_DFL && old->sa_handler != SIG_IGN) {
         old->sa_handler(sig);
@@ -281,8 +285,18 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* context)
     }
 }
 
+// Alternate signal stack for stack-overflow SIGSEGV
+static uint8_t sAltStack[SIGSTKSZ];
+
 static void install_signal_handlers(void)
 {
+    // Install alternate signal stack so we can handle stack-overflow SIGSEGV
+    stack_t ss;
+    ss.ss_sp = sAltStack;
+    ss.ss_size = sizeof(sAltStack);
+    ss.ss_flags = 0;
+    sigaltstack(&ss, NULL);
+
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = crash_signal_handler;
@@ -302,6 +316,14 @@ static void install_signal_handlers(void)
 
 void Rtt_CrashReporterInit(const char* crashFilePath)
 {
+    // Guard against double-initialization
+    static bool sInitialized = false;
+    if (sInitialized) return;
+    sInitialized = true;
+
+    // Pre-warm time function to avoid lazy-init in hot path
+    (void)get_time_ms();
+
     // Store crash file path
     if (crashFilePath) {
         snprintf(sCrashFilePath, sizeof(sCrashFilePath), "%s", crashFilePath);

@@ -254,7 +254,8 @@ DisplayObject::DisplayObject()
 
 DisplayObject::~DisplayObject()
 {
-    Rtt_BreadcrumbRecord(kBreadcrumb_Memory, "~DisplayObject %p", this);
+    // NOTE: DisplayObject destructor breadcrumb removed - too noisy at 60fps,
+    // fills ring buffer in ~17 seconds, drowning out useful events.
 
     // TODO: Consider removing this
     //       (1) Only on CoronaView teardown is this 'stage' the current stage.

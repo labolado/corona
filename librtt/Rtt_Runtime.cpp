@@ -1400,8 +1400,13 @@ Runtime::LoadApplication( const LoadParameters& parameters )
 	{
 		SetProperty( kIsApplicationLoaded, true );
 
-		// Initialize crash flight recorder
-		Rtt_CrashReporterInit("/tmp/solar2d_crash.log");
+		// Initialize crash flight recorder with platform-appropriate path
+		{
+			String crashPath( GetAllocator() );
+			fPlatform.PathForFile( "solar2d_crash.log", MPlatform::kCachesDir,
+				MPlatform::kDefaultPathFlags, crashPath );
+			Rtt_CrashReporterInit( crashPath.GetString() );
+		}
 
 		// Initialize input recorder if triggered
 		InitializeInputRecorder();
