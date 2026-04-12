@@ -12,9 +12,11 @@
 
 #include "Rtt_Runtime.h"
 #include "Rtt_InputRecorder.h"
+#include "Core/Rtt_CrashReporter.h"
 
-// Include InputRecorder implementation directly (avoids modifying Xcode project)
+// Include implementations directly (avoids modifying Xcode project)
 #include "Rtt_InputRecorder.cpp"
+#include "Core/Rtt_CrashReporter.cpp"
 
 #include "Core/Rtt_Allocator.h"
 #include "Core/Rtt_String.h"
@@ -1397,7 +1399,10 @@ Runtime::LoadApplication( const LoadParameters& parameters )
 	if ( result == Runtime::kSuccess )
 	{
 		SetProperty( kIsApplicationLoaded, true );
-		
+
+		// Initialize crash flight recorder
+		Rtt_CrashReporterInit("/tmp/solar2d_crash.log");
+
 		// Initialize input recorder if triggered
 		InitializeInputRecorder();
 	}

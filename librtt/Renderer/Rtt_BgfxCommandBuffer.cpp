@@ -30,6 +30,7 @@
 #include "Core/Rtt_Allocator.h"
 #include "Core/Rtt_Assert.h"
 #include "Core/Rtt_Math.h"
+#include "Core/Rtt_CrashReporter.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1469,6 +1470,8 @@ Real
 BgfxCommandBuffer::Execute( bool measureGPU )
 {
     Rtt_UNUSED( measureGPU );
+
+    Rtt_BreadcrumbRecord(kBreadcrumb_Draw, "Execute frame cmds=%zu", fDeferredCmds.size());
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;

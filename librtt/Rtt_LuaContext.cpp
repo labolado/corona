@@ -11,6 +11,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Rtt_LuaContext.h"
+#include "Core/Rtt_CrashReporter.h"
 
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_LuaLibDisplay.h"
@@ -1020,6 +1021,7 @@ LuaContext::DoBuffer( lua_State *L, lua_CFunction loader, bool connectToDebugger
 int
 LuaContext::DoFile( lua_State *L, const char* file, int narg, bool clear )
 {
+	Rtt_BreadcrumbRecord(kBreadcrumb_Scene, "DoFile: %s", file ? file : "(null)");
 	int status = luaL_loadfile( L, file );
 	if ( 0 == status )
 	{
