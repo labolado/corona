@@ -98,7 +98,6 @@ jobs:
           path: ./output
 
   Xcode-template-matrix:
-    if: false  # Disabled: bgfx linker errors in iOS template builds (needs build system changes)
     strategy:
       matrix:
         runner:
@@ -110,7 +109,7 @@ jobs:
           - template-angle
         platform:
           - iphone
-          # - tvos  # Disabled: bgfx code not yet compatible with tvOS build
+          - tvos
     needs:
       - source-code
       - build-bgfx-libs
@@ -313,13 +312,13 @@ jobs:
           path: ./output
 
   macOS-Simulator:
-    if: false  # Disabled: needs collect-ios-templates (disabled) and native (disabled)
+    if: (! failure() && ! cancelled())
     needs:
       - source-code
       - build-bgfx-libs
-      # - collect-ios-templates  # Disabled
-      # - native  # Disabled
-      # - webtemplate  # Disabled
+      - collect-ios-templates
+      # - native  # Disabled: enterprise build needs separate fix
+      - webtemplate
       # - linux
     runs-on: macos-15
     steps:
@@ -347,13 +346,11 @@ jobs:
       - name: Put collected iOS templates in place
         run: cp -Rv Collected-ios-templates/* platform/resources/
       - name: Get Webtemplate
-        if: false  # Disabled until emscripten build is fixed
         uses: actions/download-artifact@v4
         with:
           name: Webtemplate
           path: Webtemplate
       - name: Put webtemplate in place
-        if: false  # Disabled until emscripten build is fixed
         run: cp -v Webtemplate/webtemplate.zip platform/resources/
       - name: Get Linux template
         if: false
@@ -401,7 +398,6 @@ jobs:
           path: ./output
 
   webtemplate:
-    if: false  # Disabled: bgfx code causes linker errors in emscripten build (needs stub .cpp files)
     needs:
       - source-code
     runs-on: macos-15
@@ -438,11 +434,10 @@ jobs:
           path: ./output
 
   Windows-Simulator:
-    if: false  # Disabled: needs native (disabled) and has build issues
     needs:
       - source-code
-      # - native  # Disabled until enterprise build is fixed
-      # - webtemplate  # Disabled until emscripten build is fixed
+      # - native  # Disabled: enterprise build needs separate fix
+      - webtemplate
       # - linux
     runs-on: windows-2022
     steps:
@@ -471,13 +466,11 @@ jobs:
       - name: Move docs outside the directory
         run: mv docs ../docs
       - name: Get Webtemplate
-        if: false  # Disabled until emscripten build is fixed
         uses: actions/download-artifact@v4
         with:
           name: Webtemplate
           path: Webtemplate
       - name: Put webtemplate in place
-        if: false  # Disabled until emscripten build is fixed
         run: cp -v Webtemplate/webtemplate.zip platform/resources/
         shell: bash
       - name: Get NX Template
