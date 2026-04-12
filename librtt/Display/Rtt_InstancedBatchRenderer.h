@@ -12,7 +12,12 @@
 #define _Rtt_InstancedBatchRenderer_H__
 
 #include "Core/Rtt_Types.h"
+
+// Instancing requires bgfx — exclude platforms without bgfx support
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include <bgfx/bgfx.h>
+#define Rtt_INSTANCING_AVAILABLE 1
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -20,6 +25,8 @@ namespace Rtt
 {
 
 // ----------------------------------------------------------------------------
+
+#if defined( Rtt_INSTANCING_AVAILABLE )
 
 // Backend-specific instanced draw data, passed via RenderData::fInstanceDraw
 struct InstanceDrawData
@@ -74,6 +81,18 @@ class InstancedBatchRenderer
 		bgfx::UniformHandle fSamplerUniform;
 		bool fInitialized;
 };
+
+#else // !Rtt_INSTANCING_AVAILABLE — stub for platforms without bgfx
+
+class InstancedBatchRenderer
+{
+	public:
+		static bool IsEnabled() { return false; }
+		static void SetEnabled( bool ) {}
+		bool IsAvailable() const { return false; }
+};
+
+#endif // Rtt_INSTANCING_AVAILABLE
 
 // ----------------------------------------------------------------------------
 

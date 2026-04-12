@@ -41,7 +41,9 @@
 #include "Rtt_LuaLibNative.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include <bgfx/bgfx.h>
+#endif
 
 #include <float.h>
 
@@ -424,6 +426,7 @@ GraphicsLibrary::getDirtyStats( lua_State *L )
     lua_setfield( L, -2, "cacheHitRate" );
 
     // Batch stats (bgfx backend only)
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     const BgfxCommandBuffer::BatchStats& bs = BgfxCommandBuffer::sBatchStats;
     lua_pushinteger( L, bs.totalDrawCmds );
     lua_setfield( L, -2, "batchTotalDraws" );
@@ -445,6 +448,7 @@ GraphicsLibrary::getDirtyStats( lua_State *L )
 
     lua_pushinteger( L, bs.drawIndexedCount );
     lua_setfield( L, -2, "drawIndexedCount" );
+#endif
 
     return 1;
 }
@@ -471,6 +475,7 @@ GraphicsLibrary::getTextureCapabilities( lua_State *L )
     // Check if bgfx backend (vendor == "bgfx")
     bool isBgfx = caps.vendorString && strcmp( caps.vendorString, "bgfx" ) == 0;
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     if ( isBgfx )
     {
         // Query compressed texture format support via bgfx
@@ -513,6 +518,7 @@ GraphicsLibrary::getTextureCapabilities( lua_State *L )
         lua_setfield( L, -2, "bestFormat" );
     }
     else
+#endif // !Rtt_EMSCRIPTEN_ENV
     {
         // GL fallback: no compressed format queries available
         lua_pushboolean( L, 0 );
