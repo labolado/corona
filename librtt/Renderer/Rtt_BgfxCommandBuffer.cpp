@@ -1,3 +1,6 @@
+#include "Core/Rtt_Config.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // This file is part of the Solar2D game engine.
@@ -1693,3 +1696,6 @@ BgfxCommandBuffer::AllocateViewId()
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
+
+
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV

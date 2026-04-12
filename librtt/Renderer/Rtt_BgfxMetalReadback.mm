@@ -1,3 +1,6 @@
+#include "Core/Rtt_Config.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+
 #import <Metal/Metal.h>
 #import "Rtt_BgfxMetalReadback.h"
 
@@ -37,3 +40,6 @@ bool BgfxMetal_ReadTextureSync(
 
     return true;
 }
+
+
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
