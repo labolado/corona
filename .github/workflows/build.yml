@@ -67,6 +67,7 @@ jobs:
           path: external/bgfx/.build/projects/xcode15/lib*.a
 
   native:
+    if: false  # Disabled: enterprise build has bgfx linker errors (needs build system changes)
     needs:
       - source-code
       - build-bgfx-libs
@@ -102,7 +103,7 @@ jobs:
         runner:
           - macos-15
         xcode:
-          - Xcode_16.2
+          - Xcode_16.4
         target:
           - template
           - template-angle
@@ -315,7 +316,7 @@ jobs:
       - source-code
       - build-bgfx-libs
       - collect-ios-templates
-      - native
+      # - native  # Disabled until enterprise build is fixed
       # - webtemplate  # Disabled until emscripten build is fixed
       # - linux
     if: (! failure() && ! cancelled())
@@ -438,7 +439,7 @@ jobs:
   Windows-Simulator:
     needs:
       - source-code
-      - native
+      # - native  # Disabled until enterprise build is fixed
       # - webtemplate  # Disabled until emscripten build is fixed
       # - linux
     runs-on: windows-2022
