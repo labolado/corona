@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
 
 #define lbaselib_c
 #define LUA_LIB
@@ -29,6 +32,26 @@ static int luaB_print (lua_State *L) {
   int n = lua_gettop(L);  /* number of arguments */
   int i;
   lua_getglobal(L, "tostring");
+#if defined(__ANDROID__)
+  /* Android: collect all args into one buffer, output via __android_log_print */
+  char buf[2048];
+  int pos = 0;
+  for (i=1; i<=n; i++) {
+    const char *s;
+    lua_pushvalue(L, -1);
+    lua_pushvalue(L, i);
+    lua_call(L, 1, 1);
+    s = lua_tostring(L, -1);
+    if (s == NULL)
+      return luaL_error(L, LUA_QL("tostring") " must return a string to "
+                           LUA_QL("print"));
+    if (i>1 && pos < (int)sizeof(buf)-1) buf[pos++] = '\t';
+    while (*s && pos < (int)sizeof(buf)-1) buf[pos++] = *s++;
+    lua_pop(L, 1);
+  }
+  buf[pos] = '\0';
+  __android_log_print(ANDROID_LOG_INFO, "Corona", "%s", buf);
+#else
   for (i=1; i<=n; i++) {
     const char *s;
     lua_pushvalue(L, -1);  /* function to be called */
@@ -43,6 +66,7 @@ static int luaB_print (lua_State *L) {
     lua_pop(L, 1);  /* pop result */
   }
   fputs("\n", stdout);
+#endif
   return 0;
 }
 

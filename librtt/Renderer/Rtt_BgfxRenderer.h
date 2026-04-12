@@ -47,6 +47,9 @@ public:
     // Shutdown bgfx
     void ShutdownBgfx();
 
+    virtual void BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTimeTransform, Real contentScaleX, Real contentScaleY, bool isCapture = false ) override;
+    virtual void EndFrame() override;
+
     // Get renderer capabilities
     virtual const RendererCaps& GetCaps() const;
     virtual bool IsBgfx() const override { return true; }
