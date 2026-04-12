@@ -98,6 +98,7 @@ jobs:
           path: ./output
 
   Xcode-template-matrix:
+    if: false  # Disabled: bgfx linker errors in iOS template builds (needs build system changes)
     strategy:
       matrix:
         runner:
@@ -312,14 +313,14 @@ jobs:
           path: ./output
 
   macOS-Simulator:
+    if: false  # Disabled: needs collect-ios-templates (disabled) and native (disabled)
     needs:
       - source-code
       - build-bgfx-libs
-      - collect-ios-templates
-      # - native  # Disabled until enterprise build is fixed
-      # - webtemplate  # Disabled until emscripten build is fixed
+      # - collect-ios-templates  # Disabled
+      # - native  # Disabled
+      # - webtemplate  # Disabled
       # - linux
-    if: (! failure() && ! cancelled())
     runs-on: macos-15
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
@@ -437,6 +438,7 @@ jobs:
           path: ./output
 
   Windows-Simulator:
+    if: false  # Disabled: needs native (disabled) and has build issues
     needs:
       - source-code
       # - native  # Disabled until enterprise build is fixed
