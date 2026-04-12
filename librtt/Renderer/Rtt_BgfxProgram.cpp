@@ -362,6 +362,15 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
     // Create program from shaders
     data.fProgram = bgfx::createProgram(data.fVertexShader, data.fFragmentShader, true);
 
+    {
+        Program* prog = static_cast<Program*>(fResource);
+        ShaderResource* sr = prog ? prog->GetShaderResource() : NULL;
+        Rtt_LogException("CreateVersion: program=%s valid=%d VS.idx=%d FS.idx=%d version=%d\n",
+                         sr ? sr->GetName().c_str() : "default",
+                         bgfx::isValid(data.fProgram) ? 1 : 0,
+                         data.fVertexShader.idx, data.fFragmentShader.idx, version);
+    }
+
     if (!bgfx::isValid(data.fProgram))
     {
         Rtt_LogException("ERROR: Failed to create program for version %d\n", version);
@@ -487,6 +496,8 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                 {
                     data = cachedData;
                     size = cachedSize;
+                    Rtt_LogException("LoadShaderBinary: found cached %s for '%s' (%zu bytes)\n",
+                                     type, cacheKey, cachedSize);
                 }
                 else if (strcmp(type, "vs") == 0 && !hasVs)
                 {
