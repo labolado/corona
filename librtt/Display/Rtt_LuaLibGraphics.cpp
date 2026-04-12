@@ -26,7 +26,9 @@
 #include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Renderer/Rtt_BgfxCommandBuffer.h"
+#endif
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShaderTypes.h"
 #include "Display/Rtt_TextureResource.h"
