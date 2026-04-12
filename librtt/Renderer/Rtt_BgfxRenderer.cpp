@@ -92,6 +92,9 @@ namespace Rtt
 // ----------------------------------------------------------------------------
 
 #if defined( Rtt_ANDROID_ENV )
+static int sZeroViewFrames = 0;
+static bool sBugDumped = false;
+
 static void LogBgfxFrameStats( const char* phase, bool isCapture )
 {
     const bgfx::Stats* stats = bgfx::getStats();
@@ -99,6 +102,37 @@ static void LogBgfxFrameStats( const char* phase, bool isCapture )
     {
         __android_log_print( ANDROID_LOG_INFO, "Corona", "BGFX_FRAME: %s capture=%d stats=null", phase, isCapture ? 1 : 0 );
         return;
+    }
+
+    // Auto-detect black screen: viewCount=0 but draws > 0
+    if( phase[0] == 'e' ) // "end" phase
+    {
+        if( stats->numViews == 0 && stats->numDraw > 0 )
+        {
+            sZeroViewFrames++;
+            if( sZeroViewFrames == 3 && !sBugDumped )
+            {
+                sBugDumped = true;
+                __android_log_print( ANDROID_LOG_ERROR, "Corona",
+                    "BLACK_SCREEN_DETECTED: %d consecutive frames with viewCount=0 draw=%u. "
+                    "Views not being touched - check setViewRect/touch/submit calls.",
+                    sZeroViewFrames, stats->numDraw );
+                // Dump breadcrumbs if crash reporter is available
+                extern void Rtt_BreadcrumbDump(int fd);
+                Rtt_BreadcrumbDump( 2 ); // stderr → logcat
+            }
+        }
+        else
+        {
+            if( sZeroViewFrames > 0 && sBugDumped )
+            {
+                __android_log_print( ANDROID_LOG_INFO, "Corona",
+                    "BLACK_SCREEN_RECOVERED: rendering resumed after %d zero-view frames",
+                    sZeroViewFrames );
+            }
+            sZeroViewFrames = 0;
+            sBugDumped = false;
+        }
     }
 
     __android_log_print( ANDROID_LOG_INFO, "Corona",
