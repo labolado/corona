@@ -31,8 +31,9 @@ enum CrashBreadcrumbType {
 // crashFilePath may be NULL (breadcrumbs still go to stderr on crash).
 void Rtt_CrashReporterInit(const char* crashFilePath);
 
-// Record a breadcrumb event. Lock-free, signal-safe write cost.
+// Record a breadcrumb event. Lock-free, very low overhead.
 // fmt uses snprintf-style formatting. Message truncated to 119 chars.
+// NOTE: NOT async-signal-safe (uses vsnprintf). Do NOT call from signal handlers.
 void Rtt_BreadcrumbRecord(enum CrashBreadcrumbType type, const char* fmt, ...);
 
 // Dump the ring buffer contents to the given fd. Uses only async-signal-safe

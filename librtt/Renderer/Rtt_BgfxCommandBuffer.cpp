@@ -1471,7 +1471,8 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 {
     Rtt_UNUSED( measureGPU );
 
-    Rtt_BreadcrumbRecord(kBreadcrumb_Draw, "Execute frame cmds=%zu", fDeferredCmds.size());
+    // NOTE: Per-frame Execute breadcrumb removed - fires 60x/sec, fills ring buffer
+    // in ~17 seconds. Frame execution is implicit if app is running.
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
