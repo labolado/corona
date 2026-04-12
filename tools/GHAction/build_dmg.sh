@@ -10,16 +10,23 @@ then
     security delete-keychain build.keychain || true
     security create-keychain -p 'Password123' build.keychain
     security default-keychain -s build.keychain
-    security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
-    security unlock-keychain -p 'Password123' build.keychain
-    security set-keychain-settings build.keychain
-    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
+    if security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
+    then
+        security unlock-keychain -p 'Password123' build.keychain
+        security set-keychain-settings build.keychain
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
 
-    mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-    for PLATFORM_DIR in iphone tvos
-    do
-        cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
-    done
+        mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+        for PLATFORM_DIR in iphone tvos
+        do
+            cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
+        done
+    else
+        echo "WARNING: Certificate import failed. Building without code signing."
+        security default-keychain -s login.keychain
+        security delete-keychain build.keychain &> /dev/null || true
+        CERT_PASSWORD=""
+    fi
 fi
 
 
