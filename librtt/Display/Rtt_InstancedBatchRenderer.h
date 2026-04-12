@@ -84,6 +84,8 @@ class InstancedBatchRenderer
 
 #else // !Rtt_INSTANCING_AVAILABLE — stub for platforms without bgfx
 
+struct InstanceDrawData {};
+
 class InstancedBatchRenderer
 {
 	public:
