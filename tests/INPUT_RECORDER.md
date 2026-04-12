@@ -30,12 +30,12 @@ SOLAR2D_REPLAY=rec_20250410_120000.json ./Corona\ Simulator.app/Contents/MacOS/C
 ```bash
 # 创建录制触发文件
 adb shell mkdir -p /sdcard/Android/data/<package>/files/recordings
-adb push /dev/null /sdcard/Android/data/<package>/files/recordings/RECORD
+adb shell touch /sdcard/Android/data/<package>/files/recordings/RECORD
 
 # 启动 App 后会自动开始录制，触发文件会被自动删除
 
-# 创建回放触发文件（文件内容为目标录制文件名）
-echo "rec_20250410_120000.json" | adb shell cat > /sdcard/Android/data/<package>/files/recordings/REPLAY
+# 创建回放触发文件（文件内容为目标录制文件名，录制文件本体仍在 App 私有目录）
+adb shell 'printf "rec_20250410_120000.json\n" > /sdcard/Android/data/<package>/files/recordings/REPLAY'
 ```
 
 ### iOS (触发文件)
@@ -57,7 +57,7 @@ echo "rec_20250410_120000.json" | adb shell cat > /sdcard/Android/data/<package>
 
 ### Android
 ```
-/sdcard/Android/data/<package>/files/recordings/rec_YYYYMMDD_HHMMSS.json
+/data/data/<package>/app_data/recordings/rec_YYYYMMDD_HHMMSS.json
 ```
 
 ### iOS
@@ -201,10 +201,12 @@ Runtime::WillDispatchFrameEvent() -> InputRecorder::Update()
 ## 故障排查
 
 ### 录制文件未生成
+- Android 触发文件使用 `/sdcard/Android/data/<package>/files/recordings/RECORD`，实际录制文件仍写入 App 私有 `Documents/recordings`
 - 检查 Documents/recordings 目录是否存在写入权限
 - 查看控制台日志 `InputRecorder:` 开头的信息
 
 ### 回放无反应
+- Android 使用 `/sdcard/Android/data/<package>/files/recordings/REPLAY` 触发，文件内容只写录制文件名
 - 确认录制文件路径正确
 - 检查录制文件的 JSON 格式是否有效
 - 查看控制台日志确认回放是否启动
