@@ -13,7 +13,9 @@
 #include "Core/Rtt_Real.h"
 #include "Core/Rtt_Types.h"
 
-#if !defined( Rtt_EMSCRIPTEN_ENV )
+// SDF rendering requires bgfx — exclude platforms without bgfx support
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#define Rtt_SDF_AVAILABLE 1
 #include <bgfx/bgfx.h>
 #endif
 
@@ -24,7 +26,7 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
-#if !defined( Rtt_EMSCRIPTEN_ENV )
+#if defined( Rtt_SDF_AVAILABLE )
 
 // SDFRenderer manages SDF (Signed Distance Field) shader programs and uniforms
 // for rendering basic shapes (circle, rect, roundedRect) with pixel-perfect
@@ -104,7 +106,7 @@ class SDFRenderer
 		static bool sEnabled;
 };
 
-#else // Rtt_EMSCRIPTEN_ENV — stub: SDF requires bgfx, not available on web
+#else // !Rtt_SDF_AVAILABLE — stub for platforms without bgfx (emscripten, tvOS)
 
 class SDFRenderer
 {
@@ -118,12 +120,15 @@ class SDFRenderer
 		bool IsAvailable() const { return false; }
 
 		// Stubs for compilation — never called (IsAvailable returns false)
+		void Initialize() {}
+		void Finalize() {}
 		void SetShapeUniforms( ShapeType, Real, Real, Real, Real ) {}
 		void SetColorUniforms( Real, Real, Real, Real, Real, Real, Real, Real ) {}
+		void SetLineUniforms( Real, Real, Real, Real ) {}
 		bool SetPolygonUniforms( const Real*, int ) { return false; }
 };
 
-#endif // Rtt_EMSCRIPTEN_ENV
+#endif // Rtt_SDF_AVAILABLE
 
 // ----------------------------------------------------------------------------
 
