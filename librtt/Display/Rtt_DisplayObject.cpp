@@ -12,6 +12,7 @@
 #include "Display/Rtt_DisplayObject.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_DisplayDefaults.h"
+#include "Core/Rtt_CrashReporter.h"
 
 #include "Rtt_DisplayObjectExtensions.h"
 
@@ -253,6 +254,8 @@ DisplayObject::DisplayObject()
 
 DisplayObject::~DisplayObject()
 {
+    Rtt_BreadcrumbRecord(kBreadcrumb_Memory, "~DisplayObject %p", this);
+
     // TODO: Consider removing this
     //       (1) Only on CoronaView teardown is this 'stage' the current stage.
     //           Normally, it's the offscreen or orphanage stage

@@ -10,6 +10,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Core/Rtt_String.h"
+#include "Core/Rtt_CrashReporter.h"
 #include "Display/Rtt_BufferBitmap.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_DisplayDefaults.h"
@@ -88,6 +89,8 @@ TextureFactory::CreateBitmap(
 	{
 		return NULL;
 	}
+
+	Rtt_BreadcrumbRecord(kBreadcrumb_Texture, "CreateBitmap: %s", filePath);
 
 	// Load the given image file.
 	const Display& display = fDisplay;
@@ -715,6 +718,7 @@ void TextureFactory::Retain(const SharedPtr< TextureResource > &res)
 	
 void TextureFactory::Release( const std::string &key )
 {
+	Rtt_BreadcrumbRecord(kBreadcrumb_Texture, "Release: %s", key.c_str());
 	fOwnedTextures.erase(key);
 }
 

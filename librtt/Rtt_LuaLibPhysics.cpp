@@ -41,6 +41,7 @@
 #include "Rtt_ParticleSystemObject.h"
 
 #include "CoronaLua.h"
+#include "Core/Rtt_CrashReporter.h"
 
 #include <list>
 
@@ -2464,6 +2465,8 @@ addBody( lua_State *L )
 	DisplayObject *o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
 	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
 
+	Rtt_BreadcrumbRecord(kBreadcrumb_Physics, "addBody obj=%p", o);
+
 	if( o &&
 		Rtt_VERIFY( ! o->GetExtensions() ) )
 	{
@@ -2487,6 +2490,7 @@ removeBody( lua_State *L )
 		result = false;
 
 		DisplayObject *o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+		Rtt_BreadcrumbRecord(kBreadcrumb_Physics, "removeBody obj=%p", o);
 
 		Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
 
