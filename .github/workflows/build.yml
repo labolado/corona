@@ -264,7 +264,7 @@ jobs:
       - name: Corona Cards framework for iOS
         working-directory: ./platform/iphone
         run: |
-          xcodebuild -scheme CoronaCards.framework -project ratatouille.xcodeproj -configuration Release -sdk iphoneos build -derivedDataPath "$(pwd)/build"
+          xcodebuild -scheme CoronaCards.framework -project ratatouille.xcodeproj -configuration Release -sdk iphoneos build -derivedDataPath "$(pwd)/build" CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           cd build/Build/Products/Release-iphoneos
           mkdir "${WORKSPACE}/output"
           zip -r -y -o "${WORKSPACE}/output"/CoronaCards.framework.zip CoronaCards.framework
@@ -297,7 +297,7 @@ jobs:
       - name: Corona Cards framework for iOS
         working-directory: ./platform/iphone
         run: |
-          xcodebuild -scheme CoronaCards-angle.framework -project ratatouille.xcodeproj -configuration Release -sdk iphoneos build -derivedDataPath "$(pwd)/build"
+          xcodebuild -scheme CoronaCards-angle.framework -project ratatouille.xcodeproj -configuration Release -sdk iphoneos build -derivedDataPath "$(pwd)/build" CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           cd build/Build/Products/Release-iphoneos
           rm -rf CoronaCards.framework
           cp -R CoronaCards-angle.framework/CoronaCards-angle CoronaCards-angle.framework/CoronaCards
