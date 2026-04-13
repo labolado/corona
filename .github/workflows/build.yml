@@ -67,8 +67,7 @@ jobs:
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
           cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
-          mkdir -p external/bgfx/.build/ios-arm64/bin
-          cp external/bgfx/.build/ios-arm64/bin/lib*.a external/bgfx/.build/ios-arm64/bin/
+          # iOS libs already in correct location from build step
       - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
@@ -453,6 +452,7 @@ jobs:
           path: ./output
 
   Windows-Simulator:
+    if: false  # Disabled: depends on Native artifact from disabled 'native' job
     needs:
       - source-code
       # - native  # Disabled: enterprise build needs separate fix
