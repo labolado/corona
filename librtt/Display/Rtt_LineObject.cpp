@@ -13,7 +13,9 @@
 
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_OpenPath.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Display/Rtt_SDFRenderer.h"
+#endif
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Renderer/Rtt_Renderer.h"
@@ -167,6 +169,7 @@ LineObject::Draw( Renderer& renderer ) const
 
 		if ( fPath->HasStroke() && fPath->IsStrokeVisible() )
 		{
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 			SDFRenderer& sdf = SDFRenderer::Instance();
 
 			// SDF path for simple 2-point lines
@@ -176,9 +179,8 @@ LineObject::Draw( Renderer& renderer ) const
 				Vertex2 p0 = pts[0];
 				Vertex2 p1 = pts[1];
 
-				// Compute bounding box with padding for line width
 				Real lineW = fPath->GetWidth();
-				Real pad = lineW + Rtt_IntToReal( 2 ); // AA margin
+				Real pad = lineW + Rtt_IntToReal( 2 );
 				Real minX = ( p0.x < p1.x ? p0.x : p1.x ) - pad;
 				Real minY = ( p0.y < p1.y ? p0.y : p1.y ) - pad;
 				Real maxX = ( p0.x > p1.x ? p0.x : p1.x ) + pad;
@@ -188,7 +190,6 @@ LineObject::Draw( Renderer& renderer ) const
 				Real cx = (minX + maxX) * Rtt_REAL_HALF;
 				Real cy = (minY + maxY) * Rtt_REAL_HALF;
 
-				// Normalize endpoints to [-1,1] within bbox
 				Real halfW = bboxW * Rtt_REAL_HALF;
 				Real halfH = bboxH * Rtt_REAL_HALF;
 				Real nx0 = (p0.x - cx) / halfW;
@@ -202,6 +203,7 @@ LineObject::Draw( Renderer& renderer ) const
 					Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1,
 					Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0 );
 			}
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
 
 			fStrokeShader->Draw( renderer, fStrokeData );
 		}

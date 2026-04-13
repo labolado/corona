@@ -1,8 +1,11 @@
+#include "Core/Rtt_Config.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // This file is part of the Solar2D game engine.
 // With contributions from Dianchu Technology
-// For overview and more information on licensing please refer to README.md 
+// For overview and more information on licensing please refer to README.md
 // Home page: https://github.com/coronalabs/corona
 // Contact: support@coronalabs.com
 //
@@ -54,3 +57,5 @@ BgfxExports::CreateBgfxRenderer(
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
+
+#endif // !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
