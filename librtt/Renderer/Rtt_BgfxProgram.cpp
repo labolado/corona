@@ -154,23 +154,16 @@ void BgfxProgram::Destroy()
     for (U32 i = 0; i < Program::kNumVersions; ++i)
     {
         VersionData& data = fData[i];
-        
+
         if (bgfx::isValid(data.fProgram))
         {
             bgfx::destroy(data.fProgram);
-            data.fProgram = BGFX_INVALID_HANDLE;
+            // Shaders are owned by the program (createProgram was called with
+            // _destroyShaders=true), so they are destroyed automatically.
+            // Do NOT call bgfx::destroy on them separately — that would
+            // double-free the handles and corrupt the allocator on resume.
         }
-        if (bgfx::isValid(data.fVertexShader))
-        {
-            bgfx::destroy(data.fVertexShader);
-            data.fVertexShader = BGFX_INVALID_HANDLE;
-        }
-        if (bgfx::isValid(data.fFragmentShader))
-        {
-            bgfx::destroy(data.fFragmentShader);
-            data.fFragmentShader = BGFX_INVALID_HANDLE;
-        }
-        
+
         data.Reset();
     }
     
