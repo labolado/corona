@@ -21,7 +21,9 @@
 #include "Display/Rtt_ShaderName.h"
 #include "Display/Rtt_ShaderResource.h"
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#endif
 #include "Renderer/Rtt_FormatExtensionList.h"
 #include "Renderer/Rtt_Program.h"
 #if defined( Rtt_USE_PRECOMPILED_SHADERS )
@@ -1016,6 +1018,7 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 							resource = NewShaderResource( category, name, kernelVert, kernelFrag, localStubsIndex );
 
 							// Custom effects in bgfx mode: compile GLSL→Metal at runtime
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 							if (resource.NotNull() && strcmp( fBackend, "bgfxBackend" ) == 0
 								&& name && strchr( name, '.' ) != NULL)
 							{
@@ -1031,6 +1034,7 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 									}
 								}
 							}
+#endif
 
 							lua_pop( L, 2 ); // pop 2 strings
 #endif

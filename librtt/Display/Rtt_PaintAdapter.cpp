@@ -210,9 +210,11 @@ PaintAdapter::SetValueForKey(
                                 ShaderFactory& factory = display.GetShaderFactory();
                                 shader = factory.FindOrLoad( namedShader );
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
                                 bool isFill = DisplayPath::ExtensionAdapter::IsFillPaint( observer, paint );
-                                
+
                                 geometry = DisplayPath::ExtensionAdapter::GetGeometry( observer, isFill );
+#endif
                             }
                         }
                     }

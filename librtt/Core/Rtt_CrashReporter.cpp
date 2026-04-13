@@ -286,14 +286,14 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* context)
 }
 
 // Alternate signal stack for stack-overflow SIGSEGV
-// Note: sigaltstack is not available on tvOS/watchOS
-#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV )
+// Note: sigaltstack is not available on tvOS/watchOS/emscripten
+#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_EMSCRIPTEN_ENV )
 static uint8_t sAltStack[SIGSTKSZ];
 #endif
 
 static void install_signal_handlers(void)
 {
-#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV )
+#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_EMSCRIPTEN_ENV )
     // Install alternate signal stack so we can handle stack-overflow SIGSEGV
     stack_t ss;
     ss.ss_sp = sAltStack;
@@ -306,7 +306,7 @@ static void install_signal_handlers(void)
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = crash_signal_handler;
     sa.sa_flags = SA_SIGINFO;
-#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV )
+#if !defined( __TVOS_PROHIBITED ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_EMSCRIPTEN_ENV )
     sa.sa_flags |= SA_ONSTACK;
 #endif
     sigemptyset(&sa.sa_mask);

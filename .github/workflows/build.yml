@@ -48,23 +48,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Generate bgfx projects
+      - name: Generate bgfx projects (macOS + iOS)
         working-directory: ./external/bgfx
-        run: make .build/projects/gmake-osx-arm64
-      - name: Build bgfx (Debug + Release)
+        run: |
+          make .build/projects/gmake-osx-arm64
+          make .build/projects/gmake-ios-arm64
+      - name: Build bgfx macOS (Debug + Release)
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
-      - name: Copy libs to xcode15 dir
+      - name: Build bgfx iOS (Debug + Release)
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
+      - name: Copy libs to expected dirs
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
           cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
-      - name: Upload bgfx libs
+          mkdir -p external/bgfx/.build/ios-arm64/bin
+          cp external/bgfx/.build/ios-arm64/bin/lib*.a external/bgfx/.build/ios-arm64/bin/
+      - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15/lib*.a
+      - name: Upload bgfx iOS libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-ios
+          path: external/bgfx/.build/ios-arm64/bin/lib*.a
 
   native:
     if: false  # Disabled: enterprise build has bgfx linker errors (needs build system changes)
@@ -127,11 +141,16 @@ jobs:
           path: SourceCode
       - name: Unpack source code
         run: tar -xzf SourceCode/corona.tgz
-      - name: Download bgfx libs
+      - name: Download bgfx macOS libs
         uses: actions/download-artifact@v4
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
+      - name: Download bgfx iOS libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios
+          path: external/bgfx/.build/ios-arm64/bin
       - run: ./tools/GHAction/daily_env.sh
       - name: Build templates
         working-directory: ./platform/${{ matrix.platform }}
