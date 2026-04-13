@@ -683,6 +683,12 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
     if( fCurrentView == fDefaultView
         && ( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged ) )
     {
+        // RISK: bgfx::reset() clears all view state (clear color, view mode, etc.)
+        // set during Initialize(). If this reset fires here (e.g. window resize),
+        // view 0's Sequential mode and clear color are lost until next Initialize().
+        // This may cause Issue #10 (intermittent black screen after resume) on screens
+        // that rely on view state set only once in Initialize().
+        // Potential fix: re-apply setViewClear + setViewMode after reset().
         bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
         sLastBackbufferWidth = cmd.vpW;
         sLastBackbufferHeight = cmd.vpH;

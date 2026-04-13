@@ -457,6 +457,10 @@ SnapshotObject::Draw( Renderer& renderer ) const
 		}
 	}
 
+	// RISK: On Android resume, ReleaseGPUResources() destroys FBO GPU resources,
+	// but fDirtyFlags is not re-set. ShouldRenderGroup() returns false → snapshot
+	// FBO stays black. If black snapshot/FBO appears after resume, force
+	// fDirtyFlags |= kRenderDirty in ReloadResources() or ReleaseGPUResource().
 	fDirtyFlags = 0; // Clear all flags
 
 	Super::Draw( renderer );
