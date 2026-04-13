@@ -999,6 +999,7 @@ Renderer::Swap()
 
     // On Android resume, bgfx::reset() must happen BEFORE creating new GPU resources.
     // Otherwise programs are created against the old (destroyed) EGL context.
+    // Root cause of Issue #11 (custom VS+varying effects fail after resume).
     if (fCreateQueue.Length() > 0)
     {
         fFrontCommandBuffer->PrepareForResourceCreation();
@@ -1016,6 +1017,10 @@ Renderer::Swap()
     fStatistics.fResourceCreateTime = STOP_TIMING(start);
 
     // Update GPUResources
+    // RISK: fUpdateQueue has no PrepareForResourceCreation guard. If a texture
+    // is invalidated on the same frame as resume, Update() runs against the old
+    // EGL context. Low risk in practice (bgfx queues updates internally), but
+    // if texture corruption appears after resume, add the guard here too.
     start = START_TIMING();
     fStatistics.fGeometryCacheMisses = fUpdateQueue.Length();
     for(S32 i = 0; i < fUpdateQueue.Length(); ++i)

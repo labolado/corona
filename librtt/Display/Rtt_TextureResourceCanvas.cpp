@@ -39,6 +39,9 @@ TextureResourceCanvas::TextureResourceCanvas(TextureFactory &factory,
 , fTexHeight(texHeight)
 , fGroupQueue(queue)
 , fGroupCache(cache)
+// RISK: On Android resume, FBO GPU resources are destroyed but fInvalidateCache
+// stays false → canvas texture FBO stays black after resume. If black canvas
+// textures appear after resume, set fInvalidateCache=true in ReleaseGPUResource().
 , fInvalidateCache(false)
 , fInvalidateClear(true)
 , fClearColor( ColorZero() )

@@ -43,8 +43,11 @@ bgfx::ViewId BgfxFrameBufferObject::sNextViewId = 1; // Start at 1, reserve 0 fo
 bgfx::ViewId
 BgfxFrameBufferObject::AllocateViewId()
 {
-	// Allocate next available view ID
-	// bgfx supports up to 256 views (0-255)
+	// Allocate next available view ID (bgfx supports 0-255)
+	// RISK: sNextViewId never resets on resume. After ReleaseGPUResources() + FBO
+	// recreation, old view IDs are leaked. Wraparound at 255 prevents crash, but
+	// after many resume cycles, IDs may collide with deferred command state.
+	// Fix if needed: reset sNextViewId in ReleaseGPUResources().
 	bgfx::ViewId id = sNextViewId;
 	if( sNextViewId < 255 )
 	{
@@ -52,7 +55,6 @@ BgfxFrameBufferObject::AllocateViewId()
 	}
 	else
 	{
-		// Wrap around - in a real implementation, we might want to track which IDs are free
 		sNextViewId = 1;
 	}
 	return id;
