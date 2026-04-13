@@ -23,6 +23,8 @@ local M = {}
 local recording = false
 local replaying = false
 local events = {}
+local sceneEvents = {}
+local metaInfo = {}
 local startTime = 0
 local replayTimers = {}
 
@@ -49,8 +51,7 @@ end
 local function onTouch(event)
     if not recording then return false end
     events[#events + 1] = {
-        t = elapsed(),
-        type = "touch",
+        time = elapsed(),
         phase = event.phase,
         x = math.floor(event.x),
         y = math.floor(event.y),
@@ -63,21 +64,11 @@ end
 local function onScene(event)
     if not recording then return end
     local name = event.sceneName or event.name or "?"
-    events[#events + 1] = {
-        t = elapsed(),
+    sceneEvents[#sceneEvents + 1] = {
+        time = elapsed(),
         type = "scene",
         phase = event.phase or "?",
         name = name,
-    }
-end
-
--- Log listener (capture Corona print output)
-local function addLogEntry(msg)
-    if not recording then return end
-    events[#events + 1] = {
-        t = elapsed(),
-        type = "log",
-        msg = msg,
     }
 end
 
@@ -89,18 +80,19 @@ function M.startRecord()
     if recording then return end
     ensureDir()
     events = {}
+    sceneEvents = {}
     startTime = system.getTimer()
     recording = true
 
-    -- Record device info
-    events[#events + 1] = {
-        t = 0,
-        type = "meta",
+    -- Record meta info (C++ compatible format)
+    metaInfo = {
+        version = 1,
         platform = system.getInfo("platform"),
         model = system.getInfo("model"),
-        w = display.contentWidth,
-        h = display.contentHeight,
-        backend = os.getenv("SOLAR2D_BACKEND") or "?",
+        backend = os.getenv("SOLAR2D_BACKEND") or "unknown",
+        screenWidth = display.contentWidth,
+        screenHeight = display.contentHeight,
+        timestamp = os.date("%Y%m%d_%H%M%S"),
     }
 
     Runtime:addEventListener("touch", onTouch)
@@ -135,7 +127,12 @@ function M.stopRecord()
     if filepath then
         local f = io.open(filepath, "w")
         if f then
-            f:write(json.encode(events))
+            -- Save in C++ compatible format: {meta: {}, events: []}
+            local data = {
+                meta = metaInfo,
+                events = events,
+            }
+            f:write(json.encode(data))
             f:close()
             print("[InputRecorder] Saved " .. #events .. " events to " .. filename)
             return filename
@@ -165,21 +162,43 @@ function M.startReplay(filename)
     local data = f:read("*a")
     f:close()
 
-    local ok, replayEvents = pcall(json.decode, data)
-    if not ok or not replayEvents then
+    local ok, decoded = pcall(json.decode, data)
+    if not ok or not decoded then
         print("[InputRecorder] ERROR: Invalid JSON in " .. filename)
         return false
+    end
+
+    -- Handle both formats: nested {meta, events} and flat array
+    local replayEvents
+    local replayMeta
+    if type(decoded) == "table" and decoded.events then
+        replayEvents = decoded.events
+        replayMeta = decoded.meta
+    else
+        replayEvents = decoded
     end
 
     replaying = true
     replayTimers = {}
 
+    -- Print meta info if available
+    if replayMeta then
+        print("[InputRecorder] Original: " .. (replayMeta.platform or "?") ..
+              " " .. (replayMeta.model or "?") ..
+              " " .. (replayMeta.screenWidth or replayMeta.w or "?") .. "x" ..
+              (replayMeta.screenHeight or replayMeta.h or "?") ..
+              " backend=" .. (replayMeta.backend or "?"))
+    end
+
     print("[InputRecorder] Replaying " .. #replayEvents .. " events from " .. filename)
 
     for i, ev in ipairs(replayEvents) do
-        if ev.type == "touch" then
-            local tid = timer.performWithDelay(ev.t, function()
-                -- Dispatch touch event
+        -- Support both "time" (C++ format) and "t" (legacy Lua format)
+        local evTime = ev.time or ev.t or 0
+        -- Skip non-touch events (meta, scene, log)
+        local isTouch = ev.type == "touch" or (ev.phase and not ev.type)
+        if isTouch then
+            local tid = timer.performWithDelay(evTime, function()
                 local touchEvent = {
                     name = "touch",
                     phase = ev.phase,
@@ -193,18 +212,14 @@ function M.startReplay(filename)
                 Runtime:dispatchEvent(touchEvent)
             end)
             replayTimers[#replayTimers + 1] = tid
-        elseif ev.type == "meta" then
-            print("[InputRecorder] Original: " .. (ev.platform or "?") ..
-                  " " .. (ev.model or "?") ..
-                  " " .. (ev.w or "?") .. "x" .. (ev.h or "?") ..
-                  " backend=" .. (ev.backend or "?"))
         end
     end
 
     -- Find last event time for completion callback
     local maxTime = 0
     for _, ev in ipairs(replayEvents) do
-        if ev.t and ev.t > maxTime then maxTime = ev.t end
+        local t = ev.time or ev.t or 0
+        if t > maxTime then maxTime = t end
     end
 
     timer.performWithDelay(maxTime + 500, function()
