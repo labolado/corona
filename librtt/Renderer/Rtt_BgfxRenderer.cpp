@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxRenderer.h"
 
+#include "Core/Rtt_CrashReporter.h"
 #include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
 #include "Renderer/Rtt_BgfxCommandBuffer.h"
@@ -121,7 +122,6 @@ static void LogBgfxFrameStats( const char* phase, bool isCapture )
                     "Views not being touched - check setViewRect/touch/submit calls.",
                     sZeroViewFrames, stats->numDraw );
                 // Dump breadcrumbs if crash reporter is available
-                extern void Rtt_BreadcrumbDump(int fd);
                 Rtt_BreadcrumbDump( 2 ); // stderr → logcat
             }
         }

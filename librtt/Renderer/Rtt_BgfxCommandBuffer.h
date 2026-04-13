@@ -221,6 +221,13 @@ class BgfxCommandBuffer : public CommandBuffer
         static void NotifyPlatformDataChanged();
         static void SetCachedResetFlags(uint32_t flags);
 
+        // Force bgfx::reset() immediately if platform data changed.
+        // Must be called BEFORE creating new GPU resources (programs/textures)
+        // to ensure the new EGL context is active first.
+        static void FlushPlatformDataChange();
+
+        virtual void PrepareForResourceCreation() override;
+
     private:
         static const U32 kMaxTextureUnits = 8;
 

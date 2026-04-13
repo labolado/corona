@@ -997,6 +997,13 @@ Renderer::Swap()
 {
 	ENABLE_SUMMED_TIMING( true );
 
+    // On Android resume, bgfx::reset() must happen BEFORE creating new GPU resources.
+    // Otherwise programs are created against the old (destroyed) EGL context.
+    if (fCreateQueue.Length() > 0)
+    {
+        fFrontCommandBuffer->PrepareForResourceCreation();
+    }
+
     // Create GPUResources
     Rtt_AbsoluteTime start = START_TIMING();
     for(S32 i = 0; i < fCreateQueue.Length(); ++i)

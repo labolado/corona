@@ -118,6 +118,11 @@ class CommandBuffer
         virtual void SetPendingInstanceDraw( void* data ) {}
 
         virtual void WillRender() {}
+
+        // Called before GPU resources are created in Swap().
+        // bgfx override uses this to flush pending platform data changes
+        // (e.g. Android resume with new EGL context) before creating programs.
+        virtual void PrepareForResourceCreation() {}
     
         // Execute the generated command buffer. This function should only be
         // called from a thread with an active rendering context. If requested

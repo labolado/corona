@@ -68,6 +68,25 @@ void BgfxCommandBuffer::NotifyPlatformDataChanged()
     sPlatformDataChanged = true;
 }
 
+void BgfxCommandBuffer::FlushPlatformDataChange()
+{
+    if (sPlatformDataChanged && sLastBackbufferWidth > 0 && sLastBackbufferHeight > 0)
+    {
+        Rtt_LogException("FlushPlatformDataChange: forcing bgfx::reset(%d,%d) + frame() BEFORE resource creation",
+            sLastBackbufferWidth, sLastBackbufferHeight);
+        bgfx::reset(sLastBackbufferWidth, sLastBackbufferHeight, sResetFlags);
+        sPlatformDataChanged = false;
+        // Submit an empty frame so bgfx fully processes the context change
+        // before any new programs/textures are created
+        bgfx::frame();
+    }
+}
+
+void BgfxCommandBuffer::PrepareForResourceCreation()
+{
+    FlushPlatformDataChange();
+}
+
 void BgfxCommandBuffer::SetCachedResetFlags(uint32_t flags)
 {
     sResetFlags = flags;
