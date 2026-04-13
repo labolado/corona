@@ -16,7 +16,9 @@
 #include "Display/Rtt_ClosedPath.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_Paint.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Display/Rtt_SDFRenderer.h"
+#endif
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderFactory.h"
 #include "Display/Rtt_ShapePath.h"
@@ -168,6 +170,7 @@ ShapeObject::Draw( Renderer& renderer ) const
 
 		SUMMED_TIMING( sd, "ShapeObject: Draw" );
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 		SDFRenderer& sdf = SDFRenderer::Instance();
 
 		// SDF rendering path: use SDF shader for simple shapes
@@ -195,10 +198,6 @@ ShapeObject::Draw( Renderer& renderer ) const
 
 				if ( tessType == Tesselator::kType_RoundedRect )
 				{
-					// Access corner radius via tesselator
-					// TesselatorRoundedRect stores radius
-					// We pass it through the uniform
-					// For now, extract from shape dimensions
 					cornerRadius = Rtt_REAL_0; // Will be set properly when integrated
 				}
 
@@ -226,15 +225,10 @@ ShapeObject::Draw( Renderer& renderer ) const
 					sdf.SetPolygonUniforms( normVerts, numVerts );
 				}
 
-				// TODO: Set color uniforms from paint
-				// For now, use white fill, no stroke
 				sdf.SetColorUniforms(
 					Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1,
 					Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0 );
 
-				// Submit draw using existing fill shader path
-				// The SDF program will be substituted via the renderer
-				// when SDF programs are fully wired up
 				fFillShader->Draw( renderer, fFillData );
 			}
 
@@ -244,6 +238,7 @@ ShapeObject::Draw( Renderer& renderer ) const
 			}
 		}
 		else
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
 		{
 			// Standard mesh rendering path (polygon, line, path, etc.)
 			fPath->UpdateResources( renderer );
@@ -338,6 +333,7 @@ ShapeObject::GetProgramMod() const
 	return ShaderResource::kDefault;
 }
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 bool
 ShapeObject::IsSDFEligible() const
 {
@@ -367,7 +363,6 @@ ShapeObject::IsSDFEligible() const
 			return true;
 		case Tesselator::kType_Polygon:
 		{
-			// Only use SDF for polygons with <= kMaxPolygonVerts vertices
 			const TesselatorPolygon *poly = static_cast< const TesselatorPolygon* >( tesselator );
 			return const_cast< TesselatorPolygon* >( poly )->GetContour().Length() <= SDFRenderer::kMaxPolygonVerts;
 		}
@@ -396,6 +391,7 @@ ShapeObject::GetSDFShapeType() const
 			return SDFRenderer::kRoundedRect;
 	}
 }
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
 
 const LuaProxyVTable&
 ShapeObject::ProxyVTable() const

@@ -23,10 +23,10 @@
 #include "Display/Rtt_ImageSheet.h"
 #include "Display/Rtt_ImageSheetPaint.h"
 #include "Display/Rtt_ImageSheetUserdata.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Renderer/Rtt_BgfxCommandBuffer.h"
 #endif
 #include "Display/Rtt_ShaderFactory.h"
@@ -338,15 +338,22 @@ GraphicsLibrary::newImageSheet( lua_State *L )
 int
 GraphicsLibrary::newAtlas( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     return TextureAtlas_newAtlas( L );
+#else
+    CoronaLuaError( L, "graphics.newAtlas() is not supported on this platform" );
+    return 0;
+#endif
 }
 
 // graphics.setSDF( bool )
 int
 GraphicsLibrary::setSDF( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     bool enabled = lua_toboolean( L, 1 );
     SDFRenderer::SetEnabled( enabled );
+#endif
     return 0;
 }
 
@@ -354,7 +361,11 @@ GraphicsLibrary::setSDF( lua_State *L )
 int
 GraphicsLibrary::getSDF( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     lua_pushboolean( L, SDFRenderer::IsEnabled() ? 1 : 0 );
+#else
+    lua_pushboolean( L, 0 );
+#endif
     return 1;
 }
 
@@ -362,8 +373,10 @@ GraphicsLibrary::getSDF( lua_State *L )
 int
 GraphicsLibrary::setInstancing( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     bool enabled = lua_toboolean( L, 1 );
     InstancedBatchRenderer::SetEnabled( enabled );
+#endif
     return 0;
 }
 
@@ -371,7 +384,11 @@ GraphicsLibrary::setInstancing( lua_State *L )
 int
 GraphicsLibrary::getInstancing( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     lua_pushboolean( L, InstancedBatchRenderer::IsEnabled() ? 1 : 0 );
+#else
+    lua_pushboolean( L, 0 );
+#endif
     return 1;
 }
 
@@ -1786,7 +1803,9 @@ LuaLibGraphics::Initialize( lua_State *L, Display& display )
 
     FilePath::Initialize( L );
     ImageSheet::Initialize( L );
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     TextureAtlasUserdata::Initialize( L );
+#endif
 
     lua_pushlightuserdata( L, & display );
     CoronaLuaRegisterModuleLoader( L, GraphicsLibrary::kName, GraphicsLibrary::Open, 1 );

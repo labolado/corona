@@ -12,7 +12,9 @@
 
 #include "Display/Rtt_DisplayObject.h"
 #include "Display/Rtt_ShaderResource.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Display/Rtt_SDFRenderer.h"
+#endif
 
 #include "Core/Rtt_Real.h"
 #include "Renderer/Rtt_RenderData.h"
@@ -90,14 +92,11 @@ class ShapeObject : public DisplayObject
 		void SetBlend( RenderTypes::BlendType newValue );
 		RenderTypes::BlendType GetBlend() const;
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 	private:
-		// Returns true if this shape is a simple SDF-eligible type
-		// (circle, rect, roundedRect)
 		bool IsSDFEligible() const;
-
-		// Returns the SDF shape type for this object.
-		// Only valid when IsSDFEligible() returns true.
 		SDFRenderer::ShapeType GetSDFShapeType() const;
+#endif
 
 	private:
 		RenderData fFillData;

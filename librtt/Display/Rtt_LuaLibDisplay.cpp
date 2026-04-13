@@ -32,10 +32,12 @@
 #include "Display/Rtt_ShapePath.h"
 #include "Display/Rtt_SnapshotObject.h"
 #include "Display/Rtt_StageObject.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Display/Rtt_BatchObject.h"
 #include "Display/Rtt_BatchObject_Lua.h"
 #include "Display/Rtt_TextureAtlas.h"
 #include "Display/Rtt_TextureAtlas_Lua.h"
+#endif
 #include "Display/Rtt_TextureFactory.h"
 #include "Renderer/Rtt_Texture.h"
 #include "Renderer/Rtt_VideoSource.h"
@@ -1159,6 +1161,7 @@ DisplayLibrary::newImage( lua_State *L )
             result = NULL != PushImage( L, p, paint, display, parent, replacement );
         }
     }
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     else if ( lua_isuserdata( L, nextArg ) && TextureAtlasUserdata::IsAtlas( L, nextArg ) )
     {
         // display.newImage( atlas, "frameName" [, x, y] )
@@ -1201,6 +1204,7 @@ DisplayLibrary::newImage( lua_State *L )
             }
         }
     }
+#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
     else if ( lua_isuserdata( L, nextArg ) )
     {
         ImageSheetUserdata *ud = ImageSheet::ToUserdata( L, nextArg );
@@ -1418,7 +1422,12 @@ DisplayLibrary::newEmitter( lua_State *L )
 int
 DisplayLibrary::newBatch( lua_State *L )
 {
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 	return BatchObject_newBatch( L );
+#else
+	CoronaLuaError( L, "display.newBatch() is not supported on this platform" );
+	return 0;
+#endif
 }
 
 static TextObject *
@@ -3238,7 +3247,9 @@ LuaLibDisplay::Initialize( lua_State *L, Display& display )
 {
     Rtt_LUA_STACK_GUARD( L );
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
     BatchSlotProxy::Initialize( L );
+#endif
 
     lua_pushlightuserdata( L, & display );
     CoronaLuaRegisterModuleLoader( L, DisplayLibrary::kName, DisplayLibrary::Open, 1 );

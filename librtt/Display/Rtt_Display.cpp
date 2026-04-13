@@ -33,7 +33,9 @@
 
 #include "Renderer/Rtt_GLRenderer.h"
 #include "Renderer/Rtt_VulkanExports.h"
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Renderer/Rtt_BgfxExports.h"
+#endif
 #include "Renderer/Rtt_FrameBufferObject.h"
 #include "Renderer/Rtt_Matrix_Renderer.h"
 #include "Renderer/Rtt_Program.h"
@@ -299,6 +301,7 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			Rtt_ASSERT_NOT_REACHED();
 		}
 #else
+	#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
 			// Prefer backendContext; fallback to NativeWindow() if not set
@@ -324,6 +327,7 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			}
 		}
 		else
+	#endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
 		{
 			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
 		}
