@@ -27,11 +27,13 @@ class AndroidImageProvider : public PlatformImageProvider
 {
 	public:
 		AndroidImageProvider( const ResourceHandle<lua_State> & handle, NativeToJavaBridge *ntjb );
+		~AndroidImageProvider();
 		virtual bool Supports( int source ) const;
 		virtual bool HasAccessTo( int source ) const;
 		virtual bool Show( int source, const char* filePath, lua_State* L );
+		virtual bool ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State* L );
 		virtual bool IsShown() { return fIsImageProviderShown; }
-		virtual void CloseWithResult( const char *selectedImageFileName );
+		virtual void CloseWithResult( const char *selectedImageFileName, int multipleFilesCount );
 		void Abort() {
 			fIsImageProviderShown = false; 
 		}
@@ -54,6 +56,8 @@ class AndroidImageProvider : public PlatformImageProvider
 		/// Set TRUE to display the selected image in Corona.
 		/// Set FALSE to not create a display object and save to file instead.
 		bool fShouldDisplaySelectedImage;
+
+		char* fMultipleFilesBaseName;
 
 		NativeToJavaBridge *fNativeToJavaBridge;
 };

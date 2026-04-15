@@ -40,6 +40,13 @@ If it’s not already in the core or supported via a plugin, you can call any na
 ### Cross-platform
 Develop for mobile, desktop, and connected TV devices with just one code base.
 
+## bgfx-solar2d Branch
+
+This branch integrates the bgfx rendering backend into Solar2D. For upstream merge details:
+
+- [laboladoDev Merge Changelog](docs/2026-04-15-laboladoDev-merge-changelog.md) — Commit log for all upstream changes merged on 2026-04-15
+- [laboladoDev API Changes & New Features](docs/2026-04-15-laboladoDev-api-changes.md) — New APIs, bug fixes, platform changes, and migration notes
+
 ## Installation
 The easiest and recommended way to get started with Solar2D is to download binary distribution from the [releases](https://github.com/coronalabs/corona/releases) page.
 

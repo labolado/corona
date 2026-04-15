@@ -120,7 +120,7 @@ DeviceBuildData::DeviceBuildData(
 	fBuildQueue( pAllocator ),
 	fBuildBucket( pAllocator ),
 	fBuildYear( Rtt_BUILD_YEAR ),
-	fBuildRevision( Rtt_BUILD_REVISION ),
+	fBuildRevision( Rtt_MACRO_TO_STRING(Rtt_BUILD_REVISION) ),
 	fDebugBuildProcess( 0 )
 #ifdef AUTO_INCLUDE_MONETIZATION_PLUGIN
 	, fFuseStagingSuffix( pAllocator )
@@ -234,7 +234,8 @@ DeviceBuildData::ReadBuildSettings( lua_State *L, const char *buildSettingsPath 
 			lua_pop( L, 1 );
 
 			lua_getfield( L, -1, kBuildRevisionKey );
-			int buildRevision = (int)lua_tointeger( L, -1 );
+			// int buildRevision = (int)lua_tointeger( L, -1 );
+			const char* buildRevision = lua_tostring( L, -1 );
 			lua_pop( L, 1 );
 
 			SetBuild( buildYear, buildRevision );
@@ -355,14 +356,15 @@ DeviceBuildData::Initialize(
 }
 
 void
-DeviceBuildData::SetBuild( int buildYear, int buildRevision )
+DeviceBuildData::SetBuild( int buildYear, const char* buildRevision )
 {
-	if ( buildYear > 0 && buildRevision > 0 )
+	// if ( buildYear > 0 && buildRevision > 0 )
+	if ( buildYear > 0 && buildRevision )
 	{
 		fBuildYear = buildYear;
-		fBuildRevision = buildRevision;
+		fBuildRevision.Set(buildRevision);
 
-		Rtt_TRACE( ( "NOTE: This project's build.settings overrides the default target build. Instead it targets a specific daily build (%d.%d)\n", fBuildYear, fBuildRevision ) );
+		Rtt_TRACE( ( "NOTE: This project's build.settings overrides the default target build. Instead it targets a specific daily build (%d.%s)\n", fBuildYear, fBuildRevision.GetString() ) );
 	}
 }
 
@@ -522,7 +524,7 @@ DeviceBuildData::PushTable( lua_State *L ) const
 	lua_pushinteger( L, fBuildYear );
 	lua_setfield( L, -2, "dailyBuildYear" );
 
-	lua_pushinteger( L, fBuildRevision );
+	lua_pushstring( L, fBuildRevision.GetString() );
 	lua_setfield( L, -2, "dailyBuildRevision" );
 
 	lua_pushstring( L, fBuildQueue.GetString() );

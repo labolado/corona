@@ -20,6 +20,7 @@
 
 #import <UIKit/UIKit.h>
 #import <MediaPlayer/MediaPlayer.h>
+#import <PhotosUI/PhotosUI.h>
 
 #import "AppDelegate.h"
 
@@ -208,7 +209,8 @@ namespace Rtt
 
 IPhoneMediaProvider::IPhoneMediaProvider()
 :	fImagePicker( nil ),
-	fPopoverController( nil ),
+    fPhotosPicker( nil ),
+    fPopoverController( nil ),
 	fDstPath( nil ),
 	iOS5statusBarHidden( false ),
 	fDelegate( nil )
@@ -222,6 +224,7 @@ IPhoneMediaProvider::~IPhoneMediaProvider()
 	// Should be safe to release even if we never use it.
 	[fPopoverController release];
 	[fImagePicker release];
+    [fPhotosPicker release];
 	[fDelegate release];
 }
 
@@ -517,6 +520,24 @@ IPhoneMediaProvider::Show( UIImagePickerControllerSourceType source, NSString* m
 	}
 }
 
+API_AVAILABLE(ios(14))
+void IPhoneMediaProvider::ShowMulti( NSString* mediaTypes, NSObject<PHPickerViewControllerDelegate>* delegate, lua_State* L, int tableIndex, int maxSelection )
+{
+    PHPickerConfiguration *config = [[PHPickerConfiguration alloc] initWithPhotoLibrary:PHPhotoLibrary.sharedPhotoLibrary];
+    config.selectionLimit = maxSelection;
+    config.filter = PHPickerFilter.imagesFilter;
+    if ( fPhotosPicker )
+    {
+        [fPhotosPicker release];
+    }
+    fPhotosPicker = [[PHPickerViewController alloc] initWithConfiguration:config];
+    fPhotosPicker.delegate = delegate;
+    
+    AppDelegate* appDelegate = (AppDelegate*)[[UIApplication sharedApplication] delegate];
+    UIViewController* viewController = appDelegate.viewController;
+    [viewController presentViewController:fPhotosPicker animated:YES completion:nil];
+}
+
 void
 IPhoneMediaProvider::ReleaseVariables()
 {
@@ -525,6 +546,9 @@ IPhoneMediaProvider::ReleaseVariables()
 
 	[fImagePicker release];
 	fImagePicker = nil;
+    
+    [fPhotosPicker release];
+    fPhotosPicker = nil;
 }
 	
 /*

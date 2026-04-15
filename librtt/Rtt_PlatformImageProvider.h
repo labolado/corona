@@ -37,6 +37,14 @@ class PlatformImageProvider : public PlatformMediaProviderBase
 //		static void* UserdataForSource( Source );
 //		static Source SourceForUserdata( void* );
 
+		struct ParametersForMultiSelection
+		{
+			ParametersForMultiSelection() : filePath(NULL), fileName(NULL), maxSelection(16) {}
+			const char* filePath;
+			const char* fileName;
+			int maxSelection;
+		};
+
 	public:
 		virtual bool Supports( int source ) const = 0;
 		virtual bool HasAccessTo( int source ) const { return Supports(source); }
@@ -45,6 +53,9 @@ class PlatformImageProvider : public PlatformMediaProviderBase
 		// property of the event.
 		// Otherwise, no display object is created. Instead, save image to 'filePath'. 
 		virtual bool Show( int source, const char* filePath, lua_State* L ) = 0;
+
+		// For multiple selection.
+		virtual bool ShowMulti( int source, ParametersForMultiSelection params, lua_State* L );
 
 	public:
 
@@ -57,9 +68,12 @@ class PlatformImageProvider : public PlatformMediaProviderBase
 			PlatformBitmap* bitmap;
 			PlatformData* data;
 			bool wasCompleted;
+			const char* multipleFilesBaseName;
+			int multipleFilesCount;
 		};
 
 		static void AddProperties( lua_State *L, void* userdata );
+		static void AddPropertiesForMultiSelection( lua_State *L, void* userdata );
 };
 
 // ----------------------------------------------------------------------------

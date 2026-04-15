@@ -1735,7 +1735,12 @@ public class NativeToJavaBridge {
 
 	protected static void callShowImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath)
 	{
-		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath);
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, 1);
+	}
+
+	protected static void callShowMultiImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath, int maxSelection)
+	{
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, maxSelection);
 	}
 
 	protected static void callShowVideoPicker(CoronaRuntime runtime, int videoSourceType, int maxTime, int quality)
@@ -2147,8 +2152,12 @@ public class NativeToJavaBridge {
 			valuesPushed = 1;
 		}
 		else if (key.equals("darkMode")) {
-			int currentNightMode = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-			luaState.pushBoolean(currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+			try {
+				int currentNightMode = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+				luaState.pushBoolean(currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+			} catch(Exception ex) {
+				luaState.pushBoolean(false);
+			}
 			valuesPushed = 1;
 		}
 		else if (key.equals("hasSoftwareKeys")) {
@@ -2624,6 +2633,10 @@ public class NativeToJavaBridge {
 
 	protected static void callWebViewRequestDeleteCookies(int id, CoronaRuntime runtime) {
 		runtime.getViewManager().requestWebViewDeleteCookies(id);
+	}
+
+	protected static void callWebViewInjectJS( CoronaRuntime runtime, int id, String jsCode ) {
+		runtime.getViewManager().requestWebViewInjectJS(id, jsCode);
 	}
 
 	protected static void callVideoViewCreate(CoronaRuntime runtime, int id, int left, int top, int width, int height)
