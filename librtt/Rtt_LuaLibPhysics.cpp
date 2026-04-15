@@ -1352,6 +1352,22 @@ newJoint( lua_State *L )
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
 
+		else if ( strcmp( kFakeJointType, jointType ) == 0 )
+		{
+			b2Body *body1 = e1->GetBody();
+			b2Body *body2 = e2->GetBody();
+
+			b2FakeJointDef jointDef;
+
+			jointDef.Initialize( body1, body2 );
+			if ( lua_isboolean( L, 4 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 6 );
+			}
+
+			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
+		}
+
 		else if ( strcmp( kWheelJointType, jointType ) == 0 )
 		{
 			b2Body *body1 = e1->GetBody();
