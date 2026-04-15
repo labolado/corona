@@ -2253,7 +2253,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 	// might be more appropriate if we wanted fine-grained control.
 	DisplayDefaults & defaults = LuaContext::GetRuntime( L )->GetDisplay().GetDefaults();
 	bool isTrimCorrected = defaults.IsImageSheetFrameTrimCorrected();
-	
+
 	if ( isTrimCorrected && display_object->AsGroupObject() )
 	{
 		Rect bounds;
@@ -2264,7 +2264,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		center_in_pixels.x += center.x;
 		center_in_pixels.y += center.y;
 	}
-	
+
 	b2World *world = physics.GetWorld();
 	b2Body *body = CreateBody( physics, display_object );
 
