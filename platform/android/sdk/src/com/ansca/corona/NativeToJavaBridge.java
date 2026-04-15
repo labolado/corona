@@ -60,8 +60,6 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 
-import dalvik.system.DexClassLoader;
-
 import com.ansca.corona.AudioRecorder.AudioByteBufferHolder;
 import com.ansca.corona.listeners.CoronaSplashScreenApiListener;
 import com.ansca.corona.listeners.CoronaStatusBarApiListener;

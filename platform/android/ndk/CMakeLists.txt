@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 set(COMMON_COMPILER_FLAGS "-Wno-deprecated -O3 -fstrict-aliasing -fvisibility=hidden -ffunction-sections -fdata-sections")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_COMPILER_FLAGS} -std=c++14")
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${COMMON_COMPILER_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${COMMON_COMPILER_FLAGS}")
 
 add_definitions(
 	-DALMIXER_COMPILE_WITHOUT_SDL
@@ -771,22 +771,4 @@ if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64
 	# NDK version <= 22
 	target_link_options(corona PRIVATE "-Wl,-z,common-page-size=16384")
 endif()
-
-# bgfx static libs — map ANDROID_ABI to bgfx build directory name
-if(ANDROID_ABI STREQUAL "arm64-v8a")
-	set(BGFX_PLATFORM "android-arm64")
-elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-	set(BGFX_PLATFORM "android-arm")
-elseif(ANDROID_ABI STREQUAL "x86_64")
-	set(BGFX_PLATFORM "android-x86_64")
-elseif(ANDROID_ABI STREQUAL "x86")
-	set(BGFX_PLATFORM "android-x86")
-else()
-	set(BGFX_PLATFORM "android-arm64")
-endif()
-
-target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES android
-	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbgfxRelease.a
-	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbimgRelease.a
-	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbxRelease.a
-)
+target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES )
