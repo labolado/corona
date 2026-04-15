@@ -397,11 +397,7 @@ namespace Rtt
 		if (SDL_GetCurrentDisplayMode(0, &screen) == 0)
 		{
 			S32 angleAfterRotation = DeviceOrientation::AngleForOrientation(fContext->GetOrientation()) + 90;
-			DeviceOrientation::Type orientationAfterRotation = DeviceOrientation::OrientationForAngle(angleAfterRotation);
-			bool isOrientationSupported = fContext->GetProjectSettings()->IsSupported(orientationAfterRotation);
-
-			fContext->SetOrientation(orientationAfterRotation);
-			fContext->GetRuntime()->WindowDidRotate(orientationAfterRotation, isOrientationSupported);
+			fContext->SetOrientation(DeviceOrientation::OrientationForAngle(angleAfterRotation));
 
 			int proposedWidth = fContext->GetHeight();
 			int proposedHeight = fContext->GetWidth();
@@ -416,11 +412,7 @@ namespace Rtt
 		if (SDL_GetCurrentDisplayMode(0, &screen) == 0)
 		{
 			S32 angleAfterRotation = DeviceOrientation::AngleForOrientation(fContext->GetOrientation()) - 90;
-			DeviceOrientation::Type orientationAfterRotation = DeviceOrientation::OrientationForAngle(angleAfterRotation);
-			bool isOrientationSupported = fContext->GetProjectSettings()->IsSupported(orientationAfterRotation);
-
-			fContext->SetOrientation(orientationAfterRotation);
-			fContext->GetRuntime()->WindowDidRotate(orientationAfterRotation, isOrientationSupported);
+			fContext->SetOrientation(DeviceOrientation::OrientationForAngle(angleAfterRotation));
 
 			int proposedWidth = fContext->GetHeight();
 			int proposedHeight = fContext->GetWidth();
@@ -454,8 +446,8 @@ namespace Rtt
 
 			int w = skin->screenWidth;
 			int h = skin->screenHeight;
-			
-			if (!skin->isUprightOrientationPortrait)
+
+			if (DeviceOrientation::IsSideways(fContext->GetOrientation()))
 			{
 				std::swap(w, h);
 			}
