@@ -6961,7 +6961,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# FIXME: There must be a better way of doing this\n\n# Copy CoronaCards.framework to a place the CoronaShell build will find it\n\nif [ \"$CONFIGURATION\" == \"Release\" ]\nthen\n    rm -rf \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/Release/CoronaCards.framework\n    mkdir -p \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/Release/\n    cp -av \"$TARGET_BUILD_DIR\"/CoronaCards.framework \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/Release/\nfi";
+			shellScript = "# Copy CoronaCards.framework to a place the CoronaShell build will find it\n\nrm -rf \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/$CONFIGURATION/CoronaCards.framework\nmkdir -p \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/$CONFIGURATION/\ncp -av \"$TARGET_BUILD_DIR\"/CoronaCards.framework \"$TARGET_BUILD_DIR\"/../../CoronaShell/build/$CONFIGURATION/";
 		};
 		C2B5FEF11B336C9000DD49E6 /* Run Script (build OSXAppTemplate.zip) */ = {
 			isa = PBXShellScriptBuildPhase;
