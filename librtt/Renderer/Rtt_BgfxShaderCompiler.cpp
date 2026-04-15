@@ -768,6 +768,53 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     ExpandVectorConstructors(preamble);
     ExpandVectorConstructors(body);
 
+    // 6c. Replace dual-arg atan(y, x) with atan2(y, x) for HLSL/Metal compatibility
+    // GLSL atan(y, x) is atan2(y, x) in HLSL/Metal. Single-arg atan(x) is unchanged.
+    auto ReplaceAtanWithAtan2 = [](std::string& code) {
+        size_t pos = 0;
+        while ((pos = code.find("atan", pos)) != std::string::npos)
+        {
+            // Skip if it's already atan2
+            if (pos + 4 < code.size() && code[pos + 4] == '2') { pos += 5; continue; }
+            // Skip if part of a longer identifier (e.g. "atan" inside "atan2" or "myatan")
+            if (pos > 0 && (isalnum(code[pos - 1]) || code[pos - 1] == '_')) { ++pos; continue; }
+            if (pos + 4 < code.size() && code[pos + 4] != '(') { ++pos; continue; }
+            size_t parenOpen = pos + 4;
+            // Find matching closing paren
+            int depth = 1;
+            size_t parenClose = std::string::npos;
+            for (size_t i = parenOpen + 1; i < code.size(); ++i)
+            {
+                if (code[i] == '(') ++depth;
+                else if (code[i] == ')') { --depth; if (depth == 0) { parenClose = i; break; } }
+            }
+            if (parenClose == std::string::npos) { ++pos; continue; }
+            // Count top-level commas to distinguish single vs dual arg
+            int commaCount = 0;
+            {
+                int d = 0;
+                for (size_t i = parenOpen + 1; i < parenClose; ++i)
+                {
+                    if (code[i] == '(') ++d;
+                    else if (code[i] == ')') --d;
+                    else if (code[i] == ',' && d == 0) ++commaCount;
+                }
+            }
+            if (commaCount == 1)
+            {
+                // Dual-arg: atan(y, x) -> atan2(y, x)
+                code.replace(pos, 4, "atan2");
+                pos += 5; // skip past "atan2"
+            }
+            else
+            {
+                pos = parenClose + 1;
+            }
+        }
+    };
+    ReplaceAtanWithAtan2(preamble);
+    ReplaceAtanWithAtan2(body);
+
     // 7. Build complete .sc source
     std::string result = BuildFragmentTemplate(preamble, varyings);
 
