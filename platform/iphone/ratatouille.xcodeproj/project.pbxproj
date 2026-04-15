@@ -1836,6 +1836,10 @@
 				F5C36CDB24FAB5E500775C6E /* libplayer-angle.a in Frameworks */,
 				F50E7EBA24FA923B009F165B /* libobjc.dylib in Frameworks */,
 				F5C36AF324FA93A700775C6E /* MetalANGLE.framework in Frameworks */,
+				8F8BC9367EF77F7EDCE83A6F /* libbgfxRelease.a in Frameworks */,
+				FF5560F274916307CB6AE6D5 /* libbxRelease.a in Frameworks */,
+				EEA3511263ACEFFCA2EE7D56 /* libbimgRelease.a in Frameworks */,
+				745544A9B9EB2347190C91EC /* libbimg_decodeRelease.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5782,6 +5786,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/$(BGFX_IOS_PLATFORM)/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -5816,6 +5821,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../plugins/build/ads-iads/ios\"",
 					"\"$(SRCROOT)/../../plugins/build-core/gameNetwork/ios\"",
+					"\"$(SRCROOT)/../../external/bgfx/.build/$(BGFX_IOS_PLATFORM)/bin\"",
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
