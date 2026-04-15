@@ -63,7 +63,7 @@ public:
     ~InputRecorder();
 
     // Mode control
-    void StartRecording();
+    void StartRecording(const char* recordingDir = NULL);
     void StartPlayback(const char* filename);
     void Stop();
     Mode GetMode() const { return fMode; }

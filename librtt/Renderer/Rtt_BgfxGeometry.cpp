@@ -300,6 +300,8 @@ BgfxGeometry::UpdateTransient( Geometry* geometry )
 	fVertexCount = vertexCount;
 	fHasTransientVB = true;
 
+
+
 	// Allocate transient index buffer if geometry has indices
 	const Geometry::Index* indexData = geometry->GetIndexData();
 	U32 indexCount = geometry->GetIndicesUsed();

@@ -1843,6 +1843,9 @@ HitEvent::DispatchFocused( lua_State *L, Runtime& runtime, StageObject& stage, D
 	return handled;
 }
 
+// Declared in Rtt_InputRecorder.cpp
+extern int g_InputRecorderReplayDiag;
+
 void
 HitEvent::ScreenToContent( const Display& display, Real xScreen, Real yScreen, Real& outXContent, Real& outYContent )
 {
@@ -1851,6 +1854,24 @@ HitEvent::ScreenToContent( const Display& display, Real xScreen, Real yScreen, R
 	outXContent -= display.GetXOriginOffset();
 	outYContent = Rtt_RealMul( yScreen, display.GetSy() );
 	outYContent -= display.GetYOriginOffset();
+
+	// Diagnostic: log for both original and replay events
+	{
+		static int sOrigS2CLog = 0;
+		static int sReplayS2CLog = 0;
+		int* logCount = g_InputRecorderReplayDiag ? &sReplayS2CLog : &sOrigS2CLog;
+		const char* tag = g_InputRecorderReplayDiag ? "REPLAY" : "ORIGINAL";
+		if (*logCount < 10)
+		{
+			Rtt_Log("%s_S2C[%d] screen=(%.1f,%.1f) -> content=(%.1f,%.1f) Sx=%.6f Sy=%.6f offX=%.1f offY=%.1f\n",
+				tag, *logCount,
+				Rtt_RealToFloat(xScreen), Rtt_RealToFloat(yScreen),
+				Rtt_RealToFloat(outXContent), Rtt_RealToFloat(outYContent),
+				Rtt_RealToFloat(display.GetSx()), Rtt_RealToFloat(display.GetSy()),
+				Rtt_RealToFloat(display.GetXOriginOffset()), Rtt_RealToFloat(display.GetYOriginOffset()));
+			(*logCount)++;
+		}
+	}
 }
 
 void
@@ -2170,6 +2191,25 @@ MultitouchEvent::Dispatch( lua_State *L, Runtime& runtime ) const
 	{
 		const TouchEvent& e = fTouches[i];
 		DisplayObject *object = stage.GetFocus( e.GetId() );
+
+		// Diagnostic: log dispatch path for both original and replay
+		{
+			static int sOrigMTLog = 0;
+			static int sReplayMTLog = 0;
+			int* logCount = g_InputRecorderReplayDiag ? &sReplayMTLog : &sOrigMTLog;
+			const char* tag = g_InputRecorderReplayDiag ? "REPLAY" : "ORIGINAL";
+			if (*logCount < 10)
+			{
+				const char* phaseNames[] = {"began", "moved", "stationary", "ended", "cancelled"};
+				int p = (int)e.GetPhase();
+				const char* pn = (p >= 0 && p < 5) ? phaseNames[p] : "?";
+				Rtt_Log("%s_MT_DISPATCH[%d] phase=%s id=%p focus=%p screen=(%.1f,%.1f)\n",
+					tag, *logCount, pn, e.GetId(), object,
+					Rtt_RealToFloat(e.ScreenX()), Rtt_RealToFloat(e.ScreenY()));
+				(*logCount)++;
+			}
+		}
+
 		if ( object )
 		{
 			// Dispatch focused per-object touch events

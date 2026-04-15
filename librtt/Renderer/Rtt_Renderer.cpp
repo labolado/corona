@@ -633,7 +633,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             {
                 QueueCreate( geometry );
             }
-        
+
             fBackCommandBuffer->BindGeometry( geometry );
             fPrevious.fGeometry = geometry;
 
@@ -641,7 +641,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             {
                 fBackCommandBuffer->BindInstancing( block->fCount, NULL );
             }
-			
+
 			mustReconcileFormats = true; // geometry is new
         }
 
@@ -733,6 +733,36 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         // Copy the the incoming vertex data into the current Geometry
         // pool instance, even if the data will not be batched.
         CopyVertexData( geometry, fCurrentVertex, vertexExtra );
+
+        // Fix: Ensure pool geometry has authoritative shader vertex data.
+        // After a fill/shader transition (e.g., changeTexture from Lua),
+        // CopyVertexData may copy stale ux/uy/uz/uw from the source geometry
+        // because UpdateColor hasn't run yet for the new shader. Overwrite
+        // pool vertices with ShaderData values which are always current.
+        // Only patch when ShaderData has non-default values — objects with
+        // default (0,0,0,0) ShaderData may have per-vertex data that must
+        // not be overwritten (e.g., bezier mesh UV coordinates).
+        if (shaderData)
+        {
+            Real ux, uy, uz, uw;
+            shaderData->CopyVertexData(ux, uy, uz, uw);
+            if (ux != Rtt_REAL_0 || uy != Rtt_REAL_0 || uz != Rtt_REAL_0 || uw != Rtt_REAL_0)
+            {
+                const U32 verticesUsed = geometry->GetVerticesUsed();
+                U32 totalVerts = verticesUsed;
+                if (geometry->GetPrimitiveType() == Geometry::kTriangleStrip)
+                {
+                    totalVerts += 2;
+                }
+                for (U32 i = 0; i < totalVerts; i++)
+                {
+                    fCurrentVertex[i].ux = ux;
+                    fCurrentVertex[i].uy = uy;
+                    fCurrentVertex[i].uz = uz;
+                    fCurrentVertex[i].uw = uw;
+                }
+            }
+        }
 
         if (isInstanced)
         {

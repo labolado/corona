@@ -1750,19 +1750,9 @@ Runtime::DispatchEvent( const MEvent& e )
 {
 	RuntimeGuard guard( * this );
 
-	// Record touch events if recording is active
-	if (fInputRecorder)
-	{
-		// Check if this is a touch event by comparing name (avoids dynamic_cast which needs RTTI)
-		if (strcmp(e.Name(), "touch") == 0)
-		{
-			const TouchEvent* touchEvent = static_cast<const TouchEvent*>(&e);
-			if (touchEvent)
-			{
-				fInputRecorder->RecordTouchEvent(*touchEvent, touchEvent->GetId());
-			}
-		}
-	}
+	// Note: Touch recording moved to platform layer (JavaToNativeBridge::TouchEvent,
+	// CoronaViewPrivate::sendTouches) to capture clean TouchEvent data before Lua
+	// hit-testing generates HitEvent subclasses that corrupt the static_cast.
 
 	e.Dispatch( fVMContext->L(), * this );
 }
@@ -2151,8 +2141,8 @@ Runtime::InitializeInputRecorder()
 
 		if (InputRecorder::CheckRecordingTriggerFile(fPlatform, recordingPath))
 		{
-			Rtt_Log("InputRecorder: RECORD trigger file detected, starting recording\n");
-			fInputRecorder->StartRecording();
+			Rtt_Log("InputRecorder: RECORD trigger file detected, starting recording to: %s\n", recordingPath.c_str());
+			fInputRecorder->StartRecording(recordingPath.c_str());
 		}
 		else if (InputRecorder::CheckPlaybackTriggerFile(fPlatform, replayFilename))
 		{
