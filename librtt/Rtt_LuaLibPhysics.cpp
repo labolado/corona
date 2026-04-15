@@ -2904,7 +2904,7 @@ setTimeScale( lua_State *L )
 	}
 	else
 	{
-		CoronaLuaError(L, "physics.setTimeScale() requires 1 parameter (number)");
+		CoronaLuaError(L, "physics.setNumSteps() requires 1 parameter (number)");
 	}
 
 	return 0;
@@ -2921,7 +2921,7 @@ getTimeScale( lua_State *L )
 }
 
 // physics.setNumSteps( numSteps )
-// Sets numSteps of physics sumulator per time step. Default is 1
+// Sets numSteps of physics simulator per time step. Default is 1
 static int
 setNumSteps( lua_State *L )
 {
@@ -2932,14 +2932,14 @@ setNumSteps( lua_State *L )
 	}
 	else
 	{
-		CoronaLuaError(L, "physics.setTimeScale() requires 1 parameter (number)");
+		CoronaLuaError(L, "physics.setNumSteps() requires 1 parameter (number)");
 	}
 
 	return 0;
 }
 
 // physics.getNumSteps( )
-// Returns numSteps of physics sumulator per time step.
+// Returns numSteps of physics simulator per time step.
 static int
 getNumSteps( lua_State *L )
 {
