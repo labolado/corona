@@ -50,4 +50,9 @@ if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64
 	# NDK version <= 22
 	target_link_options(lua PRIVATE "-Wl,-z,common-page-size=16384")
 endif()
+
+# Disable FORTIFY for Lua 5.1.3: old C code triggers false FORTIFY buffer overread
+# checks on NDK 27+ (strchr in lgc.c traversetable on TString internals)
+target_compile_options(lua PRIVATE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0)
+
 target_link_libraries ( lua log dl )
