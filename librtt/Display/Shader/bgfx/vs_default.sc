@@ -46,7 +46,7 @@ uniform vec4 u_UserData3;
 void main()
 {
     // Pass through texture coordinates
-    v_TexCoord = vec3(a_texcoord0.xy, 0.0);
+    v_TexCoord = a_texcoord0;
 
     // Pass through color scale
     v_ColorScale = a_color0;
