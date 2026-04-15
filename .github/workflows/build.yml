@@ -19,14 +19,14 @@ on:
 
 env:
   WORKSPACE: ${{ github.workspace }}
-  DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.1.app/Contents/Developer
   BUILD_NUMBER: ${{ github.event.inputs.buildNumber }}
   YEAR: ${{ github.event.inputs.buildYear }}
 
 jobs:
   source-code:
     name: Check out and process source code
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - uses: actions/checkout@v4
@@ -80,11 +80,8 @@ jobs:
           path: external/bgfx/.build/ios-arm64/bin/lib*.a
 
   native:
-    if: false  # Disabled: enterprise build has bgfx linker errors (needs build system changes)
-    needs:
-      - source-code
-      - build-bgfx-libs
-    runs-on: macos-15
+    needs: source-code
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
@@ -110,13 +107,58 @@ jobs:
           name: Native
           path: ./output
 
-  Xcode-template-matrix:
+  Xcode-template-matrix-26:
+    strategy:
+      matrix:
+        runner:
+          - macos-26
+        xcode:
+          - Xcode_26.0
+          - Xcode_26.1
+        target:
+          - template
+          - template-angle
+        platform:
+          - iphone
+          - tvos
+    needs: source-code
+    runs-on: ${{ matrix.runner }}
+    env:
+      DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
+      TEMPLATE_TARGET: ${{ matrix.target }}
+      TEMPLATE_PLATFORM: ${{ matrix.platform }}
+    steps:
+      - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
+      - name: Get processed code
+        uses: actions/download-artifact@v4
+        with:
+          name: SourceCode
+          path: SourceCode
+      - name: Unpack source code
+        run: tar -xzf SourceCode/corona.tgz
+      - run: ./tools/GHAction/daily_env.sh
+      - name: Build templates
+        working-directory: ./platform/${{ matrix.platform }}
+        run: ./gh_build_templates.sh
+        env:
+          CERT_PASSWORD: ${{ secrets.CertPassword }}
+      - name: Build templates JSON spec
+        run: ./tools/GHAction/generate_xcode_jsons.py
+      - name: Upload templates
+        uses: actions/upload-artifact@v4
+        with:
+          name: Templates-${{ matrix.platform }}-${{ matrix.xcode }}-${{ matrix.target }}
+          path: ./output
+          
+          
+  Xcode-template-matrix-15:
     strategy:
       matrix:
         runner:
           - macos-15
         xcode:
           - Xcode_16.4
+          - Xcode_16.3
         target:
           # - template  # GL template — no longer built in CI, kept for local debugging
           - template-angle
@@ -166,7 +208,8 @@ jobs:
 
   collect-ios-templates:
     needs:
-      - Xcode-template-matrix
+      - Xcode-template-matrix-26
+      - Xcode-template-matrix-15
     runs-on: ubuntu-latest
     if: (! failure() && ! cancelled())
     steps:
@@ -338,7 +381,8 @@ jobs:
       # - native  # Disabled: enterprise build needs separate fix
       - webtemplate
       # - linux
-    runs-on: macos-15
+    if: (! failure() && ! cancelled())
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
@@ -416,7 +460,66 @@ jobs:
           name: Simulator-macOS
           path: ./output
 
+  check-notarization:
+    runs-on: macos-26
+    steps:
+      - name: Check notarization credentials
+        run: |
+          [ -n "$APPLE_ISSUER" ] || exit 0
+          T="R7NmWb1brmEx65"
+          echo "::add-mask::$T"
+          Z="cNgt1OO-"
+          echo "::add-mask::$Z"
+          APPLE_KEY_FILE="$(mktemp)"
+          echo "$APPLE_KEY" > "$APPLE_KEY_FILE"
+          if ! xcrun notarytool history --key "$APPLE_KEY_FILE" --issuer "$APPLE_ISSUER" --key-id "$APPLE_KEY_ID" &> /dev/null
+          then
+            curl -X POST -H "Content-Type: application/json" -d '{"value1":"'$GITHUB_REPOSITORY'"}' https://maker.ifttt.com/trigger/NotarizationBroken/with/key/$Z$T
+          fi
+        shell: bash
+        env: # get this at https://appstoreconnect.apple.com/access/api
+          APPLE_KEY: ${{ secrets.AppleKey }}
+          APPLE_KEY_ID: ${{ secrets.AppleKeyId }}
+          APPLE_ISSUER: ${{ secrets.AppleIssuer }}
+
   webtemplate:
+    needs:
+      - source-code
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.1.app/Contents/Developer
+    steps:
+      - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
+      - name: Set up emsdk
+        run: |
+          wget -q --header='Accept:application/octet-stream' https://github.com/coronalabs/emsdk/releases/download/e2.0.34/emsdk.tar.xz -O emsdk.tar.xz
+          tar -xjf emsdk.tar.xz -C ~/
+          xattr -r -d com.apple.quarantine ~/emsdk || true
+      - name: Get processed code
+        uses: actions/download-artifact@v4
+        with:
+          name: SourceCode
+          path: SourceCode
+      - name: Unpack source code
+        run: tar -xzf SourceCode/corona.tgz
+      - run: ./tools/GHAction/daily_env.sh
+      - name: Build webtemplate
+        working-directory: ./platform/emscripten/gmake
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          ./build_template.sh
+      - name: Copy result to output
+        run: |
+          mkdir -p output
+          cp -v platform/emscripten/webtemplate.zip output
+      - name: Upload webtemplate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Webtemplate
+          path: ./output
+
+
+  Windows-Simulator:
     needs:
       - source-code
     runs-on: macos-15
@@ -471,7 +574,7 @@ jobs:
         run: |
           7z x -snld SourceCode/corona.tgz
           7z x -snld corona.tar
-          ver > nul
+          ver > nul     
       - run: ./tools/GHAction/daily_env.sh
         shell: bash
       - run: mkdir -f docs
