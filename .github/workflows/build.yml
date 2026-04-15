@@ -118,7 +118,7 @@ jobs:
         xcode:
           - Xcode_16.4
         target:
-          - template
+          # - template  # GL template — no longer built in CI, kept for local debugging
           - template-angle
         platform:
           - iphone
@@ -389,6 +389,7 @@ jobs:
       - name: Clean-up docs
         run: rm -rf docs/SampleCode/.git docs/SampleCode/.gitignore
       - name: Get Native
+        if: false  # Disabled: native job is disabled, artifact not available
         uses: actions/download-artifact@v4
         with:
           name: Native
