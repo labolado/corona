@@ -8,6 +8,7 @@ add_definitions( -DNDEBUG -DANDROID_NDK -DRtt_ANDROID_ENV )
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int -Wno-incompatible-function-pointer-types -Wno-int-conversion -Wno-incompatible-pointer-types")
 
 get_filename_component(CORONA_ROOT "${CMAKE_SOURCE_DIR}/../../.." ABSOLUTE)
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384")
 
 set(Lua2CppOutputDir "${CMAKE_CURRENT_BINARY_DIR}/generated_src")
 set(LuaIncludePath "${CORONA_ROOT}/external/lua-5.1.3/src")
