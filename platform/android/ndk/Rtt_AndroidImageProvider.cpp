@@ -35,8 +35,17 @@ AndroidImageProvider::AndroidImageProvider( const ResourceHandle<lua_State> & ha
 :	PlatformImageProvider( handle ),
 	fIsImageProviderShown( false ),
 	fShouldDisplaySelectedImage( true ),
+	fMultipleFilesBaseName( NULL ),
 	fNativeToJavaBridge(ntjb)
 {
+}
+
+AndroidImageProvider::~AndroidImageProvider()
+{
+	if (fMultipleFilesBaseName != NULL)
+	{
+		free(fMultipleFilesBaseName);
+	}
 }
 
 /// Determines if the given image source (Camera, Photo Library, etc.) is supported on this platform.
@@ -89,12 +98,54 @@ AndroidImageProvider::Show( int source, const char* filePath, lua_State* L )
 	return true;
 }
 
+/// Displays a window for selecting an image.
+/// @param source Unique integer ID indicating what kind of window to display such as the Camera or Photo Library.
+/// @param filePath The path\file name to save the selected image file to.
+///                 Set to NULL to not save to file and display the selected photo as a display object instead.
+/// @return Returns true if the window was shown.
+///         Returns false if given source is not provided or if an image provider window is currently shown.
+bool
+AndroidImageProvider::ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State* L )
+{
+	// Do not continue if:
+	// 1) Given image source type is not supported on this platform.
+	// 2) Image providing window is already shown.
+	bool isSupported = Rtt_VERIFY( Supports( source ) );
+	if ( !isSupported || fIsImageProviderShown )
+	{
+		EndSession();
+		return false;
+	}
+
+	const char* filePath = params.filePath;
+	// If given file path is an empty string, then change it to NULL.
+	if ( filePath && ( strlen(filePath) <= 0 ) )
+	{
+		filePath = NULL;
+	}
+
+	// Show the image provider window.
+	fIsImageProviderShown = true;
+	fShouldDisplaySelectedImage = (NULL == filePath);
+	if ( fMultipleFilesBaseName != NULL )
+	{
+		free(fMultipleFilesBaseName);
+		fMultipleFilesBaseName = NULL;
+	}
+	if ( params.fileName != NULL)
+	{
+		fMultipleFilesBaseName = strdup(params.fileName);
+	}
+	fNativeToJavaBridge->ShowMultiImagePicker(source, filePath, params.maxSelection);
+	return true;
+}
+
 /// To be called by the JNI bridge to indicate that the window has been closed.
 /// Creates a display object for the selected image (if selected) and then invokes the Lua listener.
 /// @param selectedImageFileName The path\file name of the image that was selected.
 ///                              Set to NULL or empty string to indicate that the user canceled out of the window.
 void
-AndroidImageProvider::CloseWithResult( const char *selectedImageFileName )
+AndroidImageProvider::CloseWithResult( const char *selectedImageFileName, int multipleFilesCount )
 {
 	// Do not continue if the Show() function was not called first.
 	if (!fIsImageProviderShown)
@@ -106,10 +157,21 @@ AndroidImageProvider::CloseWithResult( const char *selectedImageFileName )
 	fIsImageProviderShown = false;
 	
 	// Invoke the Lua listener to indicate that the window was closed.
-	AndroidImageProviderResult result;
-	result.SelectedImageFileName = selectedImageFileName;
-	result.ShouldDisplaySelectedImage = fShouldDisplaySelectedImage;
-	DidDismiss(AddProperties, (void*)&result);
+	if (fMultipleFilesBaseName != NULL && multipleFilesCount > 1)
+	{
+		PlatformImageProvider::Parameters params(NULL, NULL);
+		params.multipleFilesBaseName = fMultipleFilesBaseName;
+		params.multipleFilesCount = multipleFilesCount;
+		params.wasCompleted = true;
+		Super::DidDismiss(PlatformImageProvider::AddPropertiesForMultiSelection, (void*)&params);
+	}
+	else
+	{
+		AndroidImageProviderResult result;
+		result.SelectedImageFileName = selectedImageFileName;
+		result.ShouldDisplaySelectedImage = fShouldDisplaySelectedImage;
+		DidDismiss(AddProperties, (void*)&result);
+	}
 }
 
 /// Static callback function used by the inherited DidDismiss() function to add properties to the a Lua listener's event table.

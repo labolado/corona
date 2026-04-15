@@ -120,12 +120,16 @@ PhysicsContactListener::BeginContact(b2Contact* contact)
 		 && object2 && ! object2->IsOrphan() )
 	{
 		UserdataWrapper *contactWrapper = PhysicsContact::CreateWrapper( fRuntime.VMContext().LuaState(), contact );
+		lua_State *L = fRuntime.VMContext().L();
+		bool success = (contactWrapper->Push() == 1);
+		int top = lua_gettop( L );
 		{
 			CollisionEvent e( * object1, * object2, position.x, position.y, (int) fixtureIndex1, (int) fixtureIndex2, phase );
 			e.SetContact( contactWrapper );
 
 			fRuntime.DispatchEvent( e );
 		}
+		if ( success ) { lua_remove( L, top ); }
 		contactWrapper->Invalidate();
 	}
 }
@@ -216,12 +220,16 @@ PhysicsContactListener::EndContact(b2Contact* contact)
 		 && object2 && ! object2->IsOrphan() )
 	{
 		UserdataWrapper *contactWrapper = PhysicsContact::CreateWrapper( fRuntime.VMContext().LuaState(), contact );
+		lua_State *L = fRuntime.VMContext().L();
+		bool success = (contactWrapper->Push() == 1);
+		int top = lua_gettop( L );
 		{
 			CollisionEvent e( * object1, * object2, position.x, position.y, (int) fixtureIndex1, (int) fixtureIndex2, phase );
 			e.SetContact( contactWrapper );
 
 			fRuntime.DispatchEvent( e );
 		}
+		if ( success ) { lua_remove( L, top ); }
 		contactWrapper->Invalidate();
 	}
 }
@@ -310,12 +318,16 @@ PhysicsContactListener::PreSolve(b2Contact* contact, const b2Manifold* oldManifo
 		 && object2 && ! object2->IsOrphan() )
 	{
 		UserdataWrapper *contactWrapper = PhysicsContact::CreateWrapper( fRuntime.VMContext().LuaState(), contact );
+		lua_State *L = fRuntime.VMContext().L();
+		bool success = (contactWrapper->Push() == 1);
+		int top = lua_gettop( L );
 		{
 			PreCollisionEvent e( * object1, * object2, position.x, position.y, (int) fixtureIndex1, (int) fixtureIndex2);
 			e.SetContact( contactWrapper );
 
 			fRuntime.DispatchEvent( e );
 		}
+		if ( success ) { lua_remove( L, top ); }
 		contactWrapper->Invalidate();
 	}
 }
@@ -414,12 +426,16 @@ PhysicsContactListener::PostSolve(b2Contact* contact, const b2ContactImpulse* im
 		 && object2 && ! object2->IsOrphan() )
 	{
 		UserdataWrapper *contactWrapper = PhysicsContact::CreateWrapper( fRuntime.VMContext().LuaState(), contact );
+		lua_State *L = fRuntime.VMContext().L();
+		bool success = (contactWrapper->Push() == 1);
+		int top = lua_gettop( L );
 		{
 			PostCollisionEvent e( * object1, * object2, position.x, position.y, (int) fixtureIndex1, (int) fixtureIndex2, Rtt_FloatToReal( maxNormalImpulse ), Rtt_FloatToReal( maxTangentImpulse ) );
 			e.SetContact( contactWrapper );
 
 			fRuntime.DispatchEvent( e );
 		}
+		if ( success ) { lua_remove( L, top ); }
 		contactWrapper->Invalidate();
 	}
 }

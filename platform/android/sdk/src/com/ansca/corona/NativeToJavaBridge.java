@@ -1216,7 +1216,7 @@ public class NativeToJavaBridge {
 	 * Warning: User must define: android.permission.WRITE_EXTERNAL_STORAGE
 	 * 
 	 */
-	protected static boolean callSaveBitmap( CoronaRuntime runtime, int[] pixels, int width, int height, int quality, String filePathName )
+	protected static boolean callSaveBitmap( CoronaRuntime runtime, int[] pixels, int width, int height, int quality, String filePathName, String imageFormat)
 	{
 		// Validate.
 		if (runtime.getController() == null) {
@@ -1258,7 +1258,7 @@ public class NativeToJavaBridge {
 		}
 		
 		SaveBitmapRequestPermissionsResultHandler resultHandler = new SaveBitmapRequestPermissionsResultHandler(
-			runtime, bitmap, quality, filePathName, addToPhotoLibrary);
+			runtime, bitmap, quality, filePathName, imageFormat, addToPhotoLibrary);
 		return resultHandler.handleSaveMedia();
 	}
 
@@ -1330,15 +1330,17 @@ public class NativeToJavaBridge {
 		private Bitmap fBitmap;
 		private int fQuality;
 		private String fFilePathName;
+		private String fImageFormat;
 		private boolean fAddToPhotoLibrary;
 
 		public SaveBitmapRequestPermissionsResultHandler(
-			CoronaRuntime runtime, Bitmap bitmap, int quality, String filePathName, boolean addToPhotoLibrary) {
+			CoronaRuntime runtime, Bitmap bitmap, int quality, String filePathName, String imageFormat, boolean addToPhotoLibrary) {
 			super(runtime);
 
 			fBitmap = bitmap;
 			fQuality = quality;
 			fFilePathName = filePathName;
+			fImageFormat = imageFormat;
 			fAddToPhotoLibrary = addToPhotoLibrary;
 		}
 
@@ -1382,7 +1384,7 @@ public class NativeToJavaBridge {
 
 		@Override
 		public boolean executeSaveMedia() {
-			boolean wasSaved = fCoronaRuntime.getController().saveBitmap(fBitmap, fQuality, fFilePathName);
+			boolean wasSaved = fCoronaRuntime.getController().saveBitmap(fBitmap, fQuality, fFilePathName, fImageFormat);
 			if (wasSaved && fAddToPhotoLibrary) {
 				fCoronaRuntime.getController().addImageFileToPhotoGallery(fFilePathName);
 			}
@@ -1733,7 +1735,12 @@ public class NativeToJavaBridge {
 
 	protected static void callShowImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath)
 	{
-		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath);
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, 1);
+	}
+
+	protected static void callShowMultiImagePicker(CoronaRuntime runtime, int imageSourceType, String destinationFilePath, int maxSelection)
+	{
+		runtime.getController().showImagePickerWindow(imageSourceType, destinationFilePath, maxSelection);
 	}
 
 	protected static void callShowVideoPicker(CoronaRuntime runtime, int videoSourceType, int maxTime, int quality)
@@ -2145,8 +2152,12 @@ public class NativeToJavaBridge {
 			valuesPushed = 1;
 		}
 		else if (key.equals("darkMode")) {
-			int currentNightMode = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-			luaState.pushBoolean(currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+			try {
+				int currentNightMode = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+				luaState.pushBoolean(currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+			} catch(Exception ex) {
+				luaState.pushBoolean(false);
+			}
 			valuesPushed = 1;
 		}
 		else if (key.equals("hasSoftwareKeys")) {
@@ -2622,6 +2633,10 @@ public class NativeToJavaBridge {
 
 	protected static void callWebViewRequestDeleteCookies(int id, CoronaRuntime runtime) {
 		runtime.getViewManager().requestWebViewDeleteCookies(id);
+	}
+
+	protected static void callWebViewInjectJS( CoronaRuntime runtime, int id, String jsCode ) {
+		runtime.getViewManager().requestWebViewInjectJS(id, jsCode);
 	}
 
 	protected static void callVideoViewCreate(CoronaRuntime runtime, int id, int left, int top, int width, int height)

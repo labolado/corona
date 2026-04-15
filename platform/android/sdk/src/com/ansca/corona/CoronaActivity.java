@@ -1783,32 +1783,36 @@ public class CoronaActivity extends Activity {
 	 */
 	@Override
 	protected void onDestroy() {
-		// Clear all cached photos.
-		// TODO: Photos should be stored under CoronaEnvironment.getInternalTemporaryDirectory()
-		//       which will be automatically cleared everytime a new activity gets launched.
-		CameraActivity.clearCachedPhotos(this);
+		try {
+			// Clear all cached photos.
+			// TODO: Photos should be stored under CoronaEnvironment.getInternalTemporaryDirectory()
+			//       which will be automatically cleared everytime a new activity gets launched.
+			CameraActivity.clearCachedPhotos(this);
 
-		// Unsubscribe from events.
-		fEventHandler.dispose();
+			// Unsubscribe from events.
+			fEventHandler.dispose();
 
-		// wait renderer thread completing
-		myGLView.requestExitAndWait();
+			// wait renderer thread completing
+			myGLView.requestExitAndWait();
 
-		// Destroy the Corona runtime and this activity's views.
-		myGLView = null;
-		myStore.disable();
+			// Destroy the Corona runtime and this activity's views.
+			myGLView = null;
+			myStore.disable();
 
-		fSplashView = null;
+			fSplashView = null;
 
-		fCoronaRuntime.dispose();
-		fCoronaRuntime = null;
+			fCoronaRuntime.dispose();
+			fCoronaRuntime = null;
 
-		// Remove this activity's reference from the CoronaEnvironment last in case the above
-		// destroy methods require access to this activity.
-		CoronaEnvironment.setCoronaActivity(null);
+			// Remove this activity's reference from the CoronaEnvironment last in case the above
+			// destroy methods require access to this activity.
+			CoronaEnvironment.setCoronaActivity(null);
 
-		// Destroy this activity.
-		super.onDestroy();
+			// Destroy this activity.
+			super.onDestroy();
+		} catch(Exception ex) {
+			Log.e("Corona", "ERROR: Failed to destroy activity: " + ex.toString());
+		}
 	}
 
 	/**
@@ -2286,14 +2290,17 @@ public class CoronaActivity extends Activity {
 	 * @param destinationFilePath The path\file name to copy the selected photo to. Can be set null.
 	 */
 	// TODO: Have this convert the image to the proper format per this bug: http://bugs.coronalabs.com/default.asp?45777
-	void showSelectImageWindowUsing(String destinationFilePath) {
+	void showSelectImageWindowUsing(String destinationFilePath, int maxSelection) {
 		// Set up the activity result handler.
 		SelectImageActivityResultHandler handler = new SelectImageActivityResultHandler(fCoronaRuntime);
 		handler.setDestinationFilePath(destinationFilePath);
+		handler.setMaxSelection(maxSelection);
 		int requestCode = registerActivityResultHandler(handler);
 
 		// Display the photo selection window.
 		android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+		intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, maxSelection > 1);
+		intent.addCategory(Intent.CATEGORY_OPENABLE);
 		intent.setType("image/*");
 		intent = android.content.Intent.createChooser(intent, "");
 		startActivityForResult(intent, requestCode);
@@ -2362,12 +2369,15 @@ public class CoronaActivity extends Activity {
 		/** The path and file name to save the selected image to. */
 		private String fDestinationFilePath;
 
+		private int fMaxSelection;
+
 		private CoronaRuntime fCoronaRuntime;
 
 		/** Creates a new activity result handler. */
 		public SelectMediaActivityResultHandler(CoronaRuntime runtime, String extension, String fileName) {
 			fCoronaRuntime = runtime;
 			fDestinationFilePath = null;
+			fMaxSelection = 1;
 			fDefaultExtention = extension;
 			fGenericFileName = fileName + " %d";
 		}
@@ -2380,6 +2390,10 @@ public class CoronaActivity extends Activity {
 		 */
 		public void setDestinationFilePath(String filePath) {
 			fDestinationFilePath = filePath;
+		}
+
+		public void setMaxSelection(int value) {
+			fMaxSelection = value;
 		}
 
 		/**
@@ -2397,28 +2411,47 @@ public class CoronaActivity extends Activity {
 			activity.unregisterActivityResultHandler(this);
 
 			// Fetch the selected photo's URI.
-			android.net.Uri uri = null;
+			// android.net.Uri uri = null;
+			java.util.ArrayList<android.net.Uri> selectUris = null;
 			if (data != null) {
-				uri = data.getData();
+				// uri = data.getData();
+				selectUris = new java.util.ArrayList<android.net.Uri>();
+				if (data.getClipData() != null) {
+					for(int i = 0; i < data.getClipData().getItemCount(); i++) {
+						selectUris.add(data.getClipData().getItemAt(i).getUri());
+					}
+				} else {
+					selectUris.add(data.getData());
+				}
 			}
-			final android.net.Uri finalUri = uri;
+			// final android.net.Uri finalUri = uri;
+			final java.util.ArrayList<android.net.Uri> finalSelectUris = selectUris;
 			// Fetch the destination file path, if provided.
 			java.io.File destinationFile = null;
+			String filePathWithoutExtension = null;
+			String ext = null;
 			if ((fDestinationFilePath != null) && (fDestinationFilePath.length() > 0)) {
 				destinationFile = new java.io.File(fDestinationFilePath);
+				int lastIndexOfDot = fDestinationFilePath.lastIndexOf(".");
+				filePathWithoutExtension = fDestinationFilePath.substring(0, lastIndexOfDot);
+				ext = fDestinationFilePath.substring(lastIndexOfDot);
 			}
 			final java.io.File finalDestinationFile = destinationFile;
+			final String finalDestFilePathWithoutExt = filePathWithoutExtension;
+			final String finalExt = ext;
+			final int finalMaxSelection = fMaxSelection;
 			fDestinationFilePath = null;
 
 			// Do not continue if a photo was not selected.
-			if ((resultCode != RESULT_OK) || (finalUri == null)) {
+			if ((resultCode != RESULT_OK) || (selectUris == null)) {
 				// Sending an empty/null string indicates that the user canceled out.
 				if (fCoronaRuntime != null) {
 					// A duration and size of -1 will result in nil being pushed to lua
-					fCoronaRuntime.getTaskDispatcher().send(this.generateEvent(null, -1, -1));
+					fCoronaRuntime.getTaskDispatcher().send(this.generateEvent(null, -1, -1, 0));
 				}
 				return;
 			}
+
 
 			// Acquire the selected photo asynchronously.
 			Thread asyncOperation = new Thread(new Runnable() {
@@ -2434,78 +2467,92 @@ public class CoronaActivity extends Activity {
 					com.ansca.corona.storage.FileServices fileServices;
 					fileServices = new com.ansca.corona.storage.FileServices(context);
 
-					// Fetch the selected image's local file path.
-					java.io.File sourceMediaFile = null;
-					String sourceMediaExtension = null;
+					String firstSelectedMediaFilePath = null;
 					long fileSize = -1;
-					boolean isContentUri = false;
-					try {
-						String scheme = finalUri.getScheme();
-						if (android.content.ContentResolver.SCHEME_FILE.equals(scheme)) {
-							sourceMediaFile = new java.io.File(finalUri.getPath());
-							if (sourceMediaFile.exists()) {
-								fileSize = sourceMediaFile.length();
+					int multipleFilesCount = finalSelectUris.size();
+					multipleFilesCount = multipleFilesCount < finalMaxSelection ? multipleFilesCount : finalMaxSelection;
+					for (int i = 0; i < multipleFilesCount; i++) {
+					    android.net.Uri finalUri = finalSelectUris.get(i);
+						// Fetch the selected image's local file path.
+						java.io.File sourceMediaFile = null;
+						String sourceMediaExtension = null;
+						boolean isContentUri = false;
+						try {
+							String scheme = finalUri.getScheme();
+							if (android.content.ContentResolver.SCHEME_FILE.equals(scheme)) {
+								sourceMediaFile = new java.io.File(finalUri.getPath());
+								if (sourceMediaFile.exists()) {
+									fileSize = sourceMediaFile.length();
+								}
+							}
+							else if (android.content.ContentResolver.SCHEME_CONTENT.equals(scheme)) {
+								isContentUri = true;
+								String[] filePathColumn = getColumns();
+								android.database.Cursor cursor = context.getContentResolver().query(
+										finalUri, filePathColumn, null, null, null);
+								cursor.moveToFirst();
+								int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+								String filePath = cursor.getString(columnIndex);
+
+								int columnIndex1 = cursor.getColumnIndex(filePathColumn[1]);
+								fileSize = cursor.getLong(columnIndex1);
+								cursor.close();
+								sourceMediaFile = new java.io.File(filePath);
 							}
 						}
-						else if (android.content.ContentResolver.SCHEME_CONTENT.equals(scheme)) {
-							isContentUri = true;
-							String[] filePathColumn = getColumns();
-							android.database.Cursor cursor = context.getContentResolver().query(
-									finalUri, filePathColumn, null, null, null);
-							cursor.moveToFirst();
-							int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-							String filePath = cursor.getString(columnIndex);
+						catch (Exception ex) { }
 
-							int columnIndex1 = cursor.getColumnIndex(filePathColumn[1]);
-							fileSize = cursor.getLong(columnIndex1);
-							cursor.close();
-							sourceMediaFile = new java.io.File(filePath);
-						}
-					}
-					catch (Exception ex) { }
-
-					if (sourceMediaFile != null) {
-						sourceMediaExtension = fileServices.getExtensionFrom(sourceMediaFile);
-						if (sourceMediaFile.exists() == false) {
-							sourceMediaFile = null;
-						}
-					}
-
-					// Copy the source image file, if necessary.
-					String selectedMediaFilePath = "";
-					if ((sourceMediaFile != null) && sourceMediaFile.exists()) {
-						// Copy the local file if a destination path was provided.
-						if (finalDestinationFile != null) {
-							boolean wasCopied = fileServices.copyFile(sourceMediaFile, finalDestinationFile);
-							if (wasCopied) {
-								selectedMediaFilePath = finalDestinationFile.getAbsolutePath();
+						if (sourceMediaFile != null) {
+							sourceMediaExtension = fileServices.getExtensionFrom(sourceMediaFile);
+							if (sourceMediaFile.exists() == false) {
+								sourceMediaFile = null;
 							}
 						}
-						else {
-							selectedMediaFilePath = sourceMediaFile.getAbsolutePath();
-						}
-					}
-					else if (isContentUri) {
-						String extension = fDefaultExtention;
-						if (sourceMediaExtension != null) {
-							extension = sourceMediaExtension;
+
+						java.io.File currentDestinationFile = finalDestinationFile;
+						if (i > 0 && finalDestinationFile != null) {
+							String currentPath = String.format("%s_%d%s", finalDestFilePathWithoutExt, i + 1, finalExt);
+							currentDestinationFile = new java.io.File(currentPath);
 						}
 
-						selectedMediaFilePath = handleContentUri(finalUri, finalDestinationFile, context, extension);
-					}
+						// Copy the source image file, if necessary.
+						String selectedMediaFilePath = "";
+						if ((sourceMediaFile != null) && sourceMediaFile.exists()) {
+							// Copy the local file if a destination path was provided.
+							if (currentDestinationFile != null) {
+								boolean wasCopied = fileServices.copyFile(sourceMediaFile, currentDestinationFile);
+								if (wasCopied) {
+									selectedMediaFilePath = currentDestinationFile.getAbsolutePath();
+								}
+							}
+							else {
+								selectedMediaFilePath = sourceMediaFile.getAbsolutePath();
+							}
+						}
+						else if (isContentUri) {
+							String extension = fDefaultExtention;
+							if (sourceMediaExtension != null) {
+								extension = sourceMediaExtension;
+							}
 
+							selectedMediaFilePath = handleContentUri(finalUri, currentDestinationFile, context, extension);
+						}
+						if (firstSelectedMediaFilePath == null) {
+							firstSelectedMediaFilePath = selectedMediaFilePath;
+						}
+					}
 					// Send the result to the Lua listener.
 					// Sending an empty/null string indicates that the user canceled out.
 					if (fCoronaRuntime != null) {
-						int duration = getDurationOfVideo(selectedMediaFilePath);
-						fCoronaRuntime.getTaskDispatcher().send(generateEvent(selectedMediaFilePath, duration, fileSize));
+						int duration = getDurationOfVideo(firstSelectedMediaFilePath);
+						fCoronaRuntime.getTaskDispatcher().send(generateEvent(firstSelectedMediaFilePath, duration, fileSize, multipleFilesCount));
 					}
 				}
 			});
 			asyncOperation.start();
 		}
 
-		abstract protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size);
+		abstract protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size, int multipleFilesCount);
 
 		/**
 		 * Get the columns to get if the returned Uri is a content scheme
@@ -2531,8 +2578,8 @@ public class CoronaActivity extends Activity {
 		}
 
 		@Override
-		protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size) {
-			return new com.ansca.corona.events.ImagePickerTask(fileName);
+		protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size, int multipleFilesCount) {
+			return new com.ansca.corona.events.ImagePickerTask(fileName, multipleFilesCount);
 		}
 
 		@Override
@@ -2582,7 +2629,7 @@ public class CoronaActivity extends Activity {
 		}
 
 		@Override
-		protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size) {
+		protected com.ansca.corona.events.MediaPickerTask generateEvent(String fileName, int duration, long size, int multipleFilesCount) {
 			return new com.ansca.corona.events.VideoPickerTask(fileName, duration, size);
 		}
 
@@ -2686,7 +2733,7 @@ public class CoronaActivity extends Activity {
 				return;
 			}
 
-			activity.showSelectImageWindowUsing(getDestinationFilePath());
+			activity.showSelectImageWindowUsing(getDestinationFilePath(), 1);
 		}
 
 		@Override

@@ -1049,11 +1049,13 @@ static const char kPivotJointType[] = "pivot";
 static const char kPistonJointType[] = "piston";
 static const char kFrictionJointType[] = "friction";
 static const char kWeldJointType[] = "weld"; // note: has no type-specific methods
+static const char kFakeJointType[] = "fake";
 static const char kWheelJointType[] = "wheel"; // combines a piston and a pivot joint, like a wheel on a shock absorber
 static const char kPulleyJointType[] = "pulley";
 static const char kTouchJointType[] = "touch";
 static const char kGearJointType[] = "gear";
 static const char kRopeJointType[] = "rope";
+static const char kMotorJointType[] = "motor";
 
 /*
 static b2JointType
@@ -1219,6 +1221,11 @@ newJoint( lua_State *L )
 			b2Vec2 point2( qx, qy );
 
 			jointDef.Initialize( body1, body2, point1, point2 );
+			if ( lua_isboolean( L, 8 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 8 );
+			}
+			// CoronaLuaLog(L, "WARNING: distance joint collideConnected = %d!", lua_gettop(L));
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1236,6 +1243,26 @@ newJoint( lua_State *L )
 			b2Vec2 point1( px, py );
 
 			jointDef.Initialize( body1, body2, point1 );
+			if ( lua_isboolean( L, 6 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 6 );
+			}
+
+			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
+		}
+
+		else if ( strcmp( kMotorJointType, jointType ) == 0 )
+		{
+			b2Body *body1 = e1->GetBody();
+			b2Body *body2 = e2->GetBody();
+
+			b2MotorJointDef jointDef;
+
+			jointDef.Initialize( body1, body2 );
+			if ( lua_isboolean( L, 4 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 4 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1259,6 +1286,10 @@ newJoint( lua_State *L )
 			axis.Normalize();
 
 			jointDef.Initialize( body1, body2, anchor, axis );
+			if ( lua_isboolean( L, 8 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 8 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1276,6 +1307,10 @@ newJoint( lua_State *L )
 			b2Vec2 point1( px, py );
 
 			jointDef.Initialize( body1, body2, point1 );
+			if ( lua_isboolean( L, 6 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 6 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1293,6 +1328,26 @@ newJoint( lua_State *L )
 			b2Vec2 point1( px, py );
 
 			jointDef.Initialize( body1, body2, point1 );
+			if ( lua_isboolean( L, 6 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 6 );
+			}
+
+			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
+		}
+
+		else if ( strcmp( kFakeJointType, jointType ) == 0 )
+		{
+			b2Body *body1 = e1->GetBody();
+			b2Body *body2 = e2->GetBody();
+
+			b2FakeJointDef jointDef;
+
+			jointDef.Initialize( body1, body2 );
+			if ( lua_isboolean( L, 4 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 6 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1305,21 +1360,22 @@ newJoint( lua_State *L )
 			Real px = luaL_torealphysics( L, 4, scale );
 			Real py = luaL_torealphysics( L, 5, scale );
 
-			Real qx = luaL_torealphysics( L, 6, scale );
-			Real qy = luaL_torealphysics( L, 7, scale );
+			// Don't scale the axis vector
+			Real qx = luaL_toreal( L, 6 );
+			Real qy = luaL_toreal( L, 7 );
 
 			// TODO
 			b2WheelJointDef jointDef;
 
 			b2Vec2 point( px, py );
 			b2Vec2 axis( qx, qy );
-			
-			if(!lua_isnil(L, 8) && lua_isboolean(L, 8) && lua_toboolean(L, 8))
-			{ // normalize Axis
-				axis.Normalize();
-			}
+			axis.Normalize();
 
 			jointDef.Initialize( body1, body2, point, axis );
+			if ( lua_isboolean( L, 8 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 8 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1356,6 +1412,10 @@ newJoint( lua_State *L )
 			b2Vec2 bodyAnchor2 = b2Vec2( sx, sy );
 
 			jointDef.Initialize( body1, body2, fixedAnchor1, fixedAnchor2, bodyAnchor1, bodyAnchor2, ratio );
+			if ( lua_isboolean( L, 13 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 13 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1397,6 +1457,10 @@ newJoint( lua_State *L )
 			jointDef.joint2 = PhysicsJoint::GetJoint( L, 5 );
 
 			jointDef.ratio = luaL_toreal( L, 6 );
+			if ( lua_isboolean( L, 7 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 7 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1421,6 +1485,10 @@ newJoint( lua_State *L )
 			jointDef.localAnchorB = b2Vec2( bx, by );
 
 			jointDef.maxLength = (body1->GetPosition() - body2->GetPosition()).Length();
+			if ( lua_isboolean( L, 8 ) )
+			{
+				jointDef.collideConnected = lua_toboolean( L, 8 );
+			}
 
 			result = CreateAndPushJoint( luaStateHandle, physics, jointDef );
 		}
@@ -1919,8 +1987,74 @@ InitializeFixtureUsing_Radius( lua_State *L,
 			radius = Rtt_REAL_16TH;
 		}
 		circleDef.m_radius = Rtt_RealToFloat( radius );
-		
+
 		circleDef.m_p = ( center_in_pixels * meter_per_pixels_scale );
+
+		InitializeFixtureFromLua( L,
+									fixtureDef,
+									&circleDef,
+									lua_arg_index );
+
+		_FixtureCreator( body,
+							&fixtureDef,
+							fixtureIndex );
+
+		lua_pop( L, 1 );
+		return true;
+	}
+
+	lua_pop( L, 1 );
+	return false;
+}
+
+static bool
+InitializeFixtureUsing_Circle( lua_State *L,
+							int lua_arg_index,
+							int &fixtureIndex,
+							b2Vec2 &center_in_pixels,
+							DisplayObject *display_object,
+							b2Body *body,
+							float meter_per_pixels_scale )
+{
+	lua_getfield( L, lua_arg_index, "circle" );
+	if ( lua_istable( L, -1 ) )
+	{
+		DEBUG_PRINT( "%s\n", __FUNCTION__ );
+
+		Real pixels_per_meter_scale = ( 1.0f / meter_per_pixels_scale );
+		bool hasCenter = true;
+		//float angle = 0.f;
+
+		lua_getfield( L, -1, "x" );
+		hasCenter &= ( lua_type( L, -1 ) == LUA_TNUMBER );
+		Real x = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "y" );
+		hasCenter &= ( lua_type( L, -1 ) == LUA_TNUMBER );
+		Real y = luaL_torealphysics( L, -1, pixels_per_meter_scale );
+		lua_pop( L, 1 );
+
+		lua_getfield( L, -1, "radius" );
+		Real radius = Rtt_FloatToReal( lua_tonumber( L, -1 ) );
+		radius *= meter_per_pixels_scale; // Convert to meters.
+		lua_pop( L, 1 );
+
+		b2FixtureDef fixtureDef;
+
+		if( hasCenter )
+		{
+			center_in_pixels.Set( x, y );
+		}
+
+		b2CircleShape circleDef;
+		if ( radius < Rtt_REAL_0 )
+		{
+			radius = Rtt_REAL_16TH;
+		}
+		circleDef.m_radius = Rtt_RealToFloat( radius );
+
+		circleDef.m_p.Set(center_in_pixels.x, center_in_pixels.y);
 
 		InitializeFixtureFromLua( L,
 									fixtureDef,
@@ -2163,69 +2297,6 @@ InitializeFixtureUsing_Shape( lua_State *L,
 }
 
 static bool
-InitializeFixtureUsing_Circle(lua_State* L,
-	int lua_arg_index,
-	int& fixtureIndex,
-	b2Vec2& center_in_pixels,
-	DisplayObject* display_object,
-	b2Body* body,
-	float meter_per_pixels_scale)
-{
-	lua_getfield(L, lua_arg_index, "circle");
-	if (lua_istable(L, -1))
-	{
-		DEBUG_PRINT("%s\n", __FUNCTION__);
-
-		Real pixels_per_meter_scale = (1.0f / meter_per_pixels_scale);
-
-		lua_getfield(L, -1, "radius");
-		Real radius = Rtt_FloatToReal(lua_tonumber(L, -1));
-		lua_pop(L, 1);
-
-		lua_getfield(L, -1, "x");
-		Real x = luaL_torealphysics(L, -1, pixels_per_meter_scale);
-		lua_pop(L, 1);
-
-		lua_getfield(L, -1, "y");
-		Real y = luaL_torealphysics(L, -1, pixels_per_meter_scale);
-		lua_pop(L, 1);
-
-		b2FixtureDef fixtureDef;
-
-		b2CircleShape circleDef;
-		circleDef.m_radius = Rtt_REAL_16TH; // default to 1/16th of a meter
-
-		radius *= meter_per_pixels_scale; // Convert to meters.
-
-		if (radius < Rtt_REAL_0)
-		{
-			radius = Rtt_REAL_16TH;
-		}
-
-		circleDef.m_radius = Rtt_RealToFloat(radius);
-		
-		center_in_pixels.Set(x, y);
-
-		circleDef.m_p = (center_in_pixels);
-
-		InitializeFixtureFromLua(L,
-			fixtureDef,
-			&circleDef,
-			lua_arg_index);
-
-		_FixtureCreator(body,
-			&fixtureDef,
-			fixtureIndex);
-
-		lua_pop(L, 1);
-		return true;
-	}
-
-	lua_pop(L, 1);
-	return false;
-}
-
-static bool
 add_b2Body_to_DisplayObject( lua_State *L,
 								DisplayObject *display_object,
 								int numArgs )
@@ -2253,7 +2324,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 	// might be more appropriate if we wanted fine-grained control.
 	DisplayDefaults & defaults = LuaContext::GetRuntime( L )->GetDisplay().GetDefaults();
 	bool isTrimCorrected = defaults.IsImageSheetFrameTrimCorrected();
-	
+
 	if ( isTrimCorrected && display_object->AsGroupObject() )
 	{
 		Rect bounds;
@@ -2264,7 +2335,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		center_in_pixels.x += center.x;
 		center_in_pixels.y += center.y;
 	}
-	
+
 	b2World *world = physics.GetWorld();
 	b2Body *body = CreateBody( physics, display_object );
 
@@ -2348,15 +2419,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		{
 			// Initialize the first type encountered.
 			// The order of these calls is IMPORTANT.
-			(
-				InitializeFixtureUsing_Circle(L,
-											lua_arg_index,
-											fixtureIndex,
-											center_in_pixels,
-											display_object,
-											body,
-											meter_per_pixels_scale) ||
-				InitializeFixtureUsing_Shape( L,
+			( InitializeFixtureUsing_Shape( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
@@ -2364,6 +2427,13 @@ add_b2Body_to_DisplayObject( lua_State *L,
 											body,
 											meter_per_pixels_scale ) ||
 				InitializeFixtureUsing_Box( L,
+											lua_arg_index,
+											fixtureIndex,
+											center_in_pixels,
+											display_object,
+											body,
+											meter_per_pixels_scale ) ||
+				InitializeFixtureUsing_Circle( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
@@ -2616,6 +2686,10 @@ setMKS( lua_State *L )
 		{
 			b2Settings::velocityThreshold = value;
 		}
+		else if ( Rtt_StringCompare( "linearSlop", key ) == 0 )
+		{
+			b2Settings::linearSlop = value;
+		}
 		else if ( Rtt_StringCompare( "timeToSleep", key ) == 0 )
 		{
 			b2Settings::timeToSleep = value;
@@ -2655,6 +2729,10 @@ getMKS( lua_State *L )
 	if ( Rtt_StringCompare( "velocityThreshold", key ) == 0 )
 	{
 		value = b2Settings::velocityThreshold;
+	}
+	else if ( Rtt_StringCompare( "linearSlop", key ) == 0 )
+	{
+		value = b2Settings::linearSlop;
 	}
 	else if ( Rtt_StringCompare( "timeToSleep", key ) == 0 )
 	{
@@ -2842,6 +2920,34 @@ getTimeScale( lua_State *L )
 	return 1;
 }
 
+// physics.setNumSteps( numSteps )
+// Sets numSteps of physics sumulator per time step. Default is 1
+static int
+setNumSteps( lua_State *L )
+{
+	if ( lua_isnumber( L, 1 ) )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		physics.SetNumSteps( (S32) lua_tointeger( L, 1 ) );
+	}
+	else
+	{
+		CoronaLuaError(L, "physics.setTimeScale() requires 1 parameter (number)");
+	}
+
+	return 0;
+}
+
+// physics.getNumSteps( )
+// Returns numSteps of physics sumulator per time step.
+static int
+getNumSteps( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushinteger(L, physics.GetNumSteps());
+	return 1;
+}
+
 int
 LuaLibPhysics::Open( lua_State *L )
 {
@@ -2881,6 +2987,8 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "setTimeStep", setTimeStep },
 		{ "setTimeScale", setTimeScale },
 		{ "getTimeScale", getTimeScale },
+		{ "setNumSteps", setNumSteps },
+		{ "getNumSteps", getNumSteps },
 
 		{ NULL, NULL }
 	};

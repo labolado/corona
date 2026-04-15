@@ -113,6 +113,15 @@ function copyFile(src, dst)
     end
 end
 
+local function getBuildNumber(buildRevision)
+    if type(buildRevision) == "string" then
+        local build = buildRevision:match("(%d+).?")
+        return tonumber(build)
+    else
+        return tonumber(buildRevision)
+    end
+end
+
 -- Default Plugin Collectors
 
 local PluginCollectorSolar2DDirectory =  { name = "Solar2D Free Directory"}
@@ -164,7 +173,7 @@ function PluginCollectorSolar2DDirectory:collect(destination, plugin, pluginTabl
         return "! " .. pluginObject.e
     end
 
-    local build = tonumber(params.build)
+    local build = getBuildNumber(params.build)
     local vFoundBuid, vFoundObject, vFoundBuildName
     for entryBuild, entryObject in pairs(pluginObject.v or {}) do
         local entryBuildNumber = tonumber(entryBuild:match('^%d+%.(%d+)$'))
@@ -275,7 +284,7 @@ function PluginCollectorSolar2DMarketplaceDirectory:collect(destination, plugin,
         return "! " .. pluginObject.e
     end
 
-    local build = tonumber(params.build)
+    local build = getBuildNumber(params.build)
     local vFoundBuid, vFoundObject, vFoundBuildName
     local pluginVersion = pluginObject.r
     for entryBuild, entryObject in pairs(pluginObject.v or {}) do
@@ -391,7 +400,7 @@ function PluginCollectorSolar2DMarketplaceResourceDirectory:collect(destination,
         return "! " .. pluginObject.e
     end
 
-    local build = tonumber(params.build)
+    local build = getBuildNumber(params.build)
     local vFoundBuid, vFoundObject, vFoundBuildName
     local pluginVersion = pluginObject.r
     for entryBuild, entryObject in pairs(pluginObject.v or {}) do
@@ -499,7 +508,7 @@ local function pluginLocatorFileSystemVersionized(destination, plugin, pluginTab
     if not isDir(pluginDir) then
         return "Locally: no directory " .. pluginDir
     end
-    local targetBuild = tonumber(params.build)
+    local targetBuild = getBuildNumber(params.build)
     local lastFound = -1
     local foundDir
     for file in lfs.dir(pluginDir) do
@@ -591,7 +600,7 @@ local function pluginLocatorIgnoreMissing(destination, plugin, pluginTable, plug
         return true
     end
 
-    local targetBuild = tonumber(params.build)
+    local targetBuild = getBuildNumber(params.build)
     local lastFound = -1
     local foundDir
     for file in lfs.dir(pluginDir) do

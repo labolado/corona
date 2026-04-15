@@ -55,7 +55,7 @@
 
 #define CORONA_SHELL_TRANSFORMS_METATABLE_NAME "graphics.ShellTransforms"
 
-#define ENABLE_DEBUG_PRINT	( 0 )
+#define ENABLE_DEBUG_PRINT  ( 0 )
 
 #define CORONA_SHELL_TRANSFORMS_METATABLE_NAME "graphics.ShellTransforms"
 
@@ -95,6 +95,8 @@ class GraphicsLibrary
 
     public:
         static int newMask( lua_State *L );
+        static int newHitTestOnlyMask( lua_State *L );
+        static int newHitTestOnlyMaskFromPaint( lua_State *L );
         static int newGradient( lua_State *L );
         static int newImageSheet( lua_State *L );
         static int defineEffect( lua_State *L );
@@ -146,7 +148,9 @@ GraphicsLibrary::Open( lua_State *L )
     const luaL_Reg kVTable[] =
     {
         { "newMask", newMask },
-//        { "newVertexArray", newVertexArray },
+        { "newHitTestOnlyMask", newHitTestOnlyMask },
+        { "newHitTestOnlyMaskFromPaint", newHitTestOnlyMaskFromPaint },
+//      { "newVertexArray", newVertexArray },
         { "newGradient", newGradient },
         { "newImageSheet", newImageSheet },
         { "defineEffect", defineEffect },
@@ -223,7 +227,7 @@ GraphicsLibrary::newMask( lua_State *L )
     if ( lua_isstring( L, nextArg ) )
     {
         const char *imageName = lua_tostring( L, nextArg++ );
-        
+
         MPlatform::Directory baseDir = MPlatform::kResourceDir;
         if ( lua_islightuserdata( L, nextArg ) )
         {
@@ -242,6 +246,43 @@ GraphicsLibrary::newMask( lua_State *L )
     }
 
     return result;
+}
+
+// graphics.newHitTestOnlyMask( filename [, baseDir] )
+int
+GraphicsLibrary::newHitTestOnlyMask( lua_State *L )
+{
+    int result = GraphicsLibrary::newMask( L );
+
+    if ( result )
+    {
+        lua_getfield( L, LUA_REGISTRYINDEX, BitmapMask::kHitTestOnlyTable );
+
+        if ( lua_istable( L, -1 ) )
+        {
+            lua_pushvalue( L, -2 );
+            lua_pushboolean( L, 1 );
+            lua_rawset( L, -3 );
+            lua_pop( L, 1 );
+        }
+
+        else
+        {
+            result = 0;
+        }
+    }
+
+    return result;
+}
+
+// graphics.newHitTestOnlyMaskFromPaint( [opts] )
+int
+GraphicsLibrary::newHitTestOnlyMaskFromPaint( lua_State *L )
+{
+    lua_settop( L, 0 ); // TODO: any options?
+    lua_pushliteral( L, "" );
+
+    return newHitTestOnlyMask( L );
 }
 
 // graphics.newVertexArray( x1, y1 [,x2, y2, ... ] )
@@ -306,7 +347,7 @@ GraphicsLibrary::newGradient( lua_State *L )
             lua_setfield( L, -2, "graphicsCompatibility" );
         }
     }
-    
+
     return 1;
 }
 
@@ -569,7 +610,7 @@ GraphicsLibrary::defineEffect( lua_State *L )
     Display& display = library->GetDisplay();
 
     int index = 1; // index of params
-    
+
     ShaderFactory& factory = display.GetShaderFactory();
 
     lua_pushboolean( L, factory.DefineEffect( L, index ) );
@@ -669,12 +710,12 @@ GraphicsLibrary::defineShellTransform( lua_State * L )
                 if (!lua_isnil( L, -1 ))
                 {
                     std::vector< PairWithPriority > * set;
-                    
+
                     if (0 == i)
                     {
                         set = &entry.fFindAndInsertAfter;
                     }
-                    
+
                     else
                     {
                         set = &entry.fFindAndReplace;
@@ -804,8 +845,8 @@ GraphicsLibrary::defineShellTransform( lua_State * L )
 
                     for (const PairWithPriority & pwp : entry.fFindAndReplace)
                     {
-						size_t lastPos = std::string::npos;
-						U32 repeatCount = 0, overallCount = 0;
+                        size_t lastPos = std::string::npos;
+                        U32 repeatCount = 0, overallCount = 0;
 
                         while (true)
                         {
@@ -815,30 +856,30 @@ GraphicsLibrary::defineShellTransform( lua_State * L )
                             {
                                 break;
                             }
-							
-							// Guard against getting stuck, e.g. if our substitution
-							// ens up copying or appending to the input string.
-							if (pos == lastPos)
-							{
-								++repeatCount;
-							}
-							
-							else
-							{
-								lastPos = pos;
-								repeatCount = 0;
-							}
-							
-							++overallCount;
-							
-							bool tooManyLoops = 10 == repeatCount || 100 == overallCount;
+
+                            // Guard against getting stuck, e.g. if our substitution
+                            // ens up copying or appending to the input string.
+                            if (pos == lastPos)
+                            {
+                                ++repeatCount;
+                            }
+
+                            else
+                            {
+                                lastPos = pos;
+                                repeatCount = 0;
+                            }
+
+                            ++overallCount;
+
+                            bool tooManyLoops = 10 == repeatCount || 100 == overallCount;
 
                             updated.replace( pos, pwp.fOriginal.size(), !tooManyLoops ? pwp.fModifier : "\n#error Too many loops\n" );
-							
-							if (tooManyLoops)
-							{
-								break;
-							}
+
+                            if (tooManyLoops)
+                            {
+                                break;
+                            }
                         }
                     }
 
@@ -877,10 +918,10 @@ GraphicsLibrary::defineShellTransform( lua_State * L )
 
     if (ok)
     {
-		GraphicsLibrary *library = GraphicsLibrary::ToLibrary( L );
-		ShaderFactory& factory = library->GetDisplay().GetShaderFactory();
-		
-		factory.AddExternalInfo( L, name, "shellTransform" ); // params
+        GraphicsLibrary *library = GraphicsLibrary::ToLibrary( L );
+        ShaderFactory& factory = library->GetDisplay().GetShaderFactory();
+
+        factory.AddExternalInfo( L, name, "shellTransform" ); // params
     }
 
     lua_pushboolean( L, ok ); // params[, transformations], ok
@@ -907,7 +948,7 @@ GraphicsLibrary::defineVertexExtension( lua_State *L )
         {
             name = lua_tostring( L, -1 );
         }
-        
+
         else
         {
             Rtt_TRACE_SIM( ( "WARNING: `graphics.defineVertexExtension()` has non-string name" ) );
@@ -919,192 +960,192 @@ GraphicsLibrary::defineVertexExtension( lua_State *L )
         Rtt_TRACE_SIM( ( "WARNING: `graphics.defineVertexExtension()` expected table" ) );
     }
 
-	VertexAttributeSupport support;
-	
-	library->GetDisplay().GetVertexAttributes( support );
-	
-	int instanceByID;
-	
-	if (ok)
-	{
-		lua_getfield( L, 1, "instanceByID" ); // params, name, instanceByID
+    VertexAttributeSupport support;
 
-		instanceByID = lua_toboolean( L, -1 ); // params, name
-		
-		lua_pop( L, 1 ); // 
-		
-		ok = !instanceByID || NULL != support.suffix;
+    library->GetDisplay().GetVertexAttributes( support );
 
-		if (!ok)
-		{
-			Rtt_TRACE_SIM( ( "WARNING: `instance-by-ID requested, but not supported" ) );
-		}
-	}
-	
+    int instanceByID;
+
+    if (ok)
+    {
+        lua_getfield( L, 1, "instanceByID" ); // params, name, instanceByID
+
+        instanceByID = lua_toboolean( L, -1 ); // params, name
+
+        lua_pop( L, 1 ); //
+
+        ok = !instanceByID || NULL != support.suffix;
+
+        if (!ok)
+        {
+            Rtt_TRACE_SIM( ( "WARNING: `instance-by-ID requested, but not supported" ) );
+        }
+    }
+
     if (!ok)
     {
         lua_pushboolean( L, 0 ); // params[, name], false
 
         return 1;
     }
- 
-    std::vector< CoronaVertexExtensionAttribute > attributes;	
-	U32 attribCount = 0;
+
+    std::vector< CoronaVertexExtensionAttribute > attributes;
+    U32 attribCount = 0;
 
     ok = false;
 
     for (int index = 1; ; ++index)
     {
         lua_rawgeti( L, 1, index ); // extension, entry?
-        
+
         if (lua_isnil( L, -1 ))
         {
             ok = true;
 
             break;
         }
-        
+
         else
         {
             CoronaVertexExtensionAttribute attribute = {};
-            
+
             luaL_checktype( L, -1, LUA_TTABLE );
             lua_getfield( L, -1, "name" ); // extension, entry, name
-            
+
             attribute.name = luaL_checkstring( L, -1 );
-            
+
             lua_pop( L, 1 ); // extension, entry
 
             lua_getfield( L, -1, "type" ); // extension, entry, type
-            
+
             const char * type = luaL_checkstring( L, -1 );
             const char * typeNames[] = { "byte", "float", "int", NULL };
-            
+
             attribute.type = (CoronaVertexExtensionAttributeType)luaL_checkoption( L, -1, NULL, typeNames );
-            
+
             lua_pop( L, 1 ); // extension, entry
-         
+
             lua_getfield( L, -1, "normalized" ); // extension, entry, normalized
-            
+
             attribute.normalized = lua_toboolean( L, -1 );
-            
+
             lua_pop( L, 1 ); // extension, entry
-            
+
             lua_getfield( L, -1, "componentCount" ); // extension, entry, componentCount
-            
+
             attribute.components = luaL_optinteger( L, -1, 1 );
-            
+
             if (attribute.components < 1 || attribute.components > 4)
             {
                 Rtt_TRACE_SIM( ( "WARNING: attribute %s has invalid component count %i", attribute.name, attribute.components ) );
-                
+
                 break;
             }
-            
+
             lua_pop( L, 1 ); // extension, entry
-                      
+
             lua_getfield( L, -1, "instancesToReplicate" ); // extension, entry, divisor
 
             int instancesToReplicate = luaL_optinteger( L, -1, 0 );
-            
+
             lua_pop( L, 1 ); // extension, entry
-            
+
             lua_getfield( L, -1, "windowSize" ); // extension, entry, windowSize
-            
+
             int windowSize = luaL_optinteger( L, -1, 0 );
-            
+
             lua_pop( L, 1 ); // extension, entry
-            
+
             if (instancesToReplicate < 0 || windowSize < 0)
             {
                 Rtt_TRACE_SIM( ( "WARNING: `%s` < 0", instancesToReplicate < 0 ? "instancesToReplicate" : "windowSize" ) );
-                
+
                 break;
             }
 
             FormatExtensionList::Group dummyGroup = {};
-            
+
             dummyGroup.divisor = instancesToReplicate;
-                        
+
             if (windowSize)
             {
                 attribCount += windowSize;
-                
+
                 attribute.windowSize = windowSize;
             }
-            
+
             else
             {
                 ++attribCount;
             }
-            
+
             if (attribCount > support.maxCount)
             {
                 Rtt_TRACE_SIM( ( "WARNING: iteration %i, attribute count is now %i (maximum %i)", index + 1, attribCount, support.maxCount ) );
-                
+
                 break;
             }
-            
+
             if (!dummyGroup.IsInstanceRate())
             {
                 lua_getfield( L, -1, "instanced" ); // extension, entry, instanced
-                
+
                 if (lua_toboolean( L, -1 ) || windowSize)
                 {
                     dummyGroup.divisor = 1;
                 }
-                
+
                 else if (LUA_TBOOLEAN == lua_type( L, -1 )) // vs. nil
                 {
                     Rtt_TRACE_SIM( ( "WARNING: assigned `false` to `instanced` (no-op)" ) );
                 }
-                
+
                 lua_pop( L, 1 ); // extension, entry
             }
-            
+
             if (dummyGroup.IsInstanceRate())
             {
                 if (dummyGroup.NeedsDivisor() && !support.hasDivisors)
                 {
                     Rtt_TRACE_SIM( ( "WARNING: %i divisor requested, but not supported", dummyGroup.divisor ) );
-                    
+
                     break;
                 }
-                
+
                 else if (!support.hasPerInstance)
                 {
                     Rtt_TRACE_SIM( ( "WARNING: instance-rate attribute requested, but not supported" ) );
-                    
+
                     break;
                 }
             }
-            
+
             attribute.instancesToReplicate = dummyGroup.divisor;
-            
+
             attributes.push_back( attribute );
-            
+
             lua_pop( L, 1 ); // params
         }
     }
-    
+
     lua_pop( L, 1 ); // params
 
     if (ok && attributes.empty())
     {
         Rtt_TRACE_SIM( ( "WARNING: no attributes found in definition" ) );
-        
+
         ok = false;
     }
-    
+
     if (ok)
     {
         CoronaVertexExtension extension;
-        
+
         extension.size = sizeof( CoronaVertexExtension );
         extension.attributes = attributes.data();
         extension.count = attributes.size();
-		extension.instanceByID = instanceByID;
-        
+        extension.instanceByID = instanceByID;
+
         ok = CoronaGeometryRegisterVertexExtension( L, name, &extension );
     }
 
@@ -1207,7 +1248,7 @@ GraphicsLibrary::newOutline( lua_State *L )
     int total_w = 0;
     int total_h = 0;
     BitmapPaint *paint = NULL;
-    
+
     if( lua_isstring( L, 2 ) )
     {
         // imageFileName is mandatory.
@@ -1233,14 +1274,14 @@ GraphicsLibrary::newOutline( lua_State *L )
         Runtime& runtime = display.GetRuntime();
 
         paint = BitmapPaint::NewBitmap( runtime, imageFileName, baseDir, PlatformBitmap::kIsNearestAvailablePixelDensity );
-      
-		    // eg. Image not found
-		    if ( ! Rtt_VERIFY( paint ) )
-		    {
-			    // Nothing to do.
-			    return 0;
-		    }
-      
+
+            // eg. Image not found
+            if ( ! Rtt_VERIFY( paint ) )
+            {
+                // Nothing to do.
+                return 0;
+            }
+
         platform_bitmap = paint->GetBitmap();
 
         // Crop.
@@ -1315,20 +1356,24 @@ GraphicsLibrary::newOutline( lua_State *L )
 
     const unsigned char *raw_bitmap_buffer = static_cast< const unsigned char * >( platform_bitmap->GetBits( NULL ) );
 
-	if ( ! Rtt_VERIFY( raw_bitmap_buffer ) )
-	{
-		// This is NECESSARY because of the platform_bitmap->GetBits() above.
-		platform_bitmap->FreeBits();
-		Rtt_DELETE(paint);
-		return 0;
-	}
+    if ( ! Rtt_VERIFY( raw_bitmap_buffer ) )
+    {
+        // This is NECESSARY because of the platform_bitmap->GetBits() above.
+        platform_bitmap->FreeBits();
+        Rtt_DELETE(paint);
+        return 0;
+    }
 
-	int alphaIndex;
-	PlatformBitmap::Format format = platform_bitmap->GetFormat();
-	if ( ! PlatformBitmap::GetColorByteIndexesFor( format, & alphaIndex, NULL, NULL, NULL ) )
-	{
-		alphaIndex = 0;
-	}
+    int alphaIndex;
+    // No effect when platform_bitmap is not an "ExternalBitmap"
+    if ( ! platform_bitmap->GetColorByteIndexesExternal( & alphaIndex, NULL, NULL, NULL ) )
+    {
+        PlatformBitmap::Format format = platform_bitmap->GetFormat();
+        if ( ! PlatformBitmap::GetColorByteIndexesFor( format, & alphaIndex, NULL, NULL, NULL ) )
+        {
+            alphaIndex = 0;
+        }
+    }
 
 #ifdef Rtt_ANDROID_ENV
     // TODO: AndroidBitmap::GetFormat() is returning the wrong format,
@@ -1352,7 +1397,7 @@ GraphicsLibrary::newOutline( lua_State *L )
     // This is NECESSARY because of the platform_bitmap->GetBits() above.
     platform_bitmap->FreeBits();
     Rtt_DELETE(paint);
-    
+
 #    if ENABLE_DEBUG_PRINT
 
         Rtt_Log( "%s\ntexture size : %d x %d\ncoarseness_in_texels : %f\nshape_outline_in_texels.size() : %d\n",
@@ -1392,17 +1437,17 @@ GraphicsLibrary::newOutline( lua_State *L )
 SharedPtr<TextureResource> CreateResourceBitmapFromTable(Rtt::TextureFactory &factory, lua_State *L, int index)
 {
     SharedPtr<TextureResource> ret;
-    
+
     const U32 flags = PlatformBitmap::kIsNearestAvailablePixelDensity | PlatformBitmap::kIsBitsFullResolution;
-    
+
     lua_getfield( L, index, "baseDir" );
     MPlatform::Directory baseDir = LuaLibSystem::ToDirectory( L, -1, MPlatform::kResourceDir );
     lua_pop( L, 1 );
-    
+
     lua_getfield( L, index, "isMask" );
     bool isMask = lua_isboolean( L, -1 ) && lua_toboolean( L, -1 );
     lua_pop( L, 1 );
-    
+
     lua_getfield( L, index, "filename" );
     const char *filename = luaL_checkstring( L, -1);
     if( filename )
@@ -1419,7 +1464,7 @@ SharedPtr<TextureResource> CreateResourceBitmapFromTable(Rtt::TextureFactory &fa
         CoronaLuaError( L, "display.newTexture() requires a valid filename" );
     }
     lua_pop( L, 1 );
-    
+
     return ret;
 }
 
@@ -1427,41 +1472,41 @@ SharedPtr<TextureResource> CreateResourceBitmapFromTable(Rtt::TextureFactory &fa
 SharedPtr<TextureResource> CreateResourceCanvasFromTable(Rtt::TextureFactory &factory, lua_State *L, int index, bool isCanvas)
 {
     Display &display = factory.GetDisplay();
-    
+
     static unsigned int sNextRenderTextureID = 1;
     SharedPtr<TextureResource> ret;
-    
+
     Real width = -1, height = -1;
     int pixelWidth = -1, pixelHeight = -1;
-    
+
     lua_getfield( L, index, "width" );
     if (lua_isnumber( L, -1 ))
     {
         width = lua_tonumber( L, -1 );
     }
     lua_pop( L, 1 );
-    
+
     lua_getfield( L, index, "height" );
     if (lua_isnumber( L, -1 ))
     {
         height = lua_tonumber( L, -1 );
     }
     lua_pop( L, 1 );
-    
+
     lua_getfield( L, index, "pixelWidth" );
     if (lua_isnumber( L, -1 ))
     {
         pixelWidth = (int)lua_tointeger( L, -1 );
     }
     lua_pop( L, 1 );
-    
+
     lua_getfield( L, index, "pixelHeight" );
     if (lua_isnumber( L, -1 ))
     {
         pixelHeight = (int)lua_tointeger( L, -1 );
     }
     lua_pop( L, 1 );
-    
+
     if ( width <= 0 && pixelWidth > 0 )
     {
         width = pixelWidth;
@@ -1473,14 +1518,14 @@ SharedPtr<TextureResource> CreateResourceCanvasFromTable(Rtt::TextureFactory &fa
 
     if( width > 0 && height > 0 )
     {
-        
+
         if (pixelWidth <= 0 || pixelHeight <= 0)
         {
             S32 unused = 0, oldPixelWidth = pixelWidth, oldPixelHeight = pixelHeight;
             pixelWidth = Rtt_RealToInt( width );
             pixelHeight = Rtt_RealToInt( height );
             display.ContentToScreen( unused, unused, pixelWidth, pixelHeight );
-            
+
             // if one of the values was specified, use that instead:
             if (oldPixelWidth > 0)
             {
@@ -1491,7 +1536,7 @@ SharedPtr<TextureResource> CreateResourceCanvasFromTable(Rtt::TextureFactory &fa
                 pixelHeight = oldPixelHeight;
             }
         }
-        
+
         int texSize = display.GetMaxTextureSize();
         pixelWidth = Min(texSize, pixelWidth);
         pixelHeight = Min(texSize, pixelHeight);
@@ -1510,191 +1555,191 @@ SharedPtr<TextureResource> CreateResourceCanvasFromTable(Rtt::TextureFactory &fa
     {
         CoronaLuaError( L, "display.newTexture() requires valid width and height" );
     }
-    
+
     return ret;
 }
 
 //helper function to parse lua table to create capture resource
 SharedPtr<TextureResource> CreateResourceCaptureFromTable(Rtt::TextureFactory &factory, lua_State *L, int index)
 {
-	Display &display = factory.GetDisplay();
-	
-	static unsigned int sNextRenderTextureID = 1;
-	SharedPtr<TextureResource> ret;
-	
-	Real width = -1, height = -1;
-	
-	lua_getfield( L, index, "width" );
-	if (lua_isnumber( L, -1 ))
-	{
-		width = lua_tonumber( L, -1 );
-	}
-	lua_pop( L, 1 );
-	
-	lua_getfield( L, index, "height" );
-	if (lua_isnumber( L, -1 ))
-	{
-		height = lua_tonumber( L, -1 );
-	}
-	lua_pop( L, 1 );
-	
-	if( width > 0 && height > 0 )
-	{
-		S32 unused = 0; // n.b. ContentToScreen(x,y) NOT okay for dimensions!
-		
-		int pixelWidth = Rtt_RealToInt( width );
-		int pixelHeight = Rtt_RealToInt( height );
-		display.ContentToScreen( unused, unused, pixelWidth, pixelHeight );
+    Display &display = factory.GetDisplay();
 
-		pixelWidth *= (float)display.WindowWidth() / display.ScreenWidth();
-		pixelHeight *= (float)display.WindowHeight() / display.ScreenHeight();
-	
-		int texSize = display.GetMaxTextureSize();
-		pixelWidth = Min(texSize, pixelWidth);
-		pixelHeight = Min(texSize, pixelHeight);
-		
-		char filename[30];
-		snprintf(filename, 30, "corona://FBOcap_%u", sNextRenderTextureID++);
+    static unsigned int sNextRenderTextureID = 1;
+    SharedPtr<TextureResource> ret;
 
-		SharedPtr<TextureResource> texSource = factory.FindOrCreateCapture( filename, width, height, pixelWidth, pixelHeight );
-		if( texSource.NotNull() )
-		{
-			factory.Retain(texSource);
-			ret = texSource;
-		}
-	}
-	else
-	{
-		CoronaLuaError( L, "display.newTexture() requires valid width and height" );
-	}
-	
-	return ret;
+    Real width = -1, height = -1;
+
+    lua_getfield( L, index, "width" );
+    if (lua_isnumber( L, -1 ))
+    {
+        width = lua_tonumber( L, -1 );
+    }
+    lua_pop( L, 1 );
+
+    lua_getfield( L, index, "height" );
+    if (lua_isnumber( L, -1 ))
+    {
+        height = lua_tonumber( L, -1 );
+    }
+    lua_pop( L, 1 );
+
+    if( width > 0 && height > 0 )
+    {
+        S32 unused = 0; // n.b. ContentToScreen(x,y) NOT okay for dimensions!
+
+        int pixelWidth = Rtt_RealToInt( width );
+        int pixelHeight = Rtt_RealToInt( height );
+        display.ContentToScreen( unused, unused, pixelWidth, pixelHeight );
+
+        pixelWidth *= (float)display.WindowWidth() / display.ScreenWidth();
+        pixelHeight *= (float)display.WindowHeight() / display.ScreenHeight();
+
+        int texSize = display.GetMaxTextureSize();
+        pixelWidth = Min(texSize, pixelWidth);
+        pixelHeight = Min(texSize, pixelHeight);
+
+        char filename[30];
+        snprintf(filename, 30, "corona://FBOcap_%u", sNextRenderTextureID++);
+
+        SharedPtr<TextureResource> texSource = factory.FindOrCreateCapture( filename, width, height, pixelWidth, pixelHeight );
+        if( texSource.NotNull() )
+        {
+            factory.Retain(texSource);
+            ret = texSource;
+        }
+    }
+    else
+    {
+        CoronaLuaError( L, "display.newTexture() requires valid width and height" );
+    }
+
+    return ret;
 }
 
 // graphics.newTexture(  {type=, filename, [baseDir=], [isMask=], } )
 int
 GraphicsLibrary::newTexture( lua_State *L )
 {
-	int result = 0;
-	int index = 1;
-	SharedPtr<TextureResource> ret;
-	
-	if( lua_istable( L, index ) )
-	{
-		lua_getfield( L, index, "type" );
-		const char *textureType = lua_tostring( L, -1 );
-		if ( textureType )
-		{
-			if ( 0 == strcmp( "image", textureType ) )
-			{
-				Self *library = ToLibrary( L );
-				Display& display = library->GetDisplay();
-				ret = CreateResourceBitmapFromTable(display.GetTextureFactory(), L, index);
-			}
-			else if ( 0 == strcmp( "canvas", textureType ) || 0 == strcmp( "maskCanvas", textureType ) )
-			{
-				Self *library = ToLibrary( L );
-				Display& display = library->GetDisplay();
-				ret = CreateResourceCanvasFromTable(display.GetTextureFactory(), L, index, 0 == strcmp( "maskCanvas", textureType ));
-			}
-			else if ( 0 == strcmp( "capture", textureType ) )
-			{
-				Self *library = ToLibrary( L );
-				Display& display = library->GetDisplay();
-				ret = CreateResourceCaptureFromTable(display.GetTextureFactory(), L, index);
-			}
-			else
-			{
-				CoronaLuaError( L, "display.newTexture() unrecognized type" );
-			}
-		}
-		else
-		{
-			CoronaLuaError( L, "display.newTexture() requires type field in parameters table" );
-		}
-		lua_pop( L, 1 );
-	}
-	else
-	{
-		CoronaLuaError( L, "display.newTexture() requires a table" );
-	}
-	
-	if(	ret.NotNull() )
-	{
-		ret->PushProxy( L );
-		result = 1;
-	}
-	
-	return result;
+    int result = 0;
+    int index = 1;
+    SharedPtr<TextureResource> ret;
+
+    if( lua_istable( L, index ) )
+    {
+        lua_getfield( L, index, "type" );
+        const char *textureType = lua_tostring( L, -1 );
+        if ( textureType )
+        {
+            if ( 0 == strcmp( "image", textureType ) )
+            {
+                Self *library = ToLibrary( L );
+                Display& display = library->GetDisplay();
+                ret = CreateResourceBitmapFromTable(display.GetTextureFactory(), L, index);
+            }
+            else if ( 0 == strcmp( "canvas", textureType ) || 0 == strcmp( "maskCanvas", textureType ) )
+            {
+                Self *library = ToLibrary( L );
+                Display& display = library->GetDisplay();
+                ret = CreateResourceCanvasFromTable(display.GetTextureFactory(), L, index, 0 == strcmp( "maskCanvas", textureType ));
+            }
+            else if ( 0 == strcmp( "capture", textureType ) )
+            {
+                Self *library = ToLibrary( L );
+                Display& display = library->GetDisplay();
+                ret = CreateResourceCaptureFromTable(display.GetTextureFactory(), L, index);
+            }
+            else
+            {
+                CoronaLuaError( L, "display.newTexture() unrecognized type" );
+            }
+        }
+        else
+        {
+            CoronaLuaError( L, "display.newTexture() requires type field in parameters table" );
+        }
+        lua_pop( L, 1 );
+    }
+    else
+    {
+        CoronaLuaError( L, "display.newTexture() requires a table" );
+    }
+
+    if( ret.NotNull() )
+    {
+        ret->PushProxy( L );
+        result = 1;
+    }
+
+    return result;
 }
 
-    
-    
+
+
 // graphics.releaseTextures()
 int
 GraphicsLibrary::releaseTextures( lua_State *L )
 {
-	int result = 0;
-	
-	Self *library = ToLibrary( L );
-	Display& display = library->GetDisplay();
-	
-	int index = 1;
-	
-	TextureResource::TextureResourceType type = TextureResource::kTextureResource_Any;
-	
-	if( lua_type(L, index) == LUA_TSTRING )
-	{
-		const char *str = lua_tostring( L, index );
-		if( str )
-		{
-			if ( strcmp(str, "image") == 0 )
-			{
-				type = TextureResource::kTextureResourceBitmap;
-			}
-			else if ( strcmp(str, "canvas") == 0 )
-			{
-				type = TextureResource::kTextureResourceCanvas;
-			}
-			else if ( strcmp(str, "capture") == 0 )
-			{
-				type = TextureResource::kTextureResourceCapture;
-			}
-			else if ( strcmp(str, "external") == 0 )
-			{
-				type = TextureResource::kTextureResourceExternal;
-			}
-		}
-	}
-	else if( lua_type(L, index) == LUA_TTABLE )
-	{
-		lua_getfield( L, index, "type" );
-		if( lua_type(L, -1) == LUA_TSTRING )
-		{
-			const char *str = lua_tostring( L, -1 );
-			if( str )
-			{
-				if ( strcmp(str, "image") == 0 )
-				{
-					type = TextureResource::kTextureResourceBitmap;
-				}
-				else if ( strcmp(str, "canvas") == 0 )
-				{
-					type = TextureResource::kTextureResourceCanvas;
-				}
-				else if ( strcmp(str, "external") == 0 )
-				{
-					type = TextureResource::kTextureResourceExternal;
-				}
-			}
-		}
-		lua_pop( L, 1 );
-	}
-	
-	
-	display.GetTextureFactory().ReleaseByType( type );
-	
-	return result;
+    int result = 0;
+
+    Self *library = ToLibrary( L );
+    Display& display = library->GetDisplay();
+
+    int index = 1;
+
+    TextureResource::TextureResourceType type = TextureResource::kTextureResource_Any;
+
+    if( lua_type(L, index) == LUA_TSTRING )
+    {
+        const char *str = lua_tostring( L, index );
+        if( str )
+        {
+            if ( strcmp(str, "image") == 0 )
+            {
+                type = TextureResource::kTextureResourceBitmap;
+            }
+            else if ( strcmp(str, "canvas") == 0 )
+            {
+                type = TextureResource::kTextureResourceCanvas;
+            }
+            else if ( strcmp(str, "capture") == 0 )
+            {
+                type = TextureResource::kTextureResourceCapture;
+            }
+            else if ( strcmp(str, "external") == 0 )
+            {
+                type = TextureResource::kTextureResourceExternal;
+            }
+        }
+    }
+    else if( lua_type(L, index) == LUA_TTABLE )
+    {
+        lua_getfield( L, index, "type" );
+        if( lua_type(L, -1) == LUA_TSTRING )
+        {
+            const char *str = lua_tostring( L, -1 );
+            if( str )
+            {
+                if ( strcmp(str, "image") == 0 )
+                {
+                    type = TextureResource::kTextureResourceBitmap;
+                }
+                else if ( strcmp(str, "canvas") == 0 )
+                {
+                    type = TextureResource::kTextureResourceCanvas;
+                }
+                else if ( strcmp(str, "external") == 0 )
+                {
+                    type = TextureResource::kTextureResourceExternal;
+                }
+            }
+        }
+        lua_pop( L, 1 );
+    }
+
+
+    display.GetTextureFactory().ReleaseByType( type );
+
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1706,7 +1751,7 @@ GraphicsLibrary::undefineEffect( lua_State *L )
     Display& display = library->GetDisplay();
 
     int index = 1; // index of params
-    
+
     ShaderFactory& factory = display.GetShaderFactory();
 
     lua_pushboolean( L, factory.UndefineEffect( L, index ) );
@@ -1723,16 +1768,16 @@ GraphicsLibrary::getFontMetrics( lua_State *L )
     const MPlatform& platform = LuaContext::GetPlatform( L );
     Real fontSize = Rtt_REAL_0;     // A font size of zero means use the system default font.
     PlatformFont * font = NULL;
-    
+
     int nextArg = 1;
     int fontArg = nextArg++;
-    
+
     // Fetch the font size. Will use the default font size if not provided.
     if ( lua_isnumber( L, nextArg ) )
     {
         fontSize = luaL_toreal( L, nextArg );
     }
-    
+
     // Create a font with the given settings.
     font = LuaLibNative::CreateFont( L, platform, fontArg, fontSize );
     if ( !font )
@@ -1812,6 +1857,13 @@ LuaLibGraphics::Initialize( lua_State *L, Display& display )
 
     CoronaLuaPushModule( L, GraphicsLibrary::kName );
     lua_setglobal( L, GraphicsLibrary::kName ); // graphics = library
+
+    lua_newtable( L );
+    lua_createtable( L, 0, 1 );
+    lua_pushliteral( L, "k" );
+    lua_setfield( L, -2, "__mode" );
+    lua_setmetatable( L, -2 );
+    lua_setfield( L, LUA_REGISTRYINDEX, BitmapMask::kHitTestOnlyTable );
 }
 
 // ----------------------------------------------------------------------------

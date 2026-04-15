@@ -244,6 +244,7 @@ Renderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTi
     fPrevious = RenderData();
     fVertexOffset = 0;
     fVertexCount = 0;
+    fVertexExtra = 0;
     fIndexOffset = 0;
     fIndexCount = 0;
     fRenderDataCount = 0;
@@ -622,7 +623,6 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 
     // Geometry that is stored on the GPU does not need to be copied
     // over each frame. As a consequence, they can not be batched.
-    U32 previousVerticesUsed = 0;
     if( geometry->GetStoredOnGPU() && !fWireframeEnabled )
     {
         FlushBatch();
@@ -647,6 +647,9 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 
         fCachedVertexOffset = fVertexOffset;
         fCachedVertexCount = fVertexCount;
+        fCachedVertexExtra = fVertexExtra;
+        fOffsetCorrection = 0;
+        fVertexExtra = 0;
         fVertexOffset = 0;
         fVertexCount = geometry->GetVerticesUsed();
         fIndexCount = geometry->GetIndicesUsed();
@@ -730,9 +733,11 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 			}
         }
         
+        fVertexExtra = vertexExtra;
+
         // Copy the the incoming vertex data into the current Geometry
         // pool instance, even if the data will not be batched.
-        CopyVertexData( geometry, fCurrentVertex, vertexExtra );
+        CopyVertexData( geometry, fCurrentVertex, batch && enoughSpace );
 
         // Fix: Ensure pool geometry has authoritative shader vertex data.
         // After a fill/shader transition (e.g., changeTexture from Lua),
@@ -772,9 +777,6 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             
             mustReconcileFormats = true; // pointers out of date
         }
-
-		// The format might change, so remember where the old one would end.
-		previousVerticesUsed = fCurrentGeometry->GetVerticesUsed();
 
         fCurrentVertex += verticesRequired;
         fVertexCount += verticesComputed;
@@ -995,7 +997,12 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 
     if (mustReconcileFormats)
     {
-        FormatExtensionList::ReconcileFormats( fAllocator, fBackCommandBuffer, programList, extensionList, previousVerticesUsed );
+		if ( !geometry->GetStoredOnGPU() )
+		{
+			fOffsetCorrection = fVertexOffset;
+		}
+
+        FormatExtensionList::ReconcileFormats( fAllocator, fBackCommandBuffer, programList, extensionList, fVertexOffset );
 
         if ( !resumingFromGPU || !IsBgfx() )
         {
@@ -1628,7 +1635,7 @@ Renderer::CheckAndInsertDrawCommand()
         }
         else
         {
-            fBackCommandBuffer->Draw( fVertexOffset, fVertexCount - fDegenerateVertexCount, fPreviousPrimitiveType );
+            fBackCommandBuffer->Draw( fVertexOffset - fOffsetCorrection, fVertexCount - fDegenerateVertexCount, fPreviousPrimitiveType );
         }
         INCREMENT( fStatistics.fDrawCallCount );
 
@@ -1853,11 +1860,12 @@ void
 Renderer::UpdateBatch( bool batch, bool enoughSpace, bool storedOnGPU, U32 verticesRequired )
 {
     CheckAndInsertDrawCommand();
-     
+    
     if( storedOnGPU && !fWireframeEnabled )
     {
         fVertexOffset = fCachedVertexOffset;
         fVertexCount = fCachedVertexCount;
+        fVertexExtra = fCachedVertexExtra;
 
         if( enoughSpace )
         {
@@ -1865,7 +1873,7 @@ Renderer::UpdateBatch( bool batch, bool enoughSpace, bool storedOnGPU, U32 verti
         }
     }
     
-    fVertexOffset += fVertexCount;
+    fVertexOffset += fVertexCount * (1 + fVertexExtra);
     fVertexCount = 0;
     fIndexCount = 0;
 
@@ -1889,14 +1897,14 @@ Renderer::UpdateBatch( bool batch, bool enoughSpace, bool storedOnGPU, U32 verti
 }
 
 void
-Renderer::CopyVertexData( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyVertexData( Geometry* geometry, Geometry::Vertex* destination, bool interior )
 {
     const U32 verticesUsed = geometry->GetVerticesUsed();
     const U32 vertexSize = sizeof(Geometry::Vertex);
 
-    if (0 != extraCount)
+    if (0 != fVertexExtra)
     {
-        CopyExtendedVertexData( geometry, destination, extraCount );
+        CopyExtendedVertexData( geometry, destination, interior );
     }
     
     else if( fWireframeEnabled )
@@ -2145,7 +2153,7 @@ Renderer::MergeVertexDataRange( Geometry::Vertex** destination, Geometry* geomet
 }
 
 void
-Renderer::CopyExtendedVertexData( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyExtendedVertexData( Geometry* geometry, Geometry::Vertex* destination, bool interior )
 {
     const U32 verticesUsed = geometry->GetVerticesUsed();
 
@@ -2155,22 +2163,22 @@ Renderer::CopyExtendedVertexData( Geometry* geometry, Geometry::Vertex* destinat
         switch( geometry->GetPrimitiveType() )
         {
             case Geometry::kTriangleStrip:
-                CopyExtendedTriangleStripsAsLines( geometry, destination, extraCount );
+                CopyExtendedTriangleStripsAsLines( geometry, destination );
                 break;
             case Geometry::kTriangleFan:
-                CopyExtendedTriangleFanAsLines( geometry, destination, extraCount );
+                CopyExtendedTriangleFanAsLines( geometry, destination );
                 break;
             case Geometry::kTriangles:
-                CopyExtendedTrianglesAsLines( geometry, destination, extraCount );
+                CopyExtendedTrianglesAsLines( geometry, destination );
                 break;
             case Geometry::kIndexedTriangles:
-                CopyExtendedIndexedTrianglesAsLines( geometry, destination, extraCount );
+                CopyExtendedIndexedTrianglesAsLines( geometry, destination );
                 break;
             case Geometry::kLineLoop:
-                MergeVertexDataRange( &destination, geometry, verticesUsed, extraCount );
+                MergeVertexDataRange( &destination, geometry, verticesUsed, fVertexExtra );
                 break;
             case Geometry::kLines:
-                MergeVertexDataRange( &destination, geometry, verticesUsed, extraCount );
+                MergeVertexDataRange( &destination, geometry, verticesUsed, fVertexExtra );
                 break;
         }
     }
@@ -2180,11 +2188,11 @@ Renderer::CopyExtendedVertexData( Geometry* geometry, Geometry::Vertex* destinat
         {
             // Triangle strips are batched by adding degenerate triangles
             // at the beginning and end of each strip.
-            MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, extraCount );
+            MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, fVertexExtra );
 
-            MergeVertexDataRange( &destination, geometry, verticesUsed, extraCount );
+            MergeVertexDataRange( &destination, geometry, verticesUsed, fVertexExtra );
 
-            MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), verticesUsed - 1, extraCount );
+            MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), verticesUsed - 1, fVertexExtra );
 
             fDegenerateVertexCount = 1;
         }
@@ -2192,13 +2200,13 @@ Renderer::CopyExtendedVertexData( Geometry* geometry, Geometry::Vertex* destinat
         {
             // For data which does not exist on the GPU and is not batched,
             // we still double buffer it to be threadsafe.
-            MergeVertexDataRange( &destination, geometry, verticesUsed, extraCount );
+            MergeVertexDataRange( &destination, geometry, verticesUsed, fVertexExtra );
         }
     }
 }
 
 void
-Renderer::CopyExtendedTriangleStripsAsLines( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyExtendedTriangleStripsAsLines( Geometry* geometry, Geometry::Vertex* destination )
 {
     const U32 count = geometry->GetVerticesUsed() - 2;
     const Geometry::Vertex* data = geometry->GetVertexData();
@@ -2206,18 +2214,18 @@ Renderer::CopyExtendedTriangleStripsAsLines( Geometry* geometry, Geometry::Verte
     for( U32 i = 0; i < count; ++i )
     {
         // Line 1
-        MergeVertexDataRange( &destination, geometry, 2, extraCount );
+        MergeVertexDataRange( &destination, geometry, 2, fVertexExtra );
         
         // Line 2
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i + 2, extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i + 2, fVertexExtra );
     }
     
-    MergeVertexDataRange( &destination, geometry, 2, extraCount, count );
+    MergeVertexDataRange( &destination, geometry, 2, fVertexExtra, count );
 }
 
 void
-Renderer::CopyExtendedTriangleFanAsLines( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyExtendedTriangleFanAsLines( Geometry* geometry, Geometry::Vertex* destination )
 {
     const U32 count = geometry->GetVerticesUsed() - 1;
     const Geometry::Vertex* data = geometry->GetVertexData();
@@ -2225,20 +2233,20 @@ Renderer::CopyExtendedTriangleFanAsLines( Geometry* geometry, Geometry::Vertex* 
     for( U32 i = 1; i < count; ++i )
     {
         // Line 1
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, fVertexExtra );
         
         // Line 2
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i + 1, extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i, fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), i + 1, fVertexExtra );
     }
     
-    MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, extraCount );
-    MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), count, extraCount );
+    MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), 0, fVertexExtra );
+    MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), count, fVertexExtra );
 }
 
 void
-Renderer::CopyExtendedTrianglesAsLines( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyExtendedTrianglesAsLines( Geometry* geometry, Geometry::Vertex* destination )
 {
     const U32 triangleCount = geometry->GetVerticesUsed() / 3;
     const Geometry::Vertex* data = geometry->GetVertexData();
@@ -2248,19 +2256,19 @@ Renderer::CopyExtendedTrianglesAsLines( Geometry* geometry, Geometry::Vertex* de
         U32 index = i * 3;
 
         // Line 1
-        MergeVertexDataRange( &destination, geometry, 2, extraCount, index );
+        MergeVertexDataRange( &destination, geometry, 2, fVertexExtra, index );
         
         // Line 2
-        MergeVertexDataRange( &destination, geometry, 2, extraCount, index + 1 );
+        MergeVertexDataRange( &destination, geometry, 2, fVertexExtra, index + 1 );
 
         // Line 3
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), index + 2, extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), index, extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), index + 2, fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), index, fVertexExtra );
     }
 }
 
 void
-Renderer::CopyExtendedIndexedTrianglesAsLines( Geometry* geometry, Geometry::Vertex* destination, int extraCount )
+Renderer::CopyExtendedIndexedTrianglesAsLines( Geometry* geometry, Geometry::Vertex* destination )
 {
     const Geometry::Vertex* vertexData = geometry->GetVertexData();
     const Geometry::Index* indexData = geometry->GetIndexData();
@@ -2271,16 +2279,16 @@ Renderer::CopyExtendedIndexedTrianglesAsLines( Geometry* geometry, Geometry::Ver
         U32 index = i * 3;
         
         // Line 1
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index], extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 1], extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index], fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 1], fVertexExtra );
                 
         // Line 2
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 1], extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 2], extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 1], fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 2], fVertexExtra );
 
         // Line 3
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 2], extraCount );
-        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index], extraCount );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index + 2], fVertexExtra );
+        MergeVertexData( &destination, geometry->GetVertexData(), geometry->GetExtendedVertexData(), indexData[index], fVertexExtra );
     }
 }
 

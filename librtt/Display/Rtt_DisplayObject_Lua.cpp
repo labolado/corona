@@ -374,7 +374,7 @@ setMask( lua_State *L )
                 FilePath *maskData = *ud;
                 if ( maskData )
                 {
-                    mask = BitmapMask::Create( * runtime, * maskData );
+                    mask = BitmapMask::Create( * runtime, * maskData, false );
                 }
             }
         }

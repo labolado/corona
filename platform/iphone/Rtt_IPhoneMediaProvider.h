@@ -11,6 +11,7 @@
 #define _Rtt_IPhoneMediaProvider_H__
 
 // ----------------------------------------------------------------------------
+#import <PhotosUI/PhotosUI.h>
 
 @class UIImagePickerControllerDelegate;
 @class NSDictionary;
@@ -41,6 +42,8 @@ class IPhoneMediaProvider
 
 	public:
 		virtual void Show( UIImagePickerControllerSourceType source, NSString* mediaTypes, NSObject<UIImagePickerControllerDelegate>* delegate, lua_State* L, int tableIndex, NSTimeInterval maxTime, UIImagePickerControllerQualityType quality );
+        API_AVAILABLE(ios(14))
+        virtual void ShowMulti( NSString* mediaTypes, NSObject<PHPickerViewControllerDelegate>* delegate, lua_State* L, int tableIndex, int maxSelection );
 		UIImagePickerControllerSourceType MediaProviderTypeToImagePickerSourceType( int source );
 		bool Internal_IsOS5_0();
 
@@ -53,6 +56,7 @@ class IPhoneMediaProvider
 	public:
 		IPhoneMediaPickerControllerDelegate* fDelegate;
 		UIImagePickerController* fImagePicker;
+        PHPickerViewController* fPhotosPicker;
 		UIPopoverController* fPopoverController;
 		NSString *fDstPath;
 		bool iOS5statusBarHidden; // workaround for statusbar coming back in iOS 5.0 when hidden
