@@ -349,6 +349,10 @@
 		30165D4C9FE7243BB8B5012B /* Rtt_TextureAtlas_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */; };
 		37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
 		3A549BB22B167806E935C406 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
+		4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */; };
+		4123D2F8292CCD1A008C1068 /* b2FakeJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */; };
+		447CB5DFFFD754146C49BCD6 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
+		49D566976E388567ED41B4E8 /* Rtt_ShapeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */; };
 		4B1A83A22B184FF46E34A111 /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
 		4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */; };
 		4123D2F8292CCD1A008C1068 /* b2FakeJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */; };
@@ -2844,6 +2848,7 @@
 				BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_BgfxMetalReadback.mm; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.mm; sourceTree = "<group>"; };
 				457832139A460173839236AA /* Rtt_BgfxMetalReadback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxMetalReadback.h; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.h; sourceTree = "<group>"; };
 		3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = ../../librtt/Renderer/Rtt_BgfxRenderer.cpp; sourceTree = "<group>"; };
+		3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CompositeObject_Lua.cpp; path = ../../librtt/Display/Rtt_CompositeObject_Lua.cpp; sourceTree = "<group>"; };
 		4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2FakeJoint.h; sourceTree = "<group>"; };
 		4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2FakeJoint.cpp; sourceTree = "<group>"; };
 		4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_KeyName.cpp; sourceTree = "<group>"; };
@@ -5969,6 +5974,7 @@
 				50E7D50D198090430005948F /* b2TrackedBlock.h in Headers */,
 				4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */,
 				50E7D550198090430005948F /* b2VoronoiDiagram.h in Headers */,
+				4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */,
 				50E7D542198090430005948F /* b2WeldJoint.h in Headers */,
 				50E7D544198090430005948F /* b2WheelJoint.h in Headers */,
 				50E7D518198090430005948F /* b2World.h in Headers */,
