@@ -2745,6 +2745,7 @@ DisplayLibrary::save( lua_State *L )
 
     // Default values for options.
     const char* imageName = NULL;
+    const char* format = "";
     MPlatform::Directory baseDir = MPlatform::kDocumentsDir;
     bool cropObjectToScreenBounds = true;
     ColorUnion backgroundColor;
@@ -2804,6 +2805,20 @@ DisplayLibrary::save( lua_State *L )
             jpegQuality = Clamp( lua_tonumber( L, -1 ), 0., 1. );
         }
         lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "format" );
+        if( lua_isstring( L, -1 ) )
+        {
+            format = lua_tostring( L, -1 );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "quality" );
+        if( lua_isnumber( L, -1 ) )
+        {
+            jpegQuality = Clamp( lua_tonumber( L, -1 ), 0., 1. );
+        }
+        lua_pop( L, 1 );
     }
     else
     {
@@ -2850,11 +2865,167 @@ DisplayLibrary::save( lua_State *L )
     String bitmapPath( runtime->GetAllocator() );
 
     platform.PathForFile( imageName, baseDir, MPlatform::kDefaultPathFlags, bitmapPath );
-    platform.SaveBitmap( paint->GetBitmap(), bitmapPath.GetString(), jpegQuality );
+    platform.SaveBitmapWithFormat( paint->GetBitmap(), bitmapPath.GetString(), jpegQuality, format );
 
     Rtt_DELETE( paint );
 
     return 0;
+}
+
+int
+DisplayLibrary::saveWithReturn( lua_State *L )
+{
+    if( lua_isnil( L, 1 ) )
+    {
+        // Nothing to do.
+        CoronaLuaWarning( L, "display.save() first parameter was nil. Expected a display object" );
+        lua_pushinteger( L, -1);
+        return 1;
+    }
+
+    LuaProxy* proxy = LuaProxy::GetProxy( L, 1 );
+    if( ! Rtt_VERIFY( proxy ) )
+    {
+        // Nothing to do.
+        lua_pushinteger( L, -2);
+        return 1;
+    }
+
+    // Default values for options.
+    const char* imageName = NULL;
+    const char* format = "";
+    MPlatform::Directory baseDir = MPlatform::kDocumentsDir;
+    bool cropObjectToScreenBounds = true;
+    ColorUnion backgroundColor;
+    bool backgroundColorHasBeenProvided = false;
+    float jpegQuality = 1.0f;
+
+    if( lua_istable( L, 2 ) )
+    {
+        // It's a table of options.
+
+        // filename is required.
+        lua_getfield( L, -1, "filename" );
+        imageName = luaL_checkstring( L, -1 );
+        if( ! Rtt_VERIFY( imageName ) )
+        {
+            // Nothing to do.
+            lua_pop( L, 1 );
+            lua_pushinteger( L, -3);
+            return 1;
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "baseDir" );
+        baseDir = LuaLibSystem::ToDirectory( L, -1, MPlatform::kDocumentsDir );
+        if( ! LuaLibSystem::IsWritableDirectory( baseDir ) )
+        {
+            // If the given directory is not writable,
+            // then default to the Documents directory.
+            baseDir = MPlatform::kDocumentsDir;
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "isFullResolution" );
+        if( lua_isboolean( L, -1 ) )
+        {
+            cropObjectToScreenBounds = ( ! lua_toboolean( L, -1 ) );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "captureOffscreenArea" );
+        if( lua_isboolean( L, -1 ) )
+        {
+            cropObjectToScreenBounds = ( ! lua_toboolean( L, -1 ) );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "backgroundColor" );
+        backgroundColorHasBeenProvided = lua_istable( L, -1 );
+        if( backgroundColorHasBeenProvided )
+        {
+            LuaLibDisplay::ArrayToColor( L, -1, backgroundColor.pixel, false );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "jpegQuality" );
+        if( lua_isnumber( L, -1 ) )
+        {
+            jpegQuality = Clamp( lua_tonumber( L, -1 ), 0., 1. );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "format" );
+        if( lua_isstring( L, -1 ) )
+        {
+            format = lua_tostring( L, -1 );
+        }
+        lua_pop( L, 1 );
+
+        lua_getfield( L, -1, "quality" );
+        if( lua_isnumber( L, -1 ) )
+        {
+            jpegQuality = Clamp( lua_tonumber( L, -1 ), 0., 1. );
+        }
+        lua_pop( L, 1 );
+    }
+    else
+    {
+        // Get the options, the old way.
+
+        // filename is required.
+        imageName = luaL_checkstring( L, 2 );
+        if( ! Rtt_VERIFY( imageName ) )
+        {
+            // Nothing to do.
+            lua_pushinteger( L, -4);
+            return 1;
+        }
+
+        // baseDir is optional.
+        baseDir = LuaLibSystem::ToDirectory( L, 3, MPlatform::kDocumentsDir );
+        if( ! LuaLibSystem::IsWritableDirectory( baseDir ) )
+        {
+            // If the given directory is not writable,
+            // then default to the Documents directory.
+            baseDir = MPlatform::kDocumentsDir;
+        }
+    }
+
+    Self *library = ToLibrary( L );
+    Display& display = library->GetDisplay();
+    Runtime *runtime = & display.GetRuntime();
+
+    DisplayObject* displayObject = (DisplayObject*)(proxy->Object());
+
+    // Do a screenshot of the given display object.
+    BitmapPaint *paint = display.CaptureSave( displayObject,
+                                                cropObjectToScreenBounds,
+                                                Rtt_StringEndsWithNoCase( imageName, ".png" ),
+                                                ( backgroundColorHasBeenProvided ? &backgroundColor : NULL ) );
+    if( ! paint )
+    {
+        CoronaLuaError(L, "display.save() unable to capture screen. The platform or device might not be supported" );
+
+        // Nothing to do.
+        lua_pushinteger( L, -5);
+        return 1;
+    }
+
+    const MPlatform& platform = runtime->Platform();
+    String bitmapPath( runtime->GetAllocator() );
+
+    platform.PathForFile( imageName, baseDir, MPlatform::kDefaultPathFlags, bitmapPath );
+    bool result = platform.SaveBitmapWithFormat( paint->GetBitmap(), bitmapPath.GetString(), jpegQuality, format );
+
+    Rtt_DELETE( paint );
+
+    if (result) {
+        lua_pushinteger( L, 0);
+    } else {
+        lua_pushinteger( L, -6);
+    }
+    return 1;
 }
 
 int
