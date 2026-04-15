@@ -429,6 +429,14 @@ JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeWebViewHisto
 
 /*
  * Class:     com_ansca_corona_JavaToNativeShim
+ * Method:    nativeWebViewJSInterfaceCommonEvent
+ * Signature: (ILjava/lang/String;Ljava/lang/String;I)V
+ */
+JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeWebViewJSInterfaceCommonEvent
+  (JNIEnv *, jclass, jlong, jint, jstring, jstring, jboolean);
+
+/*
+ * Class:     com_ansca_corona_JavaToNativeShim
  * Method:    nativeWebViewShouldLoadUrl
  * Signature: (I)V
  */
@@ -449,7 +457,7 @@ JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeAdsRequestEv
  * Signature: (ILjava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeImagePickerEvent
-  (JNIEnv *, jclass, jlong, jstring);
+  (JNIEnv *, jclass, jlong, jstring, jint);
 
 JNIEXPORT void JNICALL Java_com_ansca_corona_JavaToNativeShim_nativeVideoPickerEvent
   (JNIEnv *, jclass, jlong, jstring, jint, jlong);

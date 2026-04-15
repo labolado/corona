@@ -22,11 +22,11 @@ class CoronaShowApiHandler implements com.ansca.corona.listeners.CoronaShowApiLi
 	}
 
 	@Override
-	public void showSelectImageWindowUsing(String destinationFilePath) {
+	public void showSelectImageWindowUsing(String destinationFilePath, int maxSelection) {
 		if (fActivity == null) {
 			return;
 		}
-		fActivity.showSelectImageWindowUsing(destinationFilePath);
+		fActivity.showSelectImageWindowUsing(destinationFilePath, maxSelection);
 	}
 
 	@Override

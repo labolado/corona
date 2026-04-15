@@ -61,8 +61,17 @@ PlatformBitmap::HitTest( Rtt_Allocator *context, int i, int j, U8 threshold ) co
 					break;
 				
 				default:
-					// TODO: Use GetColorByteIndexesFor()
-					Rtt_ASSERT_NOT_IMPLEMENTED();
+					{
+						int alphaIndex, redIndex, greenIndex, blueIndex;
+						GetColorByteIndexesFor( format,  &alphaIndex, &redIndex, &greenIndex, &blueIndex );
+					#ifdef Rtt_ANDROID_ENV // cf. GraphicsLibrary::newOutline et al.
+						alphaIndex = 3;
+					#endif
+						const U8 *pixels = ((const U8*)data);
+						U8 alpha = pixels[index + alphaIndex];
+						/* TODO? use r,g,b...*/
+						result = alpha > threshold;
+					}
 					break;
 			}
 		}
@@ -236,6 +245,13 @@ PlatformBitmap::CalculateRotation( Orientation start, Orientation end )
 	}
 
 	return result;
+}
+
+// For external bitmap to fetch the correct bytes order.
+bool
+PlatformBitmap::GetColorByteIndexesExternal(int *alphaIndex, int *redIndex, int *greenIndex, int *blueIndex) const
+{
+	return false;
 }
 
 // Retrieves the color byte indexes for a single pixel for the given image format.

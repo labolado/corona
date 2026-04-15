@@ -445,19 +445,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas_Lua.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_InstancedBatchRenderer.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_DisplayObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_ShapeObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_GroupObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_LineObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_CompositeObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_EmbossedTextObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_EmitterObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_SnapshotObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_SpriteObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_StageObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Display/Rtt_TextObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Rtt_PlatformDisplayObject_Lua.cpp
-		${CORONA_ROOT}/librtt/Rtt_ParticleSystemObject_Lua.cpp
+		# *_Lua.cpp files merged into Rtt_LuaProxyVTable.cpp by upstream
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisCollection.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisDescriptor.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisType.cpp
@@ -754,6 +742,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/Box2D/Box2D/Dynamics/Joints/b2RevoluteJoint.cpp
 		${CORONA_ROOT}/external/Box2D/Box2D/Dynamics/Joints/b2RopeJoint.cpp
 		${CORONA_ROOT}/external/Box2D/Box2D/Dynamics/Joints/b2WeldJoint.cpp
+		${CORONA_ROOT}/external/Box2D/Box2D/Dynamics/Joints/b2FakeJoint.cpp
 		${CORONA_ROOT}/external/Box2D/Box2D/Dynamics/Joints/b2WheelJoint.cpp
 		${CORONA_ROOT}/external/Box2D/Box2D/Particle/b2Particle.cpp
 		${CORONA_ROOT}/external/Box2D/Box2D/Particle/b2ParticleAssembly.cpp
