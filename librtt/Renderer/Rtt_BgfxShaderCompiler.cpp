@@ -1223,7 +1223,7 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
 
     // Start with #version so bgfx passes source directly to glShaderSource
     result += "#version 300 es\n";
-    result += "precision mediump float;\n";
+    result += "precision highp float;\n";
     result += "precision mediump int;\n";
     result += "\n";
 
