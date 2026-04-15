@@ -22,6 +22,7 @@
 #import <Photos/Photos.h>
 #import <UIKit/UIKit.h>
 #import <MediaPlayer/MediaPlayer.h>
+#import <PhotosUI/PhotosUI.h>
 
 #import "AppDelegate.h"
 #import <MobileCoreServices/MobileCoreServices.h>
@@ -56,6 +57,31 @@
 
 @end
 
+@interface IPhonePHPickerControllerDelegate : NSObject< PHPickerViewControllerDelegate >
+
+@property (nonatomic, readwrite, assign) Rtt::IPhoneImageProvider* callback;
+
+@end
+
+@implementation IPhonePHPickerControllerDelegate
+
+@synthesize callback;
+
+- (void)picker:(PHPickerViewController *)picker didFinishPicking:(NSArray<PHPickerResult *> *)results  API_AVAILABLE(ios(14)){
+    [picker dismissViewControllerAnimated:YES completion:nil];
+    
+    if ( picker )
+    {
+        callback->DidDismissForMultipleSelection( results );
+    }
+    else
+    {
+        callback->DidDismiss(nil, nil);
+    }
+}
+@end
+
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -65,19 +91,24 @@ namespace Rtt
 
 IPhoneImageProvider::IPhoneImageProvider( const ResourceHandle<lua_State> & handle )
 :	PlatformImageProvider( handle ),
+    fDstBaseName( nil ),
 	fDstPath( nil ),
 	iOS5statusBarHidden( false )
 {
 	fDelegate = [[IPhoneImagePickerControllerDelegate alloc] init];
 	fDelegate.callback = this;
+    fDelegateForMulti = [[IPhonePHPickerControllerDelegate alloc] init];
+    fDelegateForMulti.callback = this;
 	fMediaProvider = Rtt_NEW( LuaContext::GetAllocator( handle.Dereference() ), IPhoneMediaProvider );
 }
 
 IPhoneImageProvider::~IPhoneImageProvider()
 {
 //	Cleanup();
-	[fDstPath release];
+	[fDstBaseName release];
+    [fDstPath release];
 	[fDelegate release];
+    [fDelegateForMulti release];
 	Rtt_DELETE( fMediaProvider );
 }
 
@@ -160,6 +191,58 @@ IPhoneImageProvider::Show( int source, const char* filePath, lua_State* L )
 	return result;
 }
 
+bool
+IPhoneImageProvider::ShowMulti( int source, PlatformImageProvider::ParametersForMultiSelection params, lua_State* L )
+{
+    bool result = false;
+    
+    if (@available(iOS 14, *))
+    {
+        [fDstPath release];
+        if ( NULL != params.filePath )
+        {
+            fDstPath = [[NSString alloc] initWithUTF8String:params.filePath];
+        }
+        else
+        {
+            fDstPath = nil;
+        }
+        
+        [fDstBaseName release];
+        if ( NULL != params.fileName )
+        {
+            fDstBaseName = [[NSString alloc] initWithUTF8String:params.fileName];
+        }
+        else
+        {
+            fDstBaseName = nil;
+        }
+
+        bool result = Rtt_VERIFY( Supports( source ) );
+        
+        if ( result )
+        {
+            int tableIndex = 1;
+            if ( lua_type( L, tableIndex ) != LUA_TTABLE )
+            {
+                tableIndex++;
+            }
+            
+            fMediaProvider->ShowMulti( (NSString *) kUTTypeImage, fDelegateForMulti, L, tableIndex, params.maxSelection );
+        }
+        else
+        {
+            EndSession();
+        }
+    }
+    else
+    {
+        result = Show( source, params.filePath, L );
+    }
+
+	return result;
+}
+
 void
 IPhoneImageProvider::DidDismiss( UIImage* image, NSDictionary* editingInfo )
 {
@@ -192,7 +275,15 @@ IPhoneImageProvider::DidDismiss( UIImage* image, NSDictionary* editingInfo )
 
 	PlatformImageProvider::Parameters params( bitmap, NULL );
 	params.wasCompleted = (image != NULL);
-	Super::DidDismiss( AddProperties, & params );
+    if (bitmap == NULL)
+    {
+        params.multipleFilesCount = 1;
+        Super::DidDismiss( AddPropertiesForMultiSelection, & params );
+    }
+    else
+    {
+        Super::DidDismiss( AddProperties, & params );
+    }
 	
 	// iOS 5.0 introduces a bug where the status bar comes back if it is hidden on dismiss.
 	// Seems to be fixed in 5.1 beta (unless iPod touch 4th gen was not originally affected)
@@ -200,6 +291,61 @@ IPhoneImageProvider::DidDismiss( UIImage* image, NSDictionary* editingInfo )
 	{
 		[[UIApplication sharedApplication] setStatusBarHidden:iOS5statusBarHidden withAnimation:UIStatusBarAnimationNone];
 	}
+}
+
+API_AVAILABLE(ios(14))
+void
+IPhoneImageProvider::DidDismissForMultipleSelection( NSArray<PHPickerResult *> * results )
+{
+    __block int count = 0;
+    if (fDstPath)
+    {
+        NSString *dstPathName = [fDstPath stringByDeletingPathExtension];
+        NSString *extn = [fDstPath pathExtension];
+        __block unsigned long index = 0;
+        unsigned long numResults = [results count];
+        for (PHPickerResult *result in results )
+        {
+            [result.itemProvider loadObjectOfClass:UIImage.self completionHandler:^(UIImage * image, NSError * _Nullable error) {
+                index++;
+                if (image) {
+                    NSString *filePath = fDstPath;
+                    if (count > 0)
+                    {
+                        NSString *suffix = [NSString stringWithFormat:@"_%d", count + 1];
+                        filePath = [[dstPathName stringByAppendingString:suffix] stringByAppendingPathExtension:extn];
+                    }
+                    NSData *data = nil;
+                    NSString *lowercase = [filePath lowercaseString];
+                    if ( [lowercase hasSuffix:@"png"] )
+                    {
+                        data = UIImagePNGRepresentation( image );
+                    }
+                    else if ( [lowercase hasSuffix:@"jpg"] || [lowercase hasSuffix:@"jpeg"] )
+                    {
+                        data = UIImageJPEGRepresentation( image, 1.0 );
+                    }
+                    [data writeToFile:filePath atomically:YES];
+                    count++;
+                }
+                if (index >= numResults)
+                {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        PlatformImageProvider::Parameters params( NULL, NULL );
+                        params.multipleFilesCount = count;
+                        params.multipleFilesBaseName = [fDstBaseName UTF8String];
+                        params.wasCompleted = true;
+                        Super::DidDismiss( AddPropertiesForMultiSelection, & params );
+                    });
+                }
+            }];
+        }
+    }
+    else
+    {
+        PlatformImageProvider::Parameters params( NULL, NULL );
+        Super::DidDismiss( AddPropertiesForMultiSelection, & params );
+    }
 }
 	
 /*

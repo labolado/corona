@@ -1314,6 +1314,25 @@ NativeToJavaBridge::ShowImagePicker( int imageSourceType, const char *destinatio
 	}
 }
 
+void
+NativeToJavaBridge::ShowMultiImagePicker( int imageSourceType, const char *destinationFilePath, int maxSelection )
+{
+	NativeTrace trace( "NativeToJavaBridge::ShowMultiImagePicker" );
+
+	jclassInstance bridge( GetJNIEnv(), kNativeToJavaBridge );
+	if ( bridge.isValid() )
+	{
+		jmethodID mid = bridge.getEnv()->GetStaticMethodID(
+							   bridge.getClass(), "callShowMultiImagePicker", "(Lcom/ansca/corona/CoronaRuntime;ILjava/lang/String;I)V" );
+		if ( mid != NULL )
+		{
+			jstringParam destinationFilePathJ( bridge.getEnv(), destinationFilePath );
+			bridge.getEnv()->CallStaticVoidMethod( bridge.getClass(), mid, fCoronaRuntime, imageSourceType, destinationFilePathJ.getValue(), maxSelection );
+			HandleJavaException();
+		}
+	}
+}
+
 void 
 NativeToJavaBridge::ShowVideoPicker( int videoSourceType, int maxTime, int quality )
 {
@@ -3108,6 +3127,31 @@ NativeToJavaBridge::WebViewRequestDeleteCookies( int id )
 }
 
 void
+NativeToJavaBridge::WebViewRequestInjectJS( int id, const char * jsCode )
+{
+	NativeTrace trace( "NativeToJavaBridge::WebViewRequestInjectJS" );
+
+	jclassInstance bridge( GetJNIEnv(), kNativeToJavaBridge );
+
+	if ( bridge.isValid() )
+	{
+		jmethodID mid = bridge.getEnv()->GetStaticMethodID( bridge.getClass(),
+			"callWebViewInjectJS", "(Lcom/ansca/corona/CoronaRuntime;ILjava/lang/String;)V" );
+
+		if ( mid != NULL )
+		{
+			jstringParam textJ( bridge.getEnv(), jsCode );
+			if ( textJ.isValid() )
+			{
+				bridge.getEnv()->CallStaticVoidMethod( bridge.getClass(), mid, fCoronaRuntime, id, textJ.getValue() );
+				HandleJavaException();
+			}
+		}
+	}
+}
+
+
+void
 NativeToJavaBridge::VideoViewCreate(
 	int id, int left, int top, int width, int height)
 {
@@ -3665,7 +3709,7 @@ NativeToJavaBridge::SaveImageToPhotoLibrary( const char *fileName )
 }
 
 bool
-NativeToJavaBridge::SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char * path, int quality )
+NativeToJavaBridge::SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char * path, int quality, const char * format )
 {
 	NativeTrace trace( "NativeToJavaBridge::SaveBitmap" );
 #ifdef Rtt_DEBUG
@@ -3678,28 +3722,34 @@ NativeToJavaBridge::SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char *
 
 	jclassInstance bridge( GetJNIEnv(), kNativeToJavaBridge );
 	bool result = false;
-	
+
 	if ( bridge.isValid() )
 	{
 		jmethodID mid;
-		
-		mid = bridge.getEnv()->GetStaticMethodID( bridge.getClass(), "callSaveBitmap", "(Lcom/ansca/corona/CoronaRuntime;[IIIILjava/lang/String;)Z" );
-		
+
+		mid = bridge.getEnv()->GetStaticMethodID( bridge.getClass(), "callSaveBitmap", "(Lcom/ansca/corona/CoronaRuntime;[IIIILjava/lang/String;Ljava/lang/String;)Z" );
+
 		if ( path == NULL )
 		{
 			path = "";
 		}
 
+		if ( format == NULL )
+		{
+			format = "";
+		}
+
 		if ( mid != NULL )
 		{
 			jstringParam pathJ( bridge.getEnv(), path );
-			if ( pathJ.isValid() )
+			jstringParam formatJ( bridge.getEnv(), format );
+			if ( pathJ.isValid() && formatJ.isValid() )
 			{
 				int width = bitmap->Width();
 				int height = bitmap->Height();
-				
+
 				jintArrayParam array( bridge.getEnv(), width * height);
-				
+
 				if ( array.isValid() )
 				{
 					if ( width > 0 )
@@ -3709,7 +3759,7 @@ NativeToJavaBridge::SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char *
 				}
 
 				result = bridge.getEnv()->CallStaticBooleanMethod(
-							bridge.getClass(), mid, fCoronaRuntime, array.getValue(), width, height, quality, pathJ.getValue());
+							bridge.getClass(), mid, fCoronaRuntime, array.getValue(), width, height, quality, pathJ.getValue(), formatJ.getValue());
 				HandleJavaException();
 			}
 		}

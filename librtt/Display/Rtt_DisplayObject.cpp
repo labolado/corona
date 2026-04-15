@@ -20,6 +20,7 @@
 #include "Display/Rtt_BitmapPaint.h"
 #include "Display/Rtt_Scene.h"
 #include "Display/Rtt_StageObject.h"
+#include "Display/Rtt_ShapeObject.h"
 #include "Rtt_Event.h"
 #include "Rtt_LuaContext.h"
 #include "Rtt_LuaProxy.h"
@@ -84,7 +85,7 @@ int
 DisplayObject::KeysForProperties( const char **&keys )
 {
     Rtt_ASSERT( GeometricPropertiesHash != NULL );
-    
+
     return GeometricPropertiesHash->GetKeys( keys );
 }
 
@@ -270,7 +271,7 @@ DisplayObject::~DisplayObject()
         {
             stage->SetFocus(NULL);
         }
-        
+
         stage->SetFocus( this, NULL ); // Explicit removal
     }
 
@@ -308,7 +309,7 @@ DisplayObject::FinalizeSelf( lua_State *L )
             FinalizeEvent event;
             DispatchEvent( L, event );
         }
-        
+
         // Ensure object is no longer reachable by Lua by converting the
         // Lua-side reference to a plain table
         proxy->RestoreTable( L );
@@ -321,10 +322,37 @@ DisplayObject::UpdateSelfBounds( Rect& rRect ) const
 {
     // If restricting to masked region, then intersect object's self bounds
     // with mask's self bounds before applying transform
-    if ( IsHitTestMasked() )
+    if ( IsHitTestMasked() && !fMask->GetOnlyForHitTests() )
     {
         Rect maskBounds;
         fMask->GetSelfBounds( maskBounds );
+
+        /*
+        if ( fMask->GetOnlyForHitTests() && !fMask->GetPaint() )
+        {
+            if ( !ShapeObject::IsShapeObject( *this ) )
+            {
+                return;
+            }
+
+            const ShapeObject &o = static_cast<const ShapeObject&>( *this );
+            const BitmapPaint* tempPaint = o.GetBitmapPaint();
+
+            if ( !tempPaint )
+            {
+                return;
+            }
+
+            BitmapMask temp( const_cast<BitmapPaint*>( tempPaint ), true, true );
+
+            temp.GetSelfBounds( maskBounds );
+        }
+
+        else
+        {
+            fMask->GetSelfBounds( maskBounds );
+        }
+        */
         rRect.Intersect( maskBounds );
     }
 }
@@ -334,18 +362,18 @@ DisplayObject::BuildStageBounds()
 {
     if ( ! IsValid( kStageBoundsFlag ) )
     {
-		{
-			SUMMED_TIMING( gsb, "DisplayObject: GetSelfBounds" );
+        {
+            SUMMED_TIMING( gsb, "DisplayObject: GetSelfBounds" );
         GetSelfBounds( fStageBounds );
-		}
-		{
-			SUMMED_TIMING( usb, "DisplayObject: UpdateSelfBounds" );
+        }
+        {
+            SUMMED_TIMING( usb, "DisplayObject: UpdateSelfBounds" );
         UpdateSelfBounds( fStageBounds );
-		}
-		{
-			SUMMED_TIMING( as2db, "DisplayObject: Apply source-to-dest matrix to bounds" );
+        }
+        {
+            SUMMED_TIMING( as2db, "DisplayObject: Apply source-to-dest matrix to bounds" );
         GetSrcToDstMatrix().Apply( fStageBounds );
-		}
+        }
         SetValid( kStageBoundsFlag );
     }
 }
@@ -473,7 +501,7 @@ DisplayObject::UpdateTransform( const Matrix& parentToDstSpace )
 void
 DisplayObject::Prepare( const Display& display )
 {
-	SUMMED_TIMING( dp, "Display Object: Prepare" );
+    SUMMED_TIMING( dp, "Display Object: Prepare" );
 
     // If UpdateTransform() was called, then either:
     // (1) certain flags should be valid
@@ -500,7 +528,7 @@ DisplayObject::Translate( Real dx, Real dy )
 //    if ( ! IsProperty( kIsTransformLocked ) )
     {
         fTransform.Translate( dx, dy );
-        
+
 #ifdef Rtt_PHYSICS
         if ( fExtensions && ! IsProperty( kIsExtensionsLocked ) )
         {
@@ -519,15 +547,15 @@ DisplayObject::Translate( Real dx, Real dy )
                     else
                     {
                         Real scale = physics.GetPixelsPerMeter();
-                        
+
                         float angle = body->GetAngle();
-                        
+
                         Real x = fTransform.GetProperty( kOriginX );
                         Real y = fTransform.GetProperty( kOriginY );
-                        
+
                         x = Rtt_RealDiv( x, scale );
                         y = Rtt_RealDiv( y, scale );
-                        
+
                         b2Vec2 position( Rtt_RealToFloat( x ), Rtt_RealToFloat( y ) );
                         body->SetAwake( true );
                         body->SetTransform( position, angle );
@@ -579,7 +607,7 @@ DisplayObject::Rotate( Real deltaTheta )
     if ( ! Rtt_RealIsZero( deltaTheta ) )
     {
         fTransform.Rotate( deltaTheta );
-        
+
 #ifdef Rtt_PHYSICS
         if ( fExtensions && ! IsProperty( kIsExtensionsLocked ) )
         {
@@ -598,15 +626,15 @@ DisplayObject::Rotate( Real deltaTheta )
                     else
                     {
                         Real scale = physics.GetPixelsPerMeter();
-                        
+
                         Real x = fTransform.GetProperty( kOriginX );
                         Real y = fTransform.GetProperty( kOriginY );
                         Real angle = fTransform.GetProperty( kRotation );
-                        
+
                         x = Rtt_RealDiv( x, scale );
                         y = Rtt_RealDiv( y, scale );
                         angle = Rtt_RealDegreesToRadians( angle );
-                        
+
                         b2Vec2 position( Rtt_RealToFloat( x ), Rtt_RealToFloat( y ) );
                         body->SetAwake( true );
                         body->SetTransform( position, Rtt_RealToFloat( angle ) );
@@ -615,7 +643,7 @@ DisplayObject::Rotate( Real deltaTheta )
             }
         }
 #endif
-        
+
         Invalidate( kGeometryFlag | kTransformFlag | kStageBoundsFlag );
     }
 }
@@ -749,7 +777,7 @@ DisplayObject::DispatchEventWithTarget( lua_State *L, const MEvent& e, int nresu
     // Prepare Lua call to self:dispatchEvent()
     // where 'self' is the Lua proxy for 'this'
     LuaProxy *luaProxy = GetProxy();
-    
+
     // "luaProxy" can be null if the underlying object has been GCed
     if (luaProxy != NULL)
     {
@@ -810,15 +838,15 @@ DisplayObject::AsGroupObject() const
 void
 DisplayObject::LocalToContent( Vertex2& v ) const
 {
-	// TODO: Use GetSrcToDstMatrix()
-	const DisplayObject* object = this;
-	Real dx, dy;
-	if (GetTrimmedFrameOffset( dx, dy ))
-	{
-		v.x += dx;
-		v.y += dy;
-	}
-	object->GetMatrix().Apply( v );
+    // TODO: Use GetSrcToDstMatrix()
+    const DisplayObject* object = this;
+    Real dx, dy;
+    if (GetTrimmedFrameOffset( dx, dy ))
+    {
+        v.x += dx;
+        v.y += dy;
+    }
+    object->GetMatrix().Apply( v );
 
     while ( ( object = object->GetParent() ) )
     {
@@ -829,19 +857,19 @@ DisplayObject::LocalToContent( Vertex2& v ) const
 void
 DisplayObject::ContentToLocal( Vertex2& v ) const
 {
-	// TODO: Use GetSrcToDstMatrix()
-	Matrix srcToDstSpace;
-	ApplyParent( srcToDstSpace );
-	Matrix inverse;
-	Matrix::Invert( srcToDstSpace, inverse );
-	inverse.Apply( v );
+    // TODO: Use GetSrcToDstMatrix()
+    Matrix srcToDstSpace;
+    ApplyParent( srcToDstSpace );
+    Matrix inverse;
+    Matrix::Invert( srcToDstSpace, inverse );
+    inverse.Apply( v );
 
-	Real dx, dy;
-	if (GetTrimmedFrameOffset( dx, dy ))
-	{
-		v.x -= dx;
-		v.y -= dy;
-	}
+    Real dx, dy;
+    if (GetTrimmedFrameOffset( dx, dy ))
+    {
+        v.x -= dx;
+        v.y -= dy;
+    }
 }
 
 // IsSrcToDstValid() only tells you if the fSrcToDst matrix was explicitly
@@ -997,22 +1025,22 @@ DisplayObject::StageBounds() const
 
         const_cast< Self * >( this )->PropagateImplicitSrcToDstInvalidation();
 
-		if ( IsValid( kTransformFlag ) )
-		{
-			GetSrcToDstMatrix().Apply( rRect );
-		}
-		else
-		{
-			Real dx, dy;
-			if (GetTrimmedFrameOffset( dx, dy ))
-			{
-				rRect.Translate( dx, dy );
-			}
-			// TODO: Should we update all the parent stage bounds?
-			GetMatrix().Apply( rRect );
-			ApplyParentTransform( *this, rRect );
-		}
-		const_cast< Self * >( this )->SetValid( kStageBoundsFlag );
+        if ( IsValid( kTransformFlag ) )
+        {
+            GetSrcToDstMatrix().Apply( rRect );
+        }
+        else
+        {
+            Real dx, dy;
+            if (GetTrimmedFrameOffset( dx, dy ))
+            {
+                rRect.Translate( dx, dy );
+            }
+            // TODO: Should we update all the parent stage bounds?
+            GetMatrix().Apply( rRect );
+            ApplyParentTransform( *this, rRect );
+        }
+        const_cast< Self * >( this )->SetValid( kStageBoundsFlag );
 
 #ifdef Rtt_DEBUG
         // Exclude case of childless GroupObjects
@@ -1333,7 +1361,7 @@ DisplayObject::UpdateMask()
 {
     Rtt_ASSERT( ! IsValid( kMaskFlag ) );
 
-    if ( fMask )
+    if ( fMask && !fMask->GetOnlyForHitTests() )
     {
 /*
         Matrix xform = GetSrcToDstMatrix();
@@ -1364,7 +1392,7 @@ DisplayObject::SetMask( Rtt_Allocator *allocator, BitmapMask *mask )
 
         if ( mask )
         {
-            if( ! fMaskUniform )
+            if( ! fMaskUniform && !fMask->GetOnlyForHitTests() )
             {
                 fMaskUniform = Rtt_NEW( allocator, Uniform( allocator, Uniform::kMat3 ) );
             }
@@ -1476,6 +1504,8 @@ DisplayObject::SetSelfBounds( Real width, Real height )
 void
 DisplayObject::SetGeometricProperty( enum GeometricProperty p, Real newValue )
 {
+    if (isnan(newValue)) { return; }
+
     Real currentValue;
 
     switch( p )
@@ -1713,24 +1743,24 @@ DisplayObject::SetExtensionsLocked( bool newValue )
 void
 DisplayObject::SetAnchorChildren( bool newValue )
 {
-	SetProperty( kIsAnchorChildren, newValue );
-	
-	DirtyFlags flags = kTransformFlag;
-	
-	// For backward compatibility purposes, these are tied to the trim correction
-	// feature, since this issue was identified during its development, but some
-	// kind of "invalidateAnchorChildrenImmediately" might be more appropriate.
-	StageObject *canvas = GetStage();
-	DisplayDefaults & defaults = canvas->GetDisplay().GetDefaults();
-	
-	if (defaults.IsImageSheetFrameTrimCorrected())
-	{
-		flags |= kStageBoundsFlag;
-		
-		fTransform.Invalidate();
-	}
-	
-	Invalidate( flags );
+    SetProperty( kIsAnchorChildren, newValue );
+
+    DirtyFlags flags = kTransformFlag;
+
+    // For backward compatibility purposes, these are tied to the trim correction
+    // feature, since this issue was identified during its development, but some
+    // kind of "invalidateAnchorChildrenImmediately" might be more appropriate.
+    StageObject *canvas = GetStage();
+    DisplayDefaults & defaults = canvas->GetDisplay().GetDefaults();
+
+    if (defaults.IsImageSheetFrameTrimCorrected())
+    {
+        flags |= kStageBoundsFlag;
+
+        fTransform.Invalidate();
+    }
+
+    Invalidate( flags );
 }
 
 void
@@ -1823,10 +1853,10 @@ DisplayObject::GetMatrix() const
         offset = GetAnchorOffset();
     }
 
-	Vertex2 deltas;
-	bool correct = GetTrimmedFrameOffsetForAnchor( deltas.x, deltas.y );
+    Vertex2 deltas;
+    bool correct = GetTrimmedFrameOffsetForAnchor( deltas.x, deltas.y );
 
-	return fTransform.GetMatrix( shouldOffset ? & offset : NULL, correct ? &deltas : NULL );
+    return fTransform.GetMatrix( shouldOffset ? & offset : NULL, correct ? &deltas : NULL );
 }
 
 void
@@ -1866,7 +1896,7 @@ DisplayObject::RemoveExtensions()
     }
 }
 #endif
-    
+
 void
 DisplayObject::AddedToParent( lua_State * L, GroupObject * parent )
 {

@@ -97,7 +97,7 @@ class NativeToJavaBridge
 				const char *filePath, AndroidImageData& imageData, bool convertToGrayscale,
 				int maxWidth, int maxHeight, bool loadImageInfoOnly);
 		bool SaveImageToPhotoLibrary( const char *fileName );
-		bool SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char * path, int quality );
+		bool SaveBitmap( const Rtt::PlatformBitmap * bitmap, const char * path, int quality, const char * format );
 	
 		bool RenderText(
 				const char *text, const char *fontName, float fontSize, bool isBold,
@@ -143,6 +143,7 @@ class NativeToJavaBridge
 		bool HasMediaSource( int mediaSourceType );
 		bool HasAccessToMediaSource( int mediaSourceType );
 		void ShowImagePicker( int imageSourceType, const char *destinationFilePath );
+		void ShowMultiImagePicker( int imageSourceType, const char *destinationFilePath, int maxSelection );
 		void ShowVideoPicker( int videoSourceType, int maxTime, int quality );
 		bool CanShowPopup( const char *name );
 		void ShowSendMailPopup( NativeToJavaBridge::DictionaryRef dictionaryOfSettings, Rtt::LuaResource *resource );
@@ -230,6 +231,7 @@ class NativeToJavaBridge
 		void WebViewRequestGoBack( int id );
 		void WebViewRequestGoForward( int id );
 		void WebViewRequestDeleteCookies( int id );
+		void WebViewRequestInjectJS( int id, const char * jsCode );
 		bool WebPopupShouldLoadUrl( int id, const char * url );
 		bool WebPopupDidFailLoadUrl( int id, const char * url, const char * msg, int code );
 
