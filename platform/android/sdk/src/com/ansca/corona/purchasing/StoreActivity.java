@@ -66,12 +66,6 @@ public class StoreActivity extends android.app.Activity {
 			setRequestedOrientation(orientation);
 		}
 
-
-		if (android.os.Build.VERSION.SDK_INT <= 34) {
-			setRequestedOrientation(orientation);
-		}
-
-
 		// Display this activity full screen if requested
 		boolean isFullScreen = getIntent().getBooleanExtra(EXTRA_FULL_SCREEN, false);
 		if (isFullScreen) {
