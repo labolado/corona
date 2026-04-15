@@ -22,7 +22,8 @@
 #include "librtt/Display/Rtt_Display.h"
 #include "librtt/Display/Rtt_Scene.h"
 #include "librtt/Display/Rtt_StageObject.h"
-#include "librtt/Rtt_Runtime.h"	
+#include "librtt/Rtt_Runtime.h"
+#include "librtt/Rtt_InputRecorder.h"
 #include "librtt/Rtt_Event.h"
 #include "librtt/Rtt_DeviceOrientation.h"
 #include "librtt/Rtt_LuaContext.h"
@@ -960,7 +961,23 @@ JavaToNativeBridge::TouchEvent(int x, int y, int xStart, int yStart, int touchTy
 	Rtt::TouchEvent e( Rtt_FloatToReal( x ), Rtt_FloatToReal( y ), xStart, yStart, phaseForType(touchType), Rtt_FloatToReal( pressure ) );
 	e.SetId( (void*)touchId );
 	e.SetTime( absoluteTimeFromSystemClockUptime(fRuntime, timestamp, fNativeToJavaBridge) );
-	
+
+	// Record platform touch at the source (before Lua hit-testing can generate HitEvents)
+	{
+		Rtt::InputRecorder* rec = fRuntime->GetInputRecorder();
+		static int sTouchLog = 0;
+		if (sTouchLog < 3)
+		{
+			sTouchLog++;
+			Rtt_LogException("PLATFORM_TOUCH[%d]: recorder=%p mode=%d x=%d y=%d phase=%d\n",
+				sTouchLog, (void*)rec, rec ? (int)rec->GetMode() : -1, x, y, touchType);
+		}
+		if (rec)
+		{
+			rec->RecordTouchEvent(e, e.GetId());
+		}
+	}
+
 	fRuntime->DispatchEvent( e );
 }
 
@@ -1298,6 +1315,33 @@ JavaToNativeBridge::MultitouchEventAdd(
 		event.SetId((void*)touchId);
 	}
 	event.SetTime(absoluteTimeFromSystemClockUptime(fRuntime, timestamp, fNativeToJavaBridge));
+
+	// Diagnostic: log original touch path values for comparison with replay
+	{
+		static int sOrigLog = 0;
+		if (sOrigLog < 10)
+		{
+			Rtt_Log("ORIGINAL_TOUCH[%d] phase=%d xy=(%d,%d) xyStart=(%d,%d) id=%d\n",
+				sOrigLog, phaseType, xLast, yLast, xStart, yStart, touchId);
+			Rtt_Log("  TouchEvent: ScreenX=%.1f ScreenY=%.1f\n",
+				Rtt_RealToFloat(event.ScreenX()), Rtt_RealToFloat(event.ScreenY()));
+			if (fRuntime)
+			{
+				const Rtt::Display& display = fRuntime->GetDisplay();
+				Rtt_Log("  Display: WindowSize=%dx%d Sx=%.6f Sy=%.6f OffsetX=%.1f OffsetY=%.1f\n",
+					display.WindowWidth(), display.WindowHeight(),
+					Rtt_RealToFloat(display.GetSx()), Rtt_RealToFloat(display.GetSy()),
+					Rtt_RealToFloat(display.GetXOriginOffset()), Rtt_RealToFloat(display.GetYOriginOffset()));
+			}
+			sOrigLog++;
+		}
+	}
+
+	// Record platform touch before buffering
+	if (fRuntime && fRuntime->GetInputRecorder())
+	{
+		fRuntime->GetInputRecorder()->RecordTouchEvent(event, event.GetId());
+	}
 
 	// Add the touch event to the buffer.
 	fMultitouchEventBuffer[fMultitouchEventCount] = event;

@@ -845,6 +845,8 @@ class HitEvent : public VirtualEvent
 	public:
 		Rtt_INLINE Real X() const { return fXContent; }
 		Rtt_INLINE Real Y() const { return fYContent; }
+		Rtt_INLINE Real ScreenX() const { return fXScreen; }
+		Rtt_INLINE Real ScreenY() const { return fYScreen; }
 
 	public:
 //		void SetX( Real newValue ) { fX = newValue; }

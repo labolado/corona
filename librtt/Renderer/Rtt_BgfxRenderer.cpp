@@ -138,13 +138,10 @@ static void LogBgfxFrameStats( const char* phase, bool isCapture )
         }
     }
 
-    __android_log_print( ANDROID_LOG_INFO, "Corona",
-        "BGFX_FRAME: %s gpuFrame=%u viewCount=%u draw=%u capture=%d",
-        phase,
-        stats->gpuFrameNum,
-        stats->numViews,
-        stats->numDraw,
-        isCapture ? 1 : 0 );
+    // Suppress per-frame logging to avoid flooding logcat
+    // __android_log_print( ANDROID_LOG_INFO, "Corona",
+    //     "BGFX_FRAME: %s gpuFrame=%u viewCount=%u draw=%u capture=%d",
+    //     phase, stats->gpuFrameNum, stats->numViews, stats->numDraw, isCapture ? 1 : 0 );
 }
 #endif
 
