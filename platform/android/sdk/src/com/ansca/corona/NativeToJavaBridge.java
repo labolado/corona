@@ -60,6 +60,8 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 
+import dalvik.system.DexClassLoader;
+
 import com.ansca.corona.AudioRecorder.AudioByteBufferHolder;
 import com.ansca.corona.listeners.CoronaSplashScreenApiListener;
 import com.ansca.corona.listeners.CoronaStatusBarApiListener;
@@ -3302,19 +3304,15 @@ public class NativeToJavaBridge {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) { // Android 15+
 				Window window = activity.getWindow();
 				View decorView = window.getDecorView();
-				// Add bottom insert
+
 				decorView.setOnApplyWindowInsetsListener((view, insets) -> {
-					Insets navBarInsets = insets.getInsets(WindowInsets.Type.navigationBars());
+					Insets statusBarInsets = insets.getInsets(WindowInsets.Type.statusBars());
 					view.setBackgroundColor(color);
-					view.setPadding(0, 0, 0, navBarInsets.bottom);
+					view.setPadding(0, statusBarInsets.top, 0, 0);
 					return insets;
 				});
 
 				window.setNavigationBarColor(color);
-				// Update Insert
-				decorView.post(() -> {
-					decorView.requestApplyInsets();
-				});
 			} else {
 				CoronaEnvironment.getCoronaActivity().setNavigationBarColor(red, green, blue);
 			}
