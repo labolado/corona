@@ -173,6 +173,7 @@ class DisplayLibrary
         static int captureBounds( lua_State *L );
         static int captureScreen( lua_State *L );
         static int save( lua_State *L );
+        static int saveWithReturn( lua_State *L );
         static int colorSample( lua_State *L );
         static int setDrawMode( lua_State *L );
         static int getSafeAreaInsets( lua_State *L );
@@ -254,6 +255,7 @@ DisplayLibrary::Open( lua_State *L )
         { "captureBounds", captureBounds },
         { "captureScreen", captureScreen },
         { "save", save },
+        { "saveWithReturn", saveWithReturn },
         { "colorSample", colorSample },
         { "setDrawMode", setDrawMode },
         { "getSafeAreaInsets", getSafeAreaInsets },
