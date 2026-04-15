@@ -700,7 +700,14 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
             {
                 size_t parenOpen = code.find('(', pos);
                 if (parenOpen == std::string::npos || parenOpen > pos + 5) { ++pos; continue; }
-                size_t parenClose = code.find(')', parenOpen);
+                // Find matching closing paren (handles nested parens)
+                int depth = 1;
+                size_t parenClose = std::string::npos;
+                for (size_t i = parenOpen + 1; i < code.size(); ++i)
+                {
+                    if (code[i] == '(') ++depth;
+                    else if (code[i] == ')') { --depth; if (depth == 0) { parenClose = i; break; } }
+                }
                 if (parenClose == std::string::npos) { ++pos; continue; }
                 std::string inner = code.substr(parenOpen + 1, parenClose - parenOpen - 1);
                 // Trim whitespace
@@ -708,12 +715,47 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
                 size_t end = inner.find_last_not_of(" \t");
                 if (start == std::string::npos) { ++pos; continue; }
                 std::string arg = inner.substr(start, end - start + 1);
-                // Check if single argument (no comma at top level)
-                if (arg.find(',') != std::string::npos) { ++pos; continue; }
+                // Check if single argument (no comma at top level, respecting nested parens)
+                bool hasTopLevelComma = false;
+                {
+                    int d = 0;
+                    for (size_t i = 0; i < arg.size(); ++i)
+                    {
+                        if (arg[i] == '(') ++d;
+                        else if (arg[i] == ')') --d;
+                        else if (arg[i] == ',' && d == 0) { hasTopLevelComma = true; break; }
+                    }
+                }
+                if (hasTopLevelComma) { ++pos; continue; }
                 // Check if it's a number or identifier
                 bool isNumber = !arg.empty() && (isdigit(arg[0]) || arg[0] == '-' || arg[0] == '.');
                 bool isIdentifier = !arg.empty() && (isalpha(arg[0]) || arg[0] == '_');
                 if (!isNumber && !isIdentifier) { ++pos; continue; }
+                // Skip if arg is a swizzle that already provides enough components
+                // e.g. vec3(color.rgb) should NOT expand — .rgb already has 3 components
+                {
+                    size_t dotPos = arg.rfind('.');
+                    if (dotPos != std::string::npos && dotPos + 1 < arg.size())
+                    {
+                        std::string swiz = arg.substr(dotPos + 1);
+                        bool isSwizzle = !swiz.empty();
+                        for (char c : swiz)
+                        {
+                            if (!(c == 'x' || c == 'y' || c == 'z' || c == 'w' ||
+                                  c == 'r' || c == 'g' || c == 'b' || c == 'a' ||
+                                  c == 's' || c == 't' || c == 'p' || c == 'q'))
+                            {
+                                isSwizzle = false;
+                                break;
+                            }
+                        }
+                        if (isSwizzle && (int)swiz.size() >= count)
+                        {
+                            pos = parenClose + 1;
+                            continue;
+                        }
+                    }
+                }
                 // Build replacement: arg, arg, ...
                 std::string replacement = prefix + std::string("(") + arg;
                 for (int i = 1; i < count; ++i) replacement += ", " + arg;
