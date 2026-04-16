@@ -339,35 +339,9 @@ TRACE_CALL;
 	}
 	lua_pop( L, 1 );
 
+	// Note: b2ParticleSystemDef no longer has a 'filter' member in this
+	// version of Box2D. We still pop the Lua field for API compatibility.
 	lua_getfield( L, -1, "filter" );
-	if( lua_istable( L, -1 ) )
-	{
-		b2Filter& filter = particleSystemDef.filter;
-
-		lua_getfield( L, -1, "categoryBits" );
-		if ( ! lua_isnil( L, -1 ) )
-		{
-			uint16 categoryBits = (uint16)lua_tonumber( L, -1 );
-			filter.categoryBits = categoryBits;
-		}
-		lua_pop( L, 1 );
-
-		lua_getfield( L, -1, "maskBits" );
-		if ( ! lua_isnil( L, -1 ) )
-		{
-			uint16 maskBits = (uint16)lua_tonumber( L, -1 );
-			filter.maskBits = maskBits;
-		}
-		lua_pop( L, 1 );
-
-		lua_getfield( L, -1, "groupIndex" );
-		if ( ! lua_isnil( L, -1 ) )
-		{
-			int16 groupIndex = (int16)lua_tonumber( L, -1 );
-			filter.groupIndex = groupIndex;
-		}
-		lua_pop( L, 1 );
-	}
 	lua_pop( L, 1 );
 }
 
