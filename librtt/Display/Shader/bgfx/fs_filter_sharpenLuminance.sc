@@ -70,5 +70,6 @@ float unit_sharpness = v_UserData.x;
         _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
     if (u_TexFlags.y > 2.5)
         _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    _masked *= v_ColorScale;
     gl_FragColor = _masked;
 }

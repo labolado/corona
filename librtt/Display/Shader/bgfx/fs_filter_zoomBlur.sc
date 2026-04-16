@@ -75,5 +75,6 @@ vec2 origin = vec2( v_UserData.x, v_UserData.y );
         _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
     if (u_TexFlags.y > 2.5)
         _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    _masked *= v_ColorScale;
     gl_FragColor = _masked;
 }

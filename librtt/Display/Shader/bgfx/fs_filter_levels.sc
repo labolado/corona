@@ -71,6 +71,7 @@ float white = v_UserData.x;
         _masked *= texture2D(u_MaskSampler1, v_MaskUV1).r;
     if (u_TexFlags.y > 2.5)
         _masked *= texture2D(u_MaskSampler2, v_MaskUV2).r;
+    _masked *= v_ColorScale;
     gl_FragColor = _masked;
 //	vec4 inPixel = texture2D(u_FillSampler0, v_TexCoord.xy);
 //	vec4 color;
