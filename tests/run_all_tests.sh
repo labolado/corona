@@ -10,6 +10,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Check shader binary sync before any tests
+echo "=== Pre-flight: shader binary sync check ==="
+if ! bash tests/compile_shaders.sh --check; then
+    echo "ERROR: Shader binaries out of sync. Run: bash tests/compile_shaders.sh"
+    exit 1
+fi
+echo ""
+
 MODE="${1:-all}"
 DEMO="tests/bgfx-demo"
 RESULTS_DIR="/tmp/solar2d_regression_$(date +%Y%m%d_%H%M%S)"
