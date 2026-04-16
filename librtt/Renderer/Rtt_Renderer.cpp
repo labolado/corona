@@ -1635,7 +1635,7 @@ Renderer::CheckAndInsertDrawCommand()
         }
         else
         {
-            fBackCommandBuffer->Draw( fVertexOffset - fOffsetCorrection, fVertexCount - fDegenerateVertexCount, fPreviousPrimitiveType );
+            fBackCommandBuffer->Draw( fVertexOffset, fVertexCount - fDegenerateVertexCount, fPreviousPrimitiveType );
         }
         INCREMENT( fStatistics.fDrawCallCount );
 
