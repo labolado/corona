@@ -622,7 +622,7 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     // 4. Parameter → local variable
     {
         std::string localVar = "_" + paramName;
-        std::string localDecl = "vec2 " + localVar + " = (v_UserData.w > 0.0) ? v_TexCoord.xy / v_UserData.w : v_TexCoord.xy;\n";
+        std::string localDecl = "vec2 " + localVar + " = v_TexCoord.xy;\n"; // No q-divide for custom effects (q only in default shader via v_UserData.w)
         body = "\n    " + localDecl + body;
 
         size_t pos = localDecl.size() + 5;
@@ -1031,7 +1031,7 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "    // Standard varying passthrough\n";
     result += "    v_TexCoord = vec3(a_texcoord0.xy, 0.0);\n";
     result += "    v_ColorScale = a_color0;\n";
-    result += "    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);\n"; // q in .w; overwrites a_texcoord1.w (affects monotone/sunbeams/lenticularHalo on 2.5D objects, see Issue #18)
+    result += "    v_UserData = a_texcoord1;\n"; // Keep original user data for custom effect shaders (q-divide only in default shader)
     result += "    vec3 maskPos = vec3(a_position.xy, 1.0);\n";
     result += "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n";
     result += "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n";
