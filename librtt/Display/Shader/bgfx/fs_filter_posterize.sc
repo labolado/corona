@@ -53,6 +53,9 @@ mediump float color_count = v_UserData.x;
 
 	mediump vec4 color = texture2D( u_FillSampler0, texCoord );
 
+	if (u_TexFlags.x > 0.5)
+	    color = vec4(0.0, 0.0, 0.0, color.r);
+
 	// This quantification can be visualized in Grapher.app using:
 	//
 	//		y = ( floor( 8.0 * x ) / 8.0 )

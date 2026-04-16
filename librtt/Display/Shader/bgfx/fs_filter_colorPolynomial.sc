@@ -55,6 +55,9 @@ mat4 coefficients = u_UserData0;
 
 	vec4 input_color = texture2D( u_FillSampler0, texCoord );
 
+	if (u_TexFlags.x > 0.5)
+	    input_color = vec4(0.0, 0.0, 0.0, input_color.r);
+
 	vec4 redCoefficients = coefficients[ 0 ];
 	vec4 greenCoefficients = coefficients[ 1 ];
 	vec4 blueCoefficients = coefficients[ 2 ];

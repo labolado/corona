@@ -62,6 +62,9 @@ void main()
 
     vec4 color = texture2D(u_FillSampler0, uv);
 
+    if (u_TexFlags.x > 0.5)
+        color = vec4(0.0, 0.0, 0.0, color.r);
+
     vec4 _masked = color * v_ColorScale * visibility * brightness;
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;

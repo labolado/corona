@@ -51,6 +51,9 @@ vec4 FragmentKernel(vec2 texCoord, vec4 v_ColorScale, vec4 v_UserData)
     vec3 dirLightDirection = normalize(u_UserData1.xyz);
 
     vec4 texColor = texture2D(u_FillSampler0, texCoord);
+
+    if (u_TexFlags.x > 0.5)
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
     vec3 surface_normal = texture2D(u_FillSampler1, texCoord).xyz;
     surface_normal.xyz = normalize((surface_normal.xyz * 2.0) - 1.0);
 

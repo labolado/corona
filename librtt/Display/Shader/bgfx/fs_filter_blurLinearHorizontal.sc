@@ -55,6 +55,9 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 vec4 color = texture2D(u_FillSampler0, texCoord.st) * kWeight0;
 
+    if (u_TexFlags.x > 0.5)
+        color = vec4(0.0, 0.0, 0.0, color.r);
+
   color += texture2D(u_FillSampler0, (texCoord.st + vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
   color += texture2D(u_FillSampler0, (texCoord.st - vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
   color += texture2D(u_FillSampler0, (texCoord.st + vec2(v_UserData.y, 0.0) * u_TexelSize.xy)) * kWeight2;

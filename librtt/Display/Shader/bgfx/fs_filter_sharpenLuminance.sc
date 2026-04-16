@@ -53,6 +53,9 @@ float unit_sharpness = v_UserData.x;
 	float sharpness_factor = ( 10.0 + ( 40.0 * unit_sharpness ) );
 
 	vec4 color = texture2D( u_FillSampler0, texCoord );
+
+	if (u_TexFlags.x > 0.5)
+	    color = vec4(0.0, 0.0, 0.0, color.r);
 	float original_alpha = color.a;
 
 	color -= texture2D( u_FillSampler0, texCoord + 0.0001 ) * sharpness_factor;

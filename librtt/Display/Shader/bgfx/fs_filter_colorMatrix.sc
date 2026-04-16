@@ -54,6 +54,9 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 vec4 input_color = texture2D( u_FillSampler0, texCoord );
 
+    if (u_TexFlags.x > 0.5)
+        input_color = vec4(0.0, 0.0, 0.0, input_color.r);
+
 	mat4 coefficients = u_UserData0;
 	vec4 bias = u_UserData1;
 

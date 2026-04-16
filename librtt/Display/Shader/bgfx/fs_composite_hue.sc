@@ -52,6 +52,9 @@ const vec4 kWeights = vec4(0.2125, 0.7154, 0.0721, 1.0);
  vec4 FragmentKernel(vec2 texCoord, vec4 v_ColorScale, vec4 v_UserData)
 {
  vec4 base = texture2D(u_FillSampler0, texCoord);
+
+ if (u_TexFlags.x > 0.5)
+     base = vec4(0.0, 0.0, 0.0, base.r);
  vec4 blend = texture2D(u_FillSampler1, texCoord);
 
  // Luminance of blend

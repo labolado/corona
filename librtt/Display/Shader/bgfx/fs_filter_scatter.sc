@@ -65,6 +65,9 @@ vec2 rnd = vec2( rand( texCoord ),
 	vec4 texColor = texture2D( u_FillSampler0,
 										( texCoord + ( rnd * v_UserData.x * 0.25 ) ) );
 
+	if (u_TexFlags.x > 0.5)
+	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
     vec4 _masked = texColor * v_ColorScale;
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;

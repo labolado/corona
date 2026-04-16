@@ -52,6 +52,9 @@ void main()
     float q = v_TexCoord.z;
     if (q > 0.0) texCoord = texCoord / q;
 vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+
+    if (u_TexFlags.x > 0.5)
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
     float luminance = dot( texColor.rgb, kWeights );
 
     vec4 _masked = vec4( vec3( luminance ), texColor.a );

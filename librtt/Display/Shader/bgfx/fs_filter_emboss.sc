@@ -50,6 +50,9 @@ void main()
     float q = v_TexCoord.z;
     if (q > 0.0) texCoord = texCoord / q;
 vec4 sample0 = texture2D( u_FillSampler0, texCoord - u_TexelSize.xy );
+
+    if (u_TexFlags.x > 0.5)
+        sample0 = vec4(0.0, 0.0, 0.0, sample0.r);
 	vec4 sample1 = texture2D( u_FillSampler0, texCoord + u_TexelSize.xy );
 
 	vec4 result = vec4( 0.5, 0.5, 0.5, ( ( sample0.a + sample1.a ) * 0.5 ) );

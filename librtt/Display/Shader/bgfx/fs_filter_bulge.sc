@@ -73,6 +73,9 @@ float intensity = v_UserData.x;
 	float v = length * sin( angle ) + 0.5;
 
     vec4 _masked = texture2D( u_FillSampler0, vec2( v, u ) ) * v_ColorScale;
+
+    if (u_TexFlags.x > 0.5)
+        _masked = vec4(0.0, 0.0, 0.0, _masked.r);
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
     if (u_TexFlags.y > 1.5)

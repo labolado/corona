@@ -51,6 +51,9 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
 
+    if (u_TexFlags.x > 0.5)
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
     vec4 _masked = vec4( texColor.rgb * pow( 2.0, v_UserData.x ), texColor.w );
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
