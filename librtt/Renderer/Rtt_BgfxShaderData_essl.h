@@ -1,6 +1,6 @@
 // Auto-generated bgfx shader data (essl)
 // Source: vs_default.sc, fs_default.sc
-// Generated: 2026-04-16 12:50:24
+// Generated: 2026-04-16 13:42:41
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh default
 
 #pragma once
