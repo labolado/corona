@@ -338,7 +338,6 @@ jobs:
       # - native  # Disabled: enterprise build needs separate fix
       - webtemplate
       # - linux
-    if: (! failure() && ! cancelled())
     runs-on: macos-15
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
@@ -445,43 +444,6 @@ jobs:
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
-    steps:
-      - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
-      - name: Set up emsdk
-        run: |
-          wget -q --header='Accept:application/octet-stream' https://github.com/coronalabs/emsdk/releases/download/e2.0.34/emsdk.tar.xz -O emsdk.tar.xz
-          tar -xjf emsdk.tar.xz -C ~/
-          xattr -r -d com.apple.quarantine ~/emsdk || true
-      - name: Get processed code
-        uses: actions/download-artifact@v4
-        with:
-          name: SourceCode
-          path: SourceCode
-      - name: Unpack source code
-        run: tar -xzf SourceCode/corona.tgz
-      - run: ./tools/GHAction/daily_env.sh
-      - name: Build webtemplate
-        working-directory: ./platform/emscripten/gmake
-        run: |
-          source ~/emsdk/emsdk_env.sh
-          ./build_template.sh
-      - name: Copy result to output
-        run: |
-          mkdir -p output
-          cp -v platform/emscripten/webtemplate.zip output
-      - name: Upload webtemplate artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Webtemplate
-          path: ./output
-
-
-  Windows-Simulator:
-    needs:
-      - source-code
-    runs-on: macos-15
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Set up emsdk
