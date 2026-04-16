@@ -114,19 +114,6 @@ OBJECTS := \
 	$(OBJDIR)/Rtt_LuaLibSystem.o \
 	$(OBJDIR)/Rtt_LuaProxy.o \
 	$(OBJDIR)/Rtt_LuaProxyVTable.o \
-	$(OBJDIR)/Rtt_DisplayObject_Lua.o \
-	$(OBJDIR)/Rtt_LineObject_Lua.o \
-	$(OBJDIR)/Rtt_GroupObject_Lua.o \
-	$(OBJDIR)/Rtt_ShapeObject_Lua.o \
-	$(OBJDIR)/Rtt_TextObject_Lua.o \
-	$(OBJDIR)/Rtt_EmbossedTextObject_Lua.o \
-	$(OBJDIR)/Rtt_StageObject_Lua.o \
-	$(OBJDIR)/Rtt_SpriteObject_Lua.o \
-	$(OBJDIR)/Rtt_EmitterObject_Lua.o \
-	$(OBJDIR)/Rtt_SnapshotObject_Lua.o \
-	$(OBJDIR)/Rtt_CompositeObject_Lua.o \
-	$(OBJDIR)/Rtt_PlatformDisplayObject_Lua.o \
-	$(OBJDIR)/Rtt_ParticleSystemObject_Lua.o \
 	$(OBJDIR)/Rtt_LuaResource.o \
 	$(OBJDIR)/Rtt_LuaResourceOwner.o \
 	$(OBJDIR)/Rtt_LuaTableIterator.o \
@@ -1820,55 +1807,6 @@ $(OBJDIR)/dkjson.o: ../lua/dkjson.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 
-$(OBJDIR)/Rtt_DisplayObject_Lua.o: ../../../librtt/Display/Rtt_DisplayObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_LineObject_Lua.o: ../../../librtt/Display/Rtt_LineObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_GroupObject_Lua.o: ../../../librtt/Display/Rtt_GroupObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_ShapeObject_Lua.o: ../../../librtt/Display/Rtt_ShapeObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_TextObject_Lua.o: ../../../librtt/Display/Rtt_TextObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_EmbossedTextObject_Lua.o: ../../../librtt/Display/Rtt_EmbossedTextObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_StageObject_Lua.o: ../../../librtt/Display/Rtt_StageObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_SpriteObject_Lua.o: ../../../librtt/Display/Rtt_SpriteObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_EmitterObject_Lua.o: ../../../librtt/Display/Rtt_EmitterObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_SnapshotObject_Lua.o: ../../../librtt/Display/Rtt_SnapshotObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_CompositeObject_Lua.o: ../../../librtt/Display/Rtt_CompositeObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_PlatformDisplayObject_Lua.o: ../../../librtt/Rtt_PlatformDisplayObject_Lua.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
-
-$(OBJDIR)/Rtt_ParticleSystemObject_Lua.o: ../../../librtt/Rtt_ParticleSystemObject_Lua.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 
