@@ -60,6 +60,8 @@ vec4 result = vec4( 0.0 );
     result += texture2D( u_FillSampler0, texCoord + vec2( -offset,  offset ) * u_TexelSize.xy );
     result += texture2D( u_FillSampler0, texCoord + vec2(  0.0,  offset ) * u_TexelSize.xy ) * 2.0;
     result += texture2D( u_FillSampler0, texCoord + vec2(  offset,  offset ) * u_TexelSize.xy );
+    if (u_TexFlags.x > 0.5)
+        result = vec4(0.0, 0.0, 0.0, result.r);
     result = result * v_ColorScale;
     vec4 _masked = result * 0.076923;
     if (u_TexFlags.y > 0.5)
