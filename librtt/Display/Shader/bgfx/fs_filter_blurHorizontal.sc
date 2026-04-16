@@ -89,7 +89,10 @@ float blurSize = v_UserData.x;
 		incremental_gaussian.xy *= incremental_gaussian.yz;
 	}
 
-    vec4 _masked = ( avg_value / coefficient_sum ) * v_ColorScale;
+    vec4 result = avg_value / coefficient_sum;
+    if (u_TexFlags.x > 0.5)
+        result = vec4(0.0, 0.0, 0.0, result.r);
+    vec4 _masked = result * v_ColorScale;
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
     if (u_TexFlags.y > 1.5)
