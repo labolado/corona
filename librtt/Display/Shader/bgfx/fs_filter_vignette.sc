@@ -50,10 +50,11 @@ void main()
     float q = v_TexCoord.z;
     if (q > 0.0) texCoord = texCoord / q;
 const float limit = 0.8;
-	vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+	vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
 	if (u_TexFlags.x > 0.5)
 	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+	texColor *= v_ColorScale;
 	float dist = distance( texCoord, vec2( 0.5, 0.5 ) );
 	texColor.rgb *= ( 1.0 - smoothstep( limit * v_UserData.x, limit, dist ) );
     vec4 _masked = texColor;
