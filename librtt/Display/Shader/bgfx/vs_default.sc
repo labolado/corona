@@ -46,13 +46,13 @@ uniform vec4 u_UserData3;
 void main()
 {
     // Pass through texture coordinates
-    v_TexCoord = vec3(a_texcoord0.xy, 0.0);
+    v_TexCoord = a_texcoord0;
 
     // Pass through color scale
     v_ColorScale = a_color0;
 
-    // Pass through user data, pack q-coordinate into .w for perspective-correct UV
-    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);
+    // Pass through user data
+    v_UserData = a_texcoord1;
 
     // Compute mask UVs
     vec3 maskPos = vec3(a_position.xy, 1.0);

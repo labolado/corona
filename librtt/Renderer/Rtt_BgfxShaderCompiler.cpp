@@ -622,7 +622,7 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     // 4. Parameter → local variable
     {
         std::string localVar = "_" + paramName;
-        std::string localDecl = "vec2 " + localVar + " = v_TexCoord.xy;\n";
+        std::string localDecl = "vec2 " + localVar + " = (v_UserData.w > 0.0) ? v_TexCoord.xy / v_UserData.w : v_TexCoord.xy;\n";
         body = "\n    " + localDecl + body;
 
         size_t pos = localDecl.size() + 5;
