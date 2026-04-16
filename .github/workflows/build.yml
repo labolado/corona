@@ -82,7 +82,9 @@ jobs:
           path: external/bgfx/.build/ios-arm64/bin/lib*.a
 
   native:
-    needs: source-code
+    needs:
+      - source-code
+      - build-bgfx-libs
     runs-on: macos-15
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
