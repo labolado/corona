@@ -18,6 +18,10 @@ OUTPUT_DIR="$CORONA_DIR/librtt/Renderer"
 VARYING="$SHADER_DIR/varying.def.sc"
 
 if [ ! -x "$SHADERC" ]; then
+    if [ "$1" = "--check" ]; then
+        echo "SKIP: shaderc not found, cannot verify shader sync (CI without shaderc)"
+        exit 0
+    fi
     echo "ERROR: shaderc not found at $SHADERC"
     exit 1
 fi
