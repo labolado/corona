@@ -43,24 +43,15 @@ DisplayObjectExtensions::~DisplayObjectExtensions()
 #ifdef Rtt_PHYSICS
 	if ( b2Body_IsValid(fBodyId) )
 	{
-		GroupObject *parent = fOwner.GetParent();
-		if ( Rtt_VERIFY( parent ) )
-		{
-			// fBody->SetUserData( NULL );
-			b2Body_SetUserData( fBodyId, NULL );
+		// Always clear UserData to prevent StepWorld from dereferencing
+		// a freed DisplayObject. GetParent() returns NULL for objects
+		// with IsRenderedOffScreen (snapshot.group, canvas cache), which
+		// previously caused SetUserData(NULL) to be skipped.
+		b2Body_SetUserData( fBodyId, NULL );
 
-			// Do NOT DestroyBody here.  Instead, at end of StepWorld(), we lazily
-			// detect if the body's userdata is NULL. If it is, we know to destroy
-			// the body.
-			/*
-			Runtime *runtime = static_cast< Runtime* >( Rtt_AllocatorGetUserdata( parent->Allocator() ) );
-			b2World *world = runtime->GetWorld();
-			if ( Rtt_VERIFY( world ) )
-			{
-				world->DestroyBody( fBody );
-			}
-			*/
-		}
+		// Do NOT DestroyBody here.  Instead, at end of StepWorld(), we lazily
+		// detect if the body's userdata is NULL. If it is, we know to destroy
+		// the body.
 	}
 #endif // Rtt_PHYSICS
 }
