@@ -622,7 +622,7 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     // 4. Parameter → local variable
     {
         std::string localVar = "_" + paramName;
-        std::string localDecl = "vec2 " + localVar + " = (v_TexCoord.z > 0.0) ? v_TexCoord.xy / v_TexCoord.z : v_TexCoord.xy;\n";
+        std::string localDecl = "vec2 " + localVar + " = v_TexCoord.xy;\n";
         body = "\n    " + localDecl + body;
 
         size_t pos = localDecl.size() + 5;
@@ -1029,9 +1029,9 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
 
     result += "void main()\n{\n";
     result += "    // Standard varying passthrough\n";
-    result += "    v_TexCoord = a_texcoord0.xyz;\n";
+    result += "    v_TexCoord = vec3(a_texcoord0.xy, 0.0);\n";
     result += "    v_ColorScale = a_color0;\n";
-    result += "    v_UserData = a_texcoord1;\n";
+    result += "    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);\n";
     result += "    vec3 maskPos = vec3(a_position.xy, 1.0);\n";
     result += "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n";
     result += "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n";

@@ -50,11 +50,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-    // Perspective-correct texture mapping: when q > 0, divide UV by q
+    // Perspective-correct UV: divide pre-multiplied UV by q coefficient (packed in v_UserData.w)
     vec2 uv = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0)
+    {
         uv = uv / q;
+    }
     vec4 texColor = texture2D(u_FillSampler0, uv);
 
     if (u_TexFlags.x > 0.5)
