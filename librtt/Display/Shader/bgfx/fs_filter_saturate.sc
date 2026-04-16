@@ -53,10 +53,11 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 float intensity = v_UserData.x;
 
-    vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+    vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
     if (u_TexFlags.x > 0.5)
         texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+    texColor *= v_ColorScale;
 
     float luminance = dot( texColor.rgb, kWeights );
 

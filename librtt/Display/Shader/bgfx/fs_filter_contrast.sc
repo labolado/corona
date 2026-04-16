@@ -53,10 +53,11 @@ float contrast = v_UserData.x;
 
     const vec3 avgLuminance = vec3( 0.5, 0.5, 0.5 );
 
-    vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+    vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
     if (u_TexFlags.x > 0.5)
         texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+    texColor *= v_ColorScale;
     texColor.rgb = mix( avgLuminance, texColor.rgb, contrast);
 
     vec4 _masked = texColor;

@@ -52,10 +52,11 @@ void main()
 float lower_bound = v_UserData.x;
 	float upper_bound = v_UserData.y;
 
-	vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+	vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
 	if (u_TexFlags.x > 0.5)
 	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+	texColor *= v_ColorScale;
 
 	float dist = distance( texCoord, vec2( 0.5, 0.5 ) );
 

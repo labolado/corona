@@ -48,10 +48,11 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
     vec2 uv = (v_sample_uv_offset + (floor(texCoord / v_slot_size) * v_slot_size));
 
-    vec4 _masked = texture2D(u_FillSampler0, uv) * v_ColorScale;
+    vec4 _masked = texture2D(u_FillSampler0, uv);
 
     if (u_TexFlags.x > 0.5)
         _masked = vec4(0.0, 0.0, 0.0, _masked.r);
+    _masked *= v_ColorScale;
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
     if (u_TexFlags.y > 1.5)
