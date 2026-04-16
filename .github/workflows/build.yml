@@ -50,40 +50,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Generate bgfx projects (macOS arm64 + x64, iOS)
+      - name: Generate bgfx projects (macOS + iOS)
         working-directory: ./external/bgfx
         run: |
           make .build/projects/gmake-osx-arm64
-          make .build/projects/gmake-osx-x64
           make .build/projects/gmake-ios-arm64
-      - name: Build bgfx macOS arm64 (Debug + Release)
+      - name: Build bgfx macOS (Debug + Release)
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
-      - name: Build bgfx macOS x64 (Debug + Release)
-        working-directory: ./external/bgfx
-        run: |
-          make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS (Debug + Release)
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
-      - name: Create universal macOS libs (arm64 + x64)
+      - name: Copy libs to expected dirs
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
-          for f in external/bgfx/.build/osx-arm64/bin/lib*.a; do
-            name=$(basename "$f")
-            x64="external/bgfx/.build/osx-x64/bin/$name"
-            if [ -f "$x64" ]; then
-              lipo -create "$f" "$x64" -output "external/bgfx/.build/projects/xcode15/$name"
-            else
-              cp "$f" "external/bgfx/.build/projects/xcode15/$name"
-            fi
-          done
-          # iOS libs already in correct location from build step
+          cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
       - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
