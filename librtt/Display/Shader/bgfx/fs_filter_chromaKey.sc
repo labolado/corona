@@ -60,6 +60,9 @@ float sensitivity = u_UserData0.x; // threshold
     vec4 texColor = ( texture2D( u_FillSampler0, texCoord ) * v_ColorScale );
     //vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 
+    if (u_TexFlags.x > 0.5)
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
     float maskY = 0.2989 * color.r + 0.5866 * color.g + 0.1145 * color.b;
     float maskCr = 0.7132 * (color.r - maskY);
     float maskCb = 0.5647 * (color.b - maskY);

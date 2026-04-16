@@ -55,6 +55,9 @@ vec2 origin = vec2( v_UserData.x, v_UserData.y );
 	vec2 samplingOffset = ( u_TexelSize.xy * (origin - texCoord) * ( 32.0 * unitIntensity ) );
 
 	vec4 fragmentColor = texture2D(u_FillSampler0, texCoord) * 0.18;
+
+	if (u_TexFlags.x > 0.5)
+	    fragmentColor = vec4(0.0, 0.0, 0.0, fragmentColor.r);
 	fragmentColor += texture2D(u_FillSampler0, texCoord + samplingOffset) * 0.15;
 	fragmentColor += texture2D(u_FillSampler0, texCoord + (2.0 * samplingOffset)) *  0.12;
 	fragmentColor += texture2D(u_FillSampler0, texCoord + (3.0 * samplingOffset)) * 0.09;

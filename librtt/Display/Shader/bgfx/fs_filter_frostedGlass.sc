@@ -164,6 +164,9 @@ float scale = v_UserData.x;
 	//! TOFIX: We SHOULDN'T hard code "0.01".
 	vec4 texColor = texture2D( u_FillSampler0, texCoord + ( n.xy * 0.01 ) );
 
+	if (u_TexFlags.x > 0.5)
+	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
 	#if 0 // Experiment.
 
     vec4 _masked = vec4( ( texColor.rgb * ( 0.5 + intensity ) ), 1.0 ) * v_ColorScale;

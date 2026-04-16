@@ -56,7 +56,12 @@ void main()
 
     float progress = (d / unitSmoothness);
 
-    vec4 color = (texture2D(u_FillSampler0, texCoord) * v_ColorScale);
+    vec4 color = texture2D(u_FillSampler0, texCoord);
+
+    if (u_TexFlags.x > 0.5)
+        color = vec4(0.0, 0.0, 0.0, color.r);
+
+    color = color * v_ColorScale;
 
     #if 0
         color = v_ColorScale;

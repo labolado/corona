@@ -51,6 +51,9 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
 
+    if (u_TexFlags.x > 0.5)
+        texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
 	// "texColor" has premultiplied alphas:
 	//
 	// texColor: ( ( r * a ), ( g * a ), ( b * a ), a )

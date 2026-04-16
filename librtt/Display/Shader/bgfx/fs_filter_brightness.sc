@@ -52,6 +52,9 @@ void main()
 // texColor has pre-multiplied alpha.
 	vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
+	if (u_TexFlags.x > 0.5)
+	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
+
 	// pre-multiply brigtness as well
 	float brightness = v_UserData.x * texColor.a;
 

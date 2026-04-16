@@ -91,6 +91,9 @@ vec2 leftTextureCoordinate = texCoord + vec2( - u_TexelSize.x, 0.0 );
 	vec4 middle_sample;
 	middle_sample = texture2D(u_FillSampler0, texCoord);
 
+	if (u_TexFlags.x > 0.5)
+	    middle_sample = vec4(0.0, 0.0, 0.0, middle_sample.r);
+
 	v[5] = middle_sample.rgb;
 	mnmx3(v[3], v[4], v[5]);
 

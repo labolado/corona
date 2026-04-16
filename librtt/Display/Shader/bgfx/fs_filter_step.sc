@@ -56,6 +56,9 @@ void main()
     if (q > 0.0) texCoord = texCoord / q;
 vec4 texColorResult;
 	vec4 texColor = texture2D( u_FillSampler0, texCoord );
+
+	if (u_TexFlags.x > 0.5)
+	    texColor = vec4(0.0, 0.0, 0.0, texColor.r);
 	vec4 colorDelta = ( u_UserData3 - u_UserData1 ); // higherColor - lowerColor.
 
 	// This sets the color to lowerColor.

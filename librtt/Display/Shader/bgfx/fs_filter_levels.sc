@@ -61,6 +61,9 @@ float white = v_UserData.x;
 	float gamma = v_UserData.z;
 
 	vec4 color = texture2D(u_FillSampler0, texCoord);
+
+	if (u_TexFlags.x > 0.5)
+	    color = vec4(0.0, 0.0, 0.0, color.r);
     vec4 _masked = vec4( LevelsControl( color.rgb, black, gamma, white, 0.0, 1.0 ), color.a );
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;

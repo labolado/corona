@@ -65,6 +65,14 @@ void main()
 	vec4 b = texture2D( u_FillSampler0,
 								( texCoord + channelOffset ) );
 
+	// Alpha-only texture swizzle
+	if (u_TexFlags.x > 0.5)
+	{
+	    r = vec4(0.0, 0.0, 0.0, r.r);
+	    g = vec4(0.0, 0.0, 0.0, g.r);
+	    b = vec4(0.0, 0.0, 0.0, b.r);
+	}
+
 	// Combine.
     vec4 _masked = vec4( r.r, g.g, b.b, g.a ) * v_ColorScale;
     if (u_TexFlags.y > 0.5)
