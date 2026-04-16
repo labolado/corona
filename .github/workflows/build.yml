@@ -32,6 +32,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Check shader binary sync
+        run: bash tests/compile_shaders.sh --check
       - run: ./tools/GHAction/daily_env.sh
       - name: Set daily build
         run: ./tools/GHAction/process_sources.sh
@@ -116,7 +118,7 @@ jobs:
           - Xcode_26.0
           - Xcode_26.1
         target:
-          - template
+          # - template  # GL template — no longer built in CI, kept for local debugging
           - template-angle
         platform:
           - iphone
