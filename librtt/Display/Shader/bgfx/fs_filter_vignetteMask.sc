@@ -45,12 +45,16 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float lower_bound = v_UserData.x;
 	float upper_bound = v_UserData.y;
 
-	vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale;
+	vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
 
-	float dist = distance( v_TexCoord.xy, vec2( 0.5, 0.5 ) );
+	float dist = distance( texCoord, vec2( 0.5, 0.5 ) );
 
 	float stepping = smoothstep( lower_bound,
 											upper_bound,

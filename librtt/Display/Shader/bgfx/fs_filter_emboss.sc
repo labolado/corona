@@ -45,8 +45,12 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-vec4 sample0 = texture2D( u_FillSampler0, v_TexCoord.xy - u_TexelSize.xy );
-	vec4 sample1 = texture2D( u_FillSampler0, v_TexCoord.xy + u_TexelSize.xy );
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec4 sample0 = texture2D( u_FillSampler0, texCoord - u_TexelSize.xy );
+	vec4 sample1 = texture2D( u_FillSampler0, texCoord + u_TexelSize.xy );
 
 	vec4 result = vec4( 0.5, 0.5, 0.5, ( ( sample0.a + sample1.a ) * 0.5 ) );
 	result.rgb -= sample0.rgb * 5.0 * v_UserData.x;

@@ -50,8 +50,12 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 vec4 texColorResult;
-	vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
+	vec4 texColor = texture2D( u_FillSampler0, texCoord );
 	vec4 colorDelta = ( u_UserData3 - u_UserData1 ); // higherColor - lowerColor.
 
 	// This sets the color to lowerColor.

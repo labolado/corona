@@ -55,10 +55,14 @@ float rand( in vec2 seed )
 
 void main()
 {
-vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
 	// step( a, b ) = ( ( a <= b ) ? 1.0 : 0.0 ).
-	float noise = step( rand( v_TexCoord.xy ), v_UserData.x );
+	float noise = step( rand( texCoord ), v_UserData.x );
 
 	texColor *= noise;
 

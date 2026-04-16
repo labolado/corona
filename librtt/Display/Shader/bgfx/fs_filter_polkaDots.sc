@@ -42,9 +42,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
     float aspectRatio = v_UserData.z;
 
-    vec2 tc = vec2((v_TexCoord.xy.x * aspectRatio), v_TexCoord.xy.y);
+    vec2 tc = vec2((texCoord.x * aspectRatio), texCoord.y);
 
     vec2 uv = (v_sample_uv_offset + (floor(tc / v_slot_size) * v_slot_size));
 

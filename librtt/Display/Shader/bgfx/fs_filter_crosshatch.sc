@@ -49,7 +49,11 @@ const vec3 kWeights = vec3( 0.2125, 0.7154, 0.0721 );
 
 void main()
 {
-vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
 	float luminance = dot( texColor.rgb, kWeights );
 

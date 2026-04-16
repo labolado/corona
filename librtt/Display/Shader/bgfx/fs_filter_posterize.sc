@@ -45,9 +45,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 mediump float color_count = v_UserData.x;
 
-	mediump vec4 color = texture2D( u_FillSampler0, v_TexCoord.xy );
+	mediump vec4 color = texture2D( u_FillSampler0, texCoord );
 
 	// This quantification can be visualized in Grapher.app using:
 	//

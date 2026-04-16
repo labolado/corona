@@ -49,12 +49,16 @@ const float kWeight2 = 0.0702702703;
 
 void main()
 {
-vec4 color = texture2D(u_FillSampler0, v_TexCoord.xy.st) * kWeight0;
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec4 color = texture2D(u_FillSampler0, texCoord.st) * kWeight0;
 
-  color += texture2D(u_FillSampler0, (v_TexCoord.xy.st + vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
-  color += texture2D(u_FillSampler0, (v_TexCoord.xy.st - vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
-  color += texture2D(u_FillSampler0, (v_TexCoord.xy.st + vec2(v_UserData.y, 0.0) * u_TexelSize.xy)) * kWeight2;
-  color += texture2D(u_FillSampler0, (v_TexCoord.xy.st - vec2(v_UserData.y, 0.0) * u_TexelSize.xy)) * kWeight2;
+  color += texture2D(u_FillSampler0, (texCoord.st + vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
+  color += texture2D(u_FillSampler0, (texCoord.st - vec2(v_UserData.x, 0.0) * u_TexelSize.xy)) * kWeight1;
+  color += texture2D(u_FillSampler0, (texCoord.st + vec2(v_UserData.y, 0.0) * u_TexelSize.xy)) * kWeight2;
+  color += texture2D(u_FillSampler0, (texCoord.st - vec2(v_UserData.y, 0.0) * u_TexelSize.xy)) * kWeight2;
 
     vec4 _masked = color * v_ColorScale;
     if (u_TexFlags.y > 0.5)

@@ -52,11 +52,15 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float white = v_UserData.x;
 	float black = v_UserData.y;
 	float gamma = v_UserData.z;
 
-	vec4 color = texture2D(u_FillSampler0, v_TexCoord.xy);
+	vec4 color = texture2D(u_FillSampler0, texCoord);
     vec4 _masked = vec4( LevelsControl( color.rgb, black, gamma, white, 0.0, 1.0 ), color.a );
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;

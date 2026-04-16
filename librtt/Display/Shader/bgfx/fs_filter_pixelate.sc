@@ -42,7 +42,11 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-    vec2 uv = (v_sample_uv_offset + (floor(v_TexCoord.xy / v_slot_size) * v_slot_size));
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+    vec2 uv = (v_sample_uv_offset + (floor(texCoord / v_slot_size) * v_slot_size));
 
     vec4 _masked = texture2D(u_FillSampler0, uv) * v_ColorScale;
     if (u_TexFlags.y > 0.5)

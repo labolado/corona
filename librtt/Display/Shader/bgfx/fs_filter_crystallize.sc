@@ -118,16 +118,20 @@ vec2 get_voronoi_tc( in vec2 p,
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 // Tile count. MUST be greater than 1.0 (ie: 2.0 or greater).
 	float numTiles = v_UserData.x;
 
-	vec2 tc = get_voronoi_tc( v_TexCoord.xy, numTiles );
+	vec2 tc = get_voronoi_tc( texCoord, numTiles );
 
 	#if 0 // For debugging ONLY.
 
 		// Return a solid color to represent the center of the crystallize.
 
-		float voronoi_distance = distance( tc, v_TexCoord.xy );
+		float voronoi_distance = distance( tc, texCoord );
 
 		// We DON'T want this to be proportional to u_TexelSize because
 		// we want the circle to be of a constant size, NOT proportional

@@ -54,16 +54,20 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-vec2 leftTextureCoordinate = v_TexCoord.xy + vec2( - u_TexelSize.x, 0.0 );
-	vec2 rightTextureCoordinate = v_TexCoord.xy + vec2( u_TexelSize.x, 0.0 );
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec2 leftTextureCoordinate = texCoord + vec2( - u_TexelSize.x, 0.0 );
+	vec2 rightTextureCoordinate = texCoord + vec2( u_TexelSize.x, 0.0 );
 
-	vec2 topTextureCoordinate = v_TexCoord.xy + vec2( 0.0, - u_TexelSize.y );
-	vec2 topLeftTextureCoordinate = v_TexCoord.xy + vec2( - u_TexelSize.x, - u_TexelSize.y );
-	vec2 topRightTextureCoordinate = v_TexCoord.xy + vec2( u_TexelSize.x, - u_TexelSize.y );
+	vec2 topTextureCoordinate = texCoord + vec2( 0.0, - u_TexelSize.y );
+	vec2 topLeftTextureCoordinate = texCoord + vec2( - u_TexelSize.x, - u_TexelSize.y );
+	vec2 topRightTextureCoordinate = texCoord + vec2( u_TexelSize.x, - u_TexelSize.y );
 
-	vec2 bottomTextureCoordinate = v_TexCoord.xy + vec2( 0.0, u_TexelSize.y );
-	vec2 bottomLeftTextureCoordinate = v_TexCoord.xy + vec2( - u_TexelSize.x, u_TexelSize.y );
-	vec2 bottomRightTextureCoordinate = v_TexCoord.xy + vec2( u_TexelSize.x, u_TexelSize.y );
+	vec2 bottomTextureCoordinate = texCoord + vec2( 0.0, u_TexelSize.y );
+	vec2 bottomLeftTextureCoordinate = texCoord + vec2( - u_TexelSize.x, u_TexelSize.y );
+	vec2 bottomRightTextureCoordinate = texCoord + vec2( u_TexelSize.x, u_TexelSize.y );
 
 	vec3 v[6];
 
@@ -85,7 +89,7 @@ vec2 leftTextureCoordinate = v_TexCoord.xy + vec2( - u_TexelSize.x, 0.0 );
 	mnmx4(v[2], v[3], v[4], v[5]);
 
 	vec4 middle_sample;
-	middle_sample = texture2D(u_FillSampler0, v_TexCoord.xy);
+	middle_sample = texture2D(u_FillSampler0, texCoord);
 
 	v[5] = middle_sample.rgb;
 	mnmx3(v[3], v[4], v[5]);

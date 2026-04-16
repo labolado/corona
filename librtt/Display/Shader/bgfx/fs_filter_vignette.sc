@@ -45,9 +45,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 const float limit = 0.8;
-	vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale;
-	float dist = distance( v_TexCoord.xy, vec2( 0.5, 0.5 ) );
+	vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
+	float dist = distance( texCoord, vec2( 0.5, 0.5 ) );
 	texColor.rgb *= ( 1.0 - smoothstep( limit * v_UserData.x, limit, dist ) );
     vec4 _masked = texColor;
     if (u_TexFlags.y > 0.5)

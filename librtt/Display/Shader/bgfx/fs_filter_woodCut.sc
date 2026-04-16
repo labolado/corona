@@ -45,17 +45,21 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 vec2 o_x = vec2(u_TexelSize.x, 0.0);
 	vec2 o_y = vec2(0.0, u_TexelSize.y);
-	vec2 pp = v_TexCoord.xy - o_y;
+	vec2 pp = texCoord - o_y;
 	float t00 = texture2D(u_FillSampler0, pp - o_x).x;
 	float t01 = texture2D(u_FillSampler0, pp).x;
 	float t02 = texture2D(u_FillSampler0, pp + o_x).x;
-	pp = v_TexCoord.xy;
+	pp = texCoord;
 	float t10 = texture2D(u_FillSampler0, pp - o_x).x;
 
 	float t12 = texture2D(u_FillSampler0, pp + o_x).x;
-	pp = v_TexCoord.xy + o_y;
+	pp = texCoord + o_y;
 	float t20 = texture2D(u_FillSampler0, pp - o_x).x;
 	float t21 = texture2D(u_FillSampler0, pp).x;
 	float t22 = texture2D(u_FillSampler0, pp + o_x).x;

@@ -42,15 +42,19 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
     float aspectRatio = u_UserData2.x;
 
     vec2 center = vec2((u_UserData0.x * aspectRatio), u_UserData0.y);
 
-    vec2 pos = vec2((v_TexCoord.xy.x * aspectRatio), v_TexCoord.xy.y);
+    vec2 pos = vec2((texCoord.x * aspectRatio), texCoord.y);
 
     float dist = distance(pos, center);
 
-    vec4 color = (texture2D(u_FillSampler0, v_TexCoord.xy) * v_ColorScale);
+    vec4 color = (texture2D(u_FillSampler0, texCoord) * v_ColorScale);
 
     #if 0
         color = v_ColorScale;

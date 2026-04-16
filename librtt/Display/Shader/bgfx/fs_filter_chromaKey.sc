@@ -49,11 +49,15 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float sensitivity = u_UserData0.x; // threshold
     float smoothing = u_UserData1.x;
     vec4 color = u_UserData2;
 
-    vec4 texColor = ( texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale );
+    vec4 texColor = ( texture2D( u_FillSampler0, texCoord ) * v_ColorScale );
     //vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
 
     float maskY = 0.2989 * color.r + 0.5866 * color.g + 0.1145 * color.b;

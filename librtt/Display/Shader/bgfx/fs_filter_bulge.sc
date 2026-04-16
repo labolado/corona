@@ -45,6 +45,10 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float intensity = v_UserData.x;
 
 	// Convert from Cartesian coordiates to polar coordinates.
@@ -55,11 +59,11 @@ float intensity = v_UserData.x;
 		// This is the same as:
 		// vec2 V_from_center_to_fragment = ( v_TexCoord.xy - vec2( 0.5, 0.5 ) );
 		// float radius = length( V_from_center_to_fragment );
-		float radius = sqrt( ( v_TexCoord.xy.x - 0.5 ) * ( v_TexCoord.xy.x - 0.5 ) + ( v_TexCoord.xy.y - 0.5 ) * ( v_TexCoord.xy.y - 0.5 ) );
+		float radius = sqrt( ( texCoord.x - 0.5 ) * ( texCoord.x - 0.5 ) + ( texCoord.y - 0.5 ) * ( texCoord.y - 0.5 ) );
 
 		// This is the same as:
 		// float angle = atan2(V_from_center_to_fragment );
-		float angle = atan2(v_TexCoord.xy.x - 0.5, v_TexCoord.xy.y - 0.5 );
+		float angle = atan2(texCoord.x - 0.5, texCoord.y - 0.5 );
 
 	// Tweak.
 	float length = pow( radius, intensity );

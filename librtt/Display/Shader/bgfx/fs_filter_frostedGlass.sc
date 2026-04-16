@@ -137,9 +137,13 @@ vec3 get_fragment_normal( in vec2 texCoord,
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float scale = v_UserData.x;
 
-	vec3 n = get_fragment_normal( v_TexCoord.xy,
+	vec3 n = get_fragment_normal( texCoord,
 											u_TexelSize,
 											scale );
 
@@ -150,7 +154,7 @@ float scale = v_UserData.x;
 
 		// This will repeat the texture hozirontally,
 		// and scroll it from right to left.
-		v_TexCoord.xy.x = fract( v_TexCoord.xy.x + ( u_TotalTime * 0.1 ) );
+		texCoord.x = fract( texCoord.x + ( u_TotalTime * 0.1 ) );
 
 	#endif
 
@@ -158,7 +162,7 @@ float scale = v_UserData.x;
 	//vec3 r = refract( vec3( 0.0, 0.0, 1.0 ), n, 1.3330 );
 
 	//! TOFIX: We SHOULDN'T hard code "0.01".
-	vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy + ( n.xy * 0.01 ) );
+	vec4 texColor = texture2D( u_FillSampler0, texCoord + ( n.xy * 0.01 ) );
 
 	#if 0 // Experiment.
 

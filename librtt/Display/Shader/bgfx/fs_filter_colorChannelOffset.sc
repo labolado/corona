@@ -45,21 +45,25 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 // "u_TexelSize.xy" is in pixels.
 	// "u_TexelSize.zw" is in content units.
 	vec2 channelOffset = ( v_UserData.xy * u_TexelSize.zw );
 
 	// Red channel.
 	vec4 r = texture2D( u_FillSampler0,
-								( v_TexCoord.xy - channelOffset ) );
+								( texCoord - channelOffset ) );
 
 	// Keep the green channel where it is.
 	vec4 g = texture2D( u_FillSampler0,
-								v_TexCoord.xy );
+								texCoord );
 
 	// Blue channel.
 	vec4 b = texture2D( u_FillSampler0,
-								( v_TexCoord.xy + channelOffset ) );
+								( texCoord + channelOffset ) );
 
 	// Combine.
     vec4 _masked = vec4( r.r, g.g, b.b, g.a ) * v_ColorScale;
