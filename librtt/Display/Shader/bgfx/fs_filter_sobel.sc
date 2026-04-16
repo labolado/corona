@@ -45,18 +45,22 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 // This is our 3 x 3 kernel.
 	vec4 samples[9];
 
-	samples[ 0 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(-0.0028125, 0.0028125) );
-	samples[ 1 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(0.00, 0.0028125) );
-	samples[ 2 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(0.0028125, 0.0028125) );
-	samples[ 3 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(-0.0028125, 0.00 ) );
-	samples[ 4 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st ); // This will drive our alpha.
-	samples[ 5 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(0.0028125, 0.0028125) );
-	samples[ 6 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(-0.0028125, -0.0028125) );
-	samples[ 7 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(0.00, -0.0028125) );
-	samples[ 8 ] = texture2D( u_FillSampler0, v_TexCoord.xy.st + vec2(0.0028125, -0.0028125) );
+	samples[ 0 ] = texture2D( u_FillSampler0, texCoord.st + vec2(-0.0028125, 0.0028125) );
+	samples[ 1 ] = texture2D( u_FillSampler0, texCoord.st + vec2(0.00, 0.0028125) );
+	samples[ 2 ] = texture2D( u_FillSampler0, texCoord.st + vec2(0.0028125, 0.0028125) );
+	samples[ 3 ] = texture2D( u_FillSampler0, texCoord.st + vec2(-0.0028125, 0.00 ) );
+	samples[ 4 ] = texture2D( u_FillSampler0, texCoord.st ); // This will drive our alpha.
+	samples[ 5 ] = texture2D( u_FillSampler0, texCoord.st + vec2(0.0028125, 0.0028125) );
+	samples[ 6 ] = texture2D( u_FillSampler0, texCoord.st + vec2(-0.0028125, -0.0028125) );
+	samples[ 7 ] = texture2D( u_FillSampler0, texCoord.st + vec2(0.00, -0.0028125) );
+	samples[ 8 ] = texture2D( u_FillSampler0, texCoord.st + vec2(0.0028125, -0.0028125) );
 
 	// Horizontal and vertical weighting.
 	//

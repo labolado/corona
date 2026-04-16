@@ -55,11 +55,15 @@ float rand( in vec2 seed )
 
 void main()
 {
-vec2 rnd = vec2( rand( v_TexCoord.xy ),
-								rand( v_TexCoord.xy.yx ));
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec2 rnd = vec2( rand( texCoord ),
+								rand( texCoord.yx ));
 
 	vec4 texColor = texture2D( u_FillSampler0,
-										( v_TexCoord.xy + ( rnd * v_UserData.x * 0.25 ) ) );
+										( texCoord + ( rnd * v_UserData.x * 0.25 ) ) );
 
     vec4 _masked = texColor * v_ColorScale;
     if (u_TexFlags.y > 0.5)

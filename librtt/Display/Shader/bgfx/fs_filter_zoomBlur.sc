@@ -45,20 +45,24 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 vec2 origin = vec2( v_UserData.x, v_UserData.y );
 	float unitIntensity = v_UserData.z;
 
-	vec2 samplingOffset = ( u_TexelSize.xy * (origin - v_TexCoord.xy) * ( 32.0 * unitIntensity ) );
+	vec2 samplingOffset = ( u_TexelSize.xy * (origin - texCoord) * ( 32.0 * unitIntensity ) );
 
-	vec4 fragmentColor = texture2D(u_FillSampler0, v_TexCoord.xy) * 0.18;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy + samplingOffset) * 0.15;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy + (2.0 * samplingOffset)) *  0.12;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy + (3.0 * samplingOffset)) * 0.09;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy + (4.0 * samplingOffset)) * 0.05;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy - samplingOffset) * 0.15;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy - (2.0 * samplingOffset)) *  0.12;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy - (3.0 * samplingOffset)) * 0.09;
-	fragmentColor += texture2D(u_FillSampler0, v_TexCoord.xy - (4.0 * samplingOffset)) * 0.05;
+	vec4 fragmentColor = texture2D(u_FillSampler0, texCoord) * 0.18;
+	fragmentColor += texture2D(u_FillSampler0, texCoord + samplingOffset) * 0.15;
+	fragmentColor += texture2D(u_FillSampler0, texCoord + (2.0 * samplingOffset)) *  0.12;
+	fragmentColor += texture2D(u_FillSampler0, texCoord + (3.0 * samplingOffset)) * 0.09;
+	fragmentColor += texture2D(u_FillSampler0, texCoord + (4.0 * samplingOffset)) * 0.05;
+	fragmentColor += texture2D(u_FillSampler0, texCoord - samplingOffset) * 0.15;
+	fragmentColor += texture2D(u_FillSampler0, texCoord - (2.0 * samplingOffset)) *  0.12;
+	fragmentColor += texture2D(u_FillSampler0, texCoord - (3.0 * samplingOffset)) * 0.09;
+	fragmentColor += texture2D(u_FillSampler0, texCoord - (4.0 * samplingOffset)) * 0.05;
 
 	//return ( texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale );
     vec4 _masked = fragmentColor;

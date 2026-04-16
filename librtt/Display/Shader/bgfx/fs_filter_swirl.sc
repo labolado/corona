@@ -45,9 +45,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 const float radius = 1.0;
 
-    vec2 uv = v_TexCoord.xy - vec2( 0.5, 0.5 );
+    vec2 uv = texCoord - vec2( 0.5, 0.5 );
     float dist = length( uv );
 
 	// step( a, b ) = ( ( a <= b ) ? 1.0 : 0.0 ).
@@ -62,7 +66,7 @@ const float radius = 1.0;
 	vec2 resultDistLessThanRadius = ( vec2( dot( uv, vec2( c, -s ) ),
 													dot( uv, vec2( s,  c ) ) ) +
 											vec2( 0.5, 0.5 ) );
-	vec2 resultDistNotLessThanRadius = v_TexCoord.xy;
+	vec2 resultDistNotLessThanRadius = texCoord;
 
     uv = ( ( useDistLessThanRadius * resultDistLessThanRadius ) +
 			( useDistNotLessThanRadius * resultDistNotLessThanRadius ) );

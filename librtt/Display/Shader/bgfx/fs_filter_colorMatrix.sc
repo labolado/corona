@@ -48,7 +48,11 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-vec4 input_color = texture2D( u_FillSampler0, v_TexCoord.xy );
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+vec4 input_color = texture2D( u_FillSampler0, texCoord );
 
 	mat4 coefficients = u_UserData0;
 	vec4 bias = u_UserData1;

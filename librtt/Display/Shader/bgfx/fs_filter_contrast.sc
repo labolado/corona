@@ -45,11 +45,15 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float contrast = v_UserData.x;
 
     const vec3 avgLuminance = vec3( 0.5, 0.5, 0.5 );
 
-    vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy ) * v_ColorScale;
+    vec4 texColor = texture2D( u_FillSampler0, texCoord ) * v_ColorScale;
     texColor.rgb = mix( avgLuminance, texColor.rgb, contrast);
 
     vec4 _masked = texColor;

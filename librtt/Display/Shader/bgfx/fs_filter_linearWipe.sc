@@ -42,9 +42,13 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
     float unitSmoothness = u_UserData1.x;
 
-    vec2 W = (v_TexCoord.xy - v_fromPos);
+    vec2 W = (texCoord - v_fromPos);
 
     float d = dot(W, v_N);
 
@@ -52,7 +56,7 @@ void main()
 
     float progress = (d / unitSmoothness);
 
-    vec4 color = (texture2D(u_FillSampler0, v_TexCoord.xy) * v_ColorScale);
+    vec4 color = (texture2D(u_FillSampler0, texCoord) * v_ColorScale);
 
     #if 0
         color = v_ColorScale;

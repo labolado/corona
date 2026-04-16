@@ -45,14 +45,18 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float unit_sharpness = v_UserData.x;
 	float sharpness_factor = ( 10.0 + ( 40.0 * unit_sharpness ) );
 
-	vec4 color = texture2D( u_FillSampler0, v_TexCoord.xy );
+	vec4 color = texture2D( u_FillSampler0, texCoord );
 	float original_alpha = color.a;
 
-	color -= texture2D( u_FillSampler0, v_TexCoord.xy + 0.0001 ) * sharpness_factor;
-	color += texture2D( u_FillSampler0, v_TexCoord.xy - 0.0001 ) * sharpness_factor;
+	color -= texture2D( u_FillSampler0, texCoord + 0.0001 ) * sharpness_factor;
+	color += texture2D( u_FillSampler0, texCoord - 0.0001 ) * sharpness_factor;
 
 	color.a = original_alpha;
 

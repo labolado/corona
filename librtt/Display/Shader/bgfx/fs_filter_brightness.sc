@@ -45,8 +45,12 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 // texColor has pre-multiplied alpha.
-	vec4 texColor = texture2D( u_FillSampler0, v_TexCoord.xy );
+	vec4 texColor = texture2D( u_FillSampler0, texCoord );
 
 	// pre-multiply brigtness as well
 	float brightness = v_UserData.x * texColor.a;

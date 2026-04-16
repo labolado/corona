@@ -45,17 +45,21 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 vec4 result = vec4( 0.0 );
     float offset = 2.5;
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2( -offset, -offset ) * u_TexelSize.xy );
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  0.0, -offset ) * u_TexelSize.xy ) * 2.0;
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  offset, -offset ) * u_TexelSize.xy );
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2( -offset,  0.0 ) * u_TexelSize.xy ) * 2.0;
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  0.0,  0.0 ) * u_TexelSize.xy );
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  offset,  0.0 ) * u_TexelSize.xy ) * 2.0;
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2( -offset,  offset ) * u_TexelSize.xy );
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  0.0,  offset ) * u_TexelSize.xy ) * 2.0;
-    result += texture2D( u_FillSampler0, v_TexCoord.xy + vec2(  offset,  offset ) * u_TexelSize.xy );
+    result += texture2D( u_FillSampler0, texCoord + vec2( -offset, -offset ) * u_TexelSize.xy );
+    result += texture2D( u_FillSampler0, texCoord + vec2(  0.0, -offset ) * u_TexelSize.xy ) * 2.0;
+    result += texture2D( u_FillSampler0, texCoord + vec2(  offset, -offset ) * u_TexelSize.xy );
+    result += texture2D( u_FillSampler0, texCoord + vec2( -offset,  0.0 ) * u_TexelSize.xy ) * 2.0;
+    result += texture2D( u_FillSampler0, texCoord + vec2(  0.0,  0.0 ) * u_TexelSize.xy );
+    result += texture2D( u_FillSampler0, texCoord + vec2(  offset,  0.0 ) * u_TexelSize.xy ) * 2.0;
+    result += texture2D( u_FillSampler0, texCoord + vec2( -offset,  offset ) * u_TexelSize.xy );
+    result += texture2D( u_FillSampler0, texCoord + vec2(  0.0,  offset ) * u_TexelSize.xy ) * 2.0;
+    result += texture2D( u_FillSampler0, texCoord + vec2(  offset,  offset ) * u_TexelSize.xy );
     result = result * v_ColorScale;
     vec4 _masked = result * 0.076923;
     if (u_TexFlags.y > 0.5)

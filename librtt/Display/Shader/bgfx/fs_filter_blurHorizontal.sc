@@ -47,6 +47,10 @@ const float kPI = 3.14159265359;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
 float blurSize = v_UserData.x;
 	float sigma = v_UserData.y;
 
@@ -64,7 +68,7 @@ float blurSize = v_UserData.x;
 	float coefficient_sum = 0.0;
 
 	// Center.
-	avg_value += texture2D(u_FillSampler0, v_TexCoord.xy.st) * incremental_gaussian.x;
+	avg_value += texture2D(u_FillSampler0, texCoord.st) * incremental_gaussian.x;
 	coefficient_sum += incremental_gaussian.x;
 	incremental_gaussian.xy *= incremental_gaussian.yz;
 
@@ -77,9 +81,9 @@ float blurSize = v_UserData.x;
 			break;
 		}
 
-		avg_value += texture2D(u_FillSampler0, v_TexCoord.xy.st - i * u_TexelSize.xy *
+		avg_value += texture2D(u_FillSampler0, texCoord.st - i * u_TexelSize.xy *
 								blur_multiply_dir) * incremental_gaussian.x;
-		avg_value += texture2D(u_FillSampler0, v_TexCoord.xy.st + i * u_TexelSize.xy *
+		avg_value += texture2D(u_FillSampler0, texCoord.st + i * u_TexelSize.xy *
 								blur_multiply_dir) * incremental_gaussian.x;
 		coefficient_sum += 2.0 * incremental_gaussian.x;
 		incremental_gaussian.xy *= incremental_gaussian.yz;

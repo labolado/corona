@@ -66,7 +66,11 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-    vec4 _masked = FragmentKernel(v_TexCoord.xy, v_ColorScale, v_UserData);
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+    vec4 _masked = FragmentKernel(texCoord, v_ColorScale, v_UserData);
     if (u_TexFlags.y > 0.5)
         _masked *= texture2D(u_MaskSampler0, v_MaskUV0).r;
     if (u_TexFlags.y > 1.5)

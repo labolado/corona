@@ -42,6 +42,10 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
     float scale = v_UserData.z;
 
     mat3 transform;
@@ -49,7 +53,7 @@ void main()
     transform[1] = v_transform1;
     transform[2] = v_transform2;
 
-    vec2 tc = (transform * vec3(v_TexCoord.xy, 1.0)).xy;
+    vec2 tc = (transform * vec3(texCoord, 1.0)).xy;
 
     vec2 center_uv = (v_sample_uv_offset + (floor(tc / v_slot_size) * v_slot_size));
 

@@ -45,20 +45,24 @@ const float kTWO_PI = (2.0 * kPI);
 
 void main()
 {
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
     vec2 center = u_UserData0.xy;
 
     mat2 opennessOffsetMatrix;
     opennessOffsetMatrix[0] = v_opennessOffsetMatrix0;
     opennessOffsetMatrix[1] = v_opennessOffsetMatrix1;
 
-    vec2 rotated_texCoord = (opennessOffsetMatrix * v_TexCoord.xy);
+    vec2 rotated_texCoord = (opennessOffsetMatrix * texCoord);
     vec2 rotated_center = (opennessOffsetMatrix * center);
 
     vec2 V = (rotated_texCoord - rotated_center);
 
     float V_rotation_in_radians = (atan2(V.y, V.x) + kPI);
 
-    vec4 color = (texture2D(u_FillSampler0, v_TexCoord.xy) * v_ColorScale);
+    vec4 color = (texture2D(u_FillSampler0, texCoord) * v_ColorScale);
 
     #if 0
         color = v_ColorScale;

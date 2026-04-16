@@ -49,7 +49,11 @@ uniform vec4 u_TexFlags;
 
 void main()
 {
-    vec4 texColor = texture2D(u_FillSampler0, v_TexCoord.xy);
+    // Perspective-correct texture mapping
+    vec2 texCoord = v_TexCoord.xy;
+    float q = v_TexCoord.z;
+    if (q > 0.0) texCoord = texCoord / q;
+    vec4 texColor = texture2D(u_FillSampler0, texCoord);
 
     if (u_TexFlags.x > 0.5)
     {
