@@ -28,6 +28,26 @@ fi
 
 FILTER="${1:-all}"
 
+SHELL_TEMPLATE="$SHADER_DIR/fs_shell_default.sc"
+
+# Preprocess a KERNEL_MODE .sc file: concatenate shell template + kernel code
+# Returns path to the preprocessed file (caller must clean up)
+preprocess_kernel() {
+    local KERNEL_FILE="$1"
+    local PREPROCESSED=$(mktemp "${TMPDIR:-/tmp}/shader_XXXXXX.sc")
+
+    # Shell header (before KERNEL_PLACEHOLDER) + kernel (skip line 1) + shell footer (after KERNEL_PLACEHOLDER)
+    {
+        sed '/KERNEL_PLACEHOLDER/,$d' "$SHELL_TEMPLATE"
+        echo "// --- kernel: $(basename "$KERNEL_FILE") ---"
+        tail -n +2 "$KERNEL_FILE"
+        echo ""
+        sed -n '/KERNEL_PLACEHOLDER/,$ { /KERNEL_PLACEHOLDER/d; p; }' "$SHELL_TEMPLATE"
+    } > "$PREPROCESSED"
+
+    echo "$PREPROCESSED"
+}
+
 compile_shader() {
     local SC_FILE="$1"
     local TYPE="$2"       # vertex or fragment
@@ -41,16 +61,28 @@ compile_shader() {
         PLATFORM_FLAG="--platform android"
     fi
 
+    # Check if this is a KERNEL_MODE file
+    local ACTUAL_FILE="$SC_FILE"
+    local CLEANUP_FILE=""
+    if head -1 "$SC_FILE" | grep -q '// KERNEL_MODE'; then
+        ACTUAL_FILE=$(preprocess_kernel "$SC_FILE")
+        CLEANUP_FILE="$ACTUAL_FILE"
+    fi
+
     "$SHADERC" \
         --type "$TYPE" \
         $PLATFORM_FLAG \
         -p "$PROFILE" \
-        -f "$SC_FILE" \
+        -f "$ACTUAL_FILE" \
         -o "$OUT_BIN" \
         --varyingdef "$VARYING" \
         -i "$INCLUDE_DIR" \
         -i "$SHADER_DIR" \
         2>&1
+
+    local RC=$?
+    [ -n "$CLEANUP_FILE" ] && rm -f "$CLEANUP_FILE"
+    return $RC
 }
 
 bin_to_c_array() {
@@ -135,6 +167,8 @@ compile_effects() {
         for SC in "$SHADER_DIR"/fs_*.sc; do
             local NAME=$(basename "$SC" .sc)
             [ "$NAME" = "fs_default" ] && continue
+            # Skip shell template files (not standalone shaders)
+            [[ "$NAME" == fs_shell_* ]] && continue
 
             local BIN="$TMP_DIR/${NAME}_${SUFFIX}.bin"
             echo -n "  $NAME ($SUFFIX)... "
