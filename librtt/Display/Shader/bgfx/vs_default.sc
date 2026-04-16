@@ -45,14 +45,19 @@ uniform vec4 u_UserData3;
 
 void main()
 {
-    // Pass through texture coordinates
-    v_TexCoord = a_texcoord0;
+    // Pass through texture coordinates (keep z=0.0 to avoid Metal varying issue)
+    v_TexCoord = vec3(a_texcoord0.xy, 0.0);
 
     // Pass through color scale
     v_ColorScale = a_color0;
 
-    // Pass through user data
-    v_UserData = a_texcoord1;
+    // Pass through user data, pack q-coordinate into .w for perspective-correct UV.
+    // NOTE: This overwrites a_texcoord1.w with the q coefficient. Effect shaders
+    // that read CoronaVertexUserData.w (monotone, sunbeams, lenticularHalo) will
+    // receive q instead of the original .w value. On non-2.5D objects q=1.0;
+    // on 2.5D offset objects q=1.5~3.0 which may affect those effects visually.
+    // See Issue #18 for full analysis.
+    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);
 
     // Compute mask UVs
     vec3 maskPos = vec3(a_position.xy, 1.0);
