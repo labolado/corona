@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_color0, a_texcoord1
-$output v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset
+$output v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -16,6 +16,9 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_slot_size, v_sample_uv_offset
 #include <bgfx_shader.sh>
 
 uniform mat4 u_ViewProjectionMatrix;
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -45,5 +48,11 @@ void main()
     v_slot_size = (u_TexelSize.zw * numPixels);
     v_sample_uv_offset = (v_slot_size * 0.5);
 
+
+    // Compute mask UVs
+    vec3 maskPos = vec3(a_position.xy, 1.0);
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));
 }

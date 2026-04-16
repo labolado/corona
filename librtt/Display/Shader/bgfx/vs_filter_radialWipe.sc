@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_color0, a_texcoord1
-$output v_TexCoord, v_ColorScale, v_UserData, v_opennessOffsetMatrix0, v_opennessOffsetMatrix1, v_feathering_edges_radians
+$output v_TexCoord, v_ColorScale, v_UserData, v_opennessOffsetMatrix0, v_opennessOffsetMatrix1, v_feathering_edges_radians, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -16,6 +16,9 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_opennessOffsetMatrix0, v_opennes
 #include <bgfx_shader.sh>
 
 uniform mat4 u_ViewProjectionMatrix;
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -59,5 +62,11 @@ void main()
     v_feathering_edges_radians.y = (unitOpenness * maximum_distance_to_cover_in_radians);
     v_feathering_edges_radians.x = (v_feathering_edges_radians.y - feathering_edge_thickness_in_radians);
 
+
+    // Compute mask UVs
+    vec3 maskPos = vec3(a_position.xy, 1.0);
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));
 }

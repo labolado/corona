@@ -118,6 +118,9 @@ compile_effects() {
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_effects_${SUFFIX}.h"
 
+        # Track compiled shader names for table generation
+        local COMPILED_NAMES=()
+
         # Start header
         {
             echo "// Auto-generated bgfx effect shader data ($SUFFIX)"
@@ -139,6 +142,7 @@ compile_effects() {
                 bin_to_c_array "$BIN" "s_${NAME}_${SUFFIX}" >> "$HEADER"
                 echo "" >> "$HEADER"
                 echo "OK ($(wc -c < "$BIN") bytes)"
+                COMPILED_NAMES+=("$NAME")
                 COUNT=$((COUNT + 1))
             else
                 echo "FAILED"
@@ -157,12 +161,29 @@ compile_effects() {
                 bin_to_c_array "$BIN" "s_${NAME}_${SUFFIX}" >> "$HEADER"
                 echo "" >> "$HEADER"
                 echo "OK ($(wc -c < "$BIN") bytes)"
+                COMPILED_NAMES+=("$NAME")
                 COUNT=$((COUNT + 1))
             else
                 echo "FAILED"
                 FAIL=$((FAIL + 1))
             fi
         done
+
+        # Generate shader lookup table
+        {
+            echo "struct BgfxShaderEntry {"
+            echo "    const char* filename;"
+            echo "    const unsigned char* data;"
+            echo "    size_t size;"
+            echo "};"
+            echo ""
+            echo "static const BgfxShaderEntry s_bgfxShaderTable[] = {"
+            for NAME in "${COMPILED_NAMES[@]}"; do
+                echo "    { \"${NAME}.bin\", s_${NAME}_${SUFFIX}, s_${NAME}_${SUFFIX}_size },"
+            done
+            echo "};"
+            echo "static const int s_bgfxShaderTableCount = ${#COMPILED_NAMES[@]};"
+        } >> "$HEADER"
 
         echo "  → $HEADER"
     done

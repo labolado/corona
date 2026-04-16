@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_color0, a_texcoord1
-$output v_TexCoord, v_ColorScale, v_UserData
+$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -16,6 +16,9 @@ $output v_TexCoord, v_ColorScale, v_UserData
 #include <bgfx_shader.sh>
 
 uniform mat4 u_ViewProjectionMatrix;
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -44,5 +47,11 @@ void main()
     vec2 position = a_position.xy;
     position.y += sin(3.0 * u_TotalTime.x + a_texcoord0.x) * a_texcoord1.x * a_texcoord0.y;
 
+
+    // Compute mask UVs
+    vec3 maskPos = vec3(a_position.xy, 1.0);
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
     gl_Position = mul(u_ViewProjectionMatrix, vec4(position, 0.0, 1.0));
 }
