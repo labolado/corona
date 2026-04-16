@@ -2704,7 +2704,7 @@ setMKS( lua_State *L )
 		}
 		else if ( Rtt_StringCompare( "linearSlop", key ) == 0 )
 		{
-			b2Settings::linearSlop = value;
+			// b2_linearSlop is now a compile-time constant (#define), not settable at runtime
 		}
 		else if ( Rtt_StringCompare( "timeToSleep", key ) == 0 )
 		{
@@ -2748,7 +2748,7 @@ getMKS( lua_State *L )
 	}
 	else if ( Rtt_StringCompare( "linearSlop", key ) == 0 )
 	{
-		value = b2Settings::linearSlop;
+		value = b2_linearSlop;
 	}
 	else if ( Rtt_StringCompare( "timeToSleep", key ) == 0 )
 	{
