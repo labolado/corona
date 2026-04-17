@@ -119,7 +119,8 @@ else
     xcodebuild -project platform/iphone/ratatouille.xcodeproj -target template -configuration Release \
         -sdk iphoneos ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
         CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-        PROVISIONING_PROFILE_SPECIFIER="" 2>&1 | tail -1
+        PROVISIONING_PROFILE_SPECIFIER="" \
+        OTHER_LDFLAGS='$(inherited) -ObjC -all_load -framework PhotosUI' 2>&1 | tail -1
 fi
 
 [ -d "$TEMPLATE_APP" ] || fail "template.app 不存在"
