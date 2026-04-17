@@ -139,11 +139,6 @@ jobs:
         platform:
           - iphone
           - tvos
-        exclude:
-          # Xcode 16.3 ships tvOS 18.3 SDK, but xcrun on macos-15 returns 18.4
-          # (default Xcode on runner is 16.4), causing "tvOS 18.4 Platform Not Installed"
-          - xcode: Xcode_16.3
-            platform: tvos
     needs:
       - source-code
       - build-bgfx-libs
