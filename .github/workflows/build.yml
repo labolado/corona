@@ -132,7 +132,6 @@ jobs:
           - macos-15
         xcode:
           - Xcode_16.4
-          - Xcode_16.3
         target:
           # - template  # GL template — no longer built in CI, kept for local debugging
           - template-angle
