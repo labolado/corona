@@ -73,6 +73,9 @@ CPUResource::CPUResource(Rtt_Allocator* allocator )
 
 CPUResource::~CPUResource()
 {
+	// Note: During shutdown, fCpuObserver and fRenderer may already be NULL
+	// if CPUResourcePool::~CPUResourcePool() ran first (it clears both to
+	// prevent UAF when Renderer is destroyed before Scene's orphanage).
 	DetachObserver();
 	if( fGPUResource && fRenderer )
 	{

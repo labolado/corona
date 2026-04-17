@@ -24,7 +24,8 @@ MacViewSurface::MacViewSurface( GLView* view )
 :	fView( view ),
 	fDelegate( NULL ),
 	fAdaptiveWidth( Super::kUninitializedVirtualLength ),
-	fAdaptiveHeight( Super::kUninitializedVirtualLength )
+	fAdaptiveHeight( Super::kUninitializedVirtualLength ),
+	fBgfxOverlay( nil )
 {
 }
 
@@ -32,13 +33,19 @@ MacViewSurface::MacViewSurface( GLView* view, S32 adaptiveWidth, S32 adaptiveHei
 :	fView( view ),
 	fDelegate( NULL ),
 	fAdaptiveWidth( adaptiveWidth ),
-	fAdaptiveHeight( adaptiveHeight )
+	fAdaptiveHeight( adaptiveHeight ),
+	fBgfxOverlay( nil )
 {
 }
 
 MacViewSurface::~MacViewSurface()
 {
 //	[fView release];
+	if (fBgfxOverlay)
+	{
+		[fBgfxOverlay removeFromSuperview];
+		fBgfxOverlay = nil;
+	}
 }
 
 void
@@ -61,16 +68,18 @@ MacViewSurface::NativeWindow() const
 
 	// NSOpenGLView + setWantsLayer:YES is undefined behavior per Apple docs.
 	// Create a plain NSView overlay for bgfx Metal rendering instead.
-	static NSView* sBgfxOverlay = nil;
-	if (!sBgfxOverlay)
+	// Do NOT use a static here: project switches destroy the old GLView while
+	// a static fBgfxOverlay would still point to its (now-deallocated) subview,
+	// causing bgfx::init() to receive a dangling NSView and crash.
+	if (!fBgfxOverlay)
 	{
-		sBgfxOverlay = [[NSView alloc] initWithFrame:[fView bounds]];
-		[sBgfxOverlay setWantsLayer:YES];
-		sBgfxOverlay.layer.opaque = YES;
-		[sBgfxOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-		[fView addSubview:sBgfxOverlay];
+		fBgfxOverlay = [[NSView alloc] initWithFrame:[fView bounds]];
+		[fBgfxOverlay setWantsLayer:YES];
+		fBgfxOverlay.layer.opaque = YES;
+		[fBgfxOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+		[fView addSubview:fBgfxOverlay];
 	}
-	return (__bridge void*)sBgfxOverlay;
+	return (__bridge void*)fBgfxOverlay;
 }
 
 void
