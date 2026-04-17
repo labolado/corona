@@ -26,7 +26,22 @@ CPUResourcePool::CPUResourcePool()
 
 CPUResourcePool::~CPUResourcePool()
 {
-	
+	// Detach all resources to prevent UAF when CPUResource destructors call
+	// DetachObserver() after this pool is freed. This happens during shutdown:
+	// ~Display deletes Renderer (owns this pool) before deleting Scene (owns
+	// CPUResource orphanage arrays). We swap to a local copy because
+	// DetachObserver() calls back into DetachResource() which modifies the map.
+	std::map<const CPUResource*,CPUResource*> resources;
+	resources.swap(fCPUResources);
+	for(auto iter = resources.begin(); iter != resources.end(); ++iter)
+	{
+		// Clear both observer and renderer pointers to prevent UAF.
+		// The Renderer that owns this pool is being destroyed, so any
+		// CPUResource that outlives us (e.g. in Scene's orphanage) must
+		// not reference either this pool or the Renderer.
+		iter->second->DetachObserver();
+		iter->second->SetRenderer(NULL);
+	}
 }
 void CPUResourcePool::ReleaseGPUResources()
 {

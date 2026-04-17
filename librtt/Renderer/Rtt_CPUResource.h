@@ -88,6 +88,10 @@ class CPUResource
 		
 		void AttachObserver(MCPUResourceObserver *cpuObserver);
 		void DetachObserver();
+		// Used by CPUResourcePool::~CPUResourcePool() to prevent UAF.
+		// Risk: caller must ensure no concurrent access to fRenderer.
+		// Safe during shutdown because destruction is single-threaded.
+		void SetRenderer(Renderer* renderer) { fRenderer = renderer; }
 
 		// Check if a CPUResource pointer is still alive (not freed)
 		static bool IsAlive(const CPUResource* ptr);

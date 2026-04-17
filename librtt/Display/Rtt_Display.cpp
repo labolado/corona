@@ -333,6 +333,14 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		}
 #endif
 
+		// Guard against bgfx::init() failure (e.g. dangling NSView on project
+		// switch): CreateBgfxRenderer returns NULL when Metal init fails.
+		if (!fRenderer)
+		{
+			Rtt_LogException("Display::Initialize: renderer creation failed, cannot continue");
+			return false;
+		}
+
 		fRenderer->Initialize();
 		
 		CPUResourcePool *resourcePoolObserver = Rtt_NEW(allocator,CPUResourcePool());

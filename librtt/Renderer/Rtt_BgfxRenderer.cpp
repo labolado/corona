@@ -215,6 +215,15 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
 
     init.callback = &s_bgfxCallback;
     fBgfxInitialized = bgfx::init(init);
+    if (!fBgfxInitialized)
+    {
+        // bgfx is a singleton: init() fails if s_ctx != NULL (previous session
+        // not fully shut down, e.g. welcome screen extension closing async).
+        // Force shutdown the stale instance and retry once.
+        Rtt_LogException("BgfxRenderer: init failed (stale session?), forcing shutdown and retrying");
+        bgfx::shutdown();
+        fBgfxInitialized = bgfx::init(init);
+    }
 
     if (fBgfxInitialized)
     {

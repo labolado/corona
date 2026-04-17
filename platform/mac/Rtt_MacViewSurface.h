@@ -17,6 +17,7 @@
 // ----------------------------------------------------------------------------
 
 @class GLView;
+@class NSView;
 
 namespace Rtt
 {
@@ -63,6 +64,11 @@ class MacViewSurface : public PlatformSurface
 		Delegate* fDelegate;
 		S32 fAdaptiveWidth;
 		S32 fAdaptiveHeight;
+		// Overlay view for bgfx Metal rendering; lifetime matches MacViewSurface.
+		// Must NOT be static: project switches destroy the old GLView, leaving a
+		// static pointer dangling and causing bgfx::init() to crash.
+		// mutable: lazily created inside the const NativeWindow() accessor.
+		mutable NSView* fBgfxOverlay;
 };
 
 // ----------------------------------------------------------------------------
