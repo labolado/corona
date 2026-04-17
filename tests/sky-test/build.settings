@@ -1,0 +1,13 @@
+settings = {
+    orientation = { default = "landscapeRight" },
+    iphone = {
+        plist = {
+            CFBundleIconFile = "Icon.png",
+            UIStatusBarHidden = true,
+            UILaunchStoryboardName = "LaunchScreen",
+        },
+    },
+    plugins = {
+        ["plugin.utf8"] = { publisherId = "com.coronalabs" },
+    },
+}

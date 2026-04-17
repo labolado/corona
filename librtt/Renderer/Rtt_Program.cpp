@@ -308,7 +308,9 @@ ProgramHeader::ProgramHeader()
 	fPrecision[kRandomType] = kHighPrecision;
 	fPrecision[kPositionType] = kMediumPrecision;
 	fPrecision[kNormalType] = kMediumPrecision;
-	fPrecision[kUVType] = kMediumPrecision;
+	// P_UV raised to highp: mediump (half on iOS Metal) causes noise/hash
+	// functions to overflow, producing wrong results on mobile GPUs.
+	fPrecision[kUVType] = kHighPrecision;
 	fPrecision[kColorType] = kLowPrecision;
 }
 

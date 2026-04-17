@@ -471,6 +471,8 @@
 		50E7D622198091060005948F /* b2GearJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 50E7D5AE198091050005948F /* b2GearJoint.h */; };
 		50E7D623198091060005948F /* b2Joint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50E7D5AF198091050005948F /* b2Joint.cpp */; };
 		50E7D624198091060005948F /* b2Joint.h in Headers */ = {isa = PBXBuildFile; fileRef = 50E7D5B0198091050005948F /* b2Joint.h */; };
+		FAKE0003198091060005948F /* b2FakeJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAKE0001198091050005948F /* b2FakeJoint.cpp */; };
+		FAKE0004198091060005948F /* b2FakeJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = FAKE0002198091050005948F /* b2FakeJoint.h */; };
 		50E7D625198091060005948F /* b2MotorJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50E7D5B1198091050005948F /* b2MotorJoint.cpp */; };
 		50E7D626198091060005948F /* b2MotorJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 50E7D5B2198091050005948F /* b2MotorJoint.h */; };
 		50E7D627198091060005948F /* b2MouseJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50E7D5B3198091060005948F /* b2MouseJoint.cpp */; };
@@ -1419,6 +1421,8 @@
 		50E7D5AE198091050005948F /* b2GearJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2GearJoint.h; sourceTree = "<group>"; };
 		50E7D5AF198091050005948F /* b2Joint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2Joint.cpp; sourceTree = "<group>"; };
 		50E7D5B0198091050005948F /* b2Joint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2Joint.h; sourceTree = "<group>"; };
+		FAKE0001198091050005948F /* b2FakeJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2FakeJoint.cpp; sourceTree = "<group>"; };
+		FAKE0002198091050005948F /* b2FakeJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2FakeJoint.h; sourceTree = "<group>"; };
 		50E7D5B1198091050005948F /* b2MotorJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2MotorJoint.cpp; sourceTree = "<group>"; };
 		50E7D5B2198091050005948F /* b2MotorJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2MotorJoint.h; sourceTree = "<group>"; };
 		50E7D5B3198091060005948F /* b2MouseJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2MouseJoint.cpp; sourceTree = "<group>"; };
@@ -2630,6 +2634,8 @@
 				50E7D5AE198091050005948F /* b2GearJoint.h */,
 				50E7D5AF198091050005948F /* b2Joint.cpp */,
 				50E7D5B0198091050005948F /* b2Joint.h */,
+				FAKE0001198091050005948F /* b2FakeJoint.cpp */,
+				FAKE0002198091050005948F /* b2FakeJoint.h */,
 				50E7D5B1198091050005948F /* b2MotorJoint.cpp */,
 				50E7D5B2198091050005948F /* b2MotorJoint.h */,
 				50E7D5B3198091060005948F /* b2MouseJoint.cpp */,
@@ -3110,6 +3116,7 @@
 				50E7D610198091060005948F /* b2CircleContact.h in Headers */,
 				50E7D61A198091060005948F /* b2PolygonAndCircleContact.h in Headers */,
 				50E7D624198091060005948F /* b2Joint.h in Headers */,
+				FAKE0004198091060005948F /* b2FakeJoint.h in Headers */,
 				50E7D62C198091060005948F /* b2PulleyJoint.h in Headers */,
 				50E7D63E198091060005948F /* b2StackQueue.h in Headers */,
 				50E7D634198091060005948F /* b2WheelJoint.h in Headers */,
@@ -3672,6 +3679,7 @@
 				50E7D617198091060005948F /* b2EdgeAndPolygonContact.cpp in Sources */,
 				50E7D5EA198091060005948F /* b2Draw.cpp in Sources */,
 				50E7D623198091060005948F /* b2Joint.cpp in Sources */,
+				FAKE0003198091060005948F /* b2FakeJoint.cpp in Sources */,
 				50E7D600198091060005948F /* b2ContactManager.cpp in Sources */,
 				50E7D61B198091060005948F /* b2PolygonContact.cpp in Sources */,
 				50E7D5EC198091060005948F /* b2FreeList.cpp in Sources */,
