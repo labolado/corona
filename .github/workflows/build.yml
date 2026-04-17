@@ -64,8 +64,8 @@ jobs:
       - name: Build bgfx macOS x64 (Debug + Release)
         working-directory: ./external/bgfx
         run: |
-          make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
+          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
+          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS (Debug + Release)
         working-directory: ./external/bgfx
         run: |
