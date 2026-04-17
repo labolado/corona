@@ -19,14 +19,14 @@ on:
 
 env:
   WORKSPACE: ${{ github.workspace }}
-  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.1.app/Contents/Developer
   BUILD_NUMBER: ${{ github.event.inputs.buildNumber }}
   YEAR: ${{ github.event.inputs.buildYear }}
 
 jobs:
   source-code:
     name: Check out and process source code
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - uses: actions/checkout@v4
@@ -99,7 +99,7 @@ jobs:
     needs:
       - source-code
       - build-bgfx-libs
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
@@ -125,6 +125,61 @@ jobs:
           name: Native
           path: ./output
 
+  Xcode-template-matrix-26:
+    strategy:
+      matrix:
+        runner:
+          - macos-26
+        xcode:
+          - Xcode_26.0
+          - Xcode_26.1
+        target:
+          - template
+          - template-angle
+        platform:
+          - iphone
+          - tvos
+    needs:
+      - source-code
+      - build-bgfx-libs
+    runs-on: ${{ matrix.runner }}
+    env:
+      DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
+      TEMPLATE_TARGET: ${{ matrix.target }}
+      TEMPLATE_PLATFORM: ${{ matrix.platform }}
+    steps:
+      - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
+      - name: Get processed code
+        uses: actions/download-artifact@v4
+        with:
+          name: SourceCode
+          path: SourceCode
+      - name: Unpack source code
+        run: tar -xzf SourceCode/corona.tgz
+      - name: Download bgfx macOS libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15
+      - name: Download bgfx iOS libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios
+          path: external/bgfx/.build/ios-arm64/bin
+      - run: ./tools/GHAction/daily_env.sh
+      - name: Build templates
+        working-directory: ./platform/${{ matrix.platform }}
+        run: ./gh_build_templates.sh
+        env:
+          CERT_PASSWORD: ${{ secrets.CertPassword }}
+      - name: Build templates JSON spec
+        run: ./tools/GHAction/generate_xcode_jsons.py
+      - name: Upload templates
+        uses: actions/upload-artifact@v4
+        with:
+          name: Templates-${{ matrix.platform }}-${{ matrix.xcode }}-${{ matrix.target }}
+          path: ./output
+
   Xcode-template-matrix-15:
     strategy:
       matrix:
@@ -132,8 +187,9 @@ jobs:
           - macos-15
         xcode:
           - Xcode_16.4
+          - Xcode_16.3
         target:
-          # - template  # GL template — no longer built in CI, kept for local debugging
+          - template
           - template-angle
         platform:
           - iphone
@@ -181,6 +237,7 @@ jobs:
 
   collect-ios-templates:
     needs:
+      - Xcode-template-matrix-26
       - Xcode-template-matrix-15
     runs-on: ubuntu-latest
     if: (! failure() && ! cancelled())
@@ -345,15 +402,15 @@ jobs:
           path: ./output
 
   macOS-Simulator:
-    if: (! failure() && ! cancelled())
     needs:
       - source-code
       - build-bgfx-libs
       - collect-ios-templates
-      # - native  # Disabled: enterprise build needs separate fix
+      - native
       - webtemplate
       # - linux
-    runs-on: macos-15
+    if: (! failure() && ! cancelled())
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
@@ -404,7 +461,6 @@ jobs:
       - name: Clean-up docs
         run: rm -rf docs/SampleCode/.git docs/SampleCode/.gitignore
       - name: Get Native
-        if: false  # Disabled: native job is disabled, artifact not available
         uses: actions/download-artifact@v4
         with:
           name: Native
@@ -456,9 +512,9 @@ jobs:
   webtemplate:
     needs:
       - source-code
-    runs-on: macos-15
+    runs-on: macos-26
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.1.app/Contents/Developer
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Set up emsdk
@@ -490,10 +546,9 @@ jobs:
           path: ./output
 
   Windows-Simulator:
-    if: false  # Disabled: depends on Native artifact from disabled 'native' job
     needs:
       - source-code
-      # - native  # Disabled: enterprise build needs separate fix
+      - native
       - webtemplate
       # - linux
     runs-on: windows-2022
@@ -508,7 +563,7 @@ jobs:
         run: |
           7z x -snld SourceCode/corona.tgz
           7z x -snld corona.tar
-          ver > nul     
+          ver > nul
       - run: ./tools/GHAction/daily_env.sh
         shell: bash
       - run: mkdir -f docs
@@ -615,7 +670,7 @@ jobs:
           mkdir output
           cp -v ./platform/windows/Bin/Corona.SDK.Installer/Corona.msi output/Corona-$BUILD.msi
         shell: bash
-      - name: Upload Windows Corona artifact
+      - name: Upload Widnows Corona artifact
         uses: actions/upload-artifact@v4
         with:
           name: Simulator-Windows
