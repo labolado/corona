@@ -89,11 +89,21 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15/lib*.a
+      - name: Build bgfx Android arm64 (Release)
+        working-directory: ./external/bgfx
+        run: |
+          export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
+          make -C .build/projects/gmake-android-arm64 config=release -j$(sysctl -n hw.ncpu)
       - name: Upload bgfx iOS libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs-ios
           path: external/bgfx/.build/ios-arm64/bin/lib*.a
+      - name: Upload bgfx Android libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-android
+          path: external/bgfx/.build/android-arm64/bin/lib*.a
 
   native:
     needs:
@@ -119,6 +129,11 @@ jobs:
         with:
           name: bgfx-libs-ios
           path: external/bgfx/.build/ios-arm64/bin
+      - name: Download bgfx Android libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-android
+          path: external/bgfx/.build/android-arm64/bin
       - run: ./tools/GHAction/daily_env.sh
       - name: Build Native
         run: JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME_17_arm64}" ./tools/GHAction/build_native.sh

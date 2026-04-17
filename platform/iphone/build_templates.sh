@@ -109,7 +109,7 @@ build_target() {
 
 	CODESIGN_FLAGS="CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO"
 	echo "Running: xcodebuild -project '$path'/ratatouille.xcodeproj -target '$TARGET' -configuration Release -sdk '$SDK'" SYMROOT="$path/build"
-	xcodebuild -project "$path"/ratatouille.xcodeproj -target "$TARGET" -configuration Release -sdk "$SDK" SYMROOT="$path/build" $CODESIGN_FLAGS OTHER_LDFLAGS='$(inherited) -ObjC -all_load -framework PhotosUI' 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
+	xcodebuild -project "$path"/ratatouille.xcodeproj -target "$TARGET" -configuration Release -sdk "$SDK" SYMROOT="$path/build" $CODESIGN_FLAGS OTHER_LDFLAGS='$(inherited) -ObjC -all_load -weak_framework PhotosUI' 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
     checkError
 
 	SUFFIX=$SDK_BASE
