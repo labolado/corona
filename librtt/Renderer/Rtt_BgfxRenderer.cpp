@@ -177,10 +177,20 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     Rtt_ASSERT(nativeWindowHandle != NULL);
 
     bgfx::Init init;
-    // Android: prefer Vulkan (multi-threaded rendering), fallback to GLES if unavailable
+    // Android: prefer Vulkan if available, otherwise GLES
     // Other platforms: auto-detect (Metal on macOS/iOS)
 #if defined(Rtt_ANDROID_ENV)
-    init.type = bgfx::RendererType::Vulkan;
+    // Check if Vulkan is supported before requesting it (avoid SIGSEGV on devices without Vulkan driver)
+    bool vulkanAvailable = false;
+    {
+        bgfx::RendererType::Enum supportedTypes[bgfx::RendererType::Count];
+        uint8_t numTypes = bgfx::getSupportedRenderers(bgfx::RendererType::Count, supportedTypes);
+        for (uint8_t i = 0; i < numTypes; ++i)
+        {
+            if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; break; }
+        }
+    }
+    init.type = vulkanAvailable ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
 #else
     init.type = bgfx::RendererType::Count;
 #endif
