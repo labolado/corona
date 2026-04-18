@@ -598,12 +598,29 @@ local function startNextScenario()
             end
         end
         local reportText = table.concat(reportLines, "\n")
-        local deviceInfo = system.getInfo("model") .. " / " .. system.getInfo("architectureInfo")
-        local body = "device=" .. deviceInfo .. "\n" .. reportText
+
+        -- Build structured metadata for data management
+        local json = require("json")
+        local metadata = {
+            device = system.getInfo("model"),
+            arch = system.getInfo("architectureInfo"),
+            platform = system.getInfo("platformName"),
+            platformVersion = system.getInfo("platformVersion") or "",
+            backend = backend,
+            contentWidth = display.contentWidth,
+            contentHeight = display.contentHeight,
+            pixelWidth = display.pixelWidth,
+            pixelHeight = display.pixelHeight,
+            date = os.date("%Y-%m-%d %H:%M:%S"),
+            results = reportText,
+        }
+        local body = json.encode(metadata)
         local function onUpload(event) end
+        local headers = { ["Content-Type"] = "application/json" }
         pcall(function()
             local network = require("network")
-            network.request("http://192.168.2.89:9876/perf", "POST", onUpload, { body = body })
+            network.request("http://192.168.2.89:9876/perf", "POST", onUpload,
+                { body = body, headers = headers })
         end)
 
         -- Auto-exit
