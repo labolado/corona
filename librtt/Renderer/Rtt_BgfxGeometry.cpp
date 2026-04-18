@@ -81,6 +81,29 @@ BgfxGeometry::~BgfxGeometry()
 	Destroy();
 }
 
+void
+BgfxGeometry::ResetForReuse()
+{
+	fVertexBufferHandle = BGFX_INVALID_HANDLE;
+	fDynamicVertexBufferHandle = BGFX_INVALID_HANDLE;
+	fIndexBufferHandle = BGFX_INVALID_HANDLE;
+	fDynamicIndexBufferHandle = BGFX_INVALID_HANDLE;
+	fHasInstanceBuffer = false;
+	fIsTransient = false;
+	fHasTransientVB = false;
+	fHasTransientIB = false;
+	fVertexCount = 0;
+	fIndexCount = 0;
+	fInstancesAllocated = 0;
+	fIsDynamic = false;
+	fHasIndexBuffer = false;
+	fWasStoredOnGPU = false;
+	fLastUpdateFrame = 0;
+	fHandle = NULL;
+	// fTransientVB / fTransientIB / fInstanceDataBuffer are stack structs;
+	// their contents are irrelevant when the above flags are false.
+}
+
 bool
 BgfxGeometry::SupportsInstancing()
 {

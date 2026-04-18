@@ -726,6 +726,7 @@
 		AA2C69AA2914777C0093B0BE /* kernel_filter_blurLinearHorizontal_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = AA2C69A7291476D90093B0BE /* kernel_filter_blurLinearHorizontal_gl.lua */; };
 		AA2C69AB2914777C0093B0BE /* kernel_filter_blurLinearVertical_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = AA2C69A8291476D90093B0BE /* kernel_filter_blurLinearVertical_gl.lua */; };
 		AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
+		A320556C7AC54A7592AB98F0 /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		AAA301372CEAEC2400FF77DE /* Rtt_ObjectHandle.h in Headers */ = {isa = PBXBuildFile; fileRef = AAA3012F2CEAEC2400FF77DE /* Rtt_ObjectHandle.h */; };
 		AAA301382CEAEC2400FF77DE /* Rtt_ObjectHandle.h in Headers */ = {isa = PBXBuildFile; fileRef = AAA3012F2CEAEC2400FF77DE /* Rtt_ObjectHandle.h */; };
 		AAA301392CEAEC2400FF77DE /* Rtt_ObjectHandle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AAA301362CEAEC2400FF77DE /* Rtt_ObjectHandle.cpp */; };
@@ -1653,6 +1654,7 @@
 		C2FCD3E41B38D06000EF7B02 /* AppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4B00FA014565609008FB6E6 /* AppBuildController.mm */; };
 		C2FCD3E61B38D0BD00EF7B02 /* WebAppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A425454E18DB9EF400EE06A8 /* WebAppBuildController.mm */; };
 		C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
+		5C5D28EA09B34088BC2C2D6A /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
 		D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
 		DB56B4CA284C2E7D00EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B4C8284C2E7C00EC8B14 /* Rtt_AppleKeyServices.h */; };
@@ -3346,6 +3348,7 @@
 		AAF34A7C29F9CAA800076706 /* Rtt_TextureResourceCaptureAdapter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureResourceCaptureAdapter.h; path = Display/Rtt_TextureResourceCaptureAdapter.h; sourceTree = "<group>"; };
 		AAF34A7D29F9CAA800076706 /* Rtt_TextureResourceCapture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureResourceCapture.h; path = Display/Rtt_TextureResourceCapture.h; sourceTree = "<group>"; };
 		ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometry.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometry.cpp; sourceTree = "<group>"; };
+		87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometryPool.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.cpp; sourceTree = "<group>"; };
 		B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxProgram.h; path = ../../librtt/Renderer/Rtt_BgfxProgram.h; sourceTree = "<group>"; };
 		B15F32CA67E350CDC68BF0E5 /* Rtt_BgfxShaderCompiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxShaderCompiler.h; path = ../../librtt/Renderer/Rtt_BgfxShaderCompiler.h; sourceTree = "<group>"; };
 		B5C34561E307CC8B13FF96D9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -3545,6 +3548,7 @@
 		F86F3306171886AA00F98693 /* widget_tableview.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget_tableview.lua; path = ../../subrepos/widget/widgetLibrary/widget_tableview.lua; sourceTree = "<group>"; };
 		F86F3307171886AA00F98693 /* widget.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget.lua; path = ../../subrepos/widget/widgetLibrary/widget.lua; sourceTree = "<group>"; };
 		FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometry.h; path = ../../librtt/Renderer/Rtt_BgfxGeometry.h; sourceTree = "<group>"; };
+		3D64F18EE1694AFB91BFE52D /* Rtt_BgfxGeometryPool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometryPool.h; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -4661,6 +4665,7 @@
 				7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */,
 				EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */,
 				ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */,
+				87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */,
 				A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */,
 				A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */,
 				BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */,
@@ -4671,6 +4676,7 @@
 				2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */,
 				1806E595B7CF5C51593DF089 /* Rtt_BgfxFrameBufferObject.h */,
 				FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */,
+				3D64F18EE1694AFB91BFE52D /* Rtt_BgfxGeometryPool.h */,
 				B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */,
 				B15F32CA67E350CDC68BF0E5 /* Rtt_BgfxShaderCompiler.h */,
 				86E69617C47C8930B0EF5814 /* Rtt_BgfxRenderer.h */,
@@ -7080,6 +7086,7 @@
 				4D158B9EBBF63E00FA44B951 /* Rtt_BgfxExports.cpp in Sources */,
 				D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
 				AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */,
+				A320556C7AC54A7592AB98F0 /* Rtt_BgfxGeometryPool.cpp in Sources */,
 				F6AC543DB03A1BC8B2B29233 /* Rtt_BgfxProgram.cpp in Sources */,
 				F6AC543DB03A1BC8B2B29234 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
 				2DBFF4E099FE15A92111EE09 /* Rtt_BgfxMetalReadback.mm in Sources */,
@@ -7671,6 +7678,7 @@
 				9AFC57363710CD0062F7A649 /* Rtt_BgfxExports.cpp in Sources */,
 				D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
 				C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */,
+				5C5D28EA09B34088BC2C2D6A /* Rtt_BgfxGeometryPool.cpp in Sources */,
 				0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */,
 				0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */,
 				A24CAF5D1FC6FD51E982FFDD /* Rtt_BgfxMetalReadback.mm in Sources */,
