@@ -1,5 +1,5 @@
 // Auto-generated bgfx effect shader data (essl)
-// Generated: 2026-04-16 10:37:53
+// Generated: 2026-04-18 11:00:33
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh effects
 
 #pragma once
@@ -12120,13 +12120,13 @@ static const unsigned char s_vs_filter_wobble_essl[] = {
 };
 static const unsigned int s_vs_filter_wobble_essl_size = sizeof(s_vs_filter_wobble_essl);
 
-struct BgfxShaderEntry {
+struct BgfxShaderEntry_essl {
     const char* filename;
     const unsigned char* data;
     size_t size;
 };
 
-static const BgfxShaderEntry s_bgfxShaderTable[] = {
+static const BgfxShaderEntry_essl s_bgfxShaderTable_essl[] = {
     { "fs_composite_add.bin", s_fs_composite_add_essl, s_fs_composite_add_essl_size },
     { "fs_composite_average.bin", s_fs_composite_average_essl, s_fs_composite_average_essl_size },
     { "fs_composite_color.bin", s_fs_composite_color_essl, s_fs_composite_color_essl_size },
@@ -12220,4 +12220,4 @@ static const BgfxShaderEntry s_bgfxShaderTable[] = {
     { "vs_filter_radialWipe.bin", s_vs_filter_radialWipe_essl, s_vs_filter_radialWipe_essl_size },
     { "vs_filter_wobble.bin", s_vs_filter_wobble_essl, s_vs_filter_wobble_essl_size },
 };
-static const int s_bgfxShaderTableCount = 92;
+static const int s_bgfxShaderTableCount_essl = 92;
