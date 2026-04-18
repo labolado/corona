@@ -1,14 +1,15 @@
 --[[
     config.lua - Solar2D bgfx Test Demo Configuration
-    
-    Configuration for the bgfx rendering test demo.
-    Uses 320x480 letterbox mode for consistent testing across devices.
+
+    High resolution content area for accurate benchmarks on all devices.
+    2048 width ensures objects fill the screen on modern devices.
 --]]
 
+local aspectRatio = display.pixelHeight / display.pixelWidth
 application = {
     content = {
-        width = 320,
-        height = 480,
+        width = 2048,
+        height = math.ceil(2048 * aspectRatio),
         scale = "letterbox",
         fps = 60,
         imageSuffix = {}

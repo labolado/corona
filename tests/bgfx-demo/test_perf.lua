@@ -43,7 +43,7 @@ local titleText = display.newText({
     parent = uiGroup,
     text = string.format("PERF BENCHMARK [%s]", backend),
     x = W / 2, y = 18,
-    font = native.systemFontBold, fontSize = 12
+    font = native.systemFontBold, fontSize = 76
 })
 titleText:setFillColor(0.9, 0.9, 0.9)
 
@@ -51,15 +51,15 @@ local statusText = display.newText({
     parent = uiGroup,
     text = "Initializing...",
     x = W / 2, y = 36,
-    font = native.systemFont, fontSize = 11
+    font = native.systemFont, fontSize = 70
 })
 statusText:setFillColor(0.7, 0.7, 0.7)
 
 local resultsText = display.newText({
     parent = uiGroup,
     text = "",
-    x = 10, y = 55,
-    font = native.systemFont, fontSize = 9,
+    x = 60, y = 340,
+    font = native.systemFont, fontSize = 56,
     width = W - 20, align = "left"
 })
 resultsText.anchorX = 0
@@ -124,7 +124,7 @@ local function setupSceneA(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        local obj = display.newImageRect(sceneGroup, "test_star_alpha.png", 16, 16)
+        local obj = display.newImageRect(sceneGroup, "test_star_alpha.png", 100, 100)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
         obj.rotation = math.random(0, 360)
@@ -174,7 +174,7 @@ local function setupSceneB(count)
     -- Sprites with different textures
     for i = 1, spriteCount do
         local tex = textureFiles[((i - 1) % texCount) + 1]
-        local obj = display.newImageRect(sceneGroup, tex, 20, 20)
+        local obj = display.newImageRect(sceneGroup, tex, 128, 128)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
         obj.vx = (math.random() - 0.5) * 3
@@ -190,7 +190,7 @@ local function setupSceneB(count)
             x = math.random(20, W - 20),
             y = math.random(60, H - 20),
             font = native.systemFont,
-            fontSize = 10
+            fontSize = 64
         })
         obj:setFillColor(math.random(), math.random(), math.random())
         obj.vx = (math.random() - 0.5) * 2
@@ -286,7 +286,7 @@ local function setupSceneC(count)
         local snap = display.newSnapshot(sceneGroup, 32, 32)
         snap.x = math.random(20, W - 20)
         snap.y = math.random(60, H - 20)
-        local r = display.newRect(snap.group, 0, 0, 16, 16)
+        local r = display.newRect(snap.group, 0, 0, 100, 100)
         r:setFillColor(math.random(), math.random(), math.random())
         snap:invalidate()
         snap.vx = (math.random() - 0.5) * 2
@@ -318,7 +318,7 @@ local function setupSceneD(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        local obj = display.newRect(sceneGroup, 0, 0, 10, 10)
+        local obj = display.newRect(sceneGroup, 0, 0, 64, 64)
         obj.x = math.random(20, W - 20)
         obj.y = math.random(60, H / 2)
         obj:setFillColor(math.random(), math.random(), math.random())
@@ -349,7 +349,7 @@ local function setupSceneE(count)
         local g = display.newGroup()
         -- 50 images
         for i = 1, 50 do
-            local obj = display.newImageRect(g, "test_star_alpha.png", 16, 16)
+            local obj = display.newImageRect(g, "test_star_alpha.png", 100, 100)
             obj.x = math.random(10, W - 10)
             obj.y = math.random(60, H - 10)
         end
@@ -358,7 +358,7 @@ local function setupSceneE(count)
             display.newText({
                 parent = g, text = "Test" .. i,
                 x = math.random(20, W - 20), y = math.random(60, H - 20),
-                font = native.systemFont, fontSize = 10
+                font = native.systemFont, fontSize = 64
             })
         end
         -- 10 rounded rects
@@ -370,7 +370,7 @@ local function setupSceneE(count)
         for i = 1, 5 do
             local sg = display.newGroup()
             g:insert(sg)
-            local r = display.newRect(sg, 0, 0, 20, 20)
+            local r = display.newRect(sg, 0, 0, 128, 128)
             r:setFillColor(math.random(), math.random(), math.random())
         end
         local t1 = system.getTimer()
@@ -409,7 +409,7 @@ local function setupSceneF(count)
 
     local g = display.newGroup()
     for i = 1, count do
-        local obj = display.newImageRect(g, "test_star_alpha.png", 16, 16)
+        local obj = display.newImageRect(g, "test_star_alpha.png", 100, 100)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
     end
@@ -452,7 +452,7 @@ local function setupSceneG(count)
         local t0 = system.getTimer()
         local objs = {}
         for i = 1, OBJS_PER_ROUND do
-            local obj = display.newImageRect("test_star_alpha.png", 16, 16)
+            local obj = display.newImageRect("test_star_alpha.png", 100, 100)
             obj.x = math.random(10, W - 10)
             obj.y = math.random(60, H - 10)
             table.insert(objs, obj)
@@ -585,8 +585,29 @@ local function startNextScenario()
         end
         print("=== END RESULTS ===")
 
+        -- Upload results to local server (for WiFi devices where syslog is unavailable)
+        local reportLines = {}
+        for _, sc in ipairs(scenarios) do
+            local sceneResults = results[sc.label] or {}
+            for _, r in ipairs(sceneResults) do
+                if r.customText then
+                    table.insert(reportLines, string.format("[Perf] Result %s %s", sc.name, r.customText))
+                else
+                    table.insert(reportLines, string.format("[Perf] Result %s %d: avg=%.1f min=%.1f", sc.name, r.count, r.avg, r.min))
+                end
+            end
+        end
+        local reportText = table.concat(reportLines, "\n")
+        local deviceInfo = system.getInfo("model") .. " / " .. system.getInfo("architectureInfo")
+        local body = "device=" .. deviceInfo .. "\n" .. reportText
+        local function onUpload(event) end
+        pcall(function()
+            local network = require("network")
+            network.request("http://192.168.2.89:9876/perf", "POST", onUpload, { body = body })
+        end)
+
         -- Auto-exit
-        timer.performWithDelay(500, function()
+        timer.performWithDelay(2000, function()
             os.exit(0)
         end)
         return
