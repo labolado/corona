@@ -117,7 +117,7 @@ end
 ------------------------------------------------------------------------
 -- Scene A: Sprite Rain
 ------------------------------------------------------------------------
-local LEVELS_A = { 100, 500, 1000, 2000, 5000 }
+local LEVELS_A = { 100, 500, 1000, 2000, 5000, 10000, 20000 }
 local currentALevel = 0
 
 local function setupSceneA(count)
@@ -153,7 +153,7 @@ end
 ------------------------------------------------------------------------
 -- Scene B: Mixed (different textures + text + rounded rects + physics)
 ------------------------------------------------------------------------
-local LEVELS_B = { 100, 500, 1000, 2000 }
+local LEVELS_B = { 100, 500, 1000, 2000, 3000 }
 local currentBLevel = 0
 local textureFiles = {
     "grass1.png",
@@ -237,7 +237,7 @@ end
 ------------------------------------------------------------------------
 -- Scene C: Effects (effect + mask + snapshot)
 ------------------------------------------------------------------------
-local LEVELS_C = { 50, 200, 500, 1000 }
+local LEVELS_C = { 50, 200, 500, 1000, 3000 }
 local currentCLevel = 0
 local effects = {
     "filter.blur",
@@ -312,7 +312,7 @@ end
 ------------------------------------------------------------------------
 -- Scene D: Physics + Render
 ------------------------------------------------------------------------
-local LEVELS_D = { 100, 300, 500, 800, 1000 }
+local LEVELS_D = { 100, 300, 500, 800, 1000, 1500, 3000 }
 
 local function setupSceneD(count)
     cleanup()
