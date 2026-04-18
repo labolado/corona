@@ -31,6 +31,9 @@ print("Display: " .. display.contentWidth .. "x" .. display.contentHeight)
 local W = display.contentWidth
 local H = display.contentHeight
 
+-- Scale factor: all sizes relative to screen width (base = 320)
+local S = W / 320
+
 local WARMUP_FRAMES = 30
 local MEASURE_FRAMES = 300
 
@@ -42,25 +45,25 @@ bg:setFillColor(0.03, 0.03, 0.06)
 local titleText = display.newText({
     parent = uiGroup,
     text = string.format("PERF BENCHMARK [%s]", backend),
-    x = W / 2, y = 18,
-    font = native.systemFontBold, fontSize = 76
+    x = W / 2, y = 15 * S,
+    font = native.systemFontBold, fontSize = 12 * S
 })
 titleText:setFillColor(0.9, 0.9, 0.9)
 
 local statusText = display.newText({
     parent = uiGroup,
     text = "Initializing...",
-    x = W / 2, y = 36,
-    font = native.systemFont, fontSize = 70
+    x = W / 2, y = 30 * S,
+    font = native.systemFont, fontSize = 11 * S
 })
 statusText:setFillColor(0.7, 0.7, 0.7)
 
 local resultsText = display.newText({
     parent = uiGroup,
     text = "",
-    x = 60, y = 340,
-    font = native.systemFont, fontSize = 56,
-    width = W - 20, align = "left"
+    x = 10 * S, y = 55 * S,
+    font = native.systemFont, fontSize = 9 * S,
+    width = W - 20 * S, align = "left"
 })
 resultsText.anchorX = 0
 resultsText.anchorY = 0
@@ -124,15 +127,22 @@ local function setupSceneA(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        local obj = display.newImageRect(sceneGroup, "test_star_alpha.png", 100, 100)
+        -- Use colored rects for visibility; mix with images for texture testing
+        local obj
+        if i % 3 == 0 then
+            obj = display.newImageRect(sceneGroup, "test_star_alpha.png", 20*S, 20*S)
+        else
+            obj = display.newRect(sceneGroup, 0, 0, 16*S, 16*S)
+            obj:setFillColor(0.2 + math.random() * 0.8, 0.2 + math.random() * 0.8, 0.2 + math.random() * 0.8, 0.8)
+        end
         obj.x = math.random(10, W - 10)
-        obj.y = math.random(60, H - 10)
+        obj.y = math.random(10, H - 10)
         obj.rotation = math.random(0, 360)
         local s = 0.5 + math.random() * 1.0
         obj.xScale = s
         obj.yScale = s
-        obj.vx = (math.random() - 0.5) * 4
-        obj.vy = (math.random() - 0.5) * 4
+        obj.vx = (math.random() - 0.5) * 4 * S
+        obj.vy = (math.random() - 0.5) * 4 * S
         obj.rotSpeed = (math.random() - 0.5) * 10
         table.insert(objects, obj)
     end
@@ -174,7 +184,7 @@ local function setupSceneB(count)
     -- Sprites with different textures
     for i = 1, spriteCount do
         local tex = textureFiles[((i - 1) % texCount) + 1]
-        local obj = display.newImageRect(sceneGroup, tex, 128, 128)
+        local obj = display.newImageRect(sceneGroup, tex, 20*S, 20*S)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
         obj.vx = (math.random() - 0.5) * 3
@@ -190,7 +200,7 @@ local function setupSceneB(count)
             x = math.random(20, W - 20),
             y = math.random(60, H - 20),
             font = native.systemFont,
-            fontSize = 64
+            fontSize = 10*S
         })
         obj:setFillColor(math.random(), math.random(), math.random())
         obj.vx = (math.random() - 0.5) * 2
@@ -201,7 +211,7 @@ local function setupSceneB(count)
     -- UI rounded rects
     for i = 1, uiCount do
         local obj = display.newRoundedRect(sceneGroup,
-            math.random(20, W - 20), math.random(60, H - 20), 24, 16, 4)
+            math.random(20, W - 20), math.random(60, H - 20), 24*S, 16*S, 4)
         obj:setFillColor(math.random(), math.random(), math.random(), 0.8)
         obj.vx = (math.random() - 0.5) * 2
         obj.vy = (math.random() - 0.5) * 2
@@ -286,7 +296,7 @@ local function setupSceneC(count)
         local snap = display.newSnapshot(sceneGroup, 32, 32)
         snap.x = math.random(20, W - 20)
         snap.y = math.random(60, H - 20)
-        local r = display.newRect(snap.group, 0, 0, 100, 100)
+        local r = display.newRect(snap.group, 0, 0, 16*S, 16*S)
         r:setFillColor(math.random(), math.random(), math.random())
         snap:invalidate()
         snap.vx = (math.random() - 0.5) * 2
@@ -318,7 +328,7 @@ local function setupSceneD(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        local obj = display.newRect(sceneGroup, 0, 0, 64, 64)
+        local obj = display.newRect(sceneGroup, 0, 0, 10*S, 10*S)
         obj.x = math.random(20, W - 20)
         obj.y = math.random(60, H / 2)
         obj:setFillColor(math.random(), math.random(), math.random())
@@ -349,7 +359,7 @@ local function setupSceneE(count)
         local g = display.newGroup()
         -- 50 images
         for i = 1, 50 do
-            local obj = display.newImageRect(g, "test_star_alpha.png", 100, 100)
+            local obj = display.newImageRect(g, "test_star_alpha.png", 16*S, 16*S)
             obj.x = math.random(10, W - 10)
             obj.y = math.random(60, H - 10)
         end
@@ -358,19 +368,19 @@ local function setupSceneE(count)
             display.newText({
                 parent = g, text = "Test" .. i,
                 x = math.random(20, W - 20), y = math.random(60, H - 20),
-                font = native.systemFont, fontSize = 64
+                font = native.systemFont, fontSize = 10*S
             })
         end
         -- 10 rounded rects
         for i = 1, 10 do
             display.newRoundedRect(g,
-                math.random(20, W - 20), math.random(60, H - 20), 24, 16, 4)
+                math.random(20, W - 20), math.random(60, H - 20), 24*S, 16*S, 4)
         end
         -- 5 groups
         for i = 1, 5 do
             local sg = display.newGroup()
             g:insert(sg)
-            local r = display.newRect(sg, 0, 0, 128, 128)
+            local r = display.newRect(sg, 0, 0, 20*S, 20*S)
             r:setFillColor(math.random(), math.random(), math.random())
         end
         local t1 = system.getTimer()
@@ -409,7 +419,7 @@ local function setupSceneF(count)
 
     local g = display.newGroup()
     for i = 1, count do
-        local obj = display.newImageRect(g, "test_star_alpha.png", 100, 100)
+        local obj = display.newImageRect(g, "test_star_alpha.png", 16*S, 16*S)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
     end
@@ -452,7 +462,7 @@ local function setupSceneG(count)
         local t0 = system.getTimer()
         local objs = {}
         for i = 1, OBJS_PER_ROUND do
-            local obj = display.newImageRect("test_star_alpha.png", 100, 100)
+            local obj = display.newImageRect("test_star_alpha.png", 16*S, 16*S)
             obj.x = math.random(10, W - 10)
             obj.y = math.random(60, H - 10)
             table.insert(objs, obj)

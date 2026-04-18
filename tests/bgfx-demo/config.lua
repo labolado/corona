@@ -1,14 +1,13 @@
 --[[
     config.lua - Solar2D bgfx Test Demo Configuration
 
-    High resolution content area for accurate benchmarks on all devices.
+    Adaptive scaling: content area matches device native resolution.
+    Full-screen rendering, no black bars, no distortion.
 --]]
 
 application = {
     content = {
-        width = 2048,
-        height = 3072,
-        scale = "letterbox",
+        scale = "adaptive",
         fps = 60,
         imageSuffix = {}
     }
