@@ -1511,9 +1511,15 @@ Renderer::DestroyQueuedGPUResources()
     {
         GPUResource* gpuResource = fDestroyQueue[i];
         gpuResource->Destroy();
-        delete gpuResource;
+        ReleaseGPUResource( gpuResource );
     }
     fDestroyQueue.Remove(0, fDestroyQueue.Length(), false);
+}
+
+void
+Renderer::ReleaseGPUResource( GPUResource* resource )
+{
+    delete resource;
 }
 
 bool

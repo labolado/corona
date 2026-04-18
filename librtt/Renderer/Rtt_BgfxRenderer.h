@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_Renderer.h"
 #include "Renderer/Rtt_FrameBufferObject.h"
+#include "Renderer/Rtt_BgfxGeometryPool.h"
 #include <bgfx/bgfx.h>
 
 // ----------------------------------------------------------------------------
@@ -63,6 +64,9 @@ protected:
     // Create a bgfx GPU resource appropriate for the given CPUResource
     virtual GPUResource* Create(const CPUResource* resource);
 
+    // Pool BgfxGeometry instances instead of delete on every destroy
+    virtual void ReleaseGPUResource( GPUResource* resource );
+
 private:
     void InitCaps();
 
@@ -75,6 +79,9 @@ private:
     bgfx::TextureHandle fStagingTexture;
     U32 fStagingW;
     U32 fStagingH;
+
+    // Object pool for BgfxGeometry to eliminate new/delete overhead
+    BgfxGeometryPool fGeometryPool;
 };
 
 // ----------------------------------------------------------------------------

@@ -27,6 +27,7 @@
 #include "Core/Rtt_Assert.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #if defined( Rtt_ANDROID_ENV )
 #include <android/log.h>
@@ -155,7 +156,8 @@ BgfxRenderer::BgfxRenderer(Rtt_Allocator* allocator)
     fBgfxInitialized(false),
     fStagingTexture( BGFX_INVALID_HANDLE ),
     fStagingW( 0 ),
-    fStagingH( 0 )
+    fStagingH( 0 ),
+    fGeometryPool( allocator )
 {
     memset(&fCaps, 0, sizeof(fCaps));
 
@@ -190,7 +192,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
             if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; break; }
         }
     }
-    init.type = vulkanAvailable ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
+    // TODO(P5): Vulkan crashes with SIGSEGV in getDescriptorSet at high object counts.
+    // Force GLES until P5 is fixed. Uncomment below to re-enable Vulkan.
+    // init.type = vulkanAvailable ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
+    init.type = bgfx::RendererType::OpenGLES;
 #else
     init.type = bgfx::RendererType::Count;
 #endif
@@ -237,6 +242,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         // Force shutdown the stale instance and retry once.
         Rtt_LogException("BgfxRenderer: init failed (stale session?), forcing shutdown and retrying");
         bgfx::shutdown();
+        // Wait for renderer thread to fully exit after shutdown.
+        // bgfx::shutdown() may return before the Metal/Vulkan backend thread
+        // has finished its last submit(), causing UAF on reinit.
+        usleep(200000); // 200ms
         fBgfxInitialized = bgfx::init(init);
     }
 #if defined(Rtt_ANDROID_ENV)
@@ -276,6 +285,9 @@ BgfxRenderer::ShutdownBgfx()
         bgfx::destroy( fStagingTexture );
         fStagingTexture = BGFX_INVALID_HANDLE;
     }
+
+    // Drain the geometry pool before bgfx shutdown
+    fGeometryPool.Shutdown();
 
     if (fBgfxInitialized)
     {
@@ -547,6 +559,19 @@ BgfxRenderer::SetSkipPresent( bool skip )
     bgfx::setSkipPresent( skip );
 }
 
+void
+BgfxRenderer::ReleaseGPUResource( GPUResource* resource )
+{
+    if( resource->IsPoolable() )
+    {
+        fGeometryPool.Recycle( static_cast<BgfxGeometry*>( resource ) );
+    }
+    else
+    {
+        delete resource;
+    }
+}
+
 GPUResource*
 BgfxRenderer::Create(const CPUResource* resource)
 {
@@ -556,7 +581,7 @@ BgfxRenderer::Create(const CPUResource* resource)
             return new BgfxFrameBufferObject;
 
         case CPUResource::kGeometry:
-            return new BgfxGeometry;
+            return fGeometryPool.Acquire();
 
         case CPUResource::kProgram:
             return new BgfxProgram;

@@ -309,6 +309,10 @@ class Renderer
         // Destroys all queued GPU resources passed into the DestroyQueue() method.
         void DestroyQueuedGPUResources();
 
+        // Release a GPU resource. Default implementation deletes it.
+        // Subclasses may override to pool and reuse instances.
+        virtual void ReleaseGPUResource( GPUResource* resource );
+
         // Derived classes must use this function to provide platform specific
         // and rendering API specific GPUResources.
         virtual GPUResource* Create( const CPUResource* resource ) = 0;

@@ -32,6 +32,10 @@ class BgfxGeometry : public GPUResource
         BgfxGeometry();
         virtual ~BgfxGeometry();
 
+        /// Reset all state fields so this instance can be reused from the pool.
+        /// Must be called after Destroy() and before recycling.
+        void ResetForReuse();
+
         static bool SupportsInstancing();
         static bool SupportsDivisors();
         static const char* InstanceIDSuffix();
@@ -41,6 +45,7 @@ class BgfxGeometry : public GPUResource
         virtual void Create( CPUResource* resource );
         virtual void Update( CPUResource* resource );
         virtual void Destroy();
+        virtual bool IsPoolable() const { return true; }
 
         void Bind();
         void SetVertexBuffer( U32 offset, U32 count );

@@ -54,6 +54,11 @@ class GPUResource
         // resources were destroyed due to some event such as a context loss.
         virtual void Destroy() = 0;
 
+        // Return true if this resource can be pooled and reused.
+        // Only BgfxGeometry overrides this. Used by BgfxRenderer to
+        // recycle geometry instances instead of deleting them.
+        virtual bool IsPoolable() const { return false; }
+
         // Return the opaque handle representing an API-specific GPU resource.
         inline Handle GetHandle() const { return fHandle; }
 
