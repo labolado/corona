@@ -658,6 +658,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxExports.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxFrameBufferObject.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxGeometry.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxGeometryPool.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxProgram.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxRenderer.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxShaderCompiler.cpp
