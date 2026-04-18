@@ -82,6 +82,8 @@ struct DeferredCmd
     UniformSnapshot uniforms[Uniform::kNumBuiltInVariables];
 
     // Named uniform snapshots (for custom effects via WriteNamedUniform)
+    // Stored in a side table (BgfxCommandBuffer::fNamedUniformSideTable) to keep
+    // DeferredCmd small (~1.1 KB instead of ~3.2 KB). Most draws have zero named uniforms.
     struct NamedUniformSnapshot
     {
         char name[64];
@@ -90,30 +92,14 @@ struct DeferredCmd
     };
     static const int kMaxNamedUniforms = 16;
     int namedUniformCount;
-    NamedUniformSnapshot namedUniforms[kMaxNamedUniforms];
+    int namedUniformOffset; // index into BgfxCommandBuffer::fNamedUniformSideTable, -1 if none
 
     // Instance draw data (opaque, cast to InstanceDrawData* by bgfx backend)
     void* instanceDraw;
 
-    DeferredCmd() : type(kDraw), fbo(NULL), vpX(0), vpY(0), vpW(0), vpH(0),
-        clearR(0), clearG(0), clearB(0), clearA(0), clearDepth(1.0f), clearStencil(0),
-        geometry(NULL), program(NULL), programVersion(Program::kMaskCount0),
-        offset(0), count(0), primitiveType(Geometry::kTriangles),
-        bgfxState(0), scissorEnabled(false), scissorX(0), scissorY(0), scissorW(0), scissorH(0),
-        captureFbo(NULL), captureTexture(NULL),
-        captureRectXMin(0), captureRectYMin(0), captureRectXMax(0), captureRectYMax(0),
-        captureRawXMin(0), captureRawYMin(0), captureRawXMax(0), captureRawYMax(0),
-        captureTexW(0), captureTexH(0),
-        namedUniformCount(0),
-        instanceDraw(NULL)
-    {
-        for (int i = 0; i < 8; i++) textures[i] = NULL;
-        for (int i = 0; i < Uniform::kNumBuiltInVariables; i++)
-        {
-            uniforms[i].valid = false;
-            uniforms[i].size = 0;
-        }
-    }
+    // No constructor — use zero initialization: DeferredCmd cmd = {};
+    // All pointer fields become NULL, all numeric fields become 0, all bools become false.
+    // clearDepth defaults to 0 (set explicitly in Clear()).
 };
 
 // ----------------------------------------------------------------------------
@@ -294,6 +280,9 @@ class BgfxCommandBuffer : public CommandBuffer
 
         // Deferred command list
         std::vector<DeferredCmd> fDeferredCmds;
+
+        // Side table for named uniform data (indexed by DeferredCmd::namedUniformOffset)
+        std::vector<DeferredCmd::NamedUniformSnapshot> fNamedUniformSideTable;
 
         // View ID allocator for FBOs
         static bgfx::ViewId sNextViewId;

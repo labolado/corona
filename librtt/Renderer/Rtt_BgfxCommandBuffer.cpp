@@ -251,7 +251,7 @@ BgfxCommandBuffer::BindFrameBufferObject( FrameBufferObject* fbo, bool asDrawBuf
     Rtt_UNUSED( asDrawBuffer );
 
     // Defer FBO binding - GPU resource may not exist yet
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kBindFBO;
     cmd.fbo = fbo;
     fDeferredCmds.push_back( cmd );
@@ -260,7 +260,7 @@ BgfxCommandBuffer::BindFrameBufferObject( FrameBufferObject* fbo, bool asDrawBuf
 void
 BgfxCommandBuffer::CaptureRect( FrameBufferObject* fbo, Texture& texture, const Rect& rect, const Rect& rawRect )
 {
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kCaptureRect;
     cmd.captureFbo = fbo;
     cmd.captureTexture = &texture;
@@ -421,7 +421,7 @@ BgfxCommandBuffer::SetViewport( int x, int y, int width, int height )
     uint16_t h = static_cast<uint16_t>( height );
 
     // Defer setViewRect to Execute (needs correct view ID from FBO)
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kSetViewport;
     cmd.vpX = static_cast<uint16_t>( x );
     cmd.vpY = static_cast<uint16_t>( y );
@@ -467,7 +467,7 @@ void
 BgfxCommandBuffer::Clear( Real r, Real g, Real b, Real a )
 {
     // Defer clear to Execute (needs correct view ID from FBO)
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kClear;
     cmd.clearR = static_cast<float>( r );
     cmd.clearG = static_cast<float>( g );
@@ -519,19 +519,29 @@ BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
         }
     }
 
-    // Snapshot pending named uniforms
+    // Snapshot pending named uniforms into side table
     int count = (int)fPendingNamedUniforms.size();
     if( count > DeferredCmd::kMaxNamedUniforms )
     {
         count = DeferredCmd::kMaxNamedUniforms;
     }
     cmd.namedUniformCount = count;
-    for( int i = 0; i < count; ++i )
+    if( count > 0 )
     {
-        strncpy( cmd.namedUniforms[i].name, fPendingNamedUniforms[i].name, 63 );
-        cmd.namedUniforms[i].name[63] = '\0';
-        memcpy( cmd.namedUniforms[i].data, fPendingNamedUniforms[i].data, fPendingNamedUniforms[i].size );
-        cmd.namedUniforms[i].size = fPendingNamedUniforms[i].size;
+        cmd.namedUniformOffset = (int)fNamedUniformSideTable.size();
+        for( int i = 0; i < count; ++i )
+        {
+            DeferredCmd::NamedUniformSnapshot snap = {};
+            strncpy( snap.name, fPendingNamedUniforms[i].name, 63 );
+            snap.name[63] = '\0';
+            memcpy( snap.data, fPendingNamedUniforms[i].data, fPendingNamedUniforms[i].size );
+            snap.size = fPendingNamedUniforms[i].size;
+            fNamedUniformSideTable.push_back( snap );
+        }
+    }
+    else
+    {
+        cmd.namedUniformOffset = -1;
     }
 }
 
@@ -573,7 +583,7 @@ BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
     }
 
     // Package into deferred command
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kDraw;
     cmd.geometry = fCurrentGeometry;
     cmd.program = fCurrentProgram;
@@ -629,7 +639,7 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
         state |= BGFX_STATE_MSAA;
     }
 
-    DeferredCmd cmd;
+    DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kDrawIndexed;
     cmd.geometry = fCurrentGeometry;
     cmd.program = fCurrentProgram;
@@ -738,9 +748,13 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
 void
 BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
 {
+    if( cmd.namedUniformCount <= 0 || cmd.namedUniformOffset < 0 )
+    {
+        return;
+    }
     for( int i = 0; i < cmd.namedUniformCount; ++i )
     {
-        const DeferredCmd::NamedUniformSnapshot& nu = cmd.namedUniforms[i];
+        const DeferredCmd::NamedUniformSnapshot& nu = fNamedUniformSideTable[cmd.namedUniformOffset + i];
         unsigned int numFloats = nu.size / sizeof( float );
 
         bgfx::UniformType::Enum utype;
@@ -1622,8 +1636,9 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Submit frame to bgfx
     bgfx::frame();
 
-    // Clear deferred commands for next frame
+    // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
+    fNamedUniformSideTable.clear();
 
     // Reset instance data for next frame
     fInstanceCount = 0;
