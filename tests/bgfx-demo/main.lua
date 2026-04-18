@@ -10,7 +10,7 @@
       (no env var)        → normal demo with navigation
 --]]
 
--- Check for test entry: env var or flag file
+-- Check for test entry: env var, flag file, or build-time override
 local testEntry = os.getenv("SOLAR2D_TEST")
 if not testEntry then
     -- Check flag file (for Android where env vars don't work)
@@ -21,6 +21,17 @@ if not testEntry then
             testEntry = f:read("*l")
             f:close()
             os.remove(path)
+        end
+    end
+end
+-- Build-time override: check bundled resource file (for Android perf testing)
+if not testEntry then
+    local path = system.pathForFile("solar2d_test.txt", system.ResourceDirectory)
+    if path then
+        local f = io.open(path, "r")
+        if f then
+            testEntry = f:read("*l")
+            f:close()
         end
     end
 end
