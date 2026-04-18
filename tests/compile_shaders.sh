@@ -55,12 +55,14 @@ preprocess_kernel() {
 compile_shader() {
     local SC_FILE="$1"
     local TYPE="$2"       # vertex or fragment
-    local PROFILE="$3"    # metal or 100_es
+    local PROFILE="$3"    # metal, 100_es, or spirv
     local OUT_BIN="$4"
 
     local PLATFORM_FLAG=""
     if [ "$PROFILE" = "metal" ]; then
         PLATFORM_FLAG="--platform osx"
+    elif [ "$PROFILE" = "spirv" ]; then
+        PLATFORM_FLAG="--platform linux"
     else
         PLATFORM_FLAG="--platform android"
     fi
@@ -111,9 +113,9 @@ compile_default() {
     echo "=== Compiling default shaders ==="
     local TMP_DIR=$(mktemp -d)
 
-    for PROFILE in metal 100_es; do
+    for PROFILE in metal 100_es spirv; do
         local SUFFIX
-        if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; else SUFFIX="essl"; fi
+        if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; elif [ "$PROFILE" = "spirv" ]; then SUFFIX="spirv"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h"
 
         echo "  Compiling vs_default ($SUFFIX)..."
@@ -149,9 +151,9 @@ compile_effects() {
     local COUNT=0
     local FAIL=0
 
-    for PROFILE in metal 100_es; do
+    for PROFILE in metal 100_es spirv; do
         local SUFFIX
-        if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; else SUFFIX="essl"; fi
+        if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; elif [ "$PROFILE" = "spirv" ]; then SUFFIX="spirv"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_effects_${SUFFIX}.h"
 
         # Track compiled shader names for table generation
@@ -207,20 +209,20 @@ compile_effects() {
             fi
         done
 
-        # Generate shader lookup table
+        # Generate shader lookup table (suffix-specific names to avoid collisions)
         {
-            echo "struct BgfxShaderEntry {"
+            echo "struct BgfxShaderEntry_${SUFFIX} {"
             echo "    const char* filename;"
             echo "    const unsigned char* data;"
             echo "    size_t size;"
             echo "};"
             echo ""
-            echo "static const BgfxShaderEntry s_bgfxShaderTable[] = {"
+            echo "static const BgfxShaderEntry_${SUFFIX} s_bgfxShaderTable_${SUFFIX}[] = {"
             for NAME in "${COMPILED_NAMES[@]}"; do
                 echo "    { \"${NAME}.bin\", s_${NAME}_${SUFFIX}, s_${NAME}_${SUFFIX}_size },"
             done
             echo "};"
-            echo "static const int s_bgfxShaderTableCount = ${#COMPILED_NAMES[@]};"
+            echo "static const int s_bgfxShaderTableCount_${SUFFIX} = ${#COMPILED_NAMES[@]};"
         } >> "$HEADER"
 
         echo "  → $HEADER"

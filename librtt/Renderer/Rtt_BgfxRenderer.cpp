@@ -74,6 +74,9 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
         char buf[2048];
         vsnprintf(buf, sizeof(buf), _format, _argList);
         fprintf(stderr, "BGFX TRACE [%s:%d]: %s", _filePath, _line, buf);
+#if defined(Rtt_ANDROID_ENV)
+        __android_log_print(ANDROID_LOG_INFO, "bgfx", "[%s:%d] %s", _filePath, _line, buf);
+#endif
     }
     virtual void profilerBegin(const char*, uint32_t, const char*, uint16_t) override {}
     virtual void profilerBeginLiteral(const char*, uint32_t, const char*, uint16_t) override {}
@@ -174,7 +177,13 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     Rtt_ASSERT(nativeWindowHandle != NULL);
 
     bgfx::Init init;
-    init.type = bgfx::RendererType::Count;  // Auto-select best backend (Vulkan/Metal if available, GLES fallback)
+    // Android: prefer Vulkan (multi-threaded rendering), fallback to GLES if unavailable
+    // Other platforms: auto-detect (Metal on macOS/iOS)
+#if defined(Rtt_ANDROID_ENV)
+    init.type = bgfx::RendererType::Vulkan;
+#else
+    init.type = bgfx::RendererType::Count;
+#endif
     init.resolution.width = width;
     init.resolution.height = height;
     init.platformData.nwh = nativeWindowHandle;
@@ -220,11 +229,23 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         bgfx::shutdown();
         fBgfxInitialized = bgfx::init(init);
     }
+#if defined(Rtt_ANDROID_ENV)
+    // Vulkan fallback: if Vulkan init failed, try GLES
+    if (!fBgfxInitialized && init.type == bgfx::RendererType::Vulkan)
+    {
+        Rtt_LogException("BgfxRenderer: Vulkan init failed, falling back to OpenGLES");
+        bgfx::shutdown();
+        init.type = bgfx::RendererType::OpenGLES;
+        fBgfxInitialized = bgfx::init(init);
+    }
+#endif
 
     if (fBgfxInitialized)
     {
+        const char* rendererName = bgfx::getRendererName(bgfx::getRendererType());
         fprintf(stderr, "BGFX_INIT: renderer=%s nwh=%p w=%u h=%u\n",
-                bgfx::getRendererName(bgfx::getRendererType()), nativeWindowHandle, width, height);
+                rendererName, nativeWindowHandle, width, height);
+        Rtt_LogException("BGFX_INIT: renderer=%s w=%u h=%u", rendererName, width, height);
         bgfx::setDebug(BGFX_DEBUG_NONE);
         // Set default view clear state (view 200 = screen, FBO views use 1-199)
         bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);

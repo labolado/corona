@@ -1,5 +1,5 @@
 // Auto-generated bgfx effect shader data (metal)
-// Generated: 2026-04-16 10:37:47
+// Generated: 2026-04-18 11:00:23
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh effects
 
 #pragma once
@@ -17431,13 +17431,13 @@ static const unsigned char s_vs_filter_wobble_metal[] = {
 };
 static const unsigned int s_vs_filter_wobble_metal_size = sizeof(s_vs_filter_wobble_metal);
 
-struct BgfxShaderEntry {
+struct BgfxShaderEntry_metal {
     const char* filename;
     const unsigned char* data;
     size_t size;
 };
 
-static const BgfxShaderEntry s_bgfxShaderTable[] = {
+static const BgfxShaderEntry_metal s_bgfxShaderTable_metal[] = {
     { "fs_composite_add.bin", s_fs_composite_add_metal, s_fs_composite_add_metal_size },
     { "fs_composite_average.bin", s_fs_composite_average_metal, s_fs_composite_average_metal_size },
     { "fs_composite_color.bin", s_fs_composite_color_metal, s_fs_composite_color_metal_size },
@@ -17531,4 +17531,4 @@ static const BgfxShaderEntry s_bgfxShaderTable[] = {
     { "vs_filter_radialWipe.bin", s_vs_filter_radialWipe_metal, s_vs_filter_radialWipe_metal_size },
     { "vs_filter_wobble.bin", s_vs_filter_wobble_metal, s_vs_filter_wobble_metal_size },
 };
-static const int s_bgfxShaderTableCount = 92;
+static const int s_bgfxShaderTableCount_metal = 92;

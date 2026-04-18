@@ -19,15 +19,17 @@
 #include "Core/Rtt_Assert.h"
 #include <string.h>
 #include <stdio.h>
+#if defined(Rtt_ANDROID_ENV)
+#include <android/log.h>
+#endif
 
 // Platform-specific precompiled shader data
 #if defined(Rtt_ANDROID_ENV)
+    // Android: include both ESSL (GLES) and SPIRV (Vulkan) shaders for runtime selection
     #include "Renderer/Rtt_BgfxShaderData_essl.h"
     #include "Renderer/Rtt_BgfxShaderData_effects_essl.h"
-    #define S_VS_DEFAULT s_vs_default_essl
-    #define S_VS_DEFAULT_SIZE s_vs_default_essl_size
-    #define S_FS_DEFAULT s_fs_default_essl
-    #define S_FS_DEFAULT_SIZE s_fs_default_essl_size
+    #include "Renderer/Rtt_BgfxShaderData_spirv.h"
+    #include "Renderer/Rtt_BgfxShaderData_effects_spirv.h"
 #else
     // macOS and iOS both use Metal
     #include "Renderer/Rtt_BgfxShaderData_metal.h"
@@ -36,9 +38,38 @@
     #define S_VS_DEFAULT_SIZE s_vs_default_metal_size
     #define S_FS_DEFAULT s_fs_default_metal
     #define S_FS_DEFAULT_SIZE s_fs_default_metal_size
+    #define S_SHADER_TABLE s_bgfxShaderTable_metal
+    #define S_SHADER_TABLE_COUNT s_bgfxShaderTableCount_metal
 #endif
 
 // ----------------------------------------------------------------------------
+
+#if defined(Rtt_ANDROID_ENV)
+// Android runtime shader selection: Vulkan uses SPIRV, GLES uses ESSL
+static bool s_useVulkanShaders = false;
+
+static void InitShaderSelection()
+{
+    static bool initialized = false;
+    if (!initialized)
+    {
+        bgfx::RendererType::Enum type = bgfx::getRendererType();
+        s_useVulkanShaders = (type == bgfx::RendererType::Vulkan);
+        initialized = true;
+#if defined(Rtt_ANDROID_ENV)
+        __android_log_print(ANDROID_LOG_INFO, "Corona",
+            "bgfx shader selection: %s (renderer=%d)",
+            s_useVulkanShaders ? "SPIRV/Vulkan" : "ESSL/GLES", (int)type);
+#endif
+    }
+}
+
+// Redirect macros to runtime-selected data
+#define S_VS_DEFAULT (s_useVulkanShaders ? s_vs_default_spirv : s_vs_default_essl)
+#define S_VS_DEFAULT_SIZE (s_useVulkanShaders ? s_vs_default_spirv_size : s_vs_default_essl_size)
+#define S_FS_DEFAULT (s_useVulkanShaders ? s_fs_default_spirv : s_fs_default_essl)
+#define S_FS_DEFAULT_SIZE (s_useVulkanShaders ? s_fs_default_spirv_size : s_fs_default_essl_size)
+#endif
 
 namespace Rtt
 {
@@ -417,20 +448,52 @@ void BgfxProgram::ResetVersion(VersionData& data)
 // Returns true and sets outData/outSize if found.
 static bool FindEffectShader(const char* filename, const unsigned char*& outData, size_t& outSize)
 {
-    for (int i = 0; i < s_bgfxShaderTableCount; ++i)
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+    if (s_useVulkanShaders)
     {
-        if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
+        for (int i = 0; i < s_bgfxShaderTableCount_spirv; ++i)
         {
-            outData = s_bgfxShaderTable[i].data;
-            outSize = s_bgfxShaderTable[i].size;
+            if (strcmp(s_bgfxShaderTable_spirv[i].filename, filename) == 0)
+            {
+                outData = s_bgfxShaderTable_spirv[i].data;
+                outSize = s_bgfxShaderTable_spirv[i].size;
+                return true;
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < s_bgfxShaderTableCount_essl; ++i)
+        {
+            if (strcmp(s_bgfxShaderTable_essl[i].filename, filename) == 0)
+            {
+                outData = s_bgfxShaderTable_essl[i].data;
+                outSize = s_bgfxShaderTable_essl[i].size;
+                return true;
+            }
+        }
+    }
+#else
+    for (int i = 0; i < S_SHADER_TABLE_COUNT; ++i)
+    {
+        if (strcmp(S_SHADER_TABLE[i].filename, filename) == 0)
+        {
+            outData = S_SHADER_TABLE[i].data;
+            outSize = S_SHADER_TABLE[i].size;
             return true;
         }
     }
+#endif
     return false;
 }
 
 bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+#endif
+
     const unsigned char* data = NULL;
     size_t size = 0;
 
@@ -636,24 +699,36 @@ void BgfxProgram::DestroyUniforms()
 const unsigned char*
 BgfxProgram::GetDefaultFSData()
 {
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+#endif
     return S_FS_DEFAULT;
 }
 
 unsigned int
 BgfxProgram::GetDefaultFSSize()
 {
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+#endif
     return S_FS_DEFAULT_SIZE;
 }
 
 const unsigned char*
 BgfxProgram::GetDefaultVSData()
 {
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+#endif
     return S_VS_DEFAULT;
 }
 
 unsigned int
 BgfxProgram::GetDefaultVSSize()
 {
+#if defined(Rtt_ANDROID_ENV)
+    InitShaderSelection();
+#endif
     return S_VS_DEFAULT_SIZE;
 }
 
