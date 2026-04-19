@@ -37,10 +37,13 @@ local S = W / 320
 local WARMUP_FRAMES = 30
 local MEASURE_FRAMES = 300
 
--- UI
-local uiGroup = display.newGroup()
-local bg = display.newRect(uiGroup, W / 2, H / 2, W, H)
+-- Background (behind everything)
+local bgGroup = display.newGroup()
+local bg = display.newRect(bgGroup, W / 2, H / 2, W, H)
 bg:setFillColor(0.03, 0.03, 0.06)
+
+-- UI (overlay on top)
+local uiGroup = display.newGroup()
 
 local titleText = display.newText({
     parent = uiGroup,
@@ -120,20 +123,24 @@ end
 ------------------------------------------------------------------------
 -- Scene A: Sprite Rain
 ------------------------------------------------------------------------
-local LEVELS_A = { 100, 500, 1000, 2000, 5000, 10000, 20000 }
+local isAndroid = system.getInfo("platform") == "android"
+local LEVELS_A = isAndroid
+    and { 100, 500, 1000, 2000, 5000 }
+    or  { 100, 500, 1000, 2000, 5000, 10000, 20000 }
 local currentALevel = 0
 
 local function setupSceneA(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        -- Use colored rects for visibility; mix with images for texture testing
+        -- Colored rects (bright, clearly visible) + some images for texture testing
         local obj
-        if i % 3 == 0 then
-            obj = display.newImageRect(sceneGroup, "test_star_alpha.png", 20*S, 20*S)
+        local sz = 30 * S
+        if i % 5 == 0 then
+            obj = display.newImageRect(sceneGroup, "test_star_alpha.png", sz, sz)
         else
-            obj = display.newRect(sceneGroup, 0, 0, 16*S, 16*S)
-            obj:setFillColor(0.2 + math.random() * 0.8, 0.2 + math.random() * 0.8, 0.2 + math.random() * 0.8, 0.8)
+            obj = display.newRect(sceneGroup, 0, 0, sz, sz)
+            obj:setFillColor(0.3 + math.random() * 0.7, 0.3 + math.random() * 0.7, 0.3 + math.random() * 0.7)
         end
         obj.x = math.random(10, W - 10)
         obj.y = math.random(10, H - 10)
@@ -163,7 +170,9 @@ end
 ------------------------------------------------------------------------
 -- Scene B: Mixed (different textures + text + rounded rects + physics)
 ------------------------------------------------------------------------
-local LEVELS_B = { 100, 500, 1000, 2000, 3000 }
+local LEVELS_B = isAndroid
+    and { 100, 500, 1000, 2000 }
+    or  { 100, 500, 1000, 2000, 3000 }
 local currentBLevel = 0
 local textureFiles = {
     "grass1.png",
@@ -184,7 +193,7 @@ local function setupSceneB(count)
     -- Sprites with different textures
     for i = 1, spriteCount do
         local tex = textureFiles[((i - 1) % texCount) + 1]
-        local obj = display.newImageRect(sceneGroup, tex, 20*S, 20*S)
+        local obj = display.newImageRect(sceneGroup, tex, 30*S, 30*S)
         obj.x = math.random(10, W - 10)
         obj.y = math.random(60, H - 10)
         obj.vx = (math.random() - 0.5) * 3
@@ -211,7 +220,7 @@ local function setupSceneB(count)
     -- UI rounded rects
     for i = 1, uiCount do
         local obj = display.newRoundedRect(sceneGroup,
-            math.random(20, W - 20), math.random(60, H - 20), 24*S, 16*S, 4)
+            math.random(20, W - 20), math.random(60, H - 20), 36*S, 24*S, 4)
         obj:setFillColor(math.random(), math.random(), math.random(), 0.8)
         obj.vx = (math.random() - 0.5) * 2
         obj.vy = (math.random() - 0.5) * 2
@@ -247,7 +256,9 @@ end
 ------------------------------------------------------------------------
 -- Scene C: Effects (effect + mask + snapshot)
 ------------------------------------------------------------------------
-local LEVELS_C = { 50, 200, 500, 1000, 3000 }
+local LEVELS_C = isAndroid
+    and { 50, 200, 500, 1000 }
+    or  { 50, 200, 500, 1000, 3000 }
 local currentCLevel = 0
 local effects = {
     "filter.blur",
@@ -267,7 +278,7 @@ local function setupSceneC(count)
     for i = 1, effCount do
         local eff = effects[((i - 1) % #effects) + 1]
         local obj = display.newRect(sceneGroup,
-            math.random(20, W - 20), math.random(60, H - 20), 24, 24)
+            math.random(20, W - 20), math.random(60, H - 20), 30*S, 30*S)
         obj:setFillColor(math.random(), math.random(), math.random())
         obj.fill.effect = eff
         obj.vx = (math.random() - 0.5) * 2
@@ -278,7 +289,7 @@ local function setupSceneC(count)
     -- Mask objects
     for i = 1, maskCount do
         local obj = display.newCircle(sceneGroup,
-            math.random(20, W - 20), math.random(60, H - 20), 12)
+            math.random(20, W - 20), math.random(60, H - 20), 15*S)
         obj:setFillColor(math.random(), math.random(), math.random())
         local mask = graphics.newMask("test_mask_circle.png")
         obj:setMask(mask)
@@ -322,13 +333,15 @@ end
 ------------------------------------------------------------------------
 -- Scene D: Physics + Render
 ------------------------------------------------------------------------
-local LEVELS_D = { 100, 300, 500, 800, 1000, 1500, 3000 }
+local LEVELS_D = isAndroid
+    and { 100, 300, 500, 800, 1000 }
+    or  { 100, 300, 500, 800, 1000, 1500, 3000 }
 
 local function setupSceneD(count)
     cleanup()
     sceneGroup = display.newGroup()
     for i = 1, count do
-        local obj = display.newRect(sceneGroup, 0, 0, 10*S, 10*S)
+        local obj = display.newRect(sceneGroup, 0, 0, 20*S, 20*S)
         obj.x = math.random(20, W - 20)
         obj.y = math.random(60, H / 2)
         obj:setFillColor(math.random(), math.random(), math.random())
