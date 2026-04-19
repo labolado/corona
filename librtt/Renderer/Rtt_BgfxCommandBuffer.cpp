@@ -1232,10 +1232,16 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     // No triangle fans (can't trivially concatenate without index conversion)
     if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
+    // No triangle strips: upstream Renderer already batches strips via pool geometry
+    // with degenerate triangles (dupFirst/dupLast padding). The cmd.offset/cmd.count
+    // we receive here points into pool-padded data, not raw strip topology, so we
+    // cannot safely reindex strips at this layer. Let them pass through as native
+    // BGFX_STATE_PT_TRISTRIP instead.
+    if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) return false;
+
     // Must be same primitive type, and must be triangle-based
     if( a.primitiveType != b.primitiveType ) return false;
     if( a.primitiveType != Geometry::kTriangles &&
-        a.primitiveType != Geometry::kTriangleStrip &&
         a.primitiveType != Geometry::kIndexedTriangles ) return false;
 
     // Same program and version
@@ -1297,11 +1303,9 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     if( batchSize < 2 ) return 0; // Not worth batching a single draw
 
     bool isIndexed = ( first.type == DeferredCmd::kDrawIndexed );
-    bool isStrip = ( first.primitiveType == Geometry::kTriangleStrip );
 
-    // For strips, we convert to indexed triangles during merge
-    // Always use index buffer for the merged output
-    bool needsIndexBuffer = isIndexed || isStrip;
+    // Only indexed draws need an index buffer for the merged output
+    bool needsIndexBuffer = isIndexed;
 
     // Calculate total vertices and indices needed
     U32 totalVertices = 0;
@@ -1316,16 +1320,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
         {
             totalVertices += cmd.geometry->GetVerticesUsed();
             totalIndices += cmd.geometry->GetIndicesUsed();
-        }
-        else if( isStrip )
-        {
-            U32 vCount = cmd.count;
-            totalVertices += vCount;
-            // Strip with N vertices -> (N-2) triangles -> (N-2)*3 indices
-            if( vCount >= 3 )
-            {
-                totalIndices += ( vCount - 2 ) * 3;
-            }
         }
         else
         {
@@ -1390,31 +1384,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
             vertexOffset += vCount;
             indexOffset += iCount;
         }
-        else if( isStrip )
-        {
-            // Convert triangle strip to indexed triangles
-            U32 vCount = cmd.count;
-            if( vCount < 3 ) continue;
-
-            // Copy vertices
-            memcpy( tvb.data + vertexOffset * vertexSize,
-                    srcVertices + cmd.offset, vCount * vertexSize );
-
-            // Generate triangle indices from fan (Solar2D "strip" is actually fan:
-            // all triangles share the first vertex, matching the non-batch path)
-            uint16_t* dstIndices = reinterpret_cast<uint16_t*>( tib.data ) + indexOffset;
-            U32 triCount = vCount - 2;
-            uint16_t base = static_cast<uint16_t>( vertexOffset );
-            for( U32 t = 0; t < triCount; ++t )
-            {
-                dstIndices[t * 3 + 0] = base;
-                dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t + 1 );
-                dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
-            }
-
-            vertexOffset += vCount;
-            indexOffset += triCount * 3;
-        }
         else
         {
             // Plain triangles: just copy vertices
@@ -1447,13 +1416,7 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
     SetTexFlagsUniform( prog, first );
 
-    // For strips converted to indexed triangles, clear the strip primitive type
-    uint64_t submitState = first.bgfxState;
-    if( isStrip )
-    {
-        submitState &= ~BGFX_STATE_PT_MASK;
-    }
-    bgfx::setState( submitState );
+    bgfx::setState( first.bgfxState );
 
     if( first.scissorEnabled )
     {
