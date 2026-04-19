@@ -29,6 +29,143 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(Rtt_ANDROID_ENV)
+#include <dlfcn.h>
+
+// Minimal Vulkan types for GPU probe (avoid vulkan.h dependency)
+// We dlopen libvulkan.so and query device properties before bgfx::init()
+namespace {
+    typedef uint32_t VkFlags;
+    typedef VkFlags VkInstanceCreateFlags;
+    typedef enum { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO = 1, VK_STRUCTURE_TYPE_APPLICATION_INFO = 0 } VkStructureType_Probe;
+    typedef enum { VK_SUCCESS_PROBE = 0 } VkResult_Probe;
+    typedef enum { VK_PHYSICAL_DEVICE_TYPE_OTHER = 0 } VkPhysicalDeviceType_Probe;
+
+    struct VkApplicationInfo_Probe {
+        uint32_t sType; const void* pNext; const char* pApplicationName;
+        uint32_t applicationVersion; const char* pEngineName; uint32_t engineVersion; uint32_t apiVersion;
+    };
+    struct VkInstanceCreateInfo_Probe {
+        uint32_t sType; const void* pNext; VkInstanceCreateFlags flags;
+        const VkApplicationInfo_Probe* pApplicationInfo;
+        uint32_t enabledLayerCount; const char* const* ppEnabledLayerNames;
+        uint32_t enabledExtensionCount; const char* const* ppEnabledExtensionNames;
+    };
+    struct VkPhysicalDeviceLimits_Probe { uint32_t pad[128]; }; // opaque, we don't read it
+    struct VkPhysicalDeviceSparseProperties_Probe { uint32_t pad[5]; };
+    struct VkPhysicalDeviceProperties_Probe {
+        uint32_t apiVersion; uint32_t driverVersion; uint32_t vendorID; uint32_t deviceID;
+        uint32_t deviceType; char deviceName[256];
+        uint8_t pipelineCacheUUID[16];
+        VkPhysicalDeviceLimits_Probe limits;
+        VkPhysicalDeviceSparseProperties_Probe sparseProperties;
+    };
+
+    typedef void* VkInstance_Probe;
+    typedef void* VkPhysicalDevice_Probe;
+
+    typedef int (*PFN_vkCreateInstance)(const VkInstanceCreateInfo_Probe*, const void*, VkInstance_Probe*);
+    typedef void (*PFN_vkDestroyInstance)(VkInstance_Probe, const void*);
+    typedef int (*PFN_vkEnumeratePhysicalDevices)(VkInstance_Probe, uint32_t*, VkPhysicalDevice_Probe*);
+    typedef void (*PFN_vkGetPhysicalDeviceProperties)(VkPhysicalDevice_Probe, VkPhysicalDeviceProperties_Probe*);
+
+    // Unity-derived vendor thresholds for Vulkan stability
+    // Source: Unity Engine Vulkan allow/deny list (2025)
+    enum VkVendorID {
+        kVendorARM         = 0x13B5,  // Mali GPUs
+        kVendorQualcomm    = 0x5143,  // Adreno GPUs
+        kVendorImagination = 0x1010,  // PowerVR GPUs
+        kVendorSamsung     = 0x144D,  // Xclipse GPUs
+    };
+
+    #define VK_MAKE_API_VERSION(major, minor, patch) \
+        (((uint32_t)(major) << 22) | ((uint32_t)(minor) << 12) | (uint32_t)(patch))
+
+    // Returns true if this GPU should use Vulkan based on Unity's vendor thresholds
+    static bool isVulkanSafeForDevice()
+    {
+        void* lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+        if (!lib) {
+            Rtt_LogException("VulkanProbe: cannot dlopen libvulkan.so");
+            return false;
+        }
+
+        auto fnCreateInstance = (PFN_vkCreateInstance)dlsym(lib, "vkCreateInstance");
+        auto fnDestroyInstance = (PFN_vkDestroyInstance)dlsym(lib, "vkDestroyInstance");
+        auto fnEnumDevices = (PFN_vkEnumeratePhysicalDevices)dlsym(lib, "vkEnumeratePhysicalDevices");
+        auto fnGetProps = (PFN_vkGetPhysicalDeviceProperties)dlsym(lib, "vkGetPhysicalDeviceProperties");
+
+        if (!fnCreateInstance || !fnDestroyInstance || !fnEnumDevices || !fnGetProps) {
+            Rtt_LogException("VulkanProbe: missing Vulkan symbols");
+            dlclose(lib);
+            return false;
+        }
+
+        VkInstanceCreateInfo_Probe ici = {};
+        ici.sType = 1; // VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+        VkInstance_Probe instance = nullptr;
+
+        int result = fnCreateInstance(&ici, nullptr, &instance);
+        if (result != 0 || !instance) {
+            Rtt_LogException("VulkanProbe: vkCreateInstance failed (%d)", result);
+            dlclose(lib);
+            return false;
+        }
+
+        uint32_t deviceCount = 0;
+        fnEnumDevices(instance, &deviceCount, nullptr);
+        if (deviceCount == 0) {
+            Rtt_LogException("VulkanProbe: no physical devices");
+            fnDestroyInstance(instance, nullptr);
+            dlclose(lib);
+            return false;
+        }
+
+        VkPhysicalDevice_Probe physDevice = nullptr;
+        uint32_t one = 1;
+        fnEnumDevices(instance, &one, &physDevice);
+
+        VkPhysicalDeviceProperties_Probe props = {};
+        fnGetProps(physDevice, &props);
+
+        uint32_t apiMajor = (props.apiVersion >> 22) & 0x3FF;
+        uint32_t apiMinor = (props.apiVersion >> 12) & 0x3FF;
+        uint32_t apiPatch = props.apiVersion & 0xFFF;
+
+        Rtt_LogException("VulkanProbe: GPU=\"%s\" vendorID=0x%04X deviceID=0x%04X apiVersion=%u.%u.%u driverVersion=0x%08X",
+            props.deviceName, props.vendorID, props.deviceID, apiMajor, apiMinor, apiPatch, props.driverVersion);
+
+        bool safe = false;
+        switch (props.vendorID) {
+            case kVendorARM:         // Mali: stable from Vulkan 1.0.61
+                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
+                Rtt_LogException("VulkanProbe: ARM Mali, threshold=1.0.61, safe=%s", safe ? "true" : "false");
+                break;
+            case kVendorQualcomm:    // Adreno: stable from Vulkan 1.0.49
+                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
+                Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
+                break;
+            case kVendorImagination: // PowerVR: highest bar — Vulkan 1.1.170 + driver 1.473
+                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 1, 170);
+                Rtt_LogException("VulkanProbe: Imagination PowerVR, threshold=1.1.170, safe=%s", safe ? "true" : "false");
+                break;
+            case kVendorSamsung:     // Xclipse (Exynos): treat like Mali
+                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
+                Rtt_LogException("VulkanProbe: Samsung Xclipse, threshold=1.0.61, safe=%s", safe ? "true" : "false");
+                break;
+            default:
+                Rtt_LogException("VulkanProbe: unknown vendor 0x%04X, defaulting to GLES", props.vendorID);
+                safe = false;
+                break;
+        }
+
+        fnDestroyInstance(instance, nullptr);
+        dlclose(lib);
+        return safe;
+    }
+} // anonymous namespace
+#endif
+
 #if defined( Rtt_ANDROID_ENV )
 #include <android/log.h>
 #endif
@@ -194,17 +331,23 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
             if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; }
         }
     }
-    // P5 fix: descriptor pool limit raised from 1024 to 4096 via config.h
-    // Default to GLES for safety — some devices (e.g. PowerVR/MediaTek) crash in Vulkan driver init.
-    // Vulkan can be enabled via SOLAR2D_VULKAN=1 env var or build-time flag.
-    bool forceVulkan = false;
-    {
-        const char* vkEnv = getenv("SOLAR2D_VULKAN");
-        if (vkEnv && atoi(vkEnv) == 1) { forceVulkan = true; }
+    // Vulkan selection strategy (Unity-derived thresholds):
+    // 1. SOLAR2D_VULKAN=1 → force Vulkan (manual opt-in for testing)
+    // 2. SOLAR2D_VULKAN=0 → force GLES (manual opt-out)
+    // 3. No env var → auto-detect: probe GPU vendor/apiVersion against Unity thresholds
+    bool useVulkan = false;
+    const char* vkEnv = getenv("SOLAR2D_VULKAN");
+    if (vkEnv) {
+        useVulkan = (atoi(vkEnv) == 1);
+        Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
+            vkEnv, useVulkan ? "Vulkan" : "GLES");
+    } else if (vulkanAvailable) {
+        useVulkan = isVulkanSafeForDevice();
+        Rtt_LogException("BgfxRenderer: auto-detect → %s", useVulkan ? "Vulkan" : "GLES");
+    } else {
+        Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
     }
-    init.type = (vulkanAvailable && forceVulkan) ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
-    Rtt_LogException("BgfxRenderer: vulkanAvailable=%s forceVulkan=%s, init.type=%s",
-        vulkanAvailable ? "true" : "false", forceVulkan ? "true" : "false", bgfx::getRendererName(init.type));
+    init.type = (vulkanAvailable && useVulkan) ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
 #else
     init.type = bgfx::RendererType::Count;
 #endif
