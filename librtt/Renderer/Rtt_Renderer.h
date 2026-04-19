@@ -219,6 +219,10 @@ class Renderer
         static U32 GetMaxUniformVectorsCount();
 		static U32 GetMaxVertexTextureUnits();
 
+		// bgfx mode: these statics are set by BgfxCommandBuffer::Initialize()
+		static bool sIsBgfxRenderer;
+		static U32 sBgfxMaxTextureSize;
+
         bool HasFramebufferBlit(  bool * canScale ) const;
         void GetVertexAttributes( VertexAttributeSupport & support ) const;
 
