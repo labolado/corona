@@ -187,15 +187,24 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     {
         bgfx::RendererType::Enum supportedTypes[bgfx::RendererType::Count];
         uint8_t numTypes = bgfx::getSupportedRenderers(bgfx::RendererType::Count, supportedTypes);
+        Rtt_LogException("BgfxRenderer: getSupportedRenderers returned %d renderers", numTypes);
         for (uint8_t i = 0; i < numTypes; ++i)
         {
-            if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; break; }
+            Rtt_LogException("BgfxRenderer: supported[%d] = %s", i, bgfx::getRendererName(supportedTypes[i]));
+            if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; }
         }
     }
-    // TODO(P5): Vulkan crashes with SIGSEGV in getDescriptorSet at high object counts.
-    // Force GLES until P5 is fixed. Uncomment below to re-enable Vulkan.
-    // init.type = vulkanAvailable ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
-    init.type = bgfx::RendererType::OpenGLES;
+    // P5 fix: descriptor pool limit raised from 1024 to 4096 via config.h
+    // Default to GLES for safety — some devices (e.g. PowerVR/MediaTek) crash in Vulkan driver init.
+    // Vulkan can be enabled via SOLAR2D_VULKAN=1 env var or build-time flag.
+    bool forceVulkan = false;
+    {
+        const char* vkEnv = getenv("SOLAR2D_VULKAN");
+        if (vkEnv && atoi(vkEnv) == 1) { forceVulkan = true; }
+    }
+    init.type = (vulkanAvailable && forceVulkan) ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
+    Rtt_LogException("BgfxRenderer: vulkanAvailable=%s forceVulkan=%s, init.type=%s",
+        vulkanAvailable ? "true" : "false", forceVulkan ? "true" : "false", bgfx::getRendererName(init.type));
 #else
     init.type = bgfx::RendererType::Count;
 #endif
@@ -234,6 +243,8 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     BgfxCommandBuffer::SetCachedResetFlags(init.resolution.reset);
 
     init.callback = &s_bgfxCallback;
+    init.fallback = false; // P5 diag: force Vulkan to fail loudly instead of silently falling back to GLES
+    Rtt_LogException("BgfxRenderer: attempting init with type=%s fallback=false", bgfx::getRendererName(init.type));
     fBgfxInitialized = bgfx::init(init);
     if (!fBgfxInitialized)
     {

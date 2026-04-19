@@ -13,6 +13,7 @@ add_definitions(
 	-DLUA_USE_POSIX
 	-DRtt_BGFX
 	-DRtt_ANDROID_ENV
+	-DBGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME=4096
 )
 
 include_directories (
