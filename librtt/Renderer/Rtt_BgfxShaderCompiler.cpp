@@ -1647,11 +1647,33 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
     std::vector<uint8_t> fsBinary;
     bool useShadercPath = IsAvailable();
+    const bgfx::RendererType::Enum rendererType = bgfx::getRendererType();
+    const bool isVulkanRenderer = (rendererType == bgfx::RendererType::Vulkan);
 
     // Check environment variable to force runtime binary path (for testing)
     const char* forceRuntime = getenv("SOLAR2D_FORCE_RUNTIME_SHADER");
     if (forceRuntime && (strcmp(forceRuntime, "1") == 0 || strcmp(forceRuntime, "yes") == 0))
         useShadercPath = false;
+
+    if (isVulkanRenderer && !useShadercPath)
+    {
+        char fsKey[256];
+        snprintf(fsKey, sizeof(fsKey), "fs_%s_%s.bin", category, name);
+        EvictCompiledShader(fsKey);
+
+        char vsKey[256];
+        snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+        EvictCompiledShader(vsKey);
+
+        outError =
+            "Vulkan/bgfx custom effects require shaderc-generated SPIR-V binaries; "
+            "the runtime binary path only emits GLES/ESSL-compatible shaders";
+        Rtt_LogException(
+            "ERROR: Refusing runtime custom shader compilation for Vulkan '%s.%s' "
+            "because no shaderc binary is available.\n",
+            category, name);
+        return false;
+    }
 
     if (useShadercPath)
     {
