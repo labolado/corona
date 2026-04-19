@@ -331,15 +331,21 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
             if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; }
         }
     }
-    // Vulkan selection: opt-in only until P5 Vulkan SIGSEGV is fixed.
-    // SOLAR2D_VULKAN=1 → force Vulkan; otherwise → GLES.
+    // Vulkan selection strategy:
+    // 1. SOLAR2D_VULKAN=1 → force Vulkan
+    // 2. SOLAR2D_VULKAN=0 → force GLES
+    // 3. No env var → auto-detect if Vulkan is reported by bgfx and the device probe is safe
     bool useVulkan = false;
     const char* vkEnv = getenv("SOLAR2D_VULKAN");
-    if (vkEnv && atoi(vkEnv) == 1) {
-        useVulkan = true;
-        Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=1, manual opt-in → Vulkan");
+    if (vkEnv) {
+        useVulkan = (atoi(vkEnv) == 1);
+        Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
+            vkEnv, useVulkan ? "Vulkan" : "GLES");
+    } else if (vulkanAvailable) {
+        useVulkan = isVulkanSafeForDevice();
+        Rtt_LogException("BgfxRenderer: auto-detect → %s", useVulkan ? "Vulkan" : "GLES");
     } else {
-        Rtt_LogException("BgfxRenderer: Vulkan disabled (P5 pending) → GLES");
+        Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
     }
     init.type = (vulkanAvailable && useVulkan) ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
 #else

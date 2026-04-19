@@ -310,11 +310,13 @@ fi
 case "$TARGET" in
     metal) process_platform "metal" ;;
     essl)  process_platform "essl" ;;
+    spirv) process_platform "spirv" ;;
     all)
         process_platform "metal"
         process_platform "essl"
+        process_platform "spirv"
         ;;
-    *) echo "Usage: $0 [metal|essl|all]"; exit 1 ;;
+    *) echo "Usage: $0 [metal|essl|spirv|all]"; exit 1 ;;
 esac
 
 # Report failures

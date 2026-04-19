@@ -16,6 +16,7 @@
 #include "Display/Rtt_InstancedBatchRenderer.h"
 #if defined(Rtt_ANDROID_ENV)
     #include "Renderer/Rtt_BgfxShaderData_instanced_essl.h"
+    #include "Renderer/Rtt_BgfxShaderData_instanced_spirv.h"
 #else
     #include "Renderer/Rtt_BgfxShaderData_instanced_metal.h"
 #endif
@@ -126,8 +127,13 @@ InstancedBatchRenderer::CreateProgram()
 {
 	// Instanced shaders from platform-specific embedded binary
 #if defined(Rtt_ANDROID_ENV)
-	const bgfx::Memory* vsMemory = bgfx::copy( s_vs_batch_instanced_essl, s_vs_batch_instanced_essl_size );
-	const bgfx::Memory* fsMemory = bgfx::copy( s_fs_batch_instanced_essl, s_fs_batch_instanced_essl_size );
+	const bool useVulkanShaders = ( bgfx::getRendererType() == bgfx::RendererType::Vulkan );
+	const bgfx::Memory* vsMemory = bgfx::copy(
+		useVulkanShaders ? s_vs_batch_instanced_spirv : s_vs_batch_instanced_essl,
+		useVulkanShaders ? s_vs_batch_instanced_spirv_size : s_vs_batch_instanced_essl_size );
+	const bgfx::Memory* fsMemory = bgfx::copy(
+		useVulkanShaders ? s_fs_batch_instanced_spirv : s_fs_batch_instanced_essl,
+		useVulkanShaders ? s_fs_batch_instanced_spirv_size : s_fs_batch_instanced_essl_size );
 #else
 	const bgfx::Memory* vsMemory = bgfx::copy( s_vs_batch_instanced_metal, s_vs_batch_instanced_metal_size );
 	const bgfx::Memory* fsMemory = bgfx::copy( s_fs_batch_instanced_metal, s_fs_batch_instanced_metal_size );
