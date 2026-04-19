@@ -64,11 +64,36 @@ static void InitShaderSelection()
     }
 }
 
+static const char* GetRuntimeShaderProfileSuffix()
+{
+    InitShaderSelection();
+    return s_useVulkanShaders ? "spirv" : "essl";
+}
+
+static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
+                                       const char* category, const std::string& name)
+{
+    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+             GetRuntimeShaderProfileSuffix());
+}
+
 // Redirect macros to runtime-selected data
 #define S_VS_DEFAULT (s_useVulkanShaders ? s_vs_default_spirv : s_vs_default_essl)
 #define S_VS_DEFAULT_SIZE (s_useVulkanShaders ? s_vs_default_spirv_size : s_vs_default_essl_size)
 #define S_FS_DEFAULT (s_useVulkanShaders ? s_fs_default_spirv : s_fs_default_essl)
 #define S_FS_DEFAULT_SIZE (s_useVulkanShaders ? s_fs_default_spirv_size : s_fs_default_essl_size)
+#else
+static const char* GetRuntimeShaderProfileSuffix()
+{
+    return "metal";
+}
+
+static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
+                                       const char* category, const std::string& name)
+{
+    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+             GetRuntimeShaderProfileSuffix());
+}
 #endif
 
 namespace Rtt
@@ -452,12 +477,12 @@ static bool FindEffectShader(const char* filename, const unsigned char*& outData
     InitShaderSelection();
     if (s_useVulkanShaders)
     {
-        for (int i = 0; i < s_bgfxShaderTableCount_spirv; ++i)
+        for (int i = 0; i < s_bgfxShaderTableCount; ++i)
         {
-            if (strcmp(s_bgfxShaderTable_spirv[i].filename, filename) == 0)
+            if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
             {
-                outData = s_bgfxShaderTable_spirv[i].data;
-                outSize = s_bgfxShaderTable_spirv[i].size;
+                outData = s_bgfxShaderTable[i].data;
+                outSize = s_bgfxShaderTable[i].size;
                 return true;
             }
         }
@@ -547,7 +572,8 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
             else
             {
                 // Not in embedded table — check runtime-compiled cache
-                const char* cacheKey = (strcmp(type, "vs") == 0) ? vsFilename : fsFilename;
+                char cacheKey[128];
+                BuildRuntimeShaderCacheKey(cacheKey, sizeof(cacheKey), type, categoryStr, name);
                 const unsigned char* cachedData = NULL;
                 size_t cachedSize = 0;
 
@@ -562,9 +588,11 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                 {
                     // No VS in cache — use default VS (this is expected for custom effects)
                     // Only log error if FS is also missing (means compilation failed or wasn't attempted)
+                    char fsCacheKey[128];
+                    BuildRuntimeShaderCacheKey(fsCacheKey, sizeof(fsCacheKey), "fs", categoryStr, name);
                     const unsigned char* fsCachedData = NULL;
                     size_t fsCachedSize = 0;
-                    if (!hasFs && !BgfxShaderCompiler::FindCachedShader(fsFilename, fsCachedData, fsCachedSize))
+                    if (!hasFs && !BgfxShaderCompiler::FindCachedShader(fsCacheKey, fsCachedData, fsCachedSize))
                     {
                         Rtt_LogException("ERROR: Custom effect '%s' (category '%s') has no compiled bgfx/Metal shader. "
                             "Falling back to default shader — the effect WILL NOT render correctly.\n",

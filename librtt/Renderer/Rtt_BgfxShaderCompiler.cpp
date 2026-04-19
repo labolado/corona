@@ -77,6 +77,22 @@ static void AutoDetectPaths()
         BgfxShaderCompiler::SetVaryingDefPath(varyingDef.c_str());
 }
 
+static const char* GetRuntimeShaderProfileSuffix()
+{
+#if defined(Rtt_ANDROID_ENV)
+    return (bgfx::getRendererType() == bgfx::RendererType::Vulkan) ? "spirv" : "essl";
+#else
+    return "metal";
+#endif
+}
+
+static void BuildCompiledShaderCacheKey(char* key, size_t keySize, const char* shaderStage,
+                                        const char* category, const char* name)
+{
+    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderStage, category, name,
+             GetRuntimeShaderProfileSuffix());
+}
+
 // Inline bgfx shader compatibility definitions.
 // Replaces #include <bgfx_shader.sh> so the .sc templates are self-contained
 // and don't depend on external include paths (required for ESSL cross-compilation).
@@ -1101,8 +1117,16 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     cmd += " --type ";
     cmd += shaderType;
 #if defined(Rtt_ANDROID_ENV)
-    cmd += " --platform android";
-    cmd += " -p 320_es";
+    if (bgfx::getRendererType() == bgfx::RendererType::Vulkan)
+    {
+        cmd += " --platform linux";
+        cmd += " -p spirv";
+    }
+    else
+    {
+        cmd += " --platform android";
+        cmd += " -p 320_es";
+    }
 #elif defined(Rtt_IPHONE_ENV)
     cmd += " --platform ios";
     cmd += " -p metal";
@@ -1658,11 +1682,11 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     if (isVulkanRenderer && !useShadercPath)
     {
         char fsKey[256];
-        snprintf(fsKey, sizeof(fsKey), "fs_%s_%s.bin", category, name);
+        BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
         EvictCompiledShader(fsKey);
 
         char vsKey[256];
-        snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+        BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
         EvictCompiledShader(vsKey);
 
         outError =
@@ -1715,7 +1739,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
     // Cache the compiled fragment shader
     char fsKey[256];
-    snprintf(fsKey, sizeof(fsKey), "fs_%s_%s.bin", category, name);
+    BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
     CacheCompiledShader(fsKey, fsBinary);
 
     // Compile/construct custom vertex shader if provided
@@ -1732,7 +1756,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 if (CompileShader(vertSc, 'v', vsBinary, vsError, effectTag))
                 {
                     char vsKey[256];
-                    snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+                    BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
                     CacheCompiledShader(vsKey, vsBinary);
                 }
                 else
@@ -1751,7 +1775,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 if (ConstructShaderBinary(vertSc, 'V', vsBinary, fsHashIn))
                 {
                     char vsKey[256];
-                    snprintf(vsKey, sizeof(vsKey), "vs_%s_%s.bin", category, name);
+                    BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
                     CacheCompiledShader(vsKey, vsBinary);
                 }
                 else

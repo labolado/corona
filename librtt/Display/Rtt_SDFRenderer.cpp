@@ -16,6 +16,7 @@
 #include "Core/Rtt_Assert.h"
 #if defined(Rtt_ANDROID_ENV)
     #include "Renderer/Rtt_BgfxShaderData_sdf_essl.h"
+    #include "Renderer/Rtt_BgfxShaderData_sdf_spirv.h"
 #else
     #include "Renderer/Rtt_BgfxShaderData_sdf_metal.h"
 #endif
@@ -77,16 +78,17 @@ SDFRenderer::Initialize()
 	// Create SDF shader programs from platform-specific embedded binaries
 	// Vertex shader is shared across all shape types
 #if defined(Rtt_ANDROID_ENV)
-	#define SDF_VS_DATA   s_vs_sdf_essl
-	#define SDF_VS_SIZE   s_vs_sdf_essl_size
-	#define SDF_FS_CIRCLE s_fs_sdf_circle_essl
-	#define SDF_FS_CIRCLE_SIZE s_fs_sdf_circle_essl_size
-	#define SDF_FS_RECT   s_fs_sdf_rect_essl
-	#define SDF_FS_RECT_SIZE s_fs_sdf_rect_essl_size
-	#define SDF_FS_LINE   s_fs_sdf_line_essl
-	#define SDF_FS_LINE_SIZE s_fs_sdf_line_essl_size
-	#define SDF_FS_POLY   s_fs_sdf_polygon_essl
-	#define SDF_FS_POLY_SIZE s_fs_sdf_polygon_essl_size
+	const bool useVulkanShaders = ( bgfx::getRendererType() == bgfx::RendererType::Vulkan );
+	#define SDF_VS_DATA   ( useVulkanShaders ? s_vs_sdf_spirv : s_vs_sdf_essl )
+	#define SDF_VS_SIZE   ( useVulkanShaders ? s_vs_sdf_spirv_size : s_vs_sdf_essl_size )
+	#define SDF_FS_CIRCLE ( useVulkanShaders ? s_fs_sdf_circle_spirv : s_fs_sdf_circle_essl )
+	#define SDF_FS_CIRCLE_SIZE ( useVulkanShaders ? s_fs_sdf_circle_spirv_size : s_fs_sdf_circle_essl_size )
+	#define SDF_FS_RECT   ( useVulkanShaders ? s_fs_sdf_rect_spirv : s_fs_sdf_rect_essl )
+	#define SDF_FS_RECT_SIZE ( useVulkanShaders ? s_fs_sdf_rect_spirv_size : s_fs_sdf_rect_essl_size )
+	#define SDF_FS_LINE   ( useVulkanShaders ? s_fs_sdf_line_spirv : s_fs_sdf_line_essl )
+	#define SDF_FS_LINE_SIZE ( useVulkanShaders ? s_fs_sdf_line_spirv_size : s_fs_sdf_line_essl_size )
+	#define SDF_FS_POLY   ( useVulkanShaders ? s_fs_sdf_polygon_spirv : s_fs_sdf_polygon_essl )
+	#define SDF_FS_POLY_SIZE ( useVulkanShaders ? s_fs_sdf_polygon_spirv_size : s_fs_sdf_polygon_essl_size )
 #else
 	#define SDF_VS_DATA   s_vs_sdf_metal
 	#define SDF_VS_SIZE   s_vs_sdf_metal_size
