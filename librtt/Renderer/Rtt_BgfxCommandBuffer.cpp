@@ -1400,26 +1400,16 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
             memcpy( tvb.data + vertexOffset * vertexSize,
                     srcVertices + cmd.offset, vCount * vertexSize );
 
-            // Generate triangle indices from strip
+            // Generate triangle indices from fan (Solar2D "strip" is actually fan:
+            // all triangles share the first vertex, matching the non-batch path)
             uint16_t* dstIndices = reinterpret_cast<uint16_t*>( tib.data ) + indexOffset;
             U32 triCount = vCount - 2;
+            uint16_t base = static_cast<uint16_t>( vertexOffset );
             for( U32 t = 0; t < triCount; ++t )
             {
-                uint16_t base = static_cast<uint16_t>( vertexOffset );
-                if( ( t & 1 ) == 0 )
-                {
-                    // Even triangle: (i, i+1, i+2)
-                    dstIndices[t * 3 + 0] = base + static_cast<uint16_t>( t );
-                    dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t + 1 );
-                    dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
-                }
-                else
-                {
-                    // Odd triangle: (i+1, i, i+2) - reversed winding
-                    dstIndices[t * 3 + 0] = base + static_cast<uint16_t>( t + 1 );
-                    dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t );
-                    dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
-                }
+                dstIndices[t * 3 + 0] = base;
+                dstIndices[t * 3 + 1] = base + static_cast<uint16_t>( t + 1 );
+                dstIndices[t * 3 + 2] = base + static_cast<uint16_t>( t + 2 );
             }
 
             vertexOffset += vCount;
