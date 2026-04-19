@@ -331,21 +331,15 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
             if (supportedTypes[i] == bgfx::RendererType::Vulkan) { vulkanAvailable = true; }
         }
     }
-    // Vulkan selection strategy (Unity-derived thresholds):
-    // 1. SOLAR2D_VULKAN=1 → force Vulkan (manual opt-in for testing)
-    // 2. SOLAR2D_VULKAN=0 → force GLES (manual opt-out)
-    // 3. No env var → auto-detect: probe GPU vendor/apiVersion against Unity thresholds
+    // Vulkan selection: opt-in only until P5 Vulkan SIGSEGV is fixed.
+    // SOLAR2D_VULKAN=1 → force Vulkan; otherwise → GLES.
     bool useVulkan = false;
     const char* vkEnv = getenv("SOLAR2D_VULKAN");
-    if (vkEnv) {
-        useVulkan = (atoi(vkEnv) == 1);
-        Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
-            vkEnv, useVulkan ? "Vulkan" : "GLES");
-    } else if (vulkanAvailable) {
-        useVulkan = isVulkanSafeForDevice();
-        Rtt_LogException("BgfxRenderer: auto-detect → %s", useVulkan ? "Vulkan" : "GLES");
+    if (vkEnv && atoi(vkEnv) == 1) {
+        useVulkan = true;
+        Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=1, manual opt-in → Vulkan");
     } else {
-        Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
+        Rtt_LogException("BgfxRenderer: Vulkan disabled (P5 pending) → GLES");
     }
     init.type = (vulkanAvailable && useVulkan) ? bgfx::RendererType::Vulkan : bgfx::RendererType::OpenGLES;
 #else
@@ -392,14 +386,14 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     if (!fBgfxInitialized)
     {
         // bgfx is a singleton: init() fails if s_ctx != NULL (previous session
-        // not fully shut down, e.g. welcome screen extension closing async).
-        // Force shutdown the stale instance and retry once.
+        // not fully shut down, e.g. welcome screen → project window transition).
+        // Force shutdown the stale instance, drain render thread, and retry.
         Rtt_LogException("BgfxRenderer: init failed (stale session?), forcing shutdown and retrying");
         bgfx::shutdown();
         // Wait for renderer thread to fully exit after shutdown.
         // bgfx::shutdown() may return before the Metal/Vulkan backend thread
         // has finished its last submit(), causing UAF on reinit.
-        usleep(200000); // 200ms
+        usleep(500000); // 500ms — generous wait for GPU resources to release
         fBgfxInitialized = bgfx::init(init);
     }
 #if defined(Rtt_ANDROID_ENV)
