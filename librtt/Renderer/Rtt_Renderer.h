@@ -222,6 +222,12 @@ class Renderer
 		// bgfx mode: these statics are set by BgfxCommandBuffer::Initialize()
 		static bool sIsBgfxRenderer;
 		static U32 sBgfxMaxTextureSize;
+		static bool sBgfxSupportsHighPrecision;
+		static const char* sBgfxVendorString;
+		static const char* sBgfxRendererString;
+		static const char* sBgfxVersionString;
+		static U32 sBgfxMaxUniformVectors;
+		static U32 sBgfxMaxVertexTextureUnits;
 
         bool HasFramebufferBlit(  bool * canScale ) const;
         void GetVertexAttributes( VertexAttributeSupport & support ) const;

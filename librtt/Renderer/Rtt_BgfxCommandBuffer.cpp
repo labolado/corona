@@ -167,6 +167,12 @@ BgfxCommandBuffer::Initialize()
     const bgfx::Caps* caps = bgfx::getCaps();
     Renderer::sIsBgfxRenderer = true;
     Renderer::sBgfxMaxTextureSize = caps->limits.maxTextureSize;
+    Renderer::sBgfxSupportsHighPrecision = true;
+    Renderer::sBgfxVendorString = "bgfx";
+    Renderer::sBgfxRendererString = bgfx::getRendererName(caps->rendererType);
+    Renderer::sBgfxVersionString = "";
+    Renderer::sBgfxMaxUniformVectors = 256;
+    Renderer::sBgfxMaxVertexTextureUnits = 4;
     Rtt_LogException("BgfxCommandBuffer: maxTextureSize = %u (renderer=%d)",
         caps->limits.maxTextureSize, caps->rendererType);
 }

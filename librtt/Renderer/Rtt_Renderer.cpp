@@ -36,6 +36,8 @@
 
 #include "Rtt_Profiling.h"
 
+#include <string.h>
+
 #define ENABLE_DEBUG_PRINT	0
 
 #include <limits>
@@ -102,6 +104,12 @@ namespace Rtt
 // bgfx mode statics for GetMaxTextureSize()
 bool Renderer::sIsBgfxRenderer = false;
 U32 Renderer::sBgfxMaxTextureSize = 0;
+bool Renderer::sBgfxSupportsHighPrecision = false;
+const char* Renderer::sBgfxVendorString = "";
+const char* Renderer::sBgfxRendererString = "";
+const char* Renderer::sBgfxVersionString = "";
+U32 Renderer::sBgfxMaxUniformVectors = 0;
+U32 Renderer::sBgfxMaxVertexTextureUnits = 0;
 
 // ----------------------------------------------------------------------------
 
@@ -1552,24 +1560,45 @@ Renderer::GetMaxTextureSize()
 const char *
 Renderer::GetGlString( const char *s )
 {
+    if (sIsBgfxRenderer)
+    {
+        if (strcmp(s, "GL_VENDOR") == 0) return sBgfxVendorString;
+        if (strcmp(s, "GL_RENDERER") == 0) return sBgfxRendererString;
+        if (strcmp(s, "GL_VERSION") == 0) return sBgfxVersionString;
+        if (strcmp(s, "GL_SHADING_LANGUAGE_VERSION") == 0) return "";
+        if (strcmp(s, "GL_EXTENSIONS") == 0) return "";
+        return "";
+    }
     return CommandBuffer::GetGlString( s );
 }
 
 bool
 Renderer::GetGpuSupportsHighPrecisionFragmentShaders()
 {
+    if (sIsBgfxRenderer)
+    {
+        return sBgfxSupportsHighPrecision;
+    }
     return CommandBuffer::GetGpuSupportsHighPrecisionFragmentShaders();
 }
 
 U32
 Renderer::GetMaxUniformVectorsCount()
 {
+    if (sIsBgfxRenderer)
+    {
+        return sBgfxMaxUniformVectors;
+    }
     return CommandBuffer::GetMaxUniformVectorsCount();
 }
 
 U32
 Renderer::GetMaxVertexTextureUnits()
 {
+    if (sIsBgfxRenderer)
+    {
+        return sBgfxMaxVertexTextureUnits;
+    }
     return CommandBuffer::GetMaxVertexTextureUnits();
 }
 
