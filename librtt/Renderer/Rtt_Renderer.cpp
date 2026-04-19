@@ -99,6 +99,10 @@ namespace /*anonymous*/
 namespace Rtt
 {
 
+// bgfx mode statics for GetMaxTextureSize()
+bool Renderer::sIsBgfxRenderer = false;
+U32 Renderer::sBgfxMaxTextureSize = 0;
+
 // ----------------------------------------------------------------------------
 
 struct StateBlockInfo {
@@ -1537,6 +1541,11 @@ Renderer::SetWireframeEnabled( bool enabled )
 U32
 Renderer::GetMaxTextureSize()
 {
+    // bgfx mode: use bgfx caps (GL glGetIntegerv doesn't work without GL context)
+    if (sIsBgfxRenderer)
+    {
+        return sBgfxMaxTextureSize;
+    }
     return CommandBuffer::GetMaxTextureSize();
 }
 

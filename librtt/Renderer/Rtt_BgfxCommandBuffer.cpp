@@ -25,6 +25,7 @@
 #include "Renderer/Rtt_Program.h"
 #include "Renderer/Rtt_Texture.h"
 #include "Renderer/Rtt_Uniform.h"
+#include "Renderer/Rtt_Renderer.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
 #include "Display/Rtt_ShaderData.h"
 #include "Display/Rtt_ShaderResource.h"
@@ -158,8 +159,16 @@ BgfxCommandBuffer::Initialize()
 
     InitializeCachedParams();
 
-    // Query max texture size
+    // Query max texture size from bgfx caps
     GetMaxTextureSize();
+
+    // Set statics so Renderer::GetMaxTextureSize() returns bgfx value
+    // instead of GL's glGetIntegerv (which fails without GL context)
+    const bgfx::Caps* caps = bgfx::getCaps();
+    Renderer::sIsBgfxRenderer = true;
+    Renderer::sBgfxMaxTextureSize = caps->limits.maxTextureSize;
+    Rtt_LogException("BgfxCommandBuffer: maxTextureSize = %u (renderer=%d)",
+        caps->limits.maxTextureSize, caps->rendererType);
 }
 
 void
@@ -194,6 +203,8 @@ BgfxCommandBuffer::CacheQueryParam( CommandBuffer::QueryableParams param )
         {
             const bgfx::Caps* caps = bgfx::getCaps();
             fCachedQuery[param] = caps->limits.maxTextureSize;
+            Rtt_LogException("BgfxCommandBuffer: maxTextureSize = %d (renderer=%d)",
+                caps->limits.maxTextureSize, caps->rendererType);
             break;
         }
         default:
