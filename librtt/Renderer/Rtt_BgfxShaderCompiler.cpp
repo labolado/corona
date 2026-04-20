@@ -953,7 +953,6 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     result += body;
     result += "}\n";
 
-    Rtt_LogException("=== TransformFragmentKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
     return result;
 }
 
@@ -1173,7 +1172,6 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += body;
     result += "\n}\n";
 
-    Rtt_LogException("=== TransformVertexKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
     return result;
 }
 
@@ -1735,19 +1733,6 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
     Rtt_LogException("ConstructShaderBinary: type='%c', %d uniforms, %u bytes ESSL, %zu bytes total\n",
                      shaderType, (int)uniforms.size(), codeSize, outBinary.size());
 
-    // Dump ESSL source for debugging (always, since this is the primary diagnostic for link failures)
-    Rtt_LogException("=== Runtime ESSL (%c) ===\n%s\n=== END ESSL ===\n", shaderType, esslSource.c_str());
-
-    // Dump uniform table
-    for (size_t i = 0; i < uniforms.size(); ++i)
-    {
-        const UniformEntry& u = uniforms[i];
-        const char* typeNames[] = { "Sampler", "End", "Vec4", "Mat3", "Mat4" };
-        const char* typeName = (u.type < 5) ? typeNames[u.type] : "Unknown";
-        Rtt_LogException("  uniform[%d]: '%s' type=%s(%d) num=%d reg=%d regCount=%d\n",
-                         (int)i, u.name.c_str(), typeName, u.type, u.num, u.regIndex, u.regCount);
-    }
-
     return true;
 }
 
@@ -1969,8 +1954,6 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
         esslSource = result;
     }
 
-    Rtt_LogException("=== Vulkan GLSL for glslang (%c) ===\n%s\n=== END ===\n", shaderType, esslSource.c_str());
-
     // Compile ESSL 310 → SPIR-V via glslang
     std::vector<uint32_t> spirvWords;
     std::string glslangError;
@@ -2035,17 +2018,6 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
         writeU8(0);    // texComponent
         writeU8(u.type == 0 ? 0x02 : 0); // texDimension: Dimension2D for samplers
         writeU16(0); // texFormat
-    }
-
-    // Debug: dump uniform binary details
-    for (size_t i = 0; i < uniforms.size(); i++)
-    {
-        const auto& u = uniforms[i];
-        uint16_t regIdx = u.regIndex;
-        if (u.type == 0) regIdx = 2 + u.regIndex;
-        Rtt_LogException("  Uniform[%zu]: '%s' type=%d num=%d regIdx=%d regCount=%d texDim=%d\n",
-            i, u.name.c_str(), u.type, u.num, regIdx, u.regCount,
-            u.type == 0 ? 0x02 : 0);
     }
 
     // 6. SPIR-V code
@@ -2115,16 +2087,53 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
         bool hasCustomVS = (kernelVert && *kernelVert);
 
-        std::ifstream varyingFile(s_varyingDefPath.c_str(), std::ios::in | std::ios::binary);
-        if (!varyingFile)
-        {
-            outError = "Failed to open varying.def.sc: " + s_varyingDefPath;
-            return false;
-        }
+        // Embedded varying.def.sc for Android runtime (source tree not available on device)
+        static const char kEmbeddedVaryingDef[] =
+            "vec3 v_TexCoord   : TEXCOORD5 = vec3(0.0, 0.0, 0.0);\n"
+            "vec4 v_ColorScale : COLOR0    = vec4(1.0, 1.0, 1.0, 1.0);\n"
+            "vec4 v_UserData   : TEXCOORD6 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec2 v_MaskUV0    : TEXCOORD2 = vec2(0.0, 0.0);\n"
+            "vec2 v_MaskUV1    : TEXCOORD3 = vec2(0.0, 0.0);\n"
+            "vec2 v_MaskUV2    : TEXCOORD4 = vec2(0.0, 0.0);\n"
+            "\n"
+            "vec2 v_feathering_edges            : TEXCOORD7  = vec2(0.0, 0.0);\n"
+            "vec2 v_fromPos                     : TEXCOORD8  = vec2(0.0, 0.0);\n"
+            "vec2 v_N                           : TEXCOORD9  = vec2(0.0, 0.0);\n"
+            "vec2 v_slot_size                   : TEXCOORD10 = vec2(0.0, 0.0);\n"
+            "vec2 v_sample_uv_offset            : TEXCOORD11 = vec2(0.0, 0.0);\n"
+            "vec3 v_transform0                  : TEXCOORD12 = vec3(0.0, 0.0, 0.0);\n"
+            "vec3 v_transform1                  : TEXCOORD13 = vec3(0.0, 0.0, 0.0);\n"
+            "vec3 v_transform2                  : TEXCOORD14 = vec3(0.0, 0.0, 0.0);\n"
+            "float v_minimum_full_radius        : TEXCOORD15 = 0.0;\n"
+            "vec2 v_opennessOffsetMatrix0       : TEXCOORD16 = vec2(0.0, 0.0);\n"
+            "vec2 v_opennessOffsetMatrix1       : TEXCOORD17 = vec2(0.0, 0.0);\n"
+            "vec2 v_feathering_edges_radians    : TEXCOORD18 = vec2(0.0, 0.0);\n"
+            "\n"
+            "vec4 v_Custom0                     : TEXCOORD19 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom1                     : TEXCOORD20 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom2                     : TEXCOORD21 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom3                     : TEXCOORD22 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "\n"
+            "vec3 a_position  : POSITION;\n"
+            "vec3 a_texcoord0 : TEXCOORD0;\n"
+            "vec4 a_color0    : COLOR0;\n"
+            "vec4 a_texcoord1 : TEXCOORD1;\n";
 
-        std::stringstream varyingStream;
-        varyingStream << varyingFile.rdbuf();
-        const std::string varyingText = varyingStream.str();
+        std::string varyingText;
+        if (!s_varyingDefPath.empty())
+        {
+            std::ifstream varyingFile(s_varyingDefPath.c_str(), std::ios::in | std::ios::binary);
+            if (varyingFile)
+            {
+                std::stringstream varyingStream;
+                varyingStream << varyingFile.rdbuf();
+                varyingText = varyingStream.str();
+            }
+        }
+        if (varyingText.empty())
+        {
+            varyingText = kEmbeddedVaryingDef;
+        }
 
         std::vector<std::string> includeDirs;
         if (!s_bgfxIncludeDir.empty())
@@ -2145,7 +2154,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
         CacheCompiledShader(fsKey, fsBinary);
 
-        // Handle custom VS if provided
+        // Handle vertex shader: custom VS if provided, or compile default VS for SPIR-V compatibility
         if (hasCustomVS)
         {
             std::string vertSc = TransformVertexKernel(kernelVert, varyings);
@@ -2166,6 +2175,62 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                                      "Falling back to default vertex shader.\n",
                                      category, name, vsError.c_str());
                 }
+            }
+        }
+        else
+        {
+            // Fragment-only effect on Vulkan: must also compile default VS via shaderc
+            // so VS and FS share the same SPIR-V compilation pipeline and descriptor
+            // set layouts are compatible. Using the precompiled default VS (from Metal/
+            // GLES path) causes layout mismatch → SIGSEGV in getDescriptorSet.
+            static const char kEmbeddedDefaultVS[] =
+                "$input a_position, a_texcoord0, a_color0, a_texcoord1\n"
+                "$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2\n"
+                "\n"
+                "#include <bgfx_shader.sh>\n"
+                "\n"
+                "uniform mat4 u_ViewProjectionMatrix;\n"
+                "uniform mat3 u_MaskMatrix0;\n"
+                "uniform mat3 u_MaskMatrix1;\n"
+                "uniform mat3 u_MaskMatrix2;\n"
+                "uniform vec4 u_TotalTime;\n"
+                "uniform vec4 u_DeltaTime;\n"
+                "uniform vec4 u_TexelSize;\n"
+                "uniform vec4 u_ContentScale;\n"
+                "uniform vec4 u_ContentSize;\n"
+                "uniform vec4 u_UserData0;\n"
+                "uniform vec4 u_UserData1;\n"
+                "uniform vec4 u_UserData2;\n"
+                "uniform vec4 u_UserData3;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "    v_TexCoord = vec3(a_texcoord0.xy, 0.0);\n"
+                "    v_ColorScale = a_color0;\n"
+                "    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);\n"
+                "    vec3 maskPos = vec3(a_position.xy, 1.0);\n"
+                "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n"
+                "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n"
+                "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n"
+                "    gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));\n"
+                "}\n";
+
+            std::vector<uint8_t> vsBinary;
+            std::string vsError;
+            std::string vsSourcePath = std::string(effectTag) + ".default_vs.sc";
+            if (compileShaderRuntime(vsSourcePath, kEmbeddedDefaultVS, varyingText, 'v', includeDirs, "", vsBinary, vsError))
+            {
+                char vsKey[256];
+                BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+                CacheCompiledShader(vsKey, vsBinary);
+                Rtt_LogException("Compiled default VS via shaderc for fragment-only effect '%s.%s'\n",
+                                 category, name);
+            }
+            else
+            {
+                Rtt_LogException("WARNING: default VS SPIR-V compilation failed for '%s.%s': %s\n"
+                                 "Falling back to precompiled default vertex shader.\n",
+                                 category, name, vsError.c_str());
             }
         }
 

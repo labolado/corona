@@ -15,6 +15,7 @@ add_definitions(
 	-DRtt_ANDROID_ENV
 	-DBGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME=4096
 	-DENABLE_OPT=0
+	-DENABLE_HLSL=1
 )
 
 include_directories (
@@ -722,6 +723,15 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/ResourceLimits/resource_limits_c.cpp
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/ResourceLimits/ResourceLimits.cpp
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/OSDependent/Unix/ossource.cpp
+		# glslang HLSL support (required for SPIRV compilation via EShSourceHlsl)
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslAttributes.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslGrammar.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslOpMap.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslParseables.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslParseHelper.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslScanContext.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/HLSL/hlslTokenStream.cpp
+
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/GlslangToSpv.cpp
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/InReadableOrder.cpp
 		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/Logger.cpp

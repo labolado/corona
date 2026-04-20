@@ -16,6 +16,7 @@
 #define SHADERC_CONFIG_HAS_TINT 0
 #define SHADERC_CONFIG_HAS_GLSL_OPTIMIZER 0
 #define SHADERC_CONFIG_HAS_GLSLANG 1
+#define ENABLE_HLSL 1  // Required for glslang to recognize EShSourceHlsl (used by SPIRV path)
 
 #include "external/bgfx/tools/shaderc/shaderc.h"
 
@@ -188,13 +189,16 @@ bool compileShaderRuntime(const std::string& sourcePath,
     VectorWriter shaderWriter(outBinary);
     StringWriter messageWriter(outLog);
 
-    return bgfx::compileShader(varyingText.c_str(),
+    bool result = bgfx::compileShader(varyingText.c_str(),
                                "",
                                shaderBuffer,
                                sourceLen,
                                options,
                                &shaderWriter,
                                &messageWriter);
+    // NOTE: do NOT delete[] shaderBuffer — bgfx::compileShader takes
+    // ownership and frees it internally (shaderc.cpp:1605-1614).
+    return result;
 }
 
 } // namespace Rtt
