@@ -299,8 +299,15 @@ public class Controller {
 				// from onDrawFrame because it's executing in GL thread
 				requestEventRender();
 
-				if (myRuntimeState != RuntimeState.Stopped && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { // Android 14+ does not allow for gl render
-					updateRuntimeState(myRuntime, true);
+				if (myRuntimeState != RuntimeState.Stopped) {
+					// bgfx: canRenderFrameNow() is blocked after surfaceDestroyed sets
+					// fCanRender=false, so the render loop can never call updateRuntimeState.
+					// Must transition directly here to avoid the 4s timeout → killProcess.
+					// GL (Android 14+): same issue — no onDrawFrame after surface loss.
+					if (myGLView instanceof com.ansca.corona.graphics.opengl.CoronaBgfxSurfaceView
+						|| Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+						updateRuntimeState(myRuntime, true);
+					}
 				}
 			}
 		});

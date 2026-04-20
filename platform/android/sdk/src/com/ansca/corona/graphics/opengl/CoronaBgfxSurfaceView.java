@@ -266,7 +266,7 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 
 	@Override
 	public void surfaceCreated(android.view.SurfaceHolder holder) {
-		Log.i(TAG, "surfaceCreated");
+		Log.i(TAG, "surfaceCreated (firstSurface=" + sFirstSurface + ", restored=" + !sFirstSurface + ")");
 		fSurfaceValid = true;
 
 		// Re-draw what was last rendered if the surface has been replaced.
@@ -411,15 +411,10 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		fSurfaceRestored = false;
 		fWatchdogTimer.stop();
 
-		// Drain any pending setSurface/resize events that were queued before this call.
-		// Without this, the render thread may process a queued bgfx init with an already-abandoned
-		// ANativeWindow, causing a fatal crash in bgfx's EGL context creation.
-		synchronized (fEventQueue) {
-			if (!fEventQueue.isEmpty()) {
-				Log.w(TAG, "surfaceDestroyed: draining " + fEventQueue.size() + " pending event(s)");
-				fEventQueue.clear();
-			}
-		}
+		// Do NOT clear the event queue here. Queued Runnables (e.g. from surfaceChanged)
+		// already guard on fSurfaceValid and skip if the surface is gone. Clearing
+		// the queue risks dropping the Controller.stop() Runnable, which causes a
+		// 4-second deadlock → Process.killProcess → app restart instead of resume.
 
 		// Notify native layer that the surface is gone so it can clear fNativeWindow.
 		// This prevents bgfx from accessing an abandoned ANativeWindow.
