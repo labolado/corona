@@ -83,9 +83,10 @@ static bool CompileGLSLToSPIRV(
     // Use default resource limits from glslang
     const TBuiltInResource* resources = GetDefaultResources();
 
-    // Parse with ES profile + Vulkan SPIR-V rules
+    // Parse with no profile (desktop GLSL, same as bgfx shaderc) + Vulkan SPIR-V rules.
+    // ES profile doesn't support sampler2D() constructor for separate texture+sampler.
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
-    if (!shader.parse(resources, 310, EEsProfile, false, false, messages))
+    if (!shader.parse(resources, 110, false, messages))
     {
         outError = std::string("glslang parse error: ") + shader.getInfoLog();
         return false;
@@ -1394,6 +1395,11 @@ BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
     return uniforms;
 }
 
+// Vulkan GLSL macros are generated dynamically per-shader because ESSL doesn't
+// support ## token pasting. We expand SAMPLER2D to separate texture+sampler
+// declarations using string replacement instead of macros.
+// See ConstructShaderBinarySPIRV() for the replacement logic.
+
 // GLSL-only macros for ESSL output. No Metal/HLSL code, no #if branching.
 // This avoids issues with mobile GL drivers that choke on complex #else blocks.
 static const char kEsslGlslMacros[] =
@@ -1748,20 +1754,159 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
     // Parse uniforms from the .sc source
     std::vector<UniformEntry> uniforms = ParseUniformsFromSc(shaderSource);
 
-    // Build ESSL source from .sc, then upgrade to ES 310 for SPIR-V
+    // Build ESSL source from .sc, then upgrade for Vulkan SPIR-V
     std::string esslSource = TransformScToESSL(shaderSource, shaderType);
     if (esslSource.empty())
         return false;
 
-    // Upgrade #version 300 es → 310 es (SPIR-V requires ES 310+)
+    // Replace #version 300 es → #version 460 (desktop GLSL for glslang, same as bgfx shaderc).
+    // Also remove ES-only precision qualifiers (not valid in desktop GLSL).
     {
         size_t pos = esslSource.find("#version 300 es");
         if (pos != std::string::npos)
-            esslSource.replace(pos, 15, "#version 310 es");
+            esslSource.replace(pos, 15, "#version 460");
+
+        // Remove "precision highp float;" and "precision mediump int;"
+        auto removeStr = [&](const std::string& s) {
+            size_t p = esslSource.find(s);
+            if (p != std::string::npos)
+            {
+                size_t eol = esslSource.find('\n', p);
+                if (eol != std::string::npos)
+                    esslSource.erase(p, eol - p + 1);
+                else
+                    esslSource.erase(p);
+            }
+        };
+        removeStr("precision highp float;");
+        removeStr("precision mediump int;");
+        removeStr("precision highp int;");
+        removeStr("precision lowp float;");
     }
 
-    // Vulkan GLSL requires non-opaque uniforms (vec4, float, mat3, mat4) to be in
-    // a uniform block. Wrap them automatically. Sampler uniforms stay outside.
+    // bgfx Vulkan expects separate image + sampler (not combined sampler2D).
+    // ESSL doesn't support ## token pasting, so we can't use macros.
+    // Instead, manually expand SAMPLER2D() calls and texture2D() calls,
+    // then remove the SAMPLER2D macro definition.
+    {
+        std::vector<std::string> samplerNames;
+
+        // 1. Find and expand SAMPLER2D(name, reg) calls → separate declarations
+        //    Also handle SAMPLER3D and SAMPLERCUBE
+        std::string macroPatterns[] = {"SAMPLER2D(", "SAMPLER3D(", "SAMPLERCUBE("};
+        std::string texTypes[] = {"texture2D", "texture3D", "textureCube"};
+        for (int t = 0; t < 3; t++)
+        {
+            size_t pos = 0;
+            while ((pos = esslSource.find(macroPatterns[t], pos)) != std::string::npos)
+            {
+                // Skip #define lines
+                size_t lineStart = esslSource.rfind('\n', pos);
+                if (lineStart == std::string::npos) lineStart = 0; else lineStart++;
+                std::string linePrefix = esslSource.substr(lineStart, pos - lineStart);
+                // Trim
+                size_t fp = linePrefix.find_first_not_of(" \t");
+                if (fp != std::string::npos && linePrefix.substr(fp, 7) == "#define")
+                {
+                    pos += macroPatterns[t].size();
+                    continue;  // Skip macro definition
+                }
+
+                // Extract args: SAMPLER2D(name, reg);
+                size_t argsStart = pos + macroPatterns[t].size();
+                size_t parenClose = esslSource.find(')', argsStart);
+                if (parenClose == std::string::npos) { pos = argsStart; continue; }
+
+                std::string args = esslSource.substr(argsStart, parenClose - argsStart);
+                size_t comma = args.find(',');
+                std::string name = (comma != std::string::npos) ? args.substr(0, comma) : args;
+                // Trim name
+                while (!name.empty() && (name.front() == ' ' || name.front() == '\t')) name.erase(0, 1);
+                while (!name.empty() && (name.back() == ' ' || name.back() == '\t')) name.pop_back();
+                samplerNames.push_back(name);
+
+                // Find end of statement (past ; if present)
+                size_t stmtEnd = parenClose + 1;
+                if (stmtEnd < esslSource.size() && esslSource[stmtEnd] == ';') stmtEnd++;
+
+                // Replace with separate declarations
+                std::string replacement = "uniform " + texTypes[t] + " " + name + ";\n"
+                    + "uniform sampler " + name + "_sampler;";
+                esslSource.replace(pos, stmtEnd - pos, replacement);
+                pos += replacement.size();
+            }
+        }
+
+        // 2. Replace texture2D(name, coord) → texture(sampler2D(name, name_sampler), coord)
+        //    The macro #define texture2D(_s, _c) texture(_s, _c) is still present,
+        //    but we need to intercept before the macro. Remove texture2D macro and do inline.
+        //    Actually simpler: just replace texture2D(samplerName to texture(sampler2D(name, name_sampler)
+        //    The texture2D macro will still work for non-sampler calls.
+        for (const auto& name : samplerNames)
+        {
+            // Replace in texture function calls
+            // After macro expansion of texture2D → texture, we handle both:
+            //   texture2D(name, coord) and texture(name, coord)
+            std::string funcs[] = {"texture2D(", "texture(", "textureLod(", "textureLodOffset("};
+            for (const auto& func : funcs)
+            {
+                std::string search = func + name;
+                size_t pos = 0;
+                while ((pos = esslSource.find(search, pos)) != std::string::npos)
+                {
+                    // Skip #define lines
+                    size_t ls = esslSource.rfind('\n', pos);
+                    if (ls == std::string::npos) ls = 0; else ls++;
+                    std::string lp = esslSource.substr(ls, pos - ls);
+                    size_t fp2 = lp.find_first_not_of(" \t");
+                    if (fp2 != std::string::npos && lp.substr(fp2, 7) == "#define")
+                    { pos += search.size(); continue; }
+
+                    // Verify word boundary
+                    size_t afterName = pos + func.size() + name.size();
+                    if (afterName < esslSource.size())
+                    {
+                        char c = esslSource[afterName];
+                        if (c != ',' && c != ')' && c != ' ')
+                        { pos = afterName; continue; }
+                    }
+
+                    // For texture2D(name → texture(sampler2D(name, name_sampler)
+                    // For texture(name → texture(sampler2D(name, name_sampler)
+                    std::string texFunc = (func == "texture2D(") ? "texture(" : func;
+                    std::string replacement = texFunc + "sampler2D(" + name + ", " + name + "_sampler)";
+                    esslSource.replace(pos, func.size() + name.size(), replacement);
+                    pos += replacement.size();
+                }
+            }
+        }
+    }
+
+    // Remove sampler-related macros (we've manually expanded them above)
+    {
+        std::string macrosToRemove[] = {
+            "#define SAMPLER2D(",
+            "#define SAMPLER3D(",
+            "#define SAMPLERCUBE(",
+            "#define texture2D(",
+            "#define texture2DLod(",
+            "#define texture2DLodOffset(",
+            "#define texture2DBias(",
+        };
+        for (const auto& macro : macrosToRemove)
+        {
+            size_t pos = 0;
+            while ((pos = esslSource.find(macro, pos)) != std::string::npos)
+            {
+                size_t eol = esslSource.find('\n', pos);
+                if (eol == std::string::npos) eol = esslSource.size();
+                esslSource.erase(pos, eol - pos + 1);
+            }
+        }
+    }
+
+    // Vulkan GLSL requires non-opaque uniforms in a uniform block.
+    // Wrap vec4/mat3/mat4 etc. Exclude opaque types: texture2D, texture3D, textureCube, sampler.
     // bgfx expects VS UBO at binding=0, FS UBO at binding=1 (shader_spirv.h)
     {
         int uboBinding = (shaderType == 'F' || shaderType == 'f') ? 1 : 0;
@@ -1772,24 +1917,24 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
         std::string result;
         std::vector<std::string> blockMembers;
 
+        auto isOpaqueUniform = [](const std::string& l) {
+            return l.find("sampler") != std::string::npos
+                || l.find("texture2D") != std::string::npos
+                || l.find("texture3D") != std::string::npos
+                || l.find("textureCube") != std::string::npos;
+        };
+
         while (std::getline(iss, line))
         {
-            // Check if this is a non-sampler uniform declaration
-            if (line.find("uniform ") != std::string::npos
-                && line.find("sampler") == std::string::npos
-                && line.find("samplerCube") == std::string::npos)
+            if (line.find("uniform ") != std::string::npos && !isOpaqueUniform(line))
             {
-                // Extract "vec4 name;" part, strip "uniform "
                 size_t upos = line.find("uniform ");
-                std::string member = line.substr(upos + 8); // skip "uniform "
-                // Preserve any leading whitespace
+                std::string member = line.substr(upos + 8);
                 std::string prefix = line.substr(0, upos);
                 blockMembers.push_back(prefix + "    " + member);
             }
             else
             {
-                // Before the first non-uniform, non-empty, non-preprocessor line after
-                // uniform section, emit the block
                 if (!blockMembers.empty()
                     && !line.empty()
                     && line[0] != '#'
@@ -1805,7 +1950,6 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
                 result += line + "\n";
             }
         }
-        // If block members remain (uniforms at end of file)
         if (!blockMembers.empty())
         {
             result += uboHeader;
