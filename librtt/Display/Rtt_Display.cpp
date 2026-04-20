@@ -35,6 +35,7 @@
 #include "Renderer/Rtt_VulkanExports.h"
 #if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 #include "Renderer/Rtt_BgfxExports.h"
+#include "Renderer/Rtt_BgfxRenderer.h"
 #endif
 #include "Renderer/Rtt_FrameBufferObject.h"
 #include "Renderer/Rtt_Matrix_Renderer.h"
@@ -280,13 +281,24 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		}
 		else if (Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
+			// Set cache dir for pipeline and shader disk caching
+			{
+				String cachePath( allocator );
+				GetRuntime().Platform().PathForFile( NULL, MPlatform::kCachesDir,
+					MPlatform::kDefaultPathFlags, cachePath );
+				if (cachePath.GetString())
+				{
+					BgfxRenderer::SetCacheDir(cachePath.GetString());
+				}
+			}
+
 			// Get the native window handle from backendContext
 			void* nativeWindowHandle = backendContext;
-			
+
 			// Get surface dimensions
 			U32 width = fTarget ? fTarget->Width() : 0;
 			U32 height = fTarget ? fTarget->Height() : 0;
-			
+
 			if (nativeWindowHandle && width > 0 && height > 0)
 			{
 				fRenderer = BgfxExports::CreateBgfxRenderer(allocator, nativeWindowHandle, width, height);
@@ -304,6 +316,17 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 	#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
 		if (backend && Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
+			// Set cache dir for pipeline and shader disk caching
+			{
+				String cachePath( allocator );
+				GetRuntime().Platform().PathForFile( NULL, MPlatform::kCachesDir,
+					MPlatform::kDefaultPathFlags, cachePath );
+				if (cachePath.GetString())
+				{
+					BgfxRenderer::SetCacheDir(cachePath.GetString());
+				}
+			}
+
 			// Prefer backendContext; fallback to NativeWindow() if not set
 			void* nativeWindowHandle = backendContext;
 			if (!nativeWindowHandle && fTarget)
