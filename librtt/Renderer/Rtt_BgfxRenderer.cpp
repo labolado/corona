@@ -342,10 +342,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
             vkEnv, useVulkan ? "Vulkan" : "GLES");
     } else if (vulkanAvailable) {
-        // Vulkan custom shaders: glslang generates combined image samplers but bgfx
-        // expects separate image + sampler bindings. Forced GLES until resolved.
+        // Vulkan custom shaders WIP: separate texture+sampler SPIR-V compilation
+        // needs more research into bgfx shaderc's full pipeline. Forced GLES.
         useVulkan = false;
-        Rtt_LogException("BgfxRenderer: Vulkan available but forced GLES (combined sampler compat)");
+        Rtt_LogException("BgfxRenderer: Vulkan available but forced GLES (shader compat WIP)");
     } else {
         Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
     }
