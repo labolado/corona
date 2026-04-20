@@ -212,6 +212,33 @@ ENDFOREACH()
 
 
 
+file(GLOB RUNTIME_SHADERC_FCPP_SOURCES
+	${CORONA_ROOT}/external/bgfx/3rdparty/fcpp/*.c
+)
+
+list(FILTER RUNTIME_SHADERC_FCPP_SOURCES EXCLUDE REGEX "/usecpp\\.c$")
+
+file(GLOB RUNTIME_SHADERC_SPIRV_CROSS_SOURCES
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-cross/*.cpp
+)
+
+list(FILTER RUNTIME_SHADERC_SPIRV_CROSS_SOURCES EXCLUDE REGEX "/main\\.cpp$")
+
+file(GLOB RUNTIME_SHADERC_SPIRV_TOOLS_SOURCES
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source/*.cpp
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source/opt/*.cpp
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source/util/*.cpp
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source/val/*.cpp
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source/reduce/*.cpp
+)
+
+list(FILTER RUNTIME_SHADERC_SPIRV_TOOLS_SOURCES EXCLUDE REGEX "/mimalloc\\.cpp$")
+
+set_source_files_properties(
+	${CORONA_ROOT}/librtt/Renderer/Rtt_RuntimeShaderc.cpp
+	PROPERTIES COMPILE_FLAGS "-std=c++20 -DBX_CONFIG_DEBUG=0"
+)
+
 add_library( corona SHARED
 		jni/importgl.c
 		jni/JavaToNativeBridge.cpp
@@ -713,7 +740,12 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxProgram.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxRenderer.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxShaderCompiler.cpp
+		${CORONA_ROOT}/librtt/Renderer/Rtt_RuntimeShaderc.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxTexture.cpp
+
+		${RUNTIME_SHADERC_FCPP_SOURCES}
+		${RUNTIME_SHADERC_SPIRV_CROSS_SOURCES}
+		${RUNTIME_SHADERC_SPIRV_TOOLS_SOURCES}
 
 		${CORONA_ROOT}/plugins/shared/CoronaLuaLibrary.cpp
 		${CORONA_ROOT}/plugins/shared/CoronaLuaLibraryMetadata.cpp
@@ -830,4 +862,21 @@ target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GL
 	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbgfxRelease.a
 	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbimgRelease.a
 	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbxRelease.a
+)
+
+target_include_directories(corona PRIVATE
+	${CORONA_ROOT}
+	${CORONA_ROOT}/external/bgfx/include
+	${CORONA_ROOT}/external/bgfx/src
+	${CORONA_ROOT}/external/bgfx/tools/shaderc
+	${CORONA_ROOT}/external/bgfx/3rdparty/fcpp
+	${CORONA_ROOT}/external/bgfx/3rdparty/glslang
+	${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Public
+	${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Include
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-cross
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/include
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/include/generated
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/source
+	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-headers/include
 )
