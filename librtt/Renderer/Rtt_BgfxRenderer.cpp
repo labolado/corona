@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #if defined(Rtt_ANDROID_ENV)
 #include <dlfcn.h>
@@ -179,6 +180,17 @@ namespace {
 // Default CallbackStub calls abort() on ALL fatal errors including shader
 // compile failures, which crashes the app. This callback logs the error
 // and only aborts on truly unrecoverable errors.
+// Pipeline cache directory (set by BgfxRenderer::Initialize via SetPipelineCacheDir)
+static std::string s_pipelineCacheDir;
+
+static std::string PipelineCachePath(uint64_t _id)
+{
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%s/pipeline_%016llx.bin",
+             s_pipelineCacheDir.c_str(), (unsigned long long)_id);
+    return std::string(buf);
+}
+
 struct Solar2dBgfxCallback : public bgfx::CallbackI
 {
     virtual void fatal(
@@ -219,9 +231,36 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
     virtual void profilerBegin(const char*, uint32_t, const char*, uint16_t) override {}
     virtual void profilerBeginLiteral(const char*, uint32_t, const char*, uint16_t) override {}
     virtual void profilerEnd() override {}
-    virtual uint32_t cacheReadSize(uint64_t) override { return 0; }
-    virtual bool cacheRead(uint64_t, void*, uint32_t) override { return false; }
-    virtual void cacheWrite(uint64_t, const void*, uint32_t) override {}
+    virtual uint32_t cacheReadSize(uint64_t _id) override
+    {
+        if (s_pipelineCacheDir.empty()) return 0;
+        std::string path = PipelineCachePath(_id);
+        FILE* f = fopen(path.c_str(), "rb");
+        if (!f) return 0;
+        fseek(f, 0, SEEK_END);
+        uint32_t size = (uint32_t)ftell(f);
+        fclose(f);
+        return size;
+    }
+    virtual bool cacheRead(uint64_t _id, void* _data, uint32_t _size) override
+    {
+        if (s_pipelineCacheDir.empty()) return false;
+        std::string path = PipelineCachePath(_id);
+        FILE* f = fopen(path.c_str(), "rb");
+        if (!f) return false;
+        size_t read = fread(_data, 1, _size, f);
+        fclose(f);
+        return read == _size;
+    }
+    virtual void cacheWrite(uint64_t _id, const void* _data, uint32_t _size) override
+    {
+        if (s_pipelineCacheDir.empty()) return;
+        std::string path = PipelineCachePath(_id);
+        FILE* f = fopen(path.c_str(), "wb");
+        if (!f) return;
+        fwrite(_data, 1, _size, f);
+        fclose(f);
+    }
     virtual void screenShot(const char*, uint32_t, uint32_t, uint32_t,
                             bgfx::TextureFormat::Enum, const void*, uint32_t, bool) override {}
     virtual void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override {}
@@ -233,6 +272,26 @@ static Solar2dBgfxCallback s_bgfxCallback;
 
 namespace Rtt
 {
+
+// Shared cache dir for shader disk caching (extern'd by Rtt_BgfxShaderCompiler.cpp)
+std::string s_shaderCacheDir;
+
+void
+BgfxRenderer::SetCacheDir(const char* path)
+{
+    if (!path || !path[0]) return;
+
+    // Pipeline cache subdir
+    s_pipelineCacheDir = std::string(path) + "/bgfx_pipeline";
+    mkdir(s_pipelineCacheDir.c_str(), 0755);
+
+    // Shader cache subdir (used by BgfxShaderCompiler)
+    s_shaderCacheDir = std::string(path) + "/bgfx_shaders";
+    mkdir(s_shaderCacheDir.c_str(), 0755);
+
+    Rtt_LogException("BgfxRenderer: cache dirs set — pipeline: %s, shaders: %s\n",
+                     s_pipelineCacheDir.c_str(), s_shaderCacheDir.c_str());
+}
 
 // ----------------------------------------------------------------------------
 
@@ -342,10 +401,9 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
             vkEnv, useVulkan ? "Vulkan" : "GLES");
     } else if (vulkanAvailable) {
-        // Vulkan custom shaders WIP: separate texture+sampler SPIR-V compilation
-        // needs more research into bgfx shaderc's full pipeline. Forced GLES.
-        useVulkan = false;
-        Rtt_LogException("BgfxRenderer: Vulkan available but forced GLES (shader compat WIP)");
+        useVulkan = isVulkanSafeForDevice();
+        Rtt_LogException("BgfxRenderer: Vulkan available, auto-detect → %s",
+            useVulkan ? "Vulkan" : "GLES");
     } else {
         Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
     }

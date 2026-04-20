@@ -2068,6 +2068,28 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     char effectTag[256];
     snprintf(effectTag, sizeof(effectTag), "%s_%s", category, name);
 
+    // Early return if both FS (and VS if needed) are already cached (memory or disk)
+    {
+        char fsKey[256], vsKey[256];
+        BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
+        BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+        const unsigned char* tmpData = NULL;
+        size_t tmpSize = 0;
+        bool fsHit = FindCachedShader(fsKey, tmpData, tmpSize);
+        bool vsHit = (kernelVert && *kernelVert) ? FindCachedShader(vsKey, tmpData, tmpSize) : true;
+        // For fragment-only effects on Vulkan, also need the default VS cached
+        if (fsHit && !vsHit && !(kernelVert && *kernelVert))
+        {
+            vsHit = FindCachedShader(vsKey, tmpData, tmpSize);
+        }
+        if (fsHit && vsHit)
+        {
+            Rtt_LogException("Custom effect '%s.%s' loaded from cache (skipping compilation)\n",
+                             category, name);
+            return true;
+        }
+    }
+
     std::vector<uint8_t> fsBinary;
     bool useShadercPath = IsAvailable();
     const bgfx::RendererType::Enum rendererType = bgfx::getRendererType();
@@ -2345,21 +2367,69 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 }
 
 // ----------------------------------------------------------------------------
-// Cache management
+// Cache management (memory + disk)
 // ----------------------------------------------------------------------------
+
+// Defined in Rtt_BgfxRenderer.cpp, set by BgfxRenderer::SetCacheDir()
+extern std::string s_shaderCacheDir;
+
+static std::string ShaderDiskPath(const char* key)
+{
+    // Replace '.' with '_' in key for filesystem safety
+    std::string safeKey(key);
+    for (char& c : safeKey) { if (c == '.' || c == '/') c = '_'; }
+    return s_shaderCacheDir + "/" + safeKey + ".bin";
+}
 
 bool BgfxShaderCompiler::FindCachedShader(const char* key, const unsigned char*& outData, size_t& outSize)
 {
+    // 1. Check memory cache
     auto it = s_cache.find(key);
-    if (it == s_cache.end()) return false;
-    outData = it->second.data();
-    outSize = it->second.size();
+    if (it != s_cache.end())
+    {
+        outData = it->second.data();
+        outSize = it->second.size();
+        return true;
+    }
+
+    // 2. Check disk cache
+    if (s_shaderCacheDir.empty()) return false;
+    std::string path = ShaderDiskPath(key);
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    if (fileSize <= 0) { fclose(f); return false; }
+    fseek(f, 0, SEEK_SET);
+    std::vector<uint8_t> diskData(fileSize);
+    size_t read = fread(diskData.data(), 1, fileSize, f);
+    fclose(f);
+    if ((long)read != fileSize) return false;
+
+    // Promote to memory cache
+    s_cache[key] = std::move(diskData);
+    outData = s_cache[key].data();
+    outSize = s_cache[key].size();
+    Rtt_LogException("Shader cache disk hit: '%s' (%ld bytes)\n", key, fileSize);
     return true;
 }
 
 void BgfxShaderCompiler::CacheCompiledShader(const char* key, const std::vector<uint8_t>& data)
 {
+    // Memory cache
     s_cache[key] = data;
+
+    // Disk cache
+    if (!s_shaderCacheDir.empty())
+    {
+        std::string path = ShaderDiskPath(key);
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f)
+        {
+            fwrite(data.data(), 1, data.size(), f);
+            fclose(f);
+        }
+    }
 }
 
 void BgfxShaderCompiler::EvictCompiledShader(const char* key)
