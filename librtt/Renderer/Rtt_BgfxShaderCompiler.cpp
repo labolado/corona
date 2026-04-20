@@ -37,6 +37,15 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+bool compileShaderRuntime(const std::string& sourcePath,
+                          const std::string& sourceText,
+                          const std::string& varyingText,
+                          char shaderType,
+                          const std::vector<std::string>& includeDirs,
+                          const std::string& defines,
+                          std::vector<uint8_t>& outBinary,
+                          std::string& outLog);
+
 #if defined(Rtt_ANDROID_ENV)
 static bool s_glslangInitialized = false;
 
@@ -2100,22 +2109,34 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     if (isVulkanRenderer && !useShadercPath)
     {
 #if defined(Rtt_ANDROID_ENV)
-        // Path C: Vulkan + no shaderc — compile ESSL→SPIR-V via glslang at runtime
-        Rtt_LogException("Using glslang runtime SPIR-V compilation for Vulkan '%s.%s'\n",
+        // Path C: Vulkan + no shaderc — compile .sc→SPIR-V via embedded bgfx shaderc
+        Rtt_LogException("Using embedded shaderc runtime SPIR-V compilation for Vulkan '%s.%s'\n",
                          category, name);
 
-        // Extract VS interface hash for FS/VS pairing
-        uint32_t vsHashIn = 0, vsHashOut = 0;
         bool hasCustomVS = (kernelVert && *kernelVert);
-        if (!hasCustomVS)
+
+        std::ifstream varyingFile(s_varyingDefPath.c_str(), std::ios::in | std::ios::binary);
+        if (!varyingFile)
         {
-            ExtractInterfaceHash(BgfxProgram::GetDefaultVSData(), BgfxProgram::GetDefaultVSSize(),
-                                 vsHashIn, vsHashOut);
+            outError = "Failed to open varying.def.sc: " + s_varyingDefPath;
+            return false;
         }
 
-        if (!ConstructShaderBinarySPIRV(fragSc, 'F', fsBinary, vsHashOut))
+        std::stringstream varyingStream;
+        varyingStream << varyingFile.rdbuf();
+        const std::string varyingText = varyingStream.str();
+
+        std::vector<std::string> includeDirs;
+        if (!s_bgfxIncludeDir.empty())
         {
-            outError = "glslang SPIR-V compilation failed for " + std::string(effectTag);
+            includeDirs.push_back(s_bgfxIncludeDir);
+        }
+
+        std::string fsError;
+        std::string fsSourcePath = std::string(effectTag) + ".fs.sc";
+        if (!compileShaderRuntime(fsSourcePath, fragSc, varyingText, 'f', includeDirs, "", fsBinary, fsError))
+        {
+            outError = "Runtime shaderc fragment compilation failed: " + fsError;
             return false;
         }
 
@@ -2130,11 +2151,10 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             std::string vertSc = TransformVertexKernel(kernelVert, varyings);
             if (!vertSc.empty())
             {
-                uint32_t fsHashIn = 0, fsHashOut = 0;
-                ExtractInterfaceHash(fsBinary.data(), fsBinary.size(), fsHashIn, fsHashOut);
-
                 std::vector<uint8_t> vsBinary;
-                if (ConstructShaderBinarySPIRV(vertSc, 'V', vsBinary, fsHashIn))
+                std::string vsError;
+                std::string vsSourcePath = std::string(effectTag) + ".vs.sc";
+                if (compileShaderRuntime(vsSourcePath, vertSc, varyingText, 'v', includeDirs, "", vsBinary, vsError))
                 {
                     char vsKey[256];
                     BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
@@ -2142,13 +2162,14 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 }
                 else
                 {
-                    Rtt_LogException("WARNING: glslang VS SPIR-V compilation failed for '%s.%s'\n"
-                                     "Falling back to default vertex shader.\n", category, name);
+                    Rtt_LogException("WARNING: embedded shaderc VS SPIR-V compilation failed for '%s.%s': %s\n"
+                                     "Falling back to default vertex shader.\n",
+                                     category, name, vsError.c_str());
                 }
             }
         }
 
-        Rtt_LogException("Custom effect '%s.%s' compiled successfully (glslang SPIR-V path)\n",
+        Rtt_LogException("Custom effect '%s.%s' compiled successfully (embedded shaderc SPIR-V path)\n",
                          category, name);
         return true;
 #else
