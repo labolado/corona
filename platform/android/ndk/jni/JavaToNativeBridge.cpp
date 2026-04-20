@@ -111,6 +111,21 @@ JavaToNativeBridge::~JavaToNativeBridge()
 void
 JavaToNativeBridge::SetSurface(JNIEnv* env, jobject surface)
 {
+	// When surface is destroyed, notify bgfx BEFORE releasing ANativeWindow.
+	// Without this, bgfx's Vulkan render thread may call vkCreateAndroidSurfaceKHR
+	// with a freed ANativeWindow pointer, causing SIGSEGV.
+	if (!surface && fNativeWindow
+		&& fRuntime && fRuntime->GetBackend()
+		&& Rtt_StringCompare(fRuntime->GetBackend(), "bgfxBackend") == 0)
+	{
+		bgfx::PlatformData pd;
+		memset(&pd, 0, sizeof(pd));
+		pd.nwh = NULL;
+		bgfx::setPlatformData(pd);
+		__android_log_print(ANDROID_LOG_INFO, "Corona",
+			"JavaToNativeBridge::SetSurface: surface destroyed, set bgfx nwh=NULL before releasing ANativeWindow");
+	}
+
 	if (fNativeWindow)
 	{
 		ANativeWindow_release(fNativeWindow);
