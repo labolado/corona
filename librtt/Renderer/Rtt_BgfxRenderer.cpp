@@ -342,8 +342,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         Rtt_LogException("BgfxRenderer: SOLAR2D_VULKAN=%s, manual override → %s",
             vkEnv, useVulkan ? "Vulkan" : "GLES");
     } else if (vulkanAvailable) {
-        useVulkan = isVulkanSafeForDevice();
-        Rtt_LogException("BgfxRenderer: auto-detect → %s", useVulkan ? "Vulkan" : "GLES");
+        // Force GLES until Vulkan custom shader SPIR-V compilation is complete
+        // (see feature/vulkan-custom-shader branch)
+        useVulkan = false;
+        Rtt_LogException("BgfxRenderer: Vulkan available but forced GLES (custom shader WIP)");
     } else {
         Rtt_LogException("BgfxRenderer: Vulkan not in supported renderers → GLES");
     }
