@@ -23,102 +23,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// glslang for runtime GLSL→SPIR-V compilation (Vulkan custom shaders)
-#if defined(Rtt_ANDROID_ENV)
-#include <glslang/Public/ShaderLang.h>
-#include <glslang/Public/ResourceLimits.h>
-#include <SPIRV/GlslangToSpv.h>
-#endif
-
 // ----------------------------------------------------------------------------
 
 namespace Rtt
 {
 
 // ----------------------------------------------------------------------------
-
-#if defined(Rtt_ANDROID_ENV)
-static bool s_glslangInitialized = false;
-
-// Compile ESSL/GLSL source to SPIR-V binary using glslang.
-// Returns true on success, fills spirvWords with SPIR-V uint32 words.
-static bool CompileGLSLToSPIRV(
-    const std::string& glslSource,
-    char shaderType,
-    std::vector<uint32_t>& spirvWords,
-    std::string& outError)
-{
-    if (!s_glslangInitialized)
-    {
-        glslang::InitializeProcess();
-        s_glslangInitialized = true;
-    }
-
-    EShLanguage stage = (shaderType == 'F' || shaderType == 'f')
-        ? EShLangFragment : EShLangVertex;
-
-    glslang::TShader shader(stage);
-    const char* src = glslSource.c_str();
-    shader.setStrings(&src, 1);
-
-    // ESSL input targeting Vulkan SPIR-V output
-    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 310);
-    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
-
-    // Auto-assign layout(location=N) and layout(binding=N)
-    shader.setAutoMapLocations(true);
-    shader.setAutoMapBindings(true);
-
-    // Match bgfx's binding layout (see shader_spirv.h):
-    //   kSpirvVertexBinding=0, kSpirvFragmentBinding=1,
-    //   kSpirvBindShift=2, kSpirvSamplerShift=16
-    bool isFragment = (shaderType == 'F' || shaderType == 'f');
-    shader.setShiftBinding(glslang::EResUbo,     isFragment ? 1 : 0);
-    shader.setShiftBinding(glslang::EResTexture,  2);
-    shader.setShiftBinding(glslang::EResSampler, 18);  // 2 + 16
-    shader.setShiftBinding(glslang::EResSsbo,     2);
-    shader.setShiftBinding(glslang::EResImage,    2);
-
-    // Use default resource limits from glslang
-    const TBuiltInResource* resources = GetDefaultResources();
-
-    // Parse with ES profile + Vulkan SPIR-V rules
-    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
-    if (!shader.parse(resources, 310, EEsProfile, false, false, messages))
-    {
-        outError = std::string("glslang parse error: ") + shader.getInfoLog();
-        return false;
-    }
-
-    glslang::TProgram program;
-    program.addShader(&shader);
-    if (!program.link(messages))
-    {
-        outError = std::string("glslang link error: ") + program.getInfoLog();
-        return false;
-    }
-
-    glslang::TIntermediate* intermediate = program.getIntermediate(stage);
-    if (!intermediate)
-    {
-        outError = "glslang: no intermediate representation";
-        return false;
-    }
-
-    glslang::SpvOptions spvOptions;
-    spvOptions.disableOptimizer = true;  // Skip spirv-tools optimizer (ENABLE_OPT=0)
-    glslang::GlslangToSpv(*intermediate, spirvWords, &spvOptions);
-
-    if (spirvWords.empty())
-    {
-        outError = "glslang: SPIR-V generation produced empty output";
-        return false;
-    }
-
-    return true;
-}
-#endif // Rtt_ANDROID_ENV
 
 // Static member initialization
 std::string BgfxShaderCompiler::s_shadercPath;
@@ -1701,12 +1611,7 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
         writeU8(u.num);
         writeU16(u.regIndex);
         writeU16(u.regCount);
-        // texInfo (version >= 8): bgfx reads as texComponent(u8) + texDimension(u8).
-        // Must set texDimension=0x02 (Dimension2D) for sampler uniforms so bgfx registers
-        // the correct VkImageViewType; zero causes UINT32_MAX index and SIGBUS on Vulkan.
-        // GLES renderer ignores these fields so this change is safe for the ESSL path too.
-        writeU8(0);    // texComponent
-        writeU8(u.type == 0 ? 0x02 : 0); // texDimension: Dimension2D for samplers, 0 for non-sampler
+        writeU16(0); // texInfo (version >= 8)
         writeU16(0); // texFormat (version >= 10)
     }
 
@@ -1735,185 +1640,6 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
 
     return true;
 }
-
-#if defined(Rtt_ANDROID_ENV)
-// Construct a bgfx shader binary with SPIR-V payload (for Vulkan).
-// Same header format as ConstructShaderBinary, but code payload is SPIR-V uint32 words.
-bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
-    const std::string& shaderSource,
-    char shaderType,
-    std::vector<uint8_t>& outBinary,
-    uint32_t interfaceHash)
-{
-    // Parse uniforms from the .sc source
-    std::vector<UniformEntry> uniforms = ParseUniformsFromSc(shaderSource);
-
-    // Build ESSL source from .sc, then upgrade to ES 310 for SPIR-V
-    std::string esslSource = TransformScToESSL(shaderSource, shaderType);
-    if (esslSource.empty())
-        return false;
-
-    // Upgrade #version 300 es → 310 es (SPIR-V requires ES 310+)
-    {
-        size_t pos = esslSource.find("#version 300 es");
-        if (pos != std::string::npos)
-            esslSource.replace(pos, 15, "#version 310 es");
-    }
-
-    // Vulkan GLSL requires non-opaque uniforms (vec4, float, mat3, mat4) to be in
-    // a uniform block. Wrap them automatically. Sampler uniforms stay outside.
-    // bgfx expects VS UBO at binding=0, FS UBO at binding=1 (shader_spirv.h)
-    {
-        int uboBinding = (shaderType == 'F' || shaderType == 'f') ? 1 : 0;
-        std::string uboHeader = "layout(std140, binding=" + std::to_string(uboBinding) + ") uniform CoronaUniforms {\n";
-
-        std::istringstream iss(esslSource);
-        std::string line;
-        std::string result;
-        std::vector<std::string> blockMembers;
-
-        while (std::getline(iss, line))
-        {
-            // Check if this is a non-sampler uniform declaration
-            if (line.find("uniform ") != std::string::npos
-                && line.find("sampler") == std::string::npos
-                && line.find("samplerCube") == std::string::npos)
-            {
-                // Extract "vec4 name;" part, strip "uniform "
-                size_t upos = line.find("uniform ");
-                std::string member = line.substr(upos + 8); // skip "uniform "
-                // Preserve any leading whitespace
-                std::string prefix = line.substr(0, upos);
-                blockMembers.push_back(prefix + "    " + member);
-            }
-            else
-            {
-                // Before the first non-uniform, non-empty, non-preprocessor line after
-                // uniform section, emit the block
-                if (!blockMembers.empty()
-                    && !line.empty()
-                    && line[0] != '#'
-                    && line.find("uniform ") == std::string::npos
-                    && line.find("//") != 0)
-                {
-                    result += uboHeader;
-                    for (const auto& m : blockMembers)
-                        result += m + "\n";
-                    result += "};\n";
-                    blockMembers.clear();
-                }
-                result += line + "\n";
-            }
-        }
-        // If block members remain (uniforms at end of file)
-        if (!blockMembers.empty())
-        {
-            result += uboHeader;
-            for (const auto& m : blockMembers)
-                result += m + "\n";
-            result += "};\n";
-        }
-        esslSource = result;
-    }
-
-    Rtt_LogException("=== Vulkan GLSL for glslang (%c) ===\n%s\n=== END ===\n", shaderType, esslSource.c_str());
-
-    // Compile ESSL 310 → SPIR-V via glslang
-    std::vector<uint32_t> spirvWords;
-    std::string glslangError;
-    if (!CompileGLSLToSPIRV(esslSource, shaderType, spirvWords, glslangError))
-    {
-        Rtt_LogException("ERROR: glslang SPIR-V compilation failed for '%c' shader: %s\n",
-                         shaderType, glslangError.c_str());
-        Rtt_LogException("=== Failed ESSL source ===\n%s\n=== END ===\n", esslSource.c_str());
-        return false;
-    }
-
-    uint32_t spirvSize = (uint32_t)(spirvWords.size() * sizeof(uint32_t));
-
-    // Calculate binary size: header + uniforms + code + trailer
-    // Trailer: 1 null byte + numAttrs(1) + totalSize(2)
-    size_t binarySize = 4 + 4 + 4 + 2; // magic + hashIn + hashOut + uniformCount
-    for (const auto& u : uniforms)
-        binarySize += 1 + u.name.size() + 1 + 1 + 2 + 2 + 2 + 2;
-    binarySize += 4 + spirvSize + 1 + 1 + 2; // shaderSize + code + null + numAttrs + totalSize
-
-    outBinary.resize(binarySize);
-    uint8_t* ptr = outBinary.data();
-
-    auto writeU8 = [&](uint8_t v) { *ptr++ = v; };
-    auto writeU16 = [&](uint16_t v) { memcpy(ptr, &v, 2); ptr += 2; };
-    auto writeU32 = [&](uint32_t v) { memcpy(ptr, &v, 4); ptr += 4; };
-    auto writeBytes = [&](const void* data, size_t len) { memcpy(ptr, data, len); ptr += len; };
-
-    // 1. Magic
-    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
-    writeU32(magic);
-
-    // 2-3. Hash in/out (same logic as ESSL)
-    if (shaderType == 'F' || shaderType == 'f')
-    { writeU32(interfaceHash); writeU32(0); }
-    else
-    { writeU32(0); writeU32(interfaceHash); }
-
-    // 4. Uniform count
-    writeU16((uint16_t)uniforms.size());
-
-    // 5. Uniforms — adjust regIndex for SPIR-V binding model
-    // bgfx renderer_vk.cpp reads sampler regIndex as the SPIR-V binding number,
-    // then does (regIndex - kSpirvBindShift) to recover the slot.
-    // So sampler regIndex must be kSpirvBindShift(2) + slot.
-    for (const auto& u : uniforms)
-    {
-        writeU8((uint8_t)u.name.size());
-        writeBytes(u.name.data(), u.name.size());
-        writeU8(u.type);
-        writeU8(u.num);
-        uint16_t regIdx = u.regIndex;
-        if (u.type == 0)  // Sampler: regIndex = kSpirvBindShift + slot
-            regIdx = 2 + u.regIndex;
-        writeU16(regIdx);
-        writeU16(u.regCount);
-        // texInfo (version >= 8): bgfx reads this as two uint8_t: texComponent(byte0) + texDimension(byte1).
-        // texDimension=0 maps to TextureDimension::Count → VK_IMAGE_VIEW_TYPE_MAX_ENUM → bindInfo[stage].index
-        // is never set (stays UINT32_MAX) → getDescriptorSet() accesses garbage → SIGBUS on Mali.
-        // Dimension2D id is 0x02 (shader.cpp s_textureDimensionToId). Write as little-endian u16: 0x0200
-        // means texComponent=0x00, texDimension=0x02. All our samplers are 2D textures.
-        writeU8(0);    // texComponent
-        writeU8(u.type == 0 ? 0x02 : 0); // texDimension: Dimension2D for samplers
-        writeU16(0); // texFormat
-    }
-
-    // Debug: dump uniform binary details
-    for (size_t i = 0; i < uniforms.size(); i++)
-    {
-        const auto& u = uniforms[i];
-        uint16_t regIdx = u.regIndex;
-        if (u.type == 0) regIdx = 2 + u.regIndex;
-        Rtt_LogException("  Uniform[%zu]: '%s' type=%d num=%d regIdx=%d regCount=%d texDim=%d\n",
-            i, u.name.c_str(), u.type, u.num, regIdx, u.regCount,
-            u.type == 0 ? 0x02 : 0);
-    }
-
-    // 6. SPIR-V code
-    writeU32(spirvSize);
-    writeBytes(spirvWords.data(), spirvSize);
-
-    // 7. Null terminator (bgfx's reader does skip(shaderSize+1))
-    writeU8(0);
-
-    // 8. numAttrs (0 for fragment shaders, VS would need attribute mapping)
-    writeU8(0);
-
-    // 9. Total binary size (uint16, read by bgfx as m_size)
-    writeU16((uint16_t)binarySize);
-
-    Rtt_LogException("ConstructShaderBinarySPIRV: type='%c', %d uniforms, %u bytes SPIR-V (%zu words), %zu bytes total\n",
-                     shaderType, (int)uniforms.size(), spirvSize, spirvWords.size(), outBinary.size());
-
-    return true;
-}
-#endif // Rtt_ANDROID_ENV
 
 // ----------------------------------------------------------------------------
 // CompileCustomEffect
@@ -1955,60 +1681,14 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
     if (isVulkanRenderer && !useShadercPath)
     {
-#if defined(Rtt_ANDROID_ENV)
-        // Path C: Vulkan + no shaderc — compile ESSL→SPIR-V via glslang at runtime
-        Rtt_LogException("Using glslang runtime SPIR-V compilation for Vulkan '%s.%s'\n",
-                         category, name);
-
-        // Extract VS interface hash for FS/VS pairing
-        uint32_t vsHashIn = 0, vsHashOut = 0;
-        bool hasCustomVS = (kernelVert && *kernelVert);
-        if (!hasCustomVS)
-        {
-            ExtractInterfaceHash(BgfxProgram::GetDefaultVSData(), BgfxProgram::GetDefaultVSSize(),
-                                 vsHashIn, vsHashOut);
-        }
-
-        if (!ConstructShaderBinarySPIRV(fragSc, 'F', fsBinary, vsHashOut))
-        {
-            outError = "glslang SPIR-V compilation failed for " + std::string(effectTag);
-            return false;
-        }
-
-        // Cache FS
         char fsKey[256];
         BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
-        CacheCompiledShader(fsKey, fsBinary);
+        EvictCompiledShader(fsKey);
 
-        // Handle custom VS if provided
-        if (hasCustomVS)
-        {
-            std::string vertSc = TransformVertexKernel(kernelVert, varyings);
-            if (!vertSc.empty())
-            {
-                uint32_t fsHashIn = 0, fsHashOut = 0;
-                ExtractInterfaceHash(fsBinary.data(), fsBinary.size(), fsHashIn, fsHashOut);
+        char vsKey[256];
+        BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+        EvictCompiledShader(vsKey);
 
-                std::vector<uint8_t> vsBinary;
-                if (ConstructShaderBinarySPIRV(vertSc, 'V', vsBinary, fsHashIn))
-                {
-                    char vsKey[256];
-                    BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
-                    CacheCompiledShader(vsKey, vsBinary);
-                }
-                else
-                {
-                    Rtt_LogException("WARNING: glslang VS SPIR-V compilation failed for '%s.%s'\n"
-                                     "Falling back to default vertex shader.\n", category, name);
-                }
-            }
-        }
-
-        Rtt_LogException("Custom effect '%s.%s' compiled successfully (glslang SPIR-V path)\n",
-                         category, name);
-        return true;
-#else
-        // Non-Android platforms without shaderc: still refuse
         outError =
             "Vulkan/bgfx custom effects require shaderc-generated SPIR-V binaries; "
             "the runtime binary path only emits GLES/ESSL-compatible shaders";
@@ -2017,7 +1697,6 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             "because no shaderc binary is available.\n",
             category, name);
         return false;
-#endif
     }
 
     if (useShadercPath)
