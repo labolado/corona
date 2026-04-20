@@ -117,6 +117,14 @@ public:
     };
     static std::vector<UniformEntry> ParseUniformsFromSc(const std::string& scSource);
 
+    // Construct a bgfx shader binary with SPIR-V payload (Vulkan).
+    // Uses glslang to compile ESSL→SPIR-V at runtime. Android only.
+    static bool ConstructShaderBinarySPIRV(
+        const std::string& shaderSource,
+        char shaderType,
+        std::vector<uint8_t>& outBinary,
+        uint32_t interfaceHash = 0);
+
 private:
     static std::string s_shadercPath;
     static std::string s_bgfxIncludeDir;

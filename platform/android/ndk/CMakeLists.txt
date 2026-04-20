@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 set(COMMON_COMPILER_FLAGS "-Wno-deprecated -O3 -fstrict-aliasing -fvisibility=hidden -ffunction-sections -fdata-sections")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_COMPILER_FLAGS} -std=c++14")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_COMPILER_FLAGS} -std=c++17")
 set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${COMMON_COMPILER_FLAGS} -Wno-implicit-function-declaration -Wno-implicit-int")
 
 add_definitions(
@@ -14,6 +14,7 @@ add_definitions(
 	-DRtt_BGFX
 	-DRtt_ANDROID_ENV
 	-DBGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME=4096
+	-DENABLE_OPT=0
 )
 
 include_directories (
@@ -42,6 +43,12 @@ include_directories (
     ${CORONA_ROOT}/external/bgfx/include
     ${CORONA_ROOT}/external/bx/include
     ${CORONA_ROOT}/external/bimg/include
+    # glslang for runtime GLSL→SPIR-V compilation (Vulkan custom shaders)
+    ${CORONA_ROOT}/external/bgfx/3rdparty
+    ${CORONA_ROOT}/external/bgfx/3rdparty/glslang
+    ${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Public
+    ${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Include
+    ${CORONA_ROOT}/external/bgfx/3rdparty/spirv-tools/include
 )
 
 SET( LUA_SOURCES
@@ -653,6 +660,49 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_TextureVolatile.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_Uniform.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_VideoTexture.cpp
+
+		# glslang — runtime GLSL→SPIR-V compilation for Vulkan custom shaders
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/attribute.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/Constant.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/glslang_tab.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/InfoSink.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/Initialize.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/Intermediate.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/intermOut.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/IntermTraverse.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/iomapper.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/limits.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/linkValidate.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/parseConst.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/ParseContextBase.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/ParseHelper.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/PoolAlloc.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/preprocessor/Pp.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpAtom.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpScanner.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/propagateNoContraction.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/reflection.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/RemoveTree.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/Scan.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/ShaderLang.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/SpirvIntrinsics.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/SymbolTable.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/MachineIndependent/Versions.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/GenericCodeGen/CodeGen.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/GenericCodeGen/Link.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/ResourceLimits/resource_limits_c.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/ResourceLimits/ResourceLimits.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/OSDependent/Unix/ossource.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/GlslangToSpv.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/InReadableOrder.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/Logger.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/SpvBuilder.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/SpvPostProcess.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/SpvTools.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/doc.cpp
+		${CORONA_ROOT}/external/bgfx/3rdparty/glslang/SPIRV/disassemble.cpp
 
 		# bgfx renderer
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxCommandBuffer.cpp
