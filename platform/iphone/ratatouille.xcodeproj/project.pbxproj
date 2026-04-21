@@ -514,6 +514,7 @@
 		F81D63B21A609F8B00C7ADAA /* CoronaAppDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = F81D63B01A609F8B00C7ADAA /* CoronaAppDelegate.h */; };
 		F81D63B31A609F8B00C7ADAA /* CoronaAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = F81D63B11A609F8B00C7ADAA /* CoronaAppDelegate.mm */; };
 		F87434AD180629540024ECFD /* Rtt_IPhoneVideoProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = F87434AB180629540024ECFD /* Rtt_IPhoneVideoProvider.mm */; };
+		12AF5C9FEFFD07014E2FC488 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8511B1020EC4AD688D9A875C /* PhotosUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -1724,6 +1725,7 @@
 		F81D63B11A609F8B00C7ADAA /* CoronaAppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CoronaAppDelegate.mm; path = platform/iphone/CoronaAppDelegate.mm; sourceTree = "<group>"; };
 		F87434AA180629540024ECFD /* Rtt_IPhoneVideoProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_IPhoneVideoProvider.h; path = platform/iphone/Rtt_IPhoneVideoProvider.h; sourceTree = "<group>"; };
 		F87434AB180629540024ECFD /* Rtt_IPhoneVideoProvider.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_IPhoneVideoProvider.mm; path = platform/iphone/Rtt_IPhoneVideoProvider.mm; sourceTree = "<group>"; };
+		8511B1020EC4AD688D9A875C /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1755,6 +1757,7 @@
 				19E2659C5FF0CD427DFE00E2 /* libbxRelease.a in Frameworks */,
 				626BB2248FDBB056CAE15F2A /* libbimgRelease.a in Frameworks */,
 				EFE3527B5A9DEB2C32292285 /* libbimg_decodeRelease.a in Frameworks */,
+				12AF5C9FEFFD07014E2FC488 /* PhotosUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

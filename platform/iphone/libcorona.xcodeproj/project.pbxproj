@@ -252,6 +252,7 @@
 		00EBD7781641DA8B0075DC8D /* re.lua in Sources */ = {isa = PBXBuildFile; fileRef = 00EBD7761641DA7C0075DC8D /* re.lua */; };
 		00EBD77A1641DB2A0075DC8D /* lpeg.h in Headers */ = {isa = PBXBuildFile; fileRef = 00EBD7791641DB2A0075DC8D /* lpeg.h */; };
 		01064806BCE3BBA0C6E8D71F /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 829C443C90EC9CEA45FAC6F5 /* Rtt_BgfxCommandBuffer.cpp */; };
+		467951A4D394CABBD9113A8A /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 590F22A4B1625A4837DE2A82 /* Rtt_BgfxGeometryPool.cpp */; };
 		0304FE88178E3AF80047CC04 /* Rtt_InputDeviceCollection.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0304FE7C178E3AF80047CC04 /* Rtt_InputDeviceCollection.cpp */; };
 		0304FE89178E3AF80047CC04 /* Rtt_InputDeviceCollection.h in Headers */ = {isa = PBXBuildFile; fileRef = 0304FE7D178E3AF80047CC04 /* Rtt_InputDeviceCollection.h */; };
 		0304FE8A178E3AF80047CC04 /* Rtt_InputDeviceDescriptor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0304FE7E178E3AF80047CC04 /* Rtt_InputDeviceDescriptor.cpp */; };
@@ -1459,6 +1460,7 @@
 		7FC24C5E9F76ABBBC15E6A2B /* Rtt_BgfxProgram.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxProgram.cpp; path = ../../librtt/Renderer/Rtt_BgfxProgram.cpp; sourceTree = SOURCE_ROOT; };
 		8276418D8BF7B63524553177 /* Rtt_BgfxExports.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxExports.cpp; path = ../../librtt/Renderer/Rtt_BgfxExports.cpp; sourceTree = SOURCE_ROOT; };
 		829C443C90EC9CEA45FAC6F5 /* Rtt_BgfxCommandBuffer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxCommandBuffer.cpp; path = ../../librtt/Renderer/Rtt_BgfxCommandBuffer.cpp; sourceTree = SOURCE_ROOT; };
+		590F22A4B1625A4837DE2A82 /* Rtt_BgfxGeometryPool.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometryPool.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.cpp; sourceTree = SOURCE_ROOT; };
 		A40C523916F847CD00AE2ECF /* CoronaVersion.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = CoronaVersion.c; path = Corona/CoronaVersion.c; sourceTree = "<group>"; };
 		A40C523A16F847CD00AE2ECF /* CoronaVersion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CoronaVersion.h; path = Corona/CoronaVersion.h; sourceTree = "<group>"; };
 		A413942817D3D05E0060CB7A /* Rtt_CameraPaint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CameraPaint.cpp; path = Display/Rtt_CameraPaint.cpp; sourceTree = "<group>"; };
@@ -2462,6 +2464,7 @@
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				829C443C90EC9CEA45FAC6F5 /* Rtt_BgfxCommandBuffer.cpp */,
 				8276418D8BF7B63524553177 /* Rtt_BgfxExports.cpp */,
+				590F22A4B1625A4837DE2A82 /* Rtt_BgfxGeometryPool.cpp */,
 				BAFF4A77ACA3B068F0F69292 /* Rtt_BgfxFrameBufferObject.cpp */,
 				53EA4A31A5A84DECC3FAD717 /* Rtt_BgfxGeometry.cpp */,
 				2F4341869067FEAB71ED4168 /* Rtt_BgfxMetalReadback.mm */,
@@ -4076,6 +4079,7 @@
 				078BDB9D1811B0FE00C17D9A /* Rtt_EmbossedTextObject.cpp in Sources */,
 				0797EB6E181F0F6A00FA57B5 /* Rtt_PlatformVideoProvider.cpp in Sources */,
 				01064806BCE3BBA0C6E8D71F /* Rtt_BgfxCommandBuffer.cpp in Sources */,
+				467951A4D394CABBD9113A8A /* Rtt_BgfxGeometryPool.cpp in Sources */,
 				66C242D28A244E6A25C7EDE8 /* Rtt_BgfxExports.cpp in Sources */,
 				AA134109B54223595B4D7149 /* Rtt_BgfxFrameBufferObject.cpp in Sources */,
 				9C3C49DD86372C84B70C7333 /* Rtt_BgfxGeometry.cpp in Sources */,
