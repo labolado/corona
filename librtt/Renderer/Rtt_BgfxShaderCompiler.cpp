@@ -2065,6 +2065,65 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         return false;
     }
 
+    // Vulkan UBO fix: promote u_UserDataN from vec2/vec3/float to vec4.
+    // bgfx C++ always creates these as Vec4 (16 bytes). If the shader declares a
+    // smaller type, Vulkan's std140 UBO layout will have offset mismatches.
+    // GLES uses individual uniforms (not UBO) so it's unaffected.
+    if (bgfx::getRendererType() == bgfx::RendererType::Vulkan)
+    {
+        struct UDPromo { const char* name; const char* type; const char* swizzle; };
+        std::vector<UDPromo> promos;
+        const char* udNames[] = { "u_UserData0", "u_UserData1", "u_UserData2", "u_UserData3" };
+        const char* types[] = { "float ", "vec2 ", "vec3 " };
+        const char* swiz[]  = { ".x",     ".xy",   ".xyz"  };
+
+        for (const char* ud : udNames)
+        {
+            for (int t = 0; t < 3; ++t)
+            {
+                std::string pat = std::string("uniform ") + types[t] + ud;
+                size_t pos = fragSc.find(pat);
+                if (pos != std::string::npos)
+                {
+                    // Replace type in declaration: "uniform vec2 " → "uniform vec4 "
+                    size_t tStart = pos + 8; // after "uniform "
+                    fragSc.replace(tStart, strlen(types[t]), "vec4 ");
+                    promos.push_back({ud, types[t], swiz[t]});
+                    Rtt_LogException("SPIRV UBO fix: promoted '%s' from %sto vec4 (swizzle=%s)\n",
+                                     ud, types[t], swiz[t]);
+                    break;
+                }
+            }
+        }
+
+        // Add swizzle to bare references (not followed by '.')
+        for (const auto& p : promos)
+        {
+            size_t pos = 0;
+            size_t nameLen = strlen(p.name);
+            while ((pos = fragSc.find(p.name, pos)) != std::string::npos)
+            {
+                size_t end = pos + nameLen;
+                // Skip declaration lines
+                size_t ls = fragSc.rfind('\n', pos);
+                if (ls == std::string::npos) ls = 0; else ++ls;
+                if (fragSc.substr(ls, pos - ls).find("uniform") != std::string::npos)
+                { pos = end; continue; }
+                // Word boundary checks
+                if (pos > 0 && (isalnum(fragSc[pos-1]) || fragSc[pos-1] == '_'))
+                { pos = end; continue; }
+                if (end < fragSc.size() && (isalnum(fragSc[end]) || fragSc[end] == '_'))
+                { pos = end; continue; }
+                // Don't add swizzle if already followed by '.'
+                if (end < fragSc.size() && fragSc[end] == '.')
+                { pos = end; continue; }
+                // Insert swizzle
+                fragSc.insert(end, p.swizzle);
+                pos = end + strlen(p.swizzle);
+            }
+        }
+    }
+
     char effectTag[256];
     snprintf(effectTag, sizeof(effectTag), "%s_%s", category, name);
 
