@@ -65,8 +65,37 @@ else
     BGFX_LIB="$CORONA_DIR/external/bgfx/.build/android-arm64/bin/libbgfxRelease.a"
     [ -f "$BGFX_LIB" ] || fail "bgfx 静态库不存在: $BGFX_LIB (需要先编译 bgfx for Android)"
 
+    # 记录旧 BuildId（用于后续验证 C++ 是否真正重编）
+    NDK_READELF_BIN="$ANDROID_HOME/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf"
+    OLD_BUILD_ID=""
+    if [ -f "$AAR_OUTPUT" ] && [ -f "$NDK_READELF_BIN" ]; then
+        TMPSO="/tmp/old-libcorona-check-$$"
+        mkdir -p "$TMPSO"
+        unzip -q -o "$AAR_OUTPUT" "jni/arm64-v8a/libcorona.so" -d "$TMPSO" 2>/dev/null
+        OLD_BUILD_ID=$("$NDK_READELF_BIN" -n "$TMPSO/jni/arm64-v8a/libcorona.so" 2>/dev/null | grep 'Build ID' | awk '{print $NF}')
+        rm -rf "$TMPSO"
+        [ -n "$OLD_BUILD_ID" ] && log "  旧 BuildId: $OLD_BUILD_ID"
+    fi
+
     cd "$CORONA_DIR/platform/android"
-    ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+    # 警告：bgfx 源码（external/bgfx/src/）在 Android 上是预编译静态库
+    # 改了 renderer_vk.cpp 等必须先 make android-arm64-release，否则改动不会生效
+    BGFX_A_TIME=$(stat -f "%m" "$BGFX_LIB" 2>/dev/null || echo "0")
+    BGFX_VK_SRC="$CORONA_DIR/external/bgfx/src/renderer_vk.cpp"
+    BGFX_VK_TIME=$(stat -f "%m" "$BGFX_VK_SRC" 2>/dev/null || echo "0")
+    if [ "$BGFX_VK_TIME" -gt "$BGFX_A_TIME" ]; then
+        log "  ⚠️  WARNING: renderer_vk.cpp 比 libbgfxRelease.a 新！"
+        log "     改动未进入 .a，需先运行: cd external/bgfx && make android-arm64-release"
+        [ "${FORCE_BUILD:-}" = "1" ] && fail "FORCE_BUILD=1 但 bgfx .a 未重编，请先 make android-arm64-release"
+    fi
+
+    # FORCE_BUILD=1 时必须 clean，否则 CMake 可能跳过 C++ 重编
+    if [ "${FORCE_BUILD:-}" = "1" ]; then
+        log "  FORCE_BUILD: 执行 clean + assembleRelease"
+        ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+    else
+        ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+    fi
 
     cd "$CORONA_DIR"
     [ -f "$AAR_OUTPUT" ] || fail "AAR 编译失败"
@@ -97,6 +126,16 @@ cd "$CORONA_DIR"
 
 log "  bgfx 符号数: $BGFX_COUNT"
 [ "$BGFX_COUNT" -gt 0 ] || fail "Corona.aar 中没有 bgfx 符号"
+
+# BuildId 验证：确认 C++ 真正重编了
+if [ -n "${OLD_BUILD_ID:-}" ] && [ -f "$NDK_READELF_BIN" ]; then
+    NEW_BUILD_ID=$("$NDK_READELF_BIN" -n "$TEMP_CHECK/jni/arm64-v8a/libcorona.so" 2>/dev/null | grep 'Build ID' | awk '{print $NF}')
+    log "  新 BuildId: ${NEW_BUILD_ID:-unknown}"
+    if [ -n "$NEW_BUILD_ID" ] && [ "$NEW_BUILD_ID" = "$OLD_BUILD_ID" ]; then
+        fail "C++ 未重编！BuildId 未变 ($OLD_BUILD_ID)。请检查 CMake 缓存或手动 clean。"
+    fi
+    [ -n "$NEW_BUILD_ID" ] && log "  ✅ BuildId 已变化，C++ 确认重编"
+fi
 
 # ============================================================
 # Step 3: 安装 AAR + 修补模板到 Corona-b3
