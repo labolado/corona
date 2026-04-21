@@ -42,6 +42,9 @@ public:
     BgfxRenderer(Rtt_Allocator* allocator);
     virtual ~BgfxRenderer();
 
+    // Set cache directory for pipeline and shader disk caching (call before InitializeBgfx)
+    static void SetCacheDir(const char* path);
+
     // Initialize bgfx with the given native window handle and dimensions
     bool InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height);
 

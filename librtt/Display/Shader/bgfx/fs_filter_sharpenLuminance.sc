@@ -47,7 +47,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 float unit_sharpness = v_UserData.x;
 	float sharpness_factor = ( 10.0 + ( 40.0 * unit_sharpness ) );

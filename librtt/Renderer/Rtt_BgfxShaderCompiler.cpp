@@ -30,6 +30,99 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+bool compileShaderRuntime(const std::string& sourcePath,
+                          const std::string& sourceText,
+                          const std::string& varyingText,
+                          char shaderType,
+                          const std::vector<std::string>& includeDirs,
+                          const std::string& defines,
+                          std::vector<uint8_t>& outBinary,
+                          std::string& outLog);
+
+#if defined(Rtt_ANDROID_ENV)
+static bool s_glslangInitialized = false;
+
+// Compile ESSL/GLSL source to SPIR-V binary using glslang.
+// Returns true on success, fills spirvWords with SPIR-V uint32 words.
+static bool CompileGLSLToSPIRV(
+    const std::string& glslSource,
+    char shaderType,
+    std::vector<uint32_t>& spirvWords,
+    std::string& outError)
+{
+    if (!s_glslangInitialized)
+    {
+        glslang::InitializeProcess();
+        s_glslangInitialized = true;
+    }
+
+    EShLanguage stage = (shaderType == 'F' || shaderType == 'f')
+        ? EShLangFragment : EShLangVertex;
+
+    glslang::TShader shader(stage);
+    const char* src = glslSource.c_str();
+    shader.setStrings(&src, 1);
+
+    // ESSL input targeting Vulkan SPIR-V output
+    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 310);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+
+    // Auto-assign layout(location=N) and layout(binding=N)
+    shader.setAutoMapLocations(true);
+    shader.setAutoMapBindings(true);
+
+    // Match bgfx's binding layout (see shader_spirv.h):
+    //   kSpirvVertexBinding=0, kSpirvFragmentBinding=1,
+    //   kSpirvBindShift=2, kSpirvSamplerShift=16
+    bool isFragment = (shaderType == 'F' || shaderType == 'f');
+    shader.setShiftBinding(glslang::EResUbo,     isFragment ? 1 : 0);
+    shader.setShiftBinding(glslang::EResTexture,  2);
+    shader.setShiftBinding(glslang::EResSampler, 18);  // 2 + 16
+    shader.setShiftBinding(glslang::EResSsbo,     2);
+    shader.setShiftBinding(glslang::EResImage,    2);
+
+    // Use default resource limits from glslang
+    const TBuiltInResource* resources = GetDefaultResources();
+
+    // Parse with no profile (desktop GLSL, same as bgfx shaderc) + Vulkan SPIR-V rules.
+    // ES profile doesn't support sampler2D() constructor for separate texture+sampler.
+    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+    if (!shader.parse(resources, 110, false, messages))
+    {
+        outError = std::string("glslang parse error: ") + shader.getInfoLog();
+        return false;
+    }
+
+    glslang::TProgram program;
+    program.addShader(&shader);
+    if (!program.link(messages))
+    {
+        outError = std::string("glslang link error: ") + program.getInfoLog();
+        return false;
+    }
+
+    glslang::TIntermediate* intermediate = program.getIntermediate(stage);
+    if (!intermediate)
+    {
+        outError = "glslang: no intermediate representation";
+        return false;
+    }
+
+    glslang::SpvOptions spvOptions;
+    spvOptions.disableOptimizer = true;  // Skip spirv-tools optimizer (ENABLE_OPT=0)
+    glslang::GlslangToSpv(*intermediate, spirvWords, &spvOptions);
+
+    if (spirvWords.empty())
+    {
+        outError = "glslang: SPIR-V generation produced empty output";
+        return false;
+    }
+
+    return true;
+}
+#endif // Rtt_ANDROID_ENV
+
 // Static member initialization
 std::string BgfxShaderCompiler::s_shadercPath;
 std::string BgfxShaderCompiler::s_bgfxIncludeDir;
@@ -853,7 +946,6 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
     result += body;
     result += "}\n";
 
-    Rtt_LogException("=== TransformFragmentKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
     return result;
 }
 
@@ -1073,7 +1165,6 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += body;
     result += "\n}\n";
 
-    Rtt_LogException("=== TransformVertexKernel generated .sc ===\n%s\n=== END .sc ===\n", result.c_str());
     return result;
 }
 
@@ -1625,21 +1716,312 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
     Rtt_LogException("ConstructShaderBinary: type='%c', %d uniforms, %u bytes ESSL, %zu bytes total\n",
                      shaderType, (int)uniforms.size(), codeSize, outBinary.size());
 
-    // Dump ESSL source for debugging (always, since this is the primary diagnostic for link failures)
-    Rtt_LogException("=== Runtime ESSL (%c) ===\n%s\n=== END ESSL ===\n", shaderType, esslSource.c_str());
+    return true;
+}
 
-    // Dump uniform table
-    for (size_t i = 0; i < uniforms.size(); ++i)
+#if defined(Rtt_ANDROID_ENV)
+// Construct a bgfx shader binary with SPIR-V payload (for Vulkan).
+// Same header format as ConstructShaderBinary, but code payload is SPIR-V uint32 words.
+bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
+    const std::string& shaderSource,
+    char shaderType,
+    std::vector<uint8_t>& outBinary,
+    uint32_t interfaceHash)
+{
+    // Parse uniforms from the .sc source
+    std::vector<UniformEntry> uniforms = ParseUniformsFromSc(shaderSource);
+
+    // Build ESSL source from .sc, then upgrade for Vulkan SPIR-V
+    std::string esslSource = TransformScToESSL(shaderSource, shaderType);
+    if (esslSource.empty())
+        return false;
+
+    // Replace #version 300 es → #version 460 (desktop GLSL for glslang, same as bgfx shaderc).
+    // Also remove ES-only precision qualifiers (not valid in desktop GLSL).
     {
-        const UniformEntry& u = uniforms[i];
-        const char* typeNames[] = { "Sampler", "End", "Vec4", "Mat3", "Mat4" };
-        const char* typeName = (u.type < 5) ? typeNames[u.type] : "Unknown";
-        Rtt_LogException("  uniform[%d]: '%s' type=%s(%d) num=%d reg=%d regCount=%d\n",
-                         (int)i, u.name.c_str(), typeName, u.type, u.num, u.regIndex, u.regCount);
+        size_t pos = esslSource.find("#version 300 es");
+        if (pos != std::string::npos)
+            esslSource.replace(pos, 15, "#version 460");
+
+        // Remove "precision highp float;" and "precision mediump int;"
+        auto removeStr = [&](const std::string& s) {
+            size_t p = esslSource.find(s);
+            if (p != std::string::npos)
+            {
+                size_t eol = esslSource.find('\n', p);
+                if (eol != std::string::npos)
+                    esslSource.erase(p, eol - p + 1);
+                else
+                    esslSource.erase(p);
+            }
+        };
+        removeStr("precision highp float;");
+        removeStr("precision mediump int;");
+        removeStr("precision highp int;");
+        removeStr("precision lowp float;");
     }
+
+    // bgfx Vulkan expects separate image + sampler (not combined sampler2D).
+    // ESSL doesn't support ## token pasting, so we can't use macros.
+    // Instead, manually expand SAMPLER2D() calls and texture2D() calls,
+    // then remove the SAMPLER2D macro definition.
+    {
+        std::vector<std::string> samplerNames;
+
+        // 1. Find and expand SAMPLER2D(name, reg) calls → separate declarations
+        //    Also handle SAMPLER3D and SAMPLERCUBE
+        std::string macroPatterns[] = {"SAMPLER2D(", "SAMPLER3D(", "SAMPLERCUBE("};
+        std::string texTypes[] = {"texture2D", "texture3D", "textureCube"};
+        for (int t = 0; t < 3; t++)
+        {
+            size_t pos = 0;
+            while ((pos = esslSource.find(macroPatterns[t], pos)) != std::string::npos)
+            {
+                // Skip #define lines
+                size_t lineStart = esslSource.rfind('\n', pos);
+                if (lineStart == std::string::npos) lineStart = 0; else lineStart++;
+                std::string linePrefix = esslSource.substr(lineStart, pos - lineStart);
+                // Trim
+                size_t fp = linePrefix.find_first_not_of(" \t");
+                if (fp != std::string::npos && linePrefix.substr(fp, 7) == "#define")
+                {
+                    pos += macroPatterns[t].size();
+                    continue;  // Skip macro definition
+                }
+
+                // Extract args: SAMPLER2D(name, reg);
+                size_t argsStart = pos + macroPatterns[t].size();
+                size_t parenClose = esslSource.find(')', argsStart);
+                if (parenClose == std::string::npos) { pos = argsStart; continue; }
+
+                std::string args = esslSource.substr(argsStart, parenClose - argsStart);
+                size_t comma = args.find(',');
+                std::string name = (comma != std::string::npos) ? args.substr(0, comma) : args;
+                // Trim name
+                while (!name.empty() && (name.front() == ' ' || name.front() == '\t')) name.erase(0, 1);
+                while (!name.empty() && (name.back() == ' ' || name.back() == '\t')) name.pop_back();
+                samplerNames.push_back(name);
+
+                // Find end of statement (past ; if present)
+                size_t stmtEnd = parenClose + 1;
+                if (stmtEnd < esslSource.size() && esslSource[stmtEnd] == ';') stmtEnd++;
+
+                // Replace with separate declarations
+                std::string replacement = "uniform " + texTypes[t] + " " + name + ";\n"
+                    + "uniform sampler " + name + "_sampler;";
+                esslSource.replace(pos, stmtEnd - pos, replacement);
+                pos += replacement.size();
+            }
+        }
+
+        // 2. Replace texture2D(name, coord) → texture(sampler2D(name, name_sampler), coord)
+        //    The macro #define texture2D(_s, _c) texture(_s, _c) is still present,
+        //    but we need to intercept before the macro. Remove texture2D macro and do inline.
+        //    Actually simpler: just replace texture2D(samplerName to texture(sampler2D(name, name_sampler)
+        //    The texture2D macro will still work for non-sampler calls.
+        for (const auto& name : samplerNames)
+        {
+            // Replace in texture function calls
+            // After macro expansion of texture2D → texture, we handle both:
+            //   texture2D(name, coord) and texture(name, coord)
+            std::string funcs[] = {"texture2D(", "texture(", "textureLod(", "textureLodOffset("};
+            for (const auto& func : funcs)
+            {
+                std::string search = func + name;
+                size_t pos = 0;
+                while ((pos = esslSource.find(search, pos)) != std::string::npos)
+                {
+                    // Skip #define lines
+                    size_t ls = esslSource.rfind('\n', pos);
+                    if (ls == std::string::npos) ls = 0; else ls++;
+                    std::string lp = esslSource.substr(ls, pos - ls);
+                    size_t fp2 = lp.find_first_not_of(" \t");
+                    if (fp2 != std::string::npos && lp.substr(fp2, 7) == "#define")
+                    { pos += search.size(); continue; }
+
+                    // Verify word boundary
+                    size_t afterName = pos + func.size() + name.size();
+                    if (afterName < esslSource.size())
+                    {
+                        char c = esslSource[afterName];
+                        if (c != ',' && c != ')' && c != ' ')
+                        { pos = afterName; continue; }
+                    }
+
+                    // For texture2D(name → texture(sampler2D(name, name_sampler)
+                    // For texture(name → texture(sampler2D(name, name_sampler)
+                    std::string texFunc = (func == "texture2D(") ? "texture(" : func;
+                    std::string replacement = texFunc + "sampler2D(" + name + ", " + name + "_sampler)";
+                    esslSource.replace(pos, func.size() + name.size(), replacement);
+                    pos += replacement.size();
+                }
+            }
+        }
+    }
+
+    // Remove sampler-related macros (we've manually expanded them above)
+    {
+        std::string macrosToRemove[] = {
+            "#define SAMPLER2D(",
+            "#define SAMPLER3D(",
+            "#define SAMPLERCUBE(",
+            "#define texture2D(",
+            "#define texture2DLod(",
+            "#define texture2DLodOffset(",
+            "#define texture2DBias(",
+        };
+        for (const auto& macro : macrosToRemove)
+        {
+            size_t pos = 0;
+            while ((pos = esslSource.find(macro, pos)) != std::string::npos)
+            {
+                size_t eol = esslSource.find('\n', pos);
+                if (eol == std::string::npos) eol = esslSource.size();
+                esslSource.erase(pos, eol - pos + 1);
+            }
+        }
+    }
+
+    // Vulkan GLSL requires non-opaque uniforms in a uniform block.
+    // Wrap vec4/mat3/mat4 etc. Exclude opaque types: texture2D, texture3D, textureCube, sampler.
+    // bgfx expects VS UBO at binding=0, FS UBO at binding=1 (shader_spirv.h)
+    {
+        int uboBinding = (shaderType == 'F' || shaderType == 'f') ? 1 : 0;
+        std::string uboHeader = "layout(std140, binding=" + std::to_string(uboBinding) + ") uniform CoronaUniforms {\n";
+
+        std::istringstream iss(esslSource);
+        std::string line;
+        std::string result;
+        std::vector<std::string> blockMembers;
+
+        auto isOpaqueUniform = [](const std::string& l) {
+            return l.find("sampler") != std::string::npos
+                || l.find("texture2D") != std::string::npos
+                || l.find("texture3D") != std::string::npos
+                || l.find("textureCube") != std::string::npos;
+        };
+
+        while (std::getline(iss, line))
+        {
+            if (line.find("uniform ") != std::string::npos && !isOpaqueUniform(line))
+            {
+                size_t upos = line.find("uniform ");
+                std::string member = line.substr(upos + 8);
+                std::string prefix = line.substr(0, upos);
+                blockMembers.push_back(prefix + "    " + member);
+            }
+            else
+            {
+                if (!blockMembers.empty()
+                    && !line.empty()
+                    && line[0] != '#'
+                    && line.find("uniform ") == std::string::npos
+                    && line.find("//") != 0)
+                {
+                    result += uboHeader;
+                    for (const auto& m : blockMembers)
+                        result += m + "\n";
+                    result += "};\n";
+                    blockMembers.clear();
+                }
+                result += line + "\n";
+            }
+        }
+        if (!blockMembers.empty())
+        {
+            result += uboHeader;
+            for (const auto& m : blockMembers)
+                result += m + "\n";
+            result += "};\n";
+        }
+        esslSource = result;
+    }
+
+    // Compile ESSL 310 → SPIR-V via glslang
+    std::vector<uint32_t> spirvWords;
+    std::string glslangError;
+    if (!CompileGLSLToSPIRV(esslSource, shaderType, spirvWords, glslangError))
+    {
+        Rtt_LogException("ERROR: glslang SPIR-V compilation failed for '%c' shader: %s\n",
+                         shaderType, glslangError.c_str());
+        Rtt_LogException("=== Failed ESSL source ===\n%s\n=== END ===\n", esslSource.c_str());
+        return false;
+    }
+
+    uint32_t spirvSize = (uint32_t)(spirvWords.size() * sizeof(uint32_t));
+
+    // Calculate binary size: header + uniforms + code + trailer
+    // Trailer: 1 null byte + numAttrs(1) + totalSize(2)
+    size_t binarySize = 4 + 4 + 4 + 2; // magic + hashIn + hashOut + uniformCount
+    for (const auto& u : uniforms)
+        binarySize += 1 + u.name.size() + 1 + 1 + 2 + 2 + 2 + 2;
+    binarySize += 4 + spirvSize + 1 + 1 + 2; // shaderSize + code + null + numAttrs + totalSize
+
+    outBinary.resize(binarySize);
+    uint8_t* ptr = outBinary.data();
+
+    auto writeU8 = [&](uint8_t v) { *ptr++ = v; };
+    auto writeU16 = [&](uint16_t v) { memcpy(ptr, &v, 2); ptr += 2; };
+    auto writeU32 = [&](uint32_t v) { memcpy(ptr, &v, 4); ptr += 4; };
+    auto writeBytes = [&](const void* data, size_t len) { memcpy(ptr, data, len); ptr += len; };
+
+    // 1. Magic
+    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
+    writeU32(magic);
+
+    // 2-3. Hash in/out (same logic as ESSL)
+    if (shaderType == 'F' || shaderType == 'f')
+    { writeU32(interfaceHash); writeU32(0); }
+    else
+    { writeU32(0); writeU32(interfaceHash); }
+
+    // 4. Uniform count
+    writeU16((uint16_t)uniforms.size());
+
+    // 5. Uniforms — adjust regIndex for SPIR-V binding model
+    // bgfx renderer_vk.cpp reads sampler regIndex as the SPIR-V binding number,
+    // then does (regIndex - kSpirvBindShift) to recover the slot.
+    // So sampler regIndex must be kSpirvBindShift(2) + slot.
+    for (const auto& u : uniforms)
+    {
+        writeU8((uint8_t)u.name.size());
+        writeBytes(u.name.data(), u.name.size());
+        writeU8(u.type);
+        writeU8(u.num);
+        uint16_t regIdx = u.regIndex;
+        if (u.type == 0)  // Sampler: regIndex = kSpirvBindShift + slot
+            regIdx = 2 + u.regIndex;
+        writeU16(regIdx);
+        writeU16(u.regCount);
+        // texInfo (version >= 8): bgfx reads this as two uint8_t: texComponent(byte0) + texDimension(byte1).
+        // texDimension=0 maps to TextureDimension::Count → VK_IMAGE_VIEW_TYPE_MAX_ENUM → bindInfo[stage].index
+        // is never set (stays UINT32_MAX) → getDescriptorSet() accesses garbage → SIGBUS on Mali.
+        // Dimension2D id is 0x02 (shader.cpp s_textureDimensionToId). Write as little-endian u16: 0x0200
+        // means texComponent=0x00, texDimension=0x02. All our samplers are 2D textures.
+        writeU8(0);    // texComponent
+        writeU8(u.type == 0 ? 0x02 : 0); // texDimension: Dimension2D for samplers
+        writeU16(0); // texFormat
+    }
+
+    // 6. SPIR-V code
+    writeU32(spirvSize);
+    writeBytes(spirvWords.data(), spirvSize);
+
+    // 7. Null terminator (bgfx's reader does skip(shaderSize+1))
+    writeU8(0);
+
+    // 8. numAttrs (0 for fragment shaders, VS would need attribute mapping)
+    writeU8(0);
+
+    // 9. Total binary size (uint16, read by bgfx as m_size)
+    writeU16((uint16_t)binarySize);
+
+    Rtt_LogException("ConstructShaderBinarySPIRV: type='%c', %d uniforms, %u bytes SPIR-V (%zu words), %zu bytes total\n",
+                     shaderType, (int)uniforms.size(), spirvSize, spirvWords.size(), outBinary.size());
 
     return true;
 }
+#endif // Rtt_ANDROID_ENV
 
 // ----------------------------------------------------------------------------
 // CompileCustomEffect
@@ -1666,8 +2048,89 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         return false;
     }
 
+    // Vulkan UBO fix: promote u_UserDataN from vec2/vec3/float to vec4.
+    // bgfx C++ always creates these as Vec4 (16 bytes). If the shader declares a
+    // smaller type, Vulkan's std140 UBO layout will have offset mismatches.
+    // GLES uses individual uniforms (not UBO) so it's unaffected.
+    if (bgfx::getRendererType() == bgfx::RendererType::Vulkan)
+    {
+        struct UDPromo { const char* name; const char* type; const char* swizzle; };
+        std::vector<UDPromo> promos;
+        const char* udNames[] = { "u_UserData0", "u_UserData1", "u_UserData2", "u_UserData3" };
+        const char* types[] = { "float ", "vec2 ", "vec3 " };
+        const char* swiz[]  = { ".x",     ".xy",   ".xyz"  };
+
+        for (const char* ud : udNames)
+        {
+            for (int t = 0; t < 3; ++t)
+            {
+                std::string pat = std::string("uniform ") + types[t] + ud;
+                size_t pos = fragSc.find(pat);
+                if (pos != std::string::npos)
+                {
+                    // Replace type in declaration: "uniform vec2 " → "uniform vec4 "
+                    size_t tStart = pos + 8; // after "uniform "
+                    fragSc.replace(tStart, strlen(types[t]), "vec4 ");
+                    promos.push_back({ud, types[t], swiz[t]});
+                    Rtt_LogException("SPIRV UBO fix: promoted '%s' from %sto vec4 (swizzle=%s)\n",
+                                     ud, types[t], swiz[t]);
+                    break;
+                }
+            }
+        }
+
+        // Add swizzle to bare references (not followed by '.')
+        for (const auto& p : promos)
+        {
+            size_t pos = 0;
+            size_t nameLen = strlen(p.name);
+            while ((pos = fragSc.find(p.name, pos)) != std::string::npos)
+            {
+                size_t end = pos + nameLen;
+                // Skip declaration lines
+                size_t ls = fragSc.rfind('\n', pos);
+                if (ls == std::string::npos) ls = 0; else ++ls;
+                if (fragSc.substr(ls, pos - ls).find("uniform") != std::string::npos)
+                { pos = end; continue; }
+                // Word boundary checks
+                if (pos > 0 && (isalnum(fragSc[pos-1]) || fragSc[pos-1] == '_'))
+                { pos = end; continue; }
+                if (end < fragSc.size() && (isalnum(fragSc[end]) || fragSc[end] == '_'))
+                { pos = end; continue; }
+                // Don't add swizzle if already followed by '.'
+                if (end < fragSc.size() && fragSc[end] == '.')
+                { pos = end; continue; }
+                // Insert swizzle
+                fragSc.insert(end, p.swizzle);
+                pos = end + strlen(p.swizzle);
+            }
+        }
+    }
+
     char effectTag[256];
     snprintf(effectTag, sizeof(effectTag), "%s_%s", category, name);
+
+    // Early return if both FS (and VS if needed) are already cached (memory or disk)
+    {
+        char fsKey[256], vsKey[256];
+        BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
+        BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+        const unsigned char* tmpData = NULL;
+        size_t tmpSize = 0;
+        bool fsHit = FindCachedShader(fsKey, tmpData, tmpSize);
+        bool vsHit = (kernelVert && *kernelVert) ? FindCachedShader(vsKey, tmpData, tmpSize) : true;
+        // For fragment-only effects on Vulkan, also need the default VS cached
+        if (fsHit && !vsHit && !(kernelVert && *kernelVert))
+        {
+            vsHit = FindCachedShader(vsKey, tmpData, tmpSize);
+        }
+        if (fsHit && vsHit)
+        {
+            Rtt_LogException("Custom effect '%s.%s' loaded from cache (skipping compilation)\n",
+                             category, name);
+            return true;
+        }
+    }
 
     std::vector<uint8_t> fsBinary;
     bool useShadercPath = IsAvailable();
@@ -1681,14 +2144,220 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
     if (isVulkanRenderer && !useShadercPath)
     {
+#if defined(Rtt_ANDROID_ENV)
+        // Path C: Vulkan + no shaderc — compile .sc→SPIR-V via embedded bgfx shaderc
+        Rtt_LogException("Using embedded shaderc runtime SPIR-V compilation for Vulkan '%s.%s'\n",
+                         category, name);
+
+        // Corona precision macros (P_UV=mediump etc.) are not recognized by bgfx shaderc's
+        // HLSL parser used in the SPIRV path. Define them as empty to suppress parse errors.
+        static const char kVulkanPrecisionDefines[] =
+            "P_UV=;P_COLOR=;P_POSITION=;P_DEFAULT=";
+
+        // GLSL vector boolean functions not recognized by bgfx shaderc's HLSL frontend.
+        // Inject GLSL compatibility defines and rename not() (HLSL reserved word).
+        auto InjectGlslNotCompat = [](std::string& src) {
+            // Replace word-boundary "not(" → "__glslNot(" (not is HLSL reserved word)
+            if (src.find("not(") != std::string::npos)
+            {
+                std::string out;
+                out.reserve(src.size() + 256);
+                for (size_t i = 0; i < src.size(); )
+                {
+                    size_t found = src.find("not(", i);
+                    if (found == std::string::npos) { out += src.substr(i); break; }
+                    out += src.substr(i, found - i);
+                    bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
+                    out += prevWord ? "not(" : "__glslNot(";
+                    i = found + 4;
+                }
+                src = std::move(out);
+            }
+            // Inject preamble: GLSL built-in vector boolean functions → HLSL equivalents.
+            // HLSL comparison operators (< > <= >= == !=) are element-wise on vectors,
+            // so simple macro expansion is semantically correct.
+            static const char kPreamble[] =
+                "#define __glslNot(v) (!(v))\n"
+                "#define lessThan(a,b) ((a)<(b))\n"
+                "#define greaterThan(a,b) ((a)>(b))\n"
+                "#define lessThanEqual(a,b) ((a)<=(b))\n"
+                "#define greaterThanEqual(a,b) ((a)>=(b))\n"
+                "#define equal(a,b) ((a)==(b))\n"
+                "#define notEqual(a,b) ((a)!=(b))\n";
+            size_t insertPos = 0;
+            for (size_t p = 0; p < out.size(); )
+            {
+                size_t eol = out.find('\n', p);
+                size_t lineEnd = (eol != std::string::npos) ? eol : out.size();
+                size_t ns = p;
+                while (ns < lineEnd && (out[ns] == ' ' || out[ns] == '\t')) ++ns;
+                if (ns < lineEnd && out[ns] == '$')
+                    insertPos = (eol != std::string::npos) ? eol + 1 : out.size();
+                else
+                    break;
+                p = (eol != std::string::npos) ? eol + 1 : out.size();
+            }
+            out.insert(insertPos, kPreamble);
+            src = std::move(out);
+        };
+
+        InjectGlslNotCompat(fragSc);
+
+        bool hasCustomVS = (kernelVert && *kernelVert);
+
+        // Embedded varying.def.sc for Android runtime (source tree not available on device)
+        static const char kEmbeddedVaryingDef[] =
+            "vec3 v_TexCoord   : TEXCOORD5 = vec3(0.0, 0.0, 0.0);\n"
+            "vec4 v_ColorScale : COLOR0    = vec4(1.0, 1.0, 1.0, 1.0);\n"
+            "vec4 v_UserData   : TEXCOORD6 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec2 v_MaskUV0    : TEXCOORD2 = vec2(0.0, 0.0);\n"
+            "vec2 v_MaskUV1    : TEXCOORD3 = vec2(0.0, 0.0);\n"
+            "vec2 v_MaskUV2    : TEXCOORD4 = vec2(0.0, 0.0);\n"
+            "\n"
+            "vec2 v_feathering_edges            : TEXCOORD7  = vec2(0.0, 0.0);\n"
+            "vec2 v_fromPos                     : TEXCOORD8  = vec2(0.0, 0.0);\n"
+            "vec2 v_N                           : TEXCOORD9  = vec2(0.0, 0.0);\n"
+            "vec2 v_slot_size                   : TEXCOORD10 = vec2(0.0, 0.0);\n"
+            "vec2 v_sample_uv_offset            : TEXCOORD11 = vec2(0.0, 0.0);\n"
+            "vec3 v_transform0                  : TEXCOORD12 = vec3(0.0, 0.0, 0.0);\n"
+            "vec3 v_transform1                  : TEXCOORD13 = vec3(0.0, 0.0, 0.0);\n"
+            "vec3 v_transform2                  : TEXCOORD14 = vec3(0.0, 0.0, 0.0);\n"
+            "float v_minimum_full_radius        : TEXCOORD15 = 0.0;\n"
+            "vec2 v_opennessOffsetMatrix0       : TEXCOORD16 = vec2(0.0, 0.0);\n"
+            "vec2 v_opennessOffsetMatrix1       : TEXCOORD17 = vec2(0.0, 0.0);\n"
+            "vec2 v_feathering_edges_radians    : TEXCOORD18 = vec2(0.0, 0.0);\n"
+            "\n"
+            "vec4 v_Custom0                     : TEXCOORD19 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom1                     : TEXCOORD20 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom2                     : TEXCOORD21 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "vec4 v_Custom3                     : TEXCOORD22 = vec4(0.0, 0.0, 0.0, 0.0);\n"
+            "\n"
+            "vec3 a_position  : POSITION;\n"
+            "vec3 a_texcoord0 : TEXCOORD0;\n"
+            "vec4 a_color0    : COLOR0;\n"
+            "vec4 a_texcoord1 : TEXCOORD1;\n";
+
+        std::string varyingText;
+        if (!s_varyingDefPath.empty())
+        {
+            std::ifstream varyingFile(s_varyingDefPath.c_str(), std::ios::in | std::ios::binary);
+            if (varyingFile)
+            {
+                std::stringstream varyingStream;
+                varyingStream << varyingFile.rdbuf();
+                varyingText = varyingStream.str();
+            }
+        }
+        if (varyingText.empty())
+        {
+            varyingText = kEmbeddedVaryingDef;
+        }
+
+        std::vector<std::string> includeDirs;
+        if (!s_bgfxIncludeDir.empty())
+        {
+            includeDirs.push_back(s_bgfxIncludeDir);
+        }
+
+        std::string fsError;
+        std::string fsSourcePath = std::string(effectTag) + ".fs.sc";
+        if (!compileShaderRuntime(fsSourcePath, fragSc, varyingText, 'f', includeDirs, kVulkanPrecisionDefines, fsBinary, fsError))
+        {
+            outError = "Runtime shaderc fragment compilation failed: " + fsError;
+            return false;
+        }
+
+        // Cache FS
         char fsKey[256];
         BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
         EvictCompiledShader(fsKey);
 
-        char vsKey[256];
-        BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
-        EvictCompiledShader(vsKey);
+        // Handle vertex shader: custom VS if provided, or compile default VS for SPIR-V compatibility
+        if (hasCustomVS)
+        {
+            std::string vertSc = TransformVertexKernel(kernelVert, varyings);
+            InjectGlslNotCompat(vertSc);
+            if (!vertSc.empty())
+            {
+                std::vector<uint8_t> vsBinary;
+                std::string vsError;
+                std::string vsSourcePath = std::string(effectTag) + ".vs.sc";
+                if (compileShaderRuntime(vsSourcePath, vertSc, varyingText, 'v', includeDirs, kVulkanPrecisionDefines, vsBinary, vsError))
+                {
+                    char vsKey[256];
+                    BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+                    CacheCompiledShader(vsKey, vsBinary);
+                }
+                else
+                {
+                    Rtt_LogException("WARNING: embedded shaderc VS SPIR-V compilation failed for '%s.%s': %s\n"
+                                     "Falling back to default vertex shader.\n",
+                                     category, name, vsError.c_str());
+                }
+            }
+        }
+        else
+        {
+            // Fragment-only effect on Vulkan: must also compile default VS via shaderc
+            // so VS and FS share the same SPIR-V compilation pipeline and descriptor
+            // set layouts are compatible. Using the precompiled default VS (from Metal/
+            // GLES path) causes layout mismatch → SIGSEGV in getDescriptorSet.
+            static const char kEmbeddedDefaultVS[] =
+                "$input a_position, a_texcoord0, a_color0, a_texcoord1\n"
+                "$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2\n"
+                "\n"
+                "#include <bgfx_shader.sh>\n"
+                "\n"
+                "uniform mat4 u_ViewProjectionMatrix;\n"
+                "uniform mat3 u_MaskMatrix0;\n"
+                "uniform mat3 u_MaskMatrix1;\n"
+                "uniform mat3 u_MaskMatrix2;\n"
+                "uniform vec4 u_TotalTime;\n"
+                "uniform vec4 u_DeltaTime;\n"
+                "uniform vec4 u_TexelSize;\n"
+                "uniform vec4 u_ContentScale;\n"
+                "uniform vec4 u_ContentSize;\n"
+                "uniform vec4 u_UserData0;\n"
+                "uniform vec4 u_UserData1;\n"
+                "uniform vec4 u_UserData2;\n"
+                "uniform vec4 u_UserData3;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "    v_TexCoord = vec3(a_texcoord0.xy, 0.0);\n"
+                "    v_ColorScale = a_color0;\n"
+                "    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);\n"
+                "    vec3 maskPos = vec3(a_position.xy, 1.0);\n"
+                "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n"
+                "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n"
+                "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n"
+                "    gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));\n"
+                "}\n";
 
+            std::vector<uint8_t> vsBinary;
+            std::string vsError;
+            std::string vsSourcePath = std::string(effectTag) + ".default_vs.sc";
+            if (compileShaderRuntime(vsSourcePath, kEmbeddedDefaultVS, varyingText, 'v', includeDirs, kVulkanPrecisionDefines, vsBinary, vsError))
+            {
+                char vsKey[256];
+                BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
+                CacheCompiledShader(vsKey, vsBinary);
+                Rtt_LogException("Compiled default VS via shaderc for fragment-only effect '%s.%s'\n",
+                                 category, name);
+            }
+            else
+            {
+                Rtt_LogException("WARNING: default VS SPIR-V compilation failed for '%s.%s': %s\n"
+                                 "Falling back to precompiled default vertex shader.\n",
+                                 category, name, vsError.c_str());
+            }
+        }
+
+        Rtt_LogException("Custom effect '%s.%s' compiled successfully (embedded shaderc SPIR-V path)\n",
+                         category, name);
+        return true;
+#else
+        // Non-Android platforms without shaderc: still refuse
         outError =
             "Vulkan/bgfx custom effects require shaderc-generated SPIR-V binaries; "
             "the runtime binary path only emits GLES/ESSL-compatible shaders";
@@ -1794,21 +2463,69 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 }
 
 // ----------------------------------------------------------------------------
-// Cache management
+// Cache management (memory + disk)
 // ----------------------------------------------------------------------------
+
+// Defined in Rtt_BgfxRenderer.cpp, set by BgfxRenderer::SetCacheDir()
+extern std::string s_shaderCacheDir;
+
+static std::string ShaderDiskPath(const char* key)
+{
+    // Replace '.' with '_' in key for filesystem safety
+    std::string safeKey(key);
+    for (char& c : safeKey) { if (c == '.' || c == '/') c = '_'; }
+    return s_shaderCacheDir + "/" + safeKey + ".bin";
+}
 
 bool BgfxShaderCompiler::FindCachedShader(const char* key, const unsigned char*& outData, size_t& outSize)
 {
+    // 1. Check memory cache
     auto it = s_cache.find(key);
-    if (it == s_cache.end()) return false;
-    outData = it->second.data();
-    outSize = it->second.size();
+    if (it != s_cache.end())
+    {
+        outData = it->second.data();
+        outSize = it->second.size();
+        return true;
+    }
+
+    // 2. Check disk cache
+    if (s_shaderCacheDir.empty()) return false;
+    std::string path = ShaderDiskPath(key);
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    if (fileSize <= 0) { fclose(f); return false; }
+    fseek(f, 0, SEEK_SET);
+    std::vector<uint8_t> diskData(fileSize);
+    size_t read = fread(diskData.data(), 1, fileSize, f);
+    fclose(f);
+    if ((long)read != fileSize) return false;
+
+    // Promote to memory cache
+    s_cache[key] = std::move(diskData);
+    outData = s_cache[key].data();
+    outSize = s_cache[key].size();
+    Rtt_LogException("Shader cache disk hit: '%s' (%ld bytes)\n", key, fileSize);
     return true;
 }
 
 void BgfxShaderCompiler::CacheCompiledShader(const char* key, const std::vector<uint8_t>& data)
 {
+    // Memory cache
     s_cache[key] = data;
+
+    // Disk cache
+    if (!s_shaderCacheDir.empty())
+    {
+        std::string path = ShaderDiskPath(key);
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f)
+        {
+            fwrite(data.data(), 1, data.size(), f);
+            fclose(f);
+        }
+    }
 }
 
 void BgfxShaderCompiler::EvictCompiledShader(const char* key)

@@ -100,6 +100,16 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	/** Queue of runnables to execute on the render thread. */
 	private final java.util.ArrayList<Runnable> fEventQueue = new java.util.ArrayList<>();
 
+	/** ImageView that covers the surface during recreation to prevent black frames. */
+	private android.widget.ImageView fCoverView;
+
+	/** Bitmap captured from the surface before destruction. */
+	private android.graphics.Bitmap fCoverBitmap;
+
+	/** Background thread for PixelCopy callback (avoids main-thread deadlock). */
+	private android.os.HandlerThread fPixelCopyThread;
+	private android.os.Handler fPixelCopyHandler;
+
 	/**
 	 * Creates a new surface view for bgfx rendering.
 	 * @param context Reference to the context. Cannot be null.
@@ -374,30 +384,27 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 				fLastViewWidth = w;
 				fLastViewHeight = h;
 
-				// Force-render after surface restoration to flush the bgfx pipeline.
-				// Three calls are needed to fill bgfx's 2-frame internal pipeline:
-				// calls 1+2 submit frames, call 3 blocks until eglSwapBuffers completes,
-				// guaranteeing the surface has real pixel content before the UI thread
-				// releases the compositor.
+				// Force-render one frame after surface restoration.
+				// The cover ImageView hides the surface during recreation, so we only
+				// need one render to get content onto the new surface. The cover is
+				// removed once this frame is committed.
 				if (fSurfaceRestored) {
-					Log.i(TAG, "Surface restored: force-rendering with pipeline flush");
+					Log.i(TAG, "Surface restored: force-rendering one frame");
 					fSurfaceRestored = false;
 					fRenderRequested = false;
 					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
-					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
-					com.ansca.corona.Controller.updateRuntimeState(fCoronaRuntime, true);
+					hideCover();
 				}
 
 				latch.countDown();
 			}
 		});
 
-		// Block the UI thread until the render thread has finished setting up the surface
-		// (and rendered the first frame on restoration). This ensures the Android compositor
-		// sees a surface with valid content rather than a black frame.
-		// 500 ms timeout prevents a deadlock if the render thread is stuck.
+		// Block the UI thread briefly until the render thread sets up the surface.
+		// The cover ImageView prevents black frames, so a short timeout is sufficient.
+		// 100 ms timeout prevents a deadlock if the render thread is stuck.
 		try {
-			latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+			latch.await(100, java.util.concurrent.TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
 			Log.w(TAG, "surfaceChanged latch interrupted");
 		}
@@ -406,6 +413,7 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 	@Override
 	public void surfaceDestroyed(android.view.SurfaceHolder holder) {
 		Log.i(TAG, "surfaceDestroyed");
+		showCover();
 		fSurfaceValid = false;
 		fCanRender = false;
 		fSurfaceRestored = false;
@@ -499,8 +507,96 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 		}
 	}
 
+	/**
+	 * Captures the current surface content to a bitmap via PixelCopy (API 24+).
+	 * Called from onPause while the surface is still valid. The bitmap is stored
+	 * for later use as a cover during surface recreation.
+	 */
+	private void captureSurfaceCover() {
+		if (!fSurfaceValid) return;
+		int w = getWidth(), h = getHeight();
+		if (w <= 0 || h <= 0) return;
+
+		if (fPixelCopyThread == null) {
+			fPixelCopyThread = new android.os.HandlerThread("PixelCopy");
+			fPixelCopyThread.start();
+			fPixelCopyHandler = new android.os.Handler(fPixelCopyThread.getLooper());
+		}
+
+		final android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+			w, h, android.graphics.Bitmap.Config.ARGB_8888);
+		final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+		try {
+			android.view.PixelCopy.request(this, bitmap, new android.view.PixelCopy.OnPixelCopyFinishedListener() {
+				@Override
+				public void onPixelCopyFinished(int result) {
+					if (result == android.view.PixelCopy.SUCCESS) {
+						recycleCoverBitmap();
+						fCoverBitmap = bitmap;
+					} else {
+						bitmap.recycle();
+						Log.w(TAG, "PixelCopy failed: result=" + result);
+					}
+					latch.countDown();
+				}
+			}, fPixelCopyHandler);
+			latch.await(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			Log.w(TAG, "PixelCopy exception: " + e);
+			if (fCoverBitmap != bitmap) {
+				bitmap.recycle();
+			}
+		}
+	}
+
+	/** Shows the cover ImageView over the surface. Must be called on the UI thread. */
+	private void showCover() {
+		if (fCoverBitmap == null) return;
+		if (fCoverView == null) {
+			fCoverView = new android.widget.ImageView(getContext());
+			fCoverView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+		}
+		android.view.ViewGroup parent = (android.view.ViewGroup) getParent();
+		if (parent == null) return;
+
+		fCoverView.setImageBitmap(fCoverBitmap);
+		if (fCoverView.getParent() == null) {
+			int surfaceIndex = parent.indexOfChild(this);
+			parent.addView(fCoverView, surfaceIndex + 1,
+				new android.widget.FrameLayout.LayoutParams(
+					android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+					android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+		}
+		fCoverView.setVisibility(android.view.View.VISIBLE);
+		Log.i(TAG, "Cover shown");
+	}
+
+	/** Hides the cover and recycles the bitmap. Safe to call from any thread. */
+	private void hideCover() {
+		fUiHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				if (fCoverView != null) {
+					fCoverView.setVisibility(android.view.View.GONE);
+					fCoverView.setImageBitmap(null);
+					Log.i(TAG, "Cover hidden");
+				}
+				recycleCoverBitmap();
+			}
+		});
+	}
+
+	private void recycleCoverBitmap() {
+		if (fCoverBitmap != null && !fCoverBitmap.isRecycled()) {
+			fCoverBitmap.recycle();
+			fCoverBitmap = null;
+		}
+	}
+
 	/** Pause the render thread. */
 	public void onPause() {
+		captureSurfaceCover();
 		fPaused = true;
 	}
 
@@ -531,6 +627,12 @@ public class CoronaBgfxSurfaceView extends android.view.SurfaceView
 			}
 			fRenderThread = null;
 		}
+		if (fPixelCopyThread != null) {
+			fPixelCopyThread.quitSafely();
+			fPixelCopyThread = null;
+			fPixelCopyHandler = null;
+		}
+		recycleCoverBitmap();
 	}
 
 	/**
