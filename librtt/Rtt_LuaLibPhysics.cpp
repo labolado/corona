@@ -8,6 +8,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "Core/Rtt_Build.h"
+#include <float.h>
 
 #ifdef Rtt_PHYSICS
 
@@ -1603,6 +1604,12 @@ InitializeFixtureUsing_Rectangle( lua_State *L,
 	halfW *= meter_per_pixels_scale;
 	halfH *= meter_per_pixels_scale;
 
+	if ( halfW < FLT_EPSILON || halfH < FLT_EPSILON )
+	{
+		CoronaLuaWarning( L, "physics.addBody() skipping degenerate box shape (halfW=%.6f, halfH=%.6f) — object may have zero size", (float)halfW, (float)halfH );
+		return true;
+	}
+
 	b2FixtureDef fixtureDef;
 
 	b2PolygonShape polygonDef;
@@ -2215,6 +2222,13 @@ InitializeFixtureUsing_Box( lua_State *L,
 		Real radians = Rtt_RealDegreesToRadians( luaL_toreal( L, -1 ) );
 		lua_pop( L, 1 );
 
+		if ( halfW < FLT_EPSILON || halfH < FLT_EPSILON )
+		{
+			CoronaLuaWarning( L, "physics.addBody() skipping degenerate box shape (halfW=%.6f, halfH=%.6f)", (float)halfW, (float)halfH );
+			lua_pop( L, 1 );
+			return true;
+		}
+
 		b2FixtureDef fixtureDef;
 
 		b2PolygonShape polygonDef;
@@ -2399,6 +2413,12 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		// Convert to meters.
 		halfW *= meter_per_pixels_scale;
 		halfH *= meter_per_pixels_scale;
+
+		if ( halfW < FLT_EPSILON || halfH < FLT_EPSILON )
+		{
+			CoronaLuaWarning( L, "physics.addBody() skipping degenerate box shape (halfW=%.6f, halfH=%.6f) — object may have zero size", (float)halfW, (float)halfH );
+			return true;
+		}
 
 		polygonDef.SetAsBox( halfW,
 								halfH,
