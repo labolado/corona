@@ -47,7 +47,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 // This is our 3 x 3 kernel.
 	vec4 samples[9];

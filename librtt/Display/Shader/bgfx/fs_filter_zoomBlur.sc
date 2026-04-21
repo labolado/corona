@@ -47,7 +47,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 vec2 origin = vec2( v_UserData.x, v_UserData.y );
 	float unitIntensity = v_UserData.z;

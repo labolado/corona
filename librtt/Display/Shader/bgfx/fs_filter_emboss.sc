@@ -47,7 +47,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 vec4 sample0 = texture2D( u_FillSampler0, texCoord - u_TexelSize.xy );
 

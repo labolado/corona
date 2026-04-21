@@ -47,7 +47,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 const vec3 LUMINANCE_WEIGHTS = vec3( 0.22, 0.707, 0.071 );
 	const vec3 lightColor = vec3( 1.0, 0.9, 0.5 );
