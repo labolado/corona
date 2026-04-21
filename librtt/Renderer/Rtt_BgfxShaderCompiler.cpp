@@ -2171,26 +2171,36 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         static const char kVulkanPrecisionDefines[] =
             "P_UV=;P_COLOR=;P_POSITION=;P_DEFAULT=";
 
-        // GLSL not(bvec) is not recognized by bgfx shaderc's HLSL frontend.
-        // Rename not() calls to __glslNot() and inject wrapper definitions.
+        // GLSL vector boolean functions not recognized by bgfx shaderc's HLSL frontend.
+        // Inject GLSL compatibility defines and rename not() (HLSL reserved word).
         auto InjectGlslNotCompat = [](std::string& src) {
-            if (src.find("not(") == std::string::npos) return;
-            // Replace word-boundary "not(" → "__glslNot("
-            std::string out;
-            out.reserve(src.size() + 256);
-            for (size_t i = 0; i < src.size(); )
+            // Replace word-boundary "not(" → "__glslNot(" (not is HLSL reserved word)
+            if (src.find("not(") != std::string::npos)
             {
-                size_t found = src.find("not(", i);
-                if (found == std::string::npos) { out += src.substr(i); break; }
-                out += src.substr(i, found - i);
-                bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
-                out += prevWord ? "not(" : "__glslNot(";
-                i = found + 4;
+                std::string out;
+                out.reserve(src.size() + 256);
+                for (size_t i = 0; i < src.size(); )
+                {
+                    size_t found = src.find("not(", i);
+                    if (found == std::string::npos) { out += src.substr(i); break; }
+                    out += src.substr(i, found - i);
+                    bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
+                    out += prevWord ? "not(" : "__glslNot(";
+                    i = found + 4;
+                }
+                src = std::move(out);
             }
-            // Inject preamble after $-directives but before any code.
-            // HLSL: !boolN applies element-wise NOT (same as GLSL not(bvecN)).
+            // Inject preamble: GLSL built-in vector boolean functions → HLSL equivalents.
+            // HLSL comparison operators (< > <= >= == !=) are element-wise on vectors,
+            // so simple macro expansion is semantically correct.
             static const char kPreamble[] =
-                "#define __glslNot(v) (!(v))\n";
+                "#define __glslNot(v) (!(v))\n"
+                "#define lessThan(a,b) ((a)<(b))\n"
+                "#define greaterThan(a,b) ((a)>(b))\n"
+                "#define lessThanEqual(a,b) ((a)<=(b))\n"
+                "#define greaterThanEqual(a,b) ((a)>=(b))\n"
+                "#define equal(a,b) ((a)==(b))\n"
+                "#define notEqual(a,b) ((a)!=(b))\n";
             size_t insertPos = 0;
             for (size_t p = 0; p < out.size(); )
             {
