@@ -2171,6 +2171,45 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         static const char kVulkanPrecisionDefines[] =
             "P_UV=;P_COLOR=;P_POSITION=;P_DEFAULT=";
 
+        // GLSL not(bvec) is not recognized by bgfx shaderc's HLSL frontend.
+        // Rename not() calls to __glslNot() and inject wrapper definitions.
+        auto InjectGlslNotCompat = [](std::string& src) {
+            if (src.find("not(") == std::string::npos) return;
+            // Replace word-boundary "not(" → "__glslNot("
+            std::string out;
+            out.reserve(src.size() + 256);
+            for (size_t i = 0; i < src.size(); )
+            {
+                size_t found = src.find("not(", i);
+                if (found == std::string::npos) { out += src.substr(i); break; }
+                out += src.substr(i, found - i);
+                bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
+                out += prevWord ? "not(" : "__glslNot(";
+                i = found + 4;
+            }
+            // Inject preamble after $-directives but before any code.
+            // HLSL: !boolN applies element-wise NOT (same as GLSL not(bvecN)).
+            static const char kPreamble[] =
+                "#define __glslNot(v) (!(v))\n";
+            size_t insertPos = 0;
+            for (size_t p = 0; p < out.size(); )
+            {
+                size_t eol = out.find('\n', p);
+                size_t lineEnd = (eol != std::string::npos) ? eol : out.size();
+                size_t ns = p;
+                while (ns < lineEnd && (out[ns] == ' ' || out[ns] == '\t')) ++ns;
+                if (ns < lineEnd && out[ns] == '$')
+                    insertPos = (eol != std::string::npos) ? eol + 1 : out.size();
+                else
+                    break;
+                p = (eol != std::string::npos) ? eol + 1 : out.size();
+            }
+            out.insert(insertPos, kPreamble);
+            src = std::move(out);
+        };
+
+        InjectGlslNotCompat(fragSc);
+
         bool hasCustomVS = (kernelVert && *kernelVert);
 
         // Embedded varying.def.sc for Android runtime (source tree not available on device)
@@ -2244,6 +2283,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         if (hasCustomVS)
         {
             std::string vertSc = TransformVertexKernel(kernelVert, varyings);
+            InjectGlslNotCompat(vertSc);
             if (!vertSc.empty())
             {
                 std::vector<uint8_t> vsBinary;
