@@ -2024,6 +2024,56 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
 #endif // Rtt_ANDROID_ENV
 
 // ----------------------------------------------------------------------------
+// InjectGlslNotCompat (shared helper for all shaderc HLSL paths)
+// bgfx shaderc uses an HLSL frontend where 'not' is a reserved word and
+// GLSL vector boolean functions (lessThan, greaterThan, etc.) are unknown.
+// This transform must be applied before any shaderc call (Metal or Vulkan).
+// ----------------------------------------------------------------------------
+
+static void InjectGlslNotCompatShared(std::string& src)
+{
+    // Replace word-boundary "not(" → "__glslNot(" (not is HLSL reserved word)
+    if (src.find("not(") != std::string::npos)
+    {
+        std::string out;
+        out.reserve(src.size() + 256);
+        for (size_t i = 0; i < src.size(); )
+        {
+            size_t found = src.find("not(", i);
+            if (found == std::string::npos) { out += src.substr(i); break; }
+            out += src.substr(i, found - i);
+            bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
+            out += prevWord ? "not(" : "__glslNot(";
+            i = found + 4;
+        }
+        src = std::move(out);
+    }
+    // Inject preamble after $-prefixed header lines (bgfx .sc convention).
+    static const char kPreamble[] =
+        "#define __glslNot(v) (!(v))\n"
+        "#define lessThan(a,b) ((a)<(b))\n"
+        "#define greaterThan(a,b) ((a)>(b))\n"
+        "#define lessThanEqual(a,b) ((a)<=(b))\n"
+        "#define greaterThanEqual(a,b) ((a)>=(b))\n"
+        "#define equal(a,b) ((a)==(b))\n"
+        "#define notEqual(a,b) ((a)!=(b))\n";
+    size_t insertPos = 0;
+    for (size_t p = 0; p < src.size(); )
+    {
+        size_t eol = src.find('\n', p);
+        size_t lineEnd = (eol != std::string::npos) ? eol : src.size();
+        size_t ns = p;
+        while (ns < lineEnd && (src[ns] == ' ' || src[ns] == '\t')) ++ns;
+        if (ns < lineEnd && src[ns] == '$')
+            insertPos = (eol != std::string::npos) ? eol + 1 : src.size();
+        else
+            break;
+        p = (eol != std::string::npos) ? eol + 1 : src.size();
+    }
+    src.insert(insertPos, kPreamble);
+}
+
+// ----------------------------------------------------------------------------
 // CompileCustomEffect
 // ----------------------------------------------------------------------------
 
@@ -2155,53 +2205,8 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             "P_UV=;P_COLOR=;P_POSITION=;P_DEFAULT=";
 
         // GLSL vector boolean functions not recognized by bgfx shaderc's HLSL frontend.
-        // Inject GLSL compatibility defines and rename not() (HLSL reserved word).
-        auto InjectGlslNotCompat = [](std::string& src) {
-            // Replace word-boundary "not(" → "__glslNot(" (not is HLSL reserved word)
-            if (src.find("not(") != std::string::npos)
-            {
-                std::string out;
-                out.reserve(src.size() + 256);
-                for (size_t i = 0; i < src.size(); )
-                {
-                    size_t found = src.find("not(", i);
-                    if (found == std::string::npos) { out += src.substr(i); break; }
-                    out += src.substr(i, found - i);
-                    bool prevWord = found > 0 && (isalnum((unsigned char)src[found-1]) || src[found-1] == '_');
-                    out += prevWord ? "not(" : "__glslNot(";
-                    i = found + 4;
-                }
-                src = std::move(out);
-            }
-            // Inject preamble: GLSL built-in vector boolean functions → HLSL equivalents.
-            // HLSL comparison operators (< > <= >= == !=) are element-wise on vectors,
-            // so simple macro expansion is semantically correct.
-            static const char kPreamble[] =
-                "#define __glslNot(v) (!(v))\n"
-                "#define lessThan(a,b) ((a)<(b))\n"
-                "#define greaterThan(a,b) ((a)>(b))\n"
-                "#define lessThanEqual(a,b) ((a)<=(b))\n"
-                "#define greaterThanEqual(a,b) ((a)>=(b))\n"
-                "#define equal(a,b) ((a)==(b))\n"
-                "#define notEqual(a,b) ((a)!=(b))\n";
-            size_t insertPos = 0;
-            for (size_t p = 0; p < out.size(); )
-            {
-                size_t eol = out.find('\n', p);
-                size_t lineEnd = (eol != std::string::npos) ? eol : out.size();
-                size_t ns = p;
-                while (ns < lineEnd && (out[ns] == ' ' || out[ns] == '\t')) ++ns;
-                if (ns < lineEnd && out[ns] == '$')
-                    insertPos = (eol != std::string::npos) ? eol + 1 : out.size();
-                else
-                    break;
-                p = (eol != std::string::npos) ? eol + 1 : out.size();
-            }
-            out.insert(insertPos, kPreamble);
-            src = std::move(out);
-        };
-
-        InjectGlslNotCompat(fragSc);
+        // Use shared helper (also applied in Path A for Metal).
+        InjectGlslNotCompatShared(fragSc);
 
         bool hasCustomVS = (kernelVert && *kernelVert);
 
@@ -2366,11 +2371,16 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             "because no shaderc binary is available.\n",
             category, name);
         return false;
+#endif // Rtt_ANDROID_ENV
     }
 
     if (useShadercPath)
     {
-        // Path A: shaderc available (macOS dev) — compile via external binary
+        // Path A: shaderc available (macOS dev) — compile via external binary.
+        // Apply GLSL→HLSL compatibility transforms: not(bvec) and vector boolean functions
+        // are not supported by shaderc's HLSL frontend on any platform (Metal, macOS GL).
+        InjectGlslNotCompatShared(fragSc);
+
         std::string fsError;
         if (!CompileShader(fragSc, 'f', fsBinary, fsError, effectTag))
         {
