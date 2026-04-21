@@ -2166,6 +2166,11 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         Rtt_LogException("Using embedded shaderc runtime SPIR-V compilation for Vulkan '%s.%s'\n",
                          category, name);
 
+        // Corona precision macros (P_UV=mediump etc.) are not recognized by bgfx shaderc's
+        // HLSL parser used in the SPIRV path. Define them as empty to suppress parse errors.
+        static const char kVulkanPrecisionDefines[] =
+            "P_UV=;P_COLOR=;P_POSITION=;P_DEFAULT=";
+
         bool hasCustomVS = (kernelVert && *kernelVert);
 
         // Embedded varying.def.sc for Android runtime (source tree not available on device)
@@ -2224,7 +2229,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
 
         std::string fsError;
         std::string fsSourcePath = std::string(effectTag) + ".fs.sc";
-        if (!compileShaderRuntime(fsSourcePath, fragSc, varyingText, 'f', includeDirs, "", fsBinary, fsError))
+        if (!compileShaderRuntime(fsSourcePath, fragSc, varyingText, 'f', includeDirs, kVulkanPrecisionDefines, fsBinary, fsError))
         {
             outError = "Runtime shaderc fragment compilation failed: " + fsError;
             return false;
@@ -2244,7 +2249,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 std::vector<uint8_t> vsBinary;
                 std::string vsError;
                 std::string vsSourcePath = std::string(effectTag) + ".vs.sc";
-                if (compileShaderRuntime(vsSourcePath, vertSc, varyingText, 'v', includeDirs, "", vsBinary, vsError))
+                if (compileShaderRuntime(vsSourcePath, vertSc, varyingText, 'v', includeDirs, kVulkanPrecisionDefines, vsBinary, vsError))
                 {
                     char vsKey[256];
                     BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);
@@ -2299,7 +2304,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             std::vector<uint8_t> vsBinary;
             std::string vsError;
             std::string vsSourcePath = std::string(effectTag) + ".default_vs.sc";
-            if (compileShaderRuntime(vsSourcePath, kEmbeddedDefaultVS, varyingText, 'v', includeDirs, "", vsBinary, vsError))
+            if (compileShaderRuntime(vsSourcePath, kEmbeddedDefaultVS, varyingText, 'v', includeDirs, kVulkanPrecisionDefines, vsBinary, vsError))
             {
                 char vsKey[256];
                 BuildCompiledShaderCacheKey(vsKey, sizeof(vsKey), "vs", category, name);

@@ -176,7 +176,18 @@ bool compileShaderRuntime(const std::string& sourcePath,
 
     if (!defines.empty())
     {
-        options.defines.push_back(defines);
+        // Support semicolon-separated defines (e.g. "P_UV=;P_COLOR=;P_POSITION=")
+        std::string remaining = defines;
+        size_t pos;
+        while ((pos = remaining.find(';')) != std::string::npos)
+        {
+            std::string def = remaining.substr(0, pos);
+            if (!def.empty())
+                options.defines.push_back(def);
+            remaining = remaining.substr(pos + 1);
+        }
+        if (!remaining.empty())
+            options.defines.push_back(remaining);
     }
 
     const uint32_t sourceLen = static_cast<uint32_t>(sourceText.size());
