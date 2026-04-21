@@ -477,12 +477,12 @@ static bool FindEffectShader(const char* filename, const unsigned char*& outData
     InitShaderSelection();
     if (s_useVulkanShaders)
     {
-        for (int i = 0; i < s_bgfxShaderTableCount; ++i)
+        for (int i = 0; i < s_bgfxShaderTableCount_spirv; ++i)
         {
-            if (strcmp(s_bgfxShaderTable[i].filename, filename) == 0)
+            if (strcmp(s_bgfxShaderTable_spirv[i].filename, filename) == 0)
             {
-                outData = s_bgfxShaderTable[i].data;
-                outSize = s_bgfxShaderTable[i].size;
+                outData = s_bgfxShaderTable_spirv[i].data;
+                outSize = s_bgfxShaderTable_spirv[i].size;
                 return true;
             }
         }

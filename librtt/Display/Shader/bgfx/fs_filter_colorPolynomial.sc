@@ -49,7 +49,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 mat4 coefficients = u_UserData0;
 
