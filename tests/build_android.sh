@@ -136,14 +136,39 @@ if [ -f "$TMPL_ZIP" ]; then
 fi
 
 # ============================================================
+# Step 3.5: _tags 目录转换 (Android aapt2 排除 _ 开头目录)
+# ============================================================
+TAGS_DIRS=$(find "$PROJECT_PATH" -type d -name "_tags" 2>/dev/null)
+USE_TEMP_PROJECT=""
+if [ -n "$TAGS_DIRS" ]; then
+    log "Step 3.5: 转换 _tags 目录 (aapt2 兼容)"
+    TEMP_PROJECT="/tmp/android-project-$$"
+    rm -rf "$TEMP_PROJECT"
+    cp -a "$PROJECT_PATH" "$TEMP_PROJECT"
+    # 重命名 _tags → tags
+    find "$TEMP_PROJECT" -type d -name "_tags" | while read -r d; do
+        mv "$d" "$(dirname "$d")/tags"
+        log "  重命名: ${d#$TEMP_PROJECT/} → tags"
+    done
+    # 替换所有文本文件中的路径引用 (_tags/ → tags/)，不影响变量名
+    find "$TEMP_PROJECT" \( -name "*.lua" -o -name "*.json" -o -name "*.txt" -o -name "*.xml" -o -name "*.csv" \) -exec grep -l '_tags/' {} \; | while read -r f; do
+        sed -i '' 's|_tags/|tags/|g' "$f"
+    done
+    UPDATED_COUNT=$(find "$TEMP_PROJECT" \( -name "*.lua" -o -name "*.json" \) -exec grep -l 'tags/' {} \; 2>/dev/null | wc -l | tr -d ' ')
+    log "  已更新 $UPDATED_COUNT 个文件的 _tags/ → tags/ 路径"
+    USE_TEMP_PROJECT="$TEMP_PROJECT"
+fi
+
+# ============================================================
 # Step 4: CoronaBuilder 打包 APK
 # ============================================================
 log "Step 4: CoronaBuilder 打包"
 
 mkdir -p "$DST"
 
-# 使用绝对路径
-ABS_PROJECT=$(cd "$PROJECT_PATH" 2>/dev/null && pwd || echo "$PROJECT_PATH")
+# 使用绝对路径（如有临时副本则用临时副本）
+BUILD_PROJECT="${USE_TEMP_PROJECT:-$PROJECT_PATH}"
+ABS_PROJECT=$(cd "$BUILD_PROJECT" 2>/dev/null && pwd || echo "$BUILD_PROJECT")
 
 cat > /tmp/build-android-bgfx.lua << LUAEOF
 local params = {
@@ -239,4 +264,12 @@ if [ -n "$ADB_DEVICE" ]; then
     echo "  启动: adb shell am start -n $PACKAGE_NAME/com.ansca.corona.CoronaActivity"
     echo "  日志: adb logcat -s Corona:V"
 fi
+if [ -n "$USE_TEMP_PROJECT" ]; then
+    echo "  _tags 转换: 已应用"
+fi
 echo "============================================"
+
+# 清理临时项目副本
+if [ -n "$USE_TEMP_PROJECT" ]; then
+    rm -rf "$USE_TEMP_PROJECT"
+fi

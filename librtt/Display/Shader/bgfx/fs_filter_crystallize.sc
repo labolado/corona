@@ -120,7 +120,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 // Tile count. MUST be greater than 1.0 (ie: 2.0 or greater).
 	float numTiles = v_UserData.x;

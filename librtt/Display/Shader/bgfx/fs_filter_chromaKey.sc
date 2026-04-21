@@ -51,7 +51,7 @@ void main()
 {
     // Perspective-correct texture mapping
     vec2 texCoord = v_TexCoord.xy;
-    float q = v_TexCoord.z;
+    float q = v_UserData.w;
     if (q > 0.0) texCoord = texCoord / q;
 float sensitivity = u_UserData0.x; // threshold
     float smoothing = u_UserData1.x;
