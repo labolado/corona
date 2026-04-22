@@ -14,7 +14,7 @@
 #include "Core/Rtt_Types.h"
 
 // SDF rendering requires bgfx — exclude platforms without bgfx support
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #define Rtt_SDF_AVAILABLE 1
 #include <bgfx/bgfx.h>
 #endif

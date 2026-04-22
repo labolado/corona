@@ -85,6 +85,27 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
+          # Build x86_64 simulator slice (for Intel Mac simulator support)
+          # Copy project and patch arch + output paths for x86_64
+          cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
+          find .build/projects/gmake-ios-simulator-x86 -name "*.make" -exec \
+            sed -i '' \
+              -e 's/-arch arm64/-arch x86_64/g' \
+              -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
+            {} \;
+          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) \
+            || echo "x86_64 simulator build failed, continuing with arm64 only"
+          # Merge into fat binary if x86_64 build succeeded
+          if [ -d .build/ios-simulator-x86/bin ]; then
+            for arm_lib in .build/ios-simulator/bin/lib*.a; do
+              name=$(basename "$arm_lib")
+              x86_lib=".build/ios-simulator-x86/bin/$name"
+              if [ -f "$x86_lib" ]; then
+                lipo -create "$arm_lib" "$x86_lib" -output "$arm_lib"
+                echo "Created fat binary: $name"
+              fi
+            done
+          fi
       - name: Create universal macOS libs (arm64 + x64)
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
