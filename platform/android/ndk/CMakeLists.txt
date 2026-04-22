@@ -874,6 +874,11 @@ target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GL
 	${CORONA_ROOT}/external/bgfx/.build/${BGFX_PLATFORM}/bin/libbxRelease.a
 )
 
+# Workaround: NDK 27 libc++ inline namespace changes break glslang ShaderLang.h
+# when <list> is first included after other std headers. Force-include <list>
+# before any source file so it compiles in a clean namespace state.
+target_compile_options(corona PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include list>)
+
 target_include_directories(corona PRIVATE
 	${CORONA_ROOT}
 	${CORONA_ROOT}/external/bgfx/include
