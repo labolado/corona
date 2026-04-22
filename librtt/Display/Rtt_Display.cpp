@@ -281,6 +281,7 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		}
 		else if (Rtt_StringCompare( backend, "bgfxBackend" ) == 0)
 		{
+#if !defined( Rtt_WIN_DESKTOP_ENV )
 			// Set cache dir for pipeline and shader disk caching
 			{
 				String cachePath( allocator );
@@ -307,6 +308,10 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			{
 				Rtt_LogException("Display::Initialize: Cannot create bgfx renderer - invalid native window handle or dimensions");
 			}
+#else
+			Rtt_LogException("Display::Initialize: bgfx backend not yet supported on Windows");
+			fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+#endif
 		}
 		else
 		{

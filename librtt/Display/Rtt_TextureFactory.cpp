@@ -260,7 +260,7 @@ TextureFactory::FindCompressedVariant(
 
 	size_t baseLen = dot - originalPath;
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 	// Build compressed variant paths in priority order.
 	// KTX is the standard container format for GPU-compressed textures.
 	// The file contains format metadata, so we check support after parsing.
