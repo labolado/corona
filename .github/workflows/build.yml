@@ -63,6 +63,7 @@ jobs:
           make .build/projects/gmake-osx-arm64
           make .build/projects/gmake-osx-x64
           make .build/projects/gmake-ios-arm64
+          make .build/projects/gmake-ios-simulator
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
           make .build/projects/gmake-android-arm64
       - name: Build bgfx macOS arm64 (Debug + Release)
@@ -75,11 +76,15 @@ jobs:
         run: |
           MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
           MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
-      - name: Build bgfx iOS (Debug + Release)
+      - name: Build bgfx iOS device (Debug + Release)
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
+      - name: Build bgfx iOS simulator (Release)
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
       - name: Create universal macOS libs (arm64 + x64)
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
@@ -103,11 +108,16 @@ jobs:
         run: |
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
           make -C .build/projects/gmake-android-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
-      - name: Upload bgfx iOS libs
+      - name: Upload bgfx iOS device libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs-ios
           path: external/bgfx/.build/ios-arm64/bin/lib*.a
+      - name: Upload bgfx iOS simulator libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          path: external/bgfx/.build/ios-simulator/bin/lib*.a
       - name: Upload bgfx Android libs
         uses: actions/upload-artifact@v4
         with:
@@ -206,11 +216,16 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
-      - name: Download bgfx iOS libs
+      - name: Download bgfx iOS device libs
         uses: actions/download-artifact@v4
         with:
           name: bgfx-libs-ios
           path: external/bgfx/.build/ios-arm64/bin
+      - name: Download bgfx iOS simulator libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          path: external/bgfx/.build/ios-simulator/bin
       - run: ./tools/GHAction/daily_env.sh
       - name: Build templates
         working-directory: ./platform/${{ matrix.platform }}
@@ -260,11 +275,16 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
-      - name: Download bgfx iOS libs
+      - name: Download bgfx iOS device libs
         uses: actions/download-artifact@v4
         with:
           name: bgfx-libs-ios
           path: external/bgfx/.build/ios-arm64/bin
+      - name: Download bgfx iOS simulator libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          path: external/bgfx/.build/ios-simulator/bin
       - run: ./tools/GHAction/daily_env.sh
       - name: Build templates
         working-directory: ./platform/${{ matrix.platform }}
