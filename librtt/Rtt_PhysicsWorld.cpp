@@ -125,7 +125,7 @@ PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
 	fNumSteps(1)
 {
 	fMouseBodys.reserve( estimateMaxMouseBodies );
-	fWorkerCount = b2MinInt( 8, b2MaxInt((int)enki::GetNumHardwareThreads() / 2, 1) );
+	fWorkerCount = b2MinInt( 32, b2MaxInt((int)enki::GetNumHardwareThreads() / 2, 1) );
 #if defined ( Rtt_APPLE_ENV )
 	if ( fWorkerCount == 1 ) { fWorkerCount = 2; }
 #endif
