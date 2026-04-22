@@ -13,7 +13,7 @@
 
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_OpenPath.h"
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Display/Rtt_SDFRenderer.h"
 #endif
 #include "Display/Rtt_Shader.h"
@@ -169,7 +169,7 @@ LineObject::Draw( Renderer& renderer ) const
 
 		if ( fPath->HasStroke() && fPath->IsStrokeVisible() )
 		{
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 			SDFRenderer& sdf = SDFRenderer::Instance();
 
 			// SDF path for simple 2-point lines

@@ -16,7 +16,7 @@
 #include "Display/Rtt_ClosedPath.h"
 #include "Display/Rtt_Display.h"
 #include "Display/Rtt_Paint.h"
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Display/Rtt_SDFRenderer.h"
 #endif
 #include "Display/Rtt_Shader.h"
@@ -201,7 +201,7 @@ ShapeObject::Draw( Renderer& renderer ) const
 
 		SUMMED_TIMING( sd, "ShapeObject: Draw" );
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 		SDFRenderer& sdf = SDFRenderer::Instance();
 
 		// SDF rendering path: use SDF shader for simple shapes
@@ -364,7 +364,7 @@ ShapeObject::GetProgramMod() const
 	return ShaderResource::kDefault;
 }
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 bool
 ShapeObject::IsSDFEligible() const
 {

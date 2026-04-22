@@ -391,7 +391,7 @@ GraphicsLibrary::newAtlas( lua_State *L )
 int
 GraphicsLibrary::setSDF( lua_State *L )
 {
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     bool enabled = lua_toboolean( L, 1 );
     SDFRenderer::SetEnabled( enabled );
 #endif
@@ -402,7 +402,7 @@ GraphicsLibrary::setSDF( lua_State *L )
 int
 GraphicsLibrary::getSDF( lua_State *L )
 {
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     lua_pushboolean( L, SDFRenderer::IsEnabled() ? 1 : 0 );
 #else
     lua_pushboolean( L, 0 );
@@ -414,7 +414,7 @@ GraphicsLibrary::getSDF( lua_State *L )
 int
 GraphicsLibrary::setInstancing( lua_State *L )
 {
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     bool enabled = lua_toboolean( L, 1 );
     InstancedBatchRenderer::SetEnabled( enabled );
 #endif
@@ -425,7 +425,7 @@ GraphicsLibrary::setInstancing( lua_State *L )
 int
 GraphicsLibrary::getInstancing( lua_State *L )
 {
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     lua_pushboolean( L, InstancedBatchRenderer::IsEnabled() ? 1 : 0 );
 #else
     lua_pushboolean( L, 0 );

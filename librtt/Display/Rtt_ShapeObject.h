@@ -12,7 +12,7 @@
 
 #include "Display/Rtt_DisplayObject.h"
 #include "Display/Rtt_ShaderResource.h"
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Display/Rtt_SDFRenderer.h"
 #endif
 
@@ -96,7 +96,7 @@ class ShapeObject : public DisplayObject
 		void SetBlend( RenderTypes::BlendType newValue );
 		RenderTypes::BlendType GetBlend() const;
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 	private:
 		bool IsSDFEligible() const;
 		SDFRenderer::ShapeType GetSDFShapeType() const;
