@@ -12,10 +12,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#ifndef _WIN32
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <time.h>
+#endif
 
 #if defined(__APPLE__)
   #include <mach/mach_time.h>
@@ -26,6 +28,8 @@
 #else
   #include <sys/stat.h>
 #endif
+
+#ifndef _WIN32
 
 // Portable atomic operations
 #if defined(__cplusplus) && __cplusplus >= 201103L
@@ -366,3 +370,11 @@ void Rtt_CrashReporterInit(const char* crashFilePath)
     // Record init breadcrumb
     Rtt_BreadcrumbRecord(kBreadcrumb_Custom, "CrashReporter initialized");
 }
+
+#else // _WIN32 — stub implementations (crash reporter not supported on Windows)
+
+void Rtt_CrashReporterInit(const char* /*crashFilePath*/) {}
+void Rtt_BreadcrumbRecord(enum CrashBreadcrumbType /*type*/, const char* /*fmt*/, ...) {}
+void Rtt_BreadcrumbDump(int /*fd*/) {}
+
+#endif // !_WIN32
