@@ -32,8 +32,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Check shader binary sync
-        run: bash tests/compile_shaders.sh --check
+      - name: Check shader source consistency (fast, no shaderc needed)
+        run: |
+          # Verify .sc source files are present and .h headers exist
+          # Full binary sync check runs in build-bgfx-libs after shaderc is built
+          [ -f librtt/Renderer/Rtt_BgfxShaderData_metal.h ] || { echo "::error::Rtt_BgfxShaderData_metal.h missing"; exit 1; }
+          [ -f librtt/Renderer/Rtt_BgfxShaderData_essl.h ] || { echo "::error::Rtt_BgfxShaderData_essl.h missing"; exit 1; }
+          [ -f librtt/Renderer/Rtt_BgfxShaderData_effects_metal.h ] || { echo "::error::Rtt_BgfxShaderData_effects_metal.h missing"; exit 1; }
+          [ -f librtt/Display/Shader/bgfx/vs_default.sc ] || { echo "::error::vs_default.sc missing"; exit 1; }
+          echo "Shader source files present"
       - run: ./tools/GHAction/daily_env.sh
       - name: Set daily build
         run: ./tools/GHAction/process_sources.sh
@@ -106,6 +113,23 @@ jobs:
         with:
           name: bgfx-libs-android
           path: external/bgfx/.build/android-arm64/bin/lib*.a
+      - name: Install shaderc and verify shader binary sync
+        run: |
+          # shaderc is built as part of gmake-osx-arm64 release
+          SHADERC_BIN="external/bgfx/.build/osx-arm64/bin/shadercRelease"
+          SHADERC_DEST="external/bgfx/tools/bin/darwin/shaderc"
+          if [ -f "$SHADERC_BIN" ]; then
+            mkdir -p "$(dirname "$SHADERC_DEST")"
+            cp "$SHADERC_BIN" "$SHADERC_DEST"
+            chmod +x "$SHADERC_DEST"
+            echo "shaderc installed: $(file "$SHADERC_DEST")"
+            bash tests/compile_shaders.sh --check
+          else
+            echo "::warning::shaderc binary not found at $SHADERC_BIN, listing available binaries:"
+            ls external/bgfx/.build/osx-arm64/bin/ 2>/dev/null || echo "(dir not found)"
+            echo "::error::shader binary sync check skipped — shaderc not built"
+            exit 1
+          fi
 
   native:
     needs:
