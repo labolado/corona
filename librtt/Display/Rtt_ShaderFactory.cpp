@@ -21,7 +21,7 @@
 #include "Display/Rtt_ShaderName.h"
 #include "Display/Rtt_ShaderResource.h"
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
 #endif
 #include "Renderer/Rtt_FormatExtensionList.h"
@@ -1018,7 +1018,7 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 							resource = NewShaderResource( category, name, kernelVert, kernelFrag, localStubsIndex );
 
 							// Custom effects in bgfx mode: compile GLSL→Metal at runtime
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 							if (resource.NotNull() && strcmp( fBackend, "bgfxBackend" ) == 0
 								&& name && strchr( name, '.' ) != NULL)
 							{
