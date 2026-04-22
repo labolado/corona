@@ -102,7 +102,7 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
-          make -C .build/projects/gmake-android-arm64 config=release -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-android-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
       - name: Upload bgfx iOS libs
         uses: actions/upload-artifact@v4
         with:
