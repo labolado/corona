@@ -40,6 +40,9 @@ bool compileShaderRuntime(const std::string& sourcePath,
                           std::string& outLog);
 
 #if defined(Rtt_ANDROID_ENV)
+#include <glslang/Public/ShaderLang.h>
+#include <glslang/Public/ResourceLimits.h>
+#include <SPIRV/GlslangToSpv.h>
 static bool s_glslangInitialized = false;
 
 // Compile ESSL/GLSL source to SPIR-V binary using glslang.
