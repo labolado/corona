@@ -250,11 +250,11 @@ rm -f "$DMG_FILE"
 if [ "$FULL_BUILD_NUM" != "" ] && [ -x "$(which convert)" ]
 then
 	TMPBACKGROUND=/tmp/CoronaBackground$$.png
-	convert sdk/dmg/CoronaBackground.png -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" "$TMPBACKGROUND"
+	convert sdk/dmg/CoronaBackground.png -font Helvetica -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" "$TMPBACKGROUND"
 	BACKGROUND_PATH="$TMPBACKGROUND"
 
-	convert sdk/dmg/BG.png    -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" sdk/dmg/bgp.png
-	convert sdk/dmg/BG@2x.png -pointsize 26 -stroke DarkGrey -fill DarkGrey -draw "text 78,774 '$FULL_BUILD_NUM'" sdk/dmg/bgp@2x.png
+	convert sdk/dmg/BG.png    -font Helvetica -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" sdk/dmg/bgp.png
+	convert sdk/dmg/BG@2x.png -font Helvetica -pointsize 26 -stroke DarkGrey -fill DarkGrey -draw "text 78,774 '$FULL_BUILD_NUM'" sdk/dmg/bgp@2x.png
 else
 	cp sdk/dmg/BG.png    sdk/dmg/bgp.png
 	cp sdk/dmg/BG@2x.png sdk/dmg/bgp@2x.png
