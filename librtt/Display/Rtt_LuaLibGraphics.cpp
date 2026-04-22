@@ -23,7 +23,7 @@
 #include "Display/Rtt_ImageSheet.h"
 #include "Display/Rtt_ImageSheetPaint.h"
 #include "Display/Rtt_ImageSheetUserdata.h"
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Display/Rtt_TextureAtlas_Lua.h"
 #include "Display/Rtt_SDFRenderer.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
@@ -43,7 +43,7 @@
 #include "Rtt_LuaLibNative.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include <bgfx/bgfx.h>
 #endif
 
@@ -379,7 +379,7 @@ GraphicsLibrary::newImageSheet( lua_State *L )
 int
 GraphicsLibrary::newAtlas( lua_State *L )
 {
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     return TextureAtlas_newAtlas( L );
 #else
     CoronaLuaError( L, "graphics.newAtlas() is not supported on this platform" );
@@ -486,7 +486,7 @@ GraphicsLibrary::getDirtyStats( lua_State *L )
     lua_setfield( L, -2, "cacheHitRate" );
 
     // Batch stats (bgfx backend only)
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     const BgfxCommandBuffer::BatchStats& bs = BgfxCommandBuffer::sBatchStats;
     lua_pushinteger( L, bs.totalDrawCmds );
     lua_setfield( L, -2, "batchTotalDraws" );
@@ -535,7 +535,7 @@ GraphicsLibrary::getTextureCapabilities( lua_State *L )
     // Check if bgfx backend (vendor == "bgfx")
     bool isBgfx = caps.vendorString && strcmp( caps.vendorString, "bgfx" ) == 0;
 
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     if ( isBgfx )
     {
         // Query compressed texture format support via bgfx
@@ -1848,7 +1848,7 @@ LuaLibGraphics::Initialize( lua_State *L, Display& display )
 
     FilePath::Initialize( L );
     ImageSheet::Initialize( L );
-#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV )
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
     TextureAtlasUserdata::Initialize( L );
 #endif
 
