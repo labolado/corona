@@ -14,6 +14,9 @@
 #include "Renderer/Rtt_Renderer.h"
 #include "Renderer/Rtt_FrameBufferObject.h"
 #include "Renderer/Rtt_BgfxGeometryPool.h"
+
+// bgfx renderer requires bgfx — exclude platforms without bgfx support
+#if !defined( Rtt_WIN_DESKTOP_ENV )
 #include <bgfx/bgfx.h>
 
 // ----------------------------------------------------------------------------
@@ -92,5 +95,7 @@ private:
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
+
+#endif // !Rtt_WIN_DESKTOP_ENV
 
 #endif // _Rtt_BgfxRenderer_H__
