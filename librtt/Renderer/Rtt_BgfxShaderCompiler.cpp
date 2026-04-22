@@ -40,6 +40,7 @@ bool compileShaderRuntime(const std::string& sourcePath,
                           std::string& outLog);
 
 #if defined(Rtt_ANDROID_ENV)
+#include <list>  // Must precede glslang to avoid NDK 27 libc++ inline namespace conflict
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
@@ -2284,7 +2285,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         if (hasCustomVS)
         {
             std::string vertSc = TransformVertexKernel(kernelVert, varyings);
-            InjectGlslNotCompat(vertSc);
+            InjectGlslNotCompatShared(vertSc);
             if (!vertSc.empty())
             {
                 std::vector<uint8_t> vsBinary;
