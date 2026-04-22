@@ -57,7 +57,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Compute prebuilt release tag
+        id: tag
+        run: |
+          BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
+          BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
+          BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
+          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Prebuilt tag: $TAG"
+      - name: Try download prebuilt libs
+        id: prebuilt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          DL=$(mktemp -d)
+          if gh release download "$TAG" --repo labolado/bgfx --dir "$DL" 2>/dev/null; then
+            echo "Prebuilt found: $TAG"
+            # Extract to correct paths
+            mkdir -p external/bgfx/.build/projects/xcode15
+            tar -xzf "$DL/bgfx-macos.tar.gz"         -C external/bgfx/.build/projects/xcode15
+            mkdir -p external/bgfx/.build/ios-arm64/bin
+            tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C external/bgfx/.build/ios-arm64/bin
+            mkdir -p external/bgfx/.build/ios-simulator/bin
+            tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C external/bgfx/.build/ios-simulator/bin
+            mkdir -p external/bgfx/.build/android-arm64/bin
+            tar -xzf "$DL/bgfx-android.tar.gz"       -C external/bgfx/.build/android-arm64/bin
+            # Extract shaderc
+            mkdir -p external/bgfx/tools/bin/darwin
+            tar -xzf "$DL/bgfx-tools.tar.gz" -C external/bgfx/tools/bin/darwin
+            chmod +x external/bgfx/tools/bin/darwin/shaderc
+            echo "hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "Prebuilt not found, will build from source"
+            echo "hit=false" >> $GITHUB_OUTPUT
+          fi
       - name: Generate bgfx projects (macOS arm64 + x64 + iOS + Android)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           make .build/projects/gmake-osx-arm64
@@ -67,21 +104,25 @@ jobs:
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
           make .build/projects/gmake-android-arm64
       - name: Build bgfx macOS arm64 (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
       - name: Build bgfx macOS x64 (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
           MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS device (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS simulator (Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
@@ -107,6 +148,7 @@ jobs:
             done
           fi
       - name: Create universal macOS libs (arm64 + x64)
+        if: steps.prebuilt.outputs.hit != 'true'
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
           for arm_lib in external/bgfx/.build/osx-arm64/bin/lib*.a; do
@@ -125,6 +167,7 @@ jobs:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15/lib*.a
       - name: Build bgfx Android arm64 (Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
@@ -144,7 +187,8 @@ jobs:
         with:
           name: bgfx-libs-android
           path: external/bgfx/.build/android-arm64/bin/lib*.a
-      - name: Install shaderc and verify shader binary sync
+      - name: Install shaderc (from source build) and verify shader binary sync
+        if: steps.prebuilt.outputs.hit != 'true'
         run: |
           # shaderc is built as part of gmake-osx-arm64 release
           SHADERC_BIN="external/bgfx/.build/osx-arm64/bin/shadercRelease"
@@ -161,6 +205,12 @@ jobs:
             echo "::error::shader binary sync check skipped — shaderc not built"
             exit 1
           fi
+      - name: Verify shader binary sync (prebuilt shaderc)
+        if: steps.prebuilt.outputs.hit == 'true'
+        run: |
+          SHADERC="external/bgfx/tools/bin/darwin/shaderc"
+          echo "Using prebuilt shaderc: $(file "$SHADERC")"
+          bash tests/compile_shaders.sh --check
 
   native:
     needs:
