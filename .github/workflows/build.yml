@@ -373,7 +373,7 @@ jobs:
       - name: Unpack source code
         run: tar -xzf SourceCode/corona.tgz
       - run: ./tools/GHAction/daily_env.sh
-      - run: mkdir docs
+      - run: mkdir -p docs
       - name: Get Sample Code
         uses: actions/checkout@v4
         with:
@@ -538,7 +538,7 @@ jobs:
         if: false
         run: |
           cp -v Linux-Template/linuxtemplate_x64.tgz platform/resources/
-      - run: mkdir docs
+      - run: mkdir -p docs
       - name: Get Sample Code
         uses: actions/checkout@v4
         with:
