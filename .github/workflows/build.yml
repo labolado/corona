@@ -73,7 +73,7 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           DL=$(mktemp -d)
-          if gh release download "$TAG" --repo labolado/bgfx --dir "$DL" 2>/dev/null; then
+          if gh release download "$TAG" --repo labolado/corona --dir "$DL" 2>/dev/null; then
             echo "Prebuilt found: $TAG"
             # Extract to correct paths
             mkdir -p external/bgfx/.build/projects/xcode15
@@ -211,6 +211,24 @@ jobs:
           SHADERC="external/bgfx/tools/bin/darwin/shaderc"
           echo "Using prebuilt shaderc: $(file "$SHADERC")"
           bash tests/compile_shaders.sh --check
+      - name: Publish prebuilt libs to labolado/corona
+        if: steps.prebuilt.outputs.hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Publishing prebuilt release: $TAG"
+          tar -czf bgfx-macos.tar.gz         -C external/bgfx/.build/projects/xcode15 .
+          tar -czf bgfx-ios-device.tar.gz    -C external/bgfx/.build/ios-arm64/bin .
+          tar -czf bgfx-ios-simulator.tar.gz -C external/bgfx/.build/ios-simulator/bin .
+          tar -czf bgfx-android.tar.gz       -C external/bgfx/.build/android-arm64/bin .
+          tar -czf bgfx-tools.tar.gz         -C external/bgfx/tools/bin/darwin shaderc
+          gh release create "$TAG" \
+            --repo labolado/corona \
+            --title "bgfx prebuilt $TAG" \
+            --notes "Auto-built by CI from ${{ github.sha }}" \
+            bgfx-macos.tar.gz bgfx-ios-device.tar.gz bgfx-ios-simulator.tar.gz bgfx-android.tar.gz bgfx-tools.tar.gz
+          echo "Published: $TAG"
 
   native:
     needs:
