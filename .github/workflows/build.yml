@@ -218,10 +218,15 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           echo "Publishing prebuilt release: $TAG"
+          # Strip debug symbols to reduce archive size (safe for linking)
+          find external/bgfx/.build/projects/xcode15 -name 'lib*.a' -exec strip -S {} \;
+          find external/bgfx/.build/ios-arm64/bin    -name 'lib*.a' -exec strip -S {} \;
+          find external/bgfx/.build/ios-simulator/bin -name 'lib*.a' -exec strip -S {} \;
+          find external/bgfx/.build/android-arm64/bin -name 'lib*.a' -exec strip --strip-debug {} \;
           tar -czf bgfx-macos.tar.gz         -C external/bgfx/.build/projects/xcode15 lib*.a
-          tar -czf bgfx-ios-device.tar.gz    -C external/bgfx/.build/ios-arm64/bin .
-          tar -czf bgfx-ios-simulator.tar.gz -C external/bgfx/.build/ios-simulator/bin .
-          tar -czf bgfx-android.tar.gz       -C external/bgfx/.build/android-arm64/bin .
+          tar -czf bgfx-ios-device.tar.gz    -C external/bgfx/.build/ios-arm64/bin lib*.a
+          tar -czf bgfx-ios-simulator.tar.gz -C external/bgfx/.build/ios-simulator/bin lib*.a
+          tar -czf bgfx-android.tar.gz       -C external/bgfx/.build/android-arm64/bin lib*.a
           tar -czf bgfx-tools.tar.gz         -C external/bgfx/tools/bin/darwin shaderc
           gh release create "$TAG" \
             --repo labolado/corona \
