@@ -22,6 +22,7 @@ display.newRect(W/2, H/2, W, H):setFillColor(0.05, 0.05, 0.1)
 
 -- 爆炸粒子配置（burst，短寿命，快速扩散）
 local explosionParams = {
+    textureFileName          = "shape_white.png",
     maxParticles             = 80,
     duration                 = -1,
     startParticleSize        = 18,
@@ -69,6 +70,7 @@ local explosionParams = {
 
 -- 烟雾粒子配置（持续，上升，透明衰减）
 local smokeParams = {
+    textureFileName          = "shape_white.png",
     maxParticles             = 120,
     duration                 = -1,
     startParticleSize        = 12,
