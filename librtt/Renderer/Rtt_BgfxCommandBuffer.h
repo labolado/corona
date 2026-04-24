@@ -121,6 +121,16 @@ class BgfxCommandBuffer : public CommandBuffer
         virtual void Initialize();
         virtual void Denitialize();
 
+        // Inject the per-renderer "screen" view ID before Initialize() (Issue #027).
+        // Must be called BEFORE Initialize() is invoked by Renderer::Initialize().
+        // Primary runtime uses 200 (back-compat); secondaries get 201, 202, ...
+        void SetScreenViewId( bgfx::ViewId viewId );
+
+        // Inject the secondary runtime's own swap-chain framebuffer so Execute()
+        // can re-bind it every frame. Primaries call this with BGFX_INVALID_HANDLE
+        // (they render to bgfx's default / main swap chain). Issue #027.
+        void SetScreenFrameBuffer( bgfx::FrameBufferHandle fb );
+
         virtual void ClearUserUniforms();
 
         // These methods now capture state for deferred execution
@@ -242,6 +252,12 @@ class BgfxCommandBuffer : public CommandBuffer
         // Default FBO view
         bgfx::ViewId fDefaultView;
         bgfx::ViewId fCurrentView;
+
+        // Secondary runtime's own swap-chain FB (Issue #027). Valid only for
+        // secondary BgfxRenderers; BGFX_INVALID_HANDLE for primary (which uses
+        // bgfx's default / main swap chain). Execute() re-binds this each frame
+        // so the screen view never loses its routing when other FBO bindings reset.
+        bgfx::FrameBufferHandle fScreenFb;
 
         // Cached params
         S32 fCachedQuery[kNumQueryableParams];
