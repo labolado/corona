@@ -222,7 +222,13 @@ jobs:
           find external/bgfx/.build/projects/xcode15 -name 'lib*.a' -exec strip -S {} \;
           find external/bgfx/.build/ios-arm64/bin    -name 'lib*.a' -exec strip -S {} \;
           find external/bgfx/.build/ios-simulator/bin -name 'lib*.a' -exec strip -S {} \;
-          find external/bgfx/.build/android-arm64/bin -name 'lib*.a' -exec strip --strip-debug {} \;
+          NDK_STRIP=""
+          [ -n "$ANDROID_NDK_HOME" ] && NDK_STRIP=$(find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" -name "llvm-strip" -type f 2>/dev/null | head -1)
+          if [ -n "$NDK_STRIP" ]; then
+            find external/bgfx/.build/android-arm64/bin -name 'lib*.a' -exec "$NDK_STRIP" -S {} \;
+          else
+            echo "::warning::llvm-strip not found, android libs not stripped (non-fatal)"
+          fi
           tar -czf bgfx-macos.tar.gz         -C external/bgfx/.build/projects/xcode15 lib*.a
           tar -czf bgfx-ios-device.tar.gz    -C external/bgfx/.build/ios-arm64/bin lib*.a
           tar -czf bgfx-ios-simulator.tar.gz -C external/bgfx/.build/ios-simulator/bin lib*.a
