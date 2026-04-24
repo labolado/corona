@@ -66,29 +66,43 @@ check_fatal_errors() {
     fi
 }
 
+# 等待截图信号：Lua 打印 SCREENSHOT_READY 时立即截图，否则等满 SCREENSHOT_WAIT 秒
+# 兼容旧测试（无信号则等满超时）
+SCREENSHOT_WAIT="${SCREENSHOT_WAIT:-8}"
+
+wait_and_screenshot() {
+    local logfile="$1"
+    local output="$2"
+    local backend="$3"
+    local deadline=$(( $(date +%s) + SCREENSHOT_WAIT ))
+
+    # 等 SCREENSHOT_READY 信号，每 0.3s 检查一次
+    while [ $(date +%s) -lt $deadline ]; do
+        if grep -q 'SCREENSHOT_READY' "$logfile" 2>/dev/null; then
+            sleep 0.2  # 等一帧确保画面稳定
+            break
+        fi
+        sleep 0.3
+    done
+
+    check_fatal_errors "$logfile" "$backend"
+    screenshot "$output"
+    if [ ! -f "$output" ]; then
+        echo "❌ $backend 截图失败（模拟器窗口未找到）"
+        killall "Corona Simulator" 2>/dev/null
+        exit 1
+    fi
+}
+
 # GL
 killall "Corona Simulator" 2>/dev/null; sleep 1
 SOLAR2D_BACKEND=gl "$SIM" -no-console YES "$PROJECT" > /tmp/corona_gl.log 2>&1 &
-sleep 8
-check_fatal_errors /tmp/corona_gl.log "GL"
-screenshot "$GL_IMG"
-if [ ! -f "$GL_IMG" ]; then
-    echo "❌ GL 截图失败（模拟器窗口未找到）"
-    killall "Corona Simulator" 2>/dev/null
-    exit 1
-fi
+wait_and_screenshot /tmp/corona_gl.log "$GL_IMG" "GL"
 killall "Corona Simulator" 2>/dev/null; sleep 1
 
 # bgfx
 SOLAR2D_BACKEND=bgfx "$SIM" -no-console YES "$PROJECT" > /tmp/corona_bgfx.log 2>&1 &
-sleep 8
-check_fatal_errors /tmp/corona_bgfx.log "bgfx"
-screenshot "$BGFX_IMG"
-if [ ! -f "$BGFX_IMG" ]; then
-    echo "❌ bgfx 截图失败（模拟器窗口未找到）"
-    killall "Corona Simulator" 2>/dev/null
-    exit 1
-fi
+wait_and_screenshot /tmp/corona_bgfx.log "$BGFX_IMG" "bgfx"
 killall "Corona Simulator" 2>/dev/null; sleep 1
 
 # 对比

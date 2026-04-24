@@ -107,15 +107,14 @@ label("Seq: bot (4f)",   W/2 + 90, H/2 + 55)
 local title = display.newText("Sprite Animation Test - " .. backend, W/2, 30, native.systemFontBold, 16)
 title:setFillColor(1, 1, 1)
 
--- 延迟确认动画运行
-timer.performWithDelay(500, function()
-    if spA then
-        check("sprite frame advances", spA.frame ~= nil)
-    end
-    print(string.format("\n=== SPRITE TEST RESULTS (%s): Pass %d | Fail %d ===", backend, pass, fail))
-    if fail == 0 then
-        print("TEST PASS: sprite")
-    else
-        print("TEST FAIL: sprite")
+-- 等 30 帧后截图（精灵动画已运行几帧，画面稳定）
+local frameCount = 0
+Runtime:addEventListener("enterFrame", function()
+    frameCount = frameCount + 1
+    if frameCount == 30 then
+        if spA then check("sprite frame advances", spA.frame ~= nil) end
+        print(string.format("\n=== SPRITE TEST RESULTS (%s): Pass %d | Fail %d ===", backend, pass, fail))
+        if fail == 0 then print("TEST PASS: sprite") else print("TEST FAIL: sprite") end
+        print("SCREENSHOT_READY")
     end
 end)
