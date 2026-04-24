@@ -109,9 +109,12 @@ fi
 if [ -n "$ASSERTIONS_FILE" ]; then
     ASSERTIONS=$(cat "$ASSERTIONS_FILE")
     RESULT=$(bash ~/.claude/skills/gemma4/scripts/gemma4-ask.sh -m 600 \
-"GL（左图）是正确基准，bgfx（右图）是被测目标。两者是不同渲染后端实现，允许轻微 AA/精度差异。
-请逐条判断以下断言是否成立。
-输出格式严格每行：PASS: <断言> 或 FAIL: <断言> — <原因>
+"GL（左图）是正确基准，bgfx（右图）是被测目标。两者是不同渲染后端实现。
+判断标准：
+- 允许：轻微抗锯齿差异、亚像素级精度偏差、细微亮度差（<5%）
+- 不允许（直接FAIL）：几何形状类型不同（矩形变圆形）、颜色色相明显偏移（深红变粉红/橙色）、亮度/饱和度差异>15%、图形缺失或多余
+请逐条判断以下断言是否成立，判断要严格，有明确视觉差异就FAIL。
+输出格式严格每行：PASS: <断言> 或 FAIL: <断言> — <具体差异描述>
 
 断言列表：
 ${ASSERTIONS}" "$GL_IMG" "$BGFX_IMG")
