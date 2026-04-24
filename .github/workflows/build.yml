@@ -229,10 +229,10 @@ jobs:
           else
             echo "::warning::llvm-strip not found, android libs not stripped (non-fatal)"
           fi
-          tar -czf bgfx-macos.tar.gz         -C external/bgfx/.build/projects/xcode15 lib*.a
-          tar -czf bgfx-ios-device.tar.gz    -C external/bgfx/.build/ios-arm64/bin lib*.a
-          tar -czf bgfx-ios-simulator.tar.gz -C external/bgfx/.build/ios-simulator/bin lib*.a
-          tar -czf bgfx-android.tar.gz       -C external/bgfx/.build/android-arm64/bin lib*.a
+          ( cd "external/bgfx/.build/projects/xcode15"   && tar -czf "$OLDPWD/bgfx-macos.tar.gz"         lib*.a )
+          ( cd "external/bgfx/.build/ios-arm64/bin"      && tar -czf "$OLDPWD/bgfx-ios-device.tar.gz"    lib*.a )
+          ( cd "external/bgfx/.build/ios-simulator/bin"  && tar -czf "$OLDPWD/bgfx-ios-simulator.tar.gz" lib*.a )
+          ( cd "external/bgfx/.build/android-arm64/bin"  && tar -czf "$OLDPWD/bgfx-android.tar.gz"       lib*.a )
           tar -czf bgfx-tools.tar.gz         -C external/bgfx/tools/bin/darwin shaderc
           gh release create "$TAG" \
             --repo labolado/corona \
