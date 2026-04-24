@@ -448,6 +448,60 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     init.callback = &s_bgfxCallback;
     init.fallback = false; // P5 diag: force Vulkan to fail loudly instead of silently falling back to GLES
     Rtt_LogException("BgfxRenderer: attempting init with type=%s fallback=false", bgfx::getRendererName(init.type));
+
+    // Step 0 harness (Issue #027): probe whether bgfx::createFrameBuffer(nwh) on an
+    // already-initialized session returns a valid secondary swap chain.
+    // Activated by SOLAR2D_DEBUG_SECONDARY_FB=1. Removed in Step 1.
+    static int s_bgfxInitCount = 0;
+    const char* dbgSecondary = getenv("SOLAR2D_DEBUG_SECONDARY_FB");
+    bool harnessActive = (dbgSecondary && atoi(dbgSecondary) == 1);
+    if (harnessActive && s_bgfxInitCount > 0)
+    {
+        Rtt_LogException("STEP0_HARNESS: attempting bgfx::createFrameBuffer(nwh=%p, w=%u, h=%u) on existing session",
+                         nativeWindowHandle, width, height);
+        const bgfx::Caps* capsNow = bgfx::getCaps();
+        bool capSwap = capsNow && (capsNow->supported & BGFX_CAPS_SWAP_CHAIN);
+        Rtt_LogException("STEP0_HARNESS: BGFX_CAPS_SWAP_CHAIN supported=%d renderer=%s",
+                         (int)capSwap, capsNow ? bgfx::getRendererName(capsNow->rendererType) : "null");
+
+        bgfx::FrameBufferHandle probeFb = bgfx::createFrameBuffer(
+            nativeWindowHandle,
+            static_cast<uint16_t>(width),
+            static_cast<uint16_t>(height),
+            bgfx::TextureFormat::BGRA8,
+            bgfx::TextureFormat::D24S8);
+        bool probeValid = bgfx::isValid(probeFb);
+        Rtt_LogException("STEP0_HARNESS: createFrameBuffer returned idx=%d isValid=%d",
+                         (int)probeFb.idx, (int)probeValid);
+
+        if (probeValid)
+        {
+            // Try to submit one cleared frame to the secondary FB on a dedicated view.
+            // Magenta fill so we can visually tell if the secondary window picks it up.
+            const bgfx::ViewId kProbeView = 250;
+            bgfx::setViewFrameBuffer(kProbeView, probeFb);
+            bgfx::setViewRect(kProbeView, 0, 0,
+                              static_cast<uint16_t>(width),
+                              static_cast<uint16_t>(height));
+            bgfx::setViewClear(kProbeView, BGFX_CLEAR_COLOR, 0xff00ffff, 1.0f, 0); // magenta
+            bgfx::touch(kProbeView);
+            bgfx::frame();
+            Rtt_LogException("STEP0_HARNESS: frame() after submit to secondary FB OK");
+
+            // Unbind view and destroy probe FB cleanly (2x frame flush per bgfx docs).
+            bgfx::setViewFrameBuffer(kProbeView, BGFX_INVALID_HANDLE);
+            bgfx::destroy(probeFb);
+            bgfx::frame();
+            bgfx::frame();
+            Rtt_LogException("STEP0_HARNESS: probe FB destroyed cleanly");
+        }
+        else
+        {
+            Rtt_LogException("STEP0_HARNESS: FAILED to create secondary FB; Step 0 regarded as FAIL");
+        }
+        // Fall through to existing path so the app continues (this harness only probes the API).
+    }
+
     fBgfxInitialized = bgfx::init(init);
     if (!fBgfxInitialized)
     {
@@ -461,6 +515,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         // has finished its last submit(), causing UAF on reinit.
         usleep(500000); // 500ms — generous wait for GPU resources to release
         fBgfxInitialized = bgfx::init(init);
+    }
+    if (fBgfxInitialized)
+    {
+        ++s_bgfxInitCount;
     }
 #if defined(Rtt_ANDROID_ENV)
     // Vulkan fallback: if Vulkan init failed, try GLES
