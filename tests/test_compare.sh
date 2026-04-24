@@ -100,6 +100,10 @@ if [ -f "${PROJECT}/assertions/${STEP}.txt" ]; then
     ASSERTIONS_FILE="${PROJECT}/assertions/${STEP}.txt"
 elif [ -f "tests/bgfx-demo/assertions/${STEP}.txt" ]; then
     ASSERTIONS_FILE="tests/bgfx-demo/assertions/${STEP}.txt"
+elif [ -f "${PROJECT}/assertions/_default.txt" ]; then
+    ASSERTIONS_FILE="${PROJECT}/assertions/_default.txt"
+elif [ -f "tests/bgfx-demo/assertions/_default.txt" ]; then
+    ASSERTIONS_FILE="tests/bgfx-demo/assertions/_default.txt"
 fi
 
 if [ -n "$ASSERTIONS_FILE" ]; then
