@@ -164,15 +164,15 @@ label("Smoke",     W * 0.7, H * 0.6 + 80)
 local title = display.newText("Particle System Test - " .. backend, W/2, 28, native.systemFontBold, 15)
 title:setFillColor(1, 1, 1)
 
--- 延迟验证粒子仍在运行
-timer.performWithDelay(800, function()
-    check("emitter1 still alive after 800ms", emitter1 ~= nil)
-    check("emitter2 still alive after 800ms", emitter2 ~= nil)
-
-    print(string.format("\n=== PARTICLE TEST RESULTS (%s): Pass %d | Fail %d ===", backend, pass, fail))
-    if fail == 0 then
-        print("TEST PASS: particles")
-    else
-        print("TEST FAIL: particles")
+-- 等粒子运行 60 帧进入稳态后发截图信号
+local frameCount = 0
+Runtime:addEventListener("enterFrame", function()
+    frameCount = frameCount + 1
+    if frameCount == 60 then
+        check("emitter1 still alive at frame 60", emitter1 ~= nil)
+        check("emitter2 still alive at frame 60", emitter2 ~= nil)
+        print(string.format("\n=== PARTICLE TEST RESULTS (%s): Pass %d | Fail %d ===", backend, pass, fail))
+        if fail == 0 then print("TEST PASS: particles") else print("TEST FAIL: particles") end
+        print("SCREENSHOT_READY")  -- 通知 test_compare.sh 截图
     end
 end)
