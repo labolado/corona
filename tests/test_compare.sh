@@ -5,18 +5,19 @@
 #   bash tests/test_compare.sh [step_name] [project_path]
 #
 # 参数:
-#   step_name    — 截图文件名前缀（默认 "test"），截图保存为 /tmp/{step}_gl.png 和 /tmp/{step}_bgfx.png
+#   step_name    — 截图文件名前缀，同时用于查找断言文件 <project>/assertions/<step>.txt
 #   project_path — Solar2D 项目路径（默认 /tmp/tank_test_copy）
 #
 # 流程:
 #   1. 启动 GL 模式 → 检查日志 → 截图
 #   2. 启动 bgfx 模式 → 检查日志 → 截图
-#   3. 像素级对比（内置于 gemma4-ask，相同秒回 SAME，不同调模型分析）
+#   3. 若存在 assertions/<step>.txt → gemma4 逐条断言判断（输出 PASS:/FAIL:，有 FAIL 则 exit 1）
+#      否则 → 通用 diff 描述
 #
 # 示例:
-#   bash tests/test_compare.sh step3b                           # 用 /tmp/tank_test_copy
-#   bash tests/test_compare.sh mytest tests/bgfx-demo           # 用指定项目
-#   IMG_DIFF_THRESHOLD=0.01 bash tests/test_compare.sh final    # 高精度对比
+#   bash tests/test_compare.sh step3b                                         # 用 /tmp/tank_test_copy，通用对比
+#   SOLAR2D_TEST=particles bash tests/test_compare.sh particles tests/bgfx-demo  # 断言模式
+#   IMG_DIFF_THRESHOLD=0.01 bash tests/test_compare.sh final                  # 高精度对比
 #
 # 依赖: gemma4-ask.sh（含像素快速判断 + 模型分析）
 set +e  # killall 等命令可能返回非零，不要退出
@@ -92,4 +93,35 @@ killall "Corona Simulator" 2>/dev/null; sleep 1
 
 # 对比
 echo "--- $STEP 对比结果 ---"
-bash ~/.claude/skills/gemma4/scripts/gemma4-ask.sh -m 500 "GL（正确基准）vs bgfx 渲染对比。忽略对象位置偏移和动画帧差异（预期的，不是bug）。只关注渲染错误：颜色不对、纹理错乱、对象缺失/多余、亮度异常、透明度错误。按严重程度排序。" "$GL_IMG" "$BGFX_IMG"
+
+# 查找断言文件：优先 <project>/assertions/<step>.txt，其次 tests/bgfx-demo/assertions/<step>.txt
+ASSERTIONS_FILE=""
+if [ -f "${PROJECT}/assertions/${STEP}.txt" ]; then
+    ASSERTIONS_FILE="${PROJECT}/assertions/${STEP}.txt"
+elif [ -f "tests/bgfx-demo/assertions/${STEP}.txt" ]; then
+    ASSERTIONS_FILE="tests/bgfx-demo/assertions/${STEP}.txt"
+fi
+
+if [ -n "$ASSERTIONS_FILE" ]; then
+    ASSERTIONS=$(cat "$ASSERTIONS_FILE")
+    RESULT=$(bash ~/.claude/skills/gemma4/scripts/gemma4-ask.sh -m 600 \
+"GL（左图）是正确基准，bgfx（右图）是被测目标。两者是不同渲染后端实现，允许轻微 AA/精度差异。
+请逐条判断以下断言是否成立。
+输出格式严格每行：PASS: <断言> 或 FAIL: <断言> — <原因>
+
+断言列表：
+${ASSERTIONS}" "$GL_IMG" "$BGFX_IMG")
+    echo "$RESULT"
+    FAIL_COUNT=$(echo "$RESULT" | grep -c '^FAIL:' 2>/dev/null || echo 0)
+    echo ""
+    if [ "$FAIL_COUNT" -gt 0 ]; then
+        echo "❌ $FAIL_COUNT 条断言失败 ($ASSERTIONS_FILE)"
+        exit 1
+    else
+        echo "✅ 所有断言通过"
+    fi
+else
+    bash ~/.claude/skills/gemma4/scripts/gemma4-ask.sh -m 500 \
+        "GL（正确基准）vs bgfx 渲染对比。忽略对象位置偏移和动画帧差异（预期的，不是bug）。只关注渲染错误：颜色不对、纹理错乱、对象缺失/多余、亮度异常、透明度错误。按严重程度排序。" \
+        "$GL_IMG" "$BGFX_IMG"
+fi
