@@ -94,6 +94,7 @@ class BatchObject : public DisplayObject
 
 	private:
 		TextureAtlas* fAtlas;
+		SharedPtr< TextureResource > fTextureResource; // keep texture alive even if atlas is GC'd
 		Array< Slot > fSlots;
 		int fActiveCount;
 		bool fRemoved;
