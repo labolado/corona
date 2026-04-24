@@ -112,10 +112,10 @@ if [ -n "$ASSERTIONS_FILE" ]; then
 断言列表：
 ${ASSERTIONS}" "$GL_IMG" "$BGFX_IMG")
     echo "$RESULT"
-    FAIL_COUNT=$(echo "$RESULT" | grep -c '^FAIL:' 2>/dev/null || echo 0)
     echo ""
-    if [ "$FAIL_COUNT" -gt 0 ]; then
-        echo "❌ $FAIL_COUNT 条断言失败 ($ASSERTIONS_FILE)"
+    if echo "$RESULT" | grep -q '^FAIL:'; then
+        FAIL_COUNT=$(echo "$RESULT" | grep -c '^FAIL:')
+        echo "❌ ${FAIL_COUNT} 条断言失败 ($ASSERTIONS_FILE)"
         exit 1
     else
         echo "✅ 所有断言通过"
