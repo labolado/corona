@@ -86,7 +86,7 @@ timer.performWithDelay(200, function()
     if dynRect and dynRect.setFillColor then
         local c = colors[colorIdx]
         dynRect:setFillColor(c[1], c[2], c[3], 1)
-        colorIdx = (colorIdx % #colors) + 1
+        -- colorIdx = (colorIdx % #colors) + 1
     end
 end, 0)
 

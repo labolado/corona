@@ -14,7 +14,7 @@ graphics.defineEffect{
         { name = "outlineWidth", default = 3, min = 0, max = 100, type = "float", index = 0 },
         { name = "color", default = { 1, 0.3, 0, 1 }, min = {0,0,0,0}, max = {1,1,1,1}, type = "vec4", index = 1 },
     },
-    isTimeDependent = true,
+    -- isTimeDependent = true
     fragment = [[
         uniform P_COLOR float u_UserData0;
         uniform P_COLOR vec4 u_UserData1;
@@ -47,12 +47,12 @@ graphics.defineEffect{
     language = "glsl",
     category = "filter",
     name = "colored_outline",
-    isTimeDependent = true,
+    -- isTimeDependent = true
     vertex = [[
         varying P_COLOR vec4 outlineColor;
         P_POSITION vec2 VertexKernel(P_POSITION vec2 position)
         {
-            P_DEFAULT float value = mod(floor(CoronaTotalTime * 1.0), 3.0);
+            P_DEFAULT float value = 0.0;
             if (value < 0.001) {
                 outlineColor = vec4(0.9, 0.3, 0.1, 0.9);
             }
