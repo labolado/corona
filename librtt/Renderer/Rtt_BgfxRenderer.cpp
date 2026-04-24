@@ -174,6 +174,8 @@ namespace {
 #include <bgfx/platform.h>
 #include <bgfx/bgfx.h>
 
+#include "Rtt_BgfxContext.h"
+
 // ----------------------------------------------------------------------------
 
 // Custom bgfx callback that catches shader compile failures gracefully.
