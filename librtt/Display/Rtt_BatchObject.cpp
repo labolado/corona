@@ -105,6 +105,7 @@ BatchObject::New(
 	batch->fShader = &factory.GetDefault();
 
 	const SharedPtr< TextureResource >& texRes = atlas->GetTextureResource();
+	batch->fTextureResource = texRes; // keep texture alive even if atlas is GC'd
 	batch->fData.fFillTexture0 = &texRes->GetTexture();
 	batch->fData.fFillTexture1 = NULL;
 	batch->fData.fMaskTexture = NULL;
