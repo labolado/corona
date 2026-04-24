@@ -27,6 +27,23 @@ graphics.defineEffect({
     ]]
 })
 
+-- Register filter.tiling (used by Test 3)
+graphics.defineEffect({
+    language = "glsl",
+    category = "filter",
+    name = "tiling",
+    vertexData = {
+        { name = "tilingX", index = 0, default = 1 },
+        { name = "tilingY", index = 1, default = 1 },
+    },
+    fragment = [[
+    P_COLOR vec4 FragmentKernel( P_UV vec2 uv ){
+        uv = fract(uv * CoronaVertexUserData.xy);
+        return CoronaColorScale(texture2D(CoronaSampler0, uv));
+    }
+    ]]
+})
+
 -- Register simple tint filter (same as tank game's initial state)
 graphics.defineEffect({
     language = "glsl",
@@ -89,3 +106,13 @@ r4.fill = { type = "image", filename = "desert-track-3.png" }
 display.newText("No tiling (ref)", W*0.75, H*0.65 - 90, native.systemFont, 10):setFillColor(1,1,0)
 
 print("COMPOSITE_TEST: READY backend=" .. backend)
+
+-- 等 60 帧确保 composite 切换（500ms timer）完成后截图
+local fc = 0
+Runtime:addEventListener("enterFrame", function()
+    fc = fc + 1
+    if fc == 60 then
+        print("COMPOSITE_TILING TEST: DONE")
+        print("SCREENSHOT_READY")
+    end
+end)
