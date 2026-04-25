@@ -271,6 +271,26 @@ jobs:
           name: bgfx-libs-android
           path: external/bgfx/.build/android-arm64/bin
       - run: ./tools/GHAction/daily_env.sh
+      - name: Compute Gradle cache key
+        id: gradle-key
+        run: |
+          HASH=$(find . \( -name "*.gradle" -o -name "*.gradle.kts" \
+                           -o -name "gradle-wrapper.properties" \) \
+                   -not -path "*/build/*" \
+                   | sort | xargs sha256sum 2>/dev/null \
+                   | sha256sum | cut -c1-16)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "Gradle cache key hash: $HASH"
+
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ steps.gradle-key.outputs.hash }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
       - name: Build Native
         run: JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME_17_arm64}" ./tools/GHAction/build_native.sh
         env:
