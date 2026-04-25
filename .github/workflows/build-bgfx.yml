@@ -1,0 +1,145 @@
+name: bgfx Build Verification
+
+on:
+  push:
+    branches:
+      - bgfx-solar2d
+      - 'feature/**'
+  pull_request:
+    branches:
+      - bgfx-solar2d
+  workflow_dispatch:
+
+env:
+  WORKSPACE: ${{ github.workspace }}
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
+jobs:
+  build-bgfx-libs:
+    name: Build bgfx static libraries
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Generate bgfx projects
+        working-directory: ./external/bgfx
+        run: make .build/projects/gmake-osx-arm64
+      - name: Build bgfx (Debug + Release)
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
+      - name: Copy libs to xcode15 dir
+        run: |
+          mkdir -p external/bgfx/.build/projects/xcode15
+          cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
+      - name: Upload bgfx libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15/lib*.a
+
+  macOS-build:
+    name: macOS ${{ matrix.config }} Build
+    needs: build-bgfx-libs
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Download bgfx libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs
+          path: external/bgfx/.build/projects/xcode15
+      - name: Patch project for CI
+        run: |
+          # Remove non-essential deps (CoronaCards/Console/Shell) from rttplayer
+          python3 -c "
+          f = 'platform/mac/ratatouille.xcodeproj/project.pbxproj'
+          t = open(f).read()
+          for did in ['C2B5FEEE1B336C3D00DD49E6','C26DD1131BD9514100EC4F44','C2B5FEF01B336C4200DD49E6']:
+              t = t.replace('\t\t\t\t' + did + ' /* PBXTargetDependency */,\n', '')
+          open(f,'w').write(t)
+          "
+          # Create placeholder app bundles for CopyFiles build phases
+          for cfg in Debug Release; do
+            for app in CoronaConsole CoronaShell; do
+              mkdir -p "platform/mac/${app}/build/${cfg}/${app}.app/Contents/MacOS"
+              touch "platform/mac/${app}/build/${cfg}/${app}.app/Contents/MacOS/${app}"
+            done
+          done
+      - name: Build rttplayer (${{ matrix.config }})
+        run: |
+          xcodebuild -project platform/mac/ratatouille.xcodeproj \
+            -target rttplayer \
+            -configuration ${{ matrix.config }} \
+            build \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            2>&1 | tail -80 || true
+      - name: Verify binary exists
+        run: |
+          test -f "platform/mac/build/${{ matrix.config }}/Corona Simulator.app/Contents/MacOS/Corona Simulator"
+          echo "${{ matrix.config }} binary verified"
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-${{ matrix.config }}
+          path: platform/mac/build/${{ matrix.config }}/Corona Simulator.app
+
+  iOS-templates:
+    name: iOS Template Build (${{ matrix.target }})
+    runs-on: macos-26
+    strategy:
+      matrix:
+        target: [template, template-angle]
+    env:
+      TEMPLATE_TARGET: ${{ matrix.target }}
+      TEMPLATE_PLATFORM: iphone
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set build env
+        run: |
+          {
+            echo "BUILD_NUMBER=9999"
+            echo "BUILD=2100.9999"
+            echo "YEAR=2100"
+            echo "MONTH=$(date +'%-m')"
+            echo "DAY=$(date +'%-d')"
+          } >> "$GITHUB_ENV"
+      - name: Build iOS templates
+        working-directory: ./platform/iphone
+        run: |
+          XCODE_SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          ./build_templates.sh "$XCODE_SDK" "2100.9999"
+
+  Android-NDK:
+    name: Android NDK Compile Check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: CMake configure and build
+        working-directory: ./platform/android/ndk
+        run: |
+          mkdir -p ci-build && cd ci-build
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DCORONA_ROOT=${{ github.workspace }} \
+            -DLuaIncludePath=${{ github.workspace }}/external/lua-5.1.3/src
+          cmake --build . -j$(nproc)
