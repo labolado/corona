@@ -1247,6 +1247,26 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
     fAnalytics->Log("loadExtension", "extension", [[extParams.path lastPathComponent] UTF8String]);
     
     __block CoronaWindowController *extView = [[[CoronaWindowController alloc] initWithPath:extParams.path width:extParams.width height:extParams.height title:extParams.title resizable:extParams.resizable showWindowTitle:extParams.showWindowTitle] autorelease];
+
+    // Issue #027: install windowShouldCloseBlock for the Welcome extension BEFORE
+    // didPrepare runs (didPrepare → BeginRunLoop → Runtime is live; window can be
+    // close-attempted any time after that). When kDoNotAutoCloseWelcomeWindowOnSimulatorLaunch=YES
+    // we veto the close so CoronaWindowController.windowShouldClose skips the
+    // runtime->Suspend() branch — that suspend would stop the Welcome NSTimer
+    // permanently, leaving Welcome's bgfx swap chain unsubmitted (white screen).
+    {
+        NSString *_builtinExtDirectory_027 = [[[[NSBundle mainBundle] builtInPlugInsPath] stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Extensions"];
+        if ([extParams.path hasSuffix:[_builtinExtDirectory_027 stringByAppendingPathComponent:@"welcome"]])
+        {
+            [extView setWindowShouldCloseBlock:^BOOL(void)
+            {
+                NSNumber *doNotClose = [[[NSUserDefaultsController sharedUserDefaultsController] values]
+                                           valueForKey:kDoNotAutoCloseWelcomeWindowOnSimulatorLaunch];
+                return ( YES == [doNotClose boolValue] ) ? NO : YES;
+            }];
+        }
+    }
+
     Rtt::RuntimeDelegate *delegate = new Rtt::HomeScreenRuntimeDelegate( extView, extParams.path );
     [extView setRuntimeDelegate:delegate];
 
