@@ -241,6 +241,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
+          if gh release view "$TAG" --repo labolado/corona &>/dev/null; then
+            echo "Release $TAG already exists (created by parallel run), skipping publish"
+            exit 0
+          fi
           echo "Publishing prebuilt release: $TAG"
           # Strip debug symbols to reduce archive size (safe for linking)
           find external/bgfx/.build/projects/xcode15 -name 'lib*.a' -exec strip -S {} \;
