@@ -77,7 +77,7 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           DL=$(mktemp -d)
-          if gh release download "$TAG" --repo labolado/corona --dir "$DL" 2>/dev/null; then
+          if gh release download "$TAG" --repo labolado/bgfx --dir "$DL" 2>/dev/null; then
             echo "Prebuilt found: $TAG"
             # Extract to correct paths
             mkdir -p external/bgfx/.build/projects/xcode15
@@ -235,13 +235,13 @@ jobs:
           SHADERC="external/bgfx/tools/bin/darwin/shaderc"
           echo "Using prebuilt shaderc: $(file "$SHADERC")"
           bash tests/compile_shaders.sh --check
-      - name: Publish prebuilt libs to labolado/corona
+      - name: Publish prebuilt libs to labolado/bgfx
         if: steps.prebuilt.outputs.hit != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.LABOLADO_BGFX_RELEASE_TOKEN || github.token }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
-          if gh release view "$TAG" --repo labolado/corona &>/dev/null; then
+          if gh release view "$TAG" --repo labolado/bgfx &>/dev/null; then
             echo "Release $TAG already exists (created by parallel run), skipping publish"
             exit 0
           fi
@@ -263,7 +263,7 @@ jobs:
           ( cd "external/bgfx/.build/android-arm64/bin"  && tar -czf "$OLDPWD/bgfx-android.tar.gz"       lib*.a )
           tar -czf bgfx-tools.tar.gz         -C external/bgfx/tools/bin/darwin shaderc
           gh release create "$TAG" \
-            --repo labolado/corona \
+            --repo labolado/bgfx \
             --title "bgfx prebuilt $TAG" \
             --notes "Auto-built by CI from ${{ github.sha }}" \
             bgfx-macos.tar.gz bgfx-ios-device.tar.gz bgfx-ios-simulator.tar.gz bgfx-android.tar.gz bgfx-tools.tar.gz

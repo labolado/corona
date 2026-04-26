@@ -40,7 +40,7 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           DL=$(mktemp -d)
-          if gh release download "$TAG" --repo labolado/corona --dir "$DL" 2>/dev/null; then
+          if gh release download "$TAG" --repo labolado/bgfx --dir "$DL" 2>/dev/null; then
             echo "Prebuilt found: $TAG"
             mkdir -p external/bgfx/.build/projects/xcode15
             tar -xzf "$DL/bgfx-macos.tar.gz"         -C external/bgfx/.build/projects/xcode15
