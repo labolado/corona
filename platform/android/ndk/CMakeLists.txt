@@ -1,5 +1,23 @@
 cmake_minimum_required(VERSION 3.13)
 
+# When invoked standalone (e.g. the Verify CI Android NDK Compile Check) rather
+# than as add_subdirectory of platform/android/sdk/CMakeLists.txt, the lua_2_cpp
+# helper and Lua2CppOutputDir variable will not have been set yet. Pull them in
+# from the SDK helper so this CMakeLists.txt can be configured directly.
+if(NOT COMMAND lua_2_cpp)
+	if(NOT DEFINED Lua2CppOutputDir)
+		set(Lua2CppOutputDir "${CMAKE_CURRENT_BINARY_DIR}/generated_src")
+	endif()
+	# lua_to_native.sh pushd's into Lua2CppOutputDir before writing — the dir
+	# must exist at build time. Gradle's externalNativeBuild creates it for us
+	# in the SDK path; in the standalone path we have to do it ourselves.
+	file(MAKE_DIRECTORY "${Lua2CppOutputDir}")
+	if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+		set(CMAKE_BUILD_TYPE Release)
+	endif()
+	include("${CORONA_ROOT}/platform/android/sdk/CMakeGenLua.cmake")
+endif()
+
 set(COMMON_COMPILER_FLAGS "-Wno-deprecated -O3 -fstrict-aliasing -fvisibility=hidden -ffunction-sections -fdata-sections")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_COMPILER_FLAGS} -std=c++17")
