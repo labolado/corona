@@ -62,6 +62,15 @@ bool BgfxCommandBuffer::sBatchingEnabled = true;
 static bool sStripBatchEnabled = true;
 static bool sStripBatchEnvChecked = false;
 
+// Same-mask-level batch toggle (SOLAR2D_MASK_BATCH=0 disables). Default: ON.
+// In bgfx, the default shader is unified across MaskCount0..3 (runtime branch
+// via u_TexFlags.y), so consecutive cmds with the same non-zero MaskCount can
+// be merged when their mask matrix uniform snapshots are byte-identical.
+// (For GL backend, each MaskCount = different program, so this toggle has no
+// effect there; the change lives only in BgfxCommandBuffer.)
+static bool sMaskBatchEnabled = true;
+static bool sMaskBatchEnvChecked = false;
+
 // CanBatchDraws failure counters
 static U64 sBatchCheck_Total = 0;
 static U64 sBatchCheck_Success = 0;
@@ -75,6 +84,9 @@ static U64 sBatchFail_NotTriangle = 0;          // not kTriangles/kIndexedTriang
 static U64 sBatchFail_Program = 0;              // a.program != b.program
 static U64 sBatchFail_ProgramVersion = 0;       // a.programVersion != b.programVersion
 static U64 sBatchFail_MaskCount = 0;            // programVersion != kMaskCount0
+// DIAG: when SOLAR2D_MASK_BATCH=1, count snapshot-mismatch rejections separately
+// from "feature disabled" rejections so we can tell the two apart in [BatchStats].
+static U64 sBatchFail_MaskMatrixSnapshot = 0;
 static U64 sBatchFail_State = 0;                // bgfxState mismatch
 static U64 sBatchFail_Scissor = 0;
 static U64 sBatchFail_Texture = 0;
@@ -1324,8 +1336,41 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     if( a.program != b.program ) { ++sBatchFail_Program; return false; }
     if( a.programVersion != b.programVersion ) { ++sBatchFail_ProgramVersion; return false; }
 
-    // Only batch maskless draws (mask uniforms are per-object)
-    if( a.programVersion != Program::kMaskCount0 ) { ++sBatchFail_MaskCount; return false; }
+    // Same-mask-level batching: in bgfx the default shader is unified
+    // (mask count drives runtime branches via u_TexFlags.y, all MaskCount
+    // versions share the same compiled binary). Consecutive cmds with the
+    // same non-zero MaskCount can therefore be merged, provided the mask
+    // matrix uniform snapshots are byte-identical (the texture check at
+    // line 1342-1345 covers mask sampler slots 2/3/4). When sMaskBatchEnabled
+    // is OFF the legacy GL-style behavior is restored (no non-zero merging).
+    if( a.programVersion != Program::kMaskCount0 )
+    {
+        if( !sMaskBatchEnabled )
+        {
+            ++sBatchFail_MaskCount;
+            return false;
+        }
+        // Defensive: mask matrix snapshots must match byte-for-byte. Upstream
+        // Renderer's maskUniformDirty flag should already guarantee this for
+        // any pair that reaches CanBatchDraws, but compare explicitly so a
+        // future Renderer change can't silently produce wrong rendering.
+        const int n = static_cast<int>( a.programVersion );
+        for( int i = 0; i < n; ++i )
+        {
+            const DeferredCmd::UniformSnapshot& ua = a.uniforms[Uniform::kMaskMatrix0 + i];
+            const DeferredCmd::UniformSnapshot& ub = b.uniforms[Uniform::kMaskMatrix0 + i];
+            if( ua.valid != ub.valid || ua.size != ub.size )
+            {
+                ++sBatchFail_MaskMatrixSnapshot;
+                return false;
+            }
+            if( ua.valid && memcmp( ua.data, ub.data, ua.size ) != 0 )
+            {
+                ++sBatchFail_MaskMatrixSnapshot;
+                return false;
+            }
+        }
+    }
 
     // Same render state (blend, primitive type, MSAA)
     if( a.bgfxState != b.bgfxState ) { ++sBatchFail_State; return false; }
@@ -1648,6 +1693,20 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         }
         sStripBatchEnvChecked = true;
     }
+    if( !sMaskBatchEnvChecked )
+    {
+        const char* env = getenv( "SOLAR2D_MASK_BATCH" );
+        if( env && strcmp( env, "0" ) == 0 )
+        {
+            sMaskBatchEnabled = false;
+            Rtt_LogException( "Same-mask-level batch merge DISABLED via SOLAR2D_MASK_BATCH=0\n" );
+        }
+        else
+        {
+            Rtt_LogException( "Same-mask-level batch merge ENABLED\n" );
+        }
+        sMaskBatchEnvChecked = true;
+    }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
     for( size_t i = 0; i < fDeferredCmds.size(); ++i )
@@ -1840,7 +1899,7 @@ void BgfxCommandBuffer::DumpBatchStats()
     sBatchCheck_Total ? 100.0 * sBatchFail_##name / sBatchCheck_Total : 0))
     DUMP(TypeMismatch); DUMP(NotDrawType); DUMP(Instanced);
     DUMP(TriangleFan); DUMP(TriangleStrip); DUMP(PrimitiveMismatch); DUMP(NotTriangle);
-    DUMP(Program); DUMP(ProgramVersion); DUMP(MaskCount);
+    DUMP(Program); DUMP(ProgramVersion); DUMP(MaskCount); DUMP(MaskMatrixSnapshot);
     DUMP(State); DUMP(Scissor); DUMP(Texture); DUMP(NamedUniforms); DUMP(GeometryInvalid);
 #undef DUMP
     Rtt_TRACE_SIM(("[BatchStats] ===========================================\n"));
@@ -1849,7 +1908,7 @@ void BgfxCommandBuffer::DumpBatchStats()
     sBatchCheck_Total = sBatchCheck_Success = 0;
     sBatchFail_TypeMismatch = sBatchFail_NotDrawType = sBatchFail_Instanced = 0;
     sBatchFail_TriangleFan = sBatchFail_TriangleStrip = sBatchFail_PrimitiveMismatch = sBatchFail_NotTriangle = 0;
-    sBatchFail_Program = sBatchFail_ProgramVersion = sBatchFail_MaskCount = 0;
+    sBatchFail_Program = sBatchFail_ProgramVersion = sBatchFail_MaskCount = sBatchFail_MaskMatrixSnapshot = 0;
     sBatchFail_State = sBatchFail_Scissor = sBatchFail_Texture = sBatchFail_NamedUniforms = sBatchFail_GeometryInvalid = 0;
 }
 
