@@ -159,6 +159,7 @@ IPhoneScreenSurface::NativeWindow() const
 		layer.device = MTLCreateSystemDefaultDevice();
 		layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 		layer.framebufferOnly = YES;
+		layer.opaque = YES;
 		layer.contentsScale = fView.contentScaleFactor;
 		layer.frame = fView.bounds;
 		[fView.layer addSublayer:layer];
