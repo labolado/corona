@@ -1,0 +1,11 @@
+[tools]
+python = "3.12"
+node = "20"
+java = "17"
+cmake = "3.28"
+
+[env]
+# Android NDK path (install via Android Studio or sdkmanager)
+# ANDROID_HOME must be set externally or in ~/.config/mise/config.toml
+# NDK 27.0.12077973 is required by tests/build_android.sh
+_
