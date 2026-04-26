@@ -211,6 +211,7 @@ class BgfxCommandBuffer : public CommandBuffer
         };
         static BatchStats sBatchStats;
         static bool sBatchingEnabled;
+        static void DumpBatchStats();
 
         // Call this after bgfx::setPlatformData() to force bgfx::reset() on next SetViewport
         // (needed after lock-screen on Android to recreate the EGL surface)
