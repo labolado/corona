@@ -129,6 +129,11 @@ class Geometry : public CPUResource
             Real u, v, q;         // 12 bytes
             U8 rs, gs, bs, as;     // 4 bytes
             Real ux, uy, uz, uw; // 16 bytes
+            // Per-vertex mask matrix array indices (008 mask per-vertex encoding).
+            // bgfx-only; values 0..15 index into u_MaskMatricesArr{0,1,2}[16].
+            // GL backend ignores these bytes (no a_indices in GL shaders).
+            // [0]=mask level 0 idx, [1]=lvl 1, [2]=lvl 2, [3]=reserved.
+            U8 maskIdx[4];        // 4 bytes
         };
 
         typedef U16 Index;
