@@ -39,20 +39,23 @@ BgfxGeometry::InitializeVertexLayout()
 {
 	if( !sLayoutInitialized )
 	{
-		// 44 bytes stride layout:
-		// Position(3f) + TexCoord0(3f) + Color0(4ub normalized) + TexCoord1(4f)
+		// 48 bytes stride layout (008 mask per-vertex encoding):
+		// Position(3f) + TexCoord0(3f) + Color0(4ub norm) + TexCoord1(4f) + Indices(4ub raw)
+		// `a_indices` carries up to 4 per-vertex mask matrix array indices (0..15).
+		// _normalized=false, _asInt=false → shader sees vec4 with raw 0..255 float values.
 		sVertexLayout
 			.begin()
-			.add( bgfx::Attrib::Position,  3, bgfx::AttribType::Float )           // offset 0,  12 bytes
-			.add( bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float )           // offset 12, 12 bytes
-			.add( bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true )     // offset 24, 4 bytes (normalized)
-			.add( bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float )           // offset 28, 16 bytes
+			.add( bgfx::Attrib::Position,  3, bgfx::AttribType::Float )                  // offset 0,  12 bytes
+			.add( bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float )                  // offset 12, 12 bytes
+			.add( bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true )            // offset 24, 4 bytes (normalized)
+			.add( bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float )                  // offset 28, 16 bytes
+			.add( bgfx::Attrib::Indices,   4, bgfx::AttribType::Uint8, false, false )    // offset 44, 4 bytes (raw 0..255)
 			.end();
-		
+
 		sLayoutInitialized = true;
-		
-		// Verify stride matches expected 44 bytes
-		Rtt_ASSERT( sVertexLayout.getStride() == 44 );
+
+		// Verify stride matches expected 48 bytes (was 44, +4 for a_indices)
+		Rtt_ASSERT( sVertexLayout.getStride() == 48 );
 	}
 }
 

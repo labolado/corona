@@ -94,6 +94,14 @@ struct DeferredCmd
     int namedUniformCount;
     int namedUniformOffset; // index into BgfxCommandBuffer::fNamedUniformSideTable, -1 if none
 
+    // 008 mask per-vertex: per-batch mask matrix arrays (one per mask level).
+    // Offset is in mat3-units into BgfxCommandBuffer::fMaskMatrixArrSideTable
+    // (each mat3 = 9 floats compact). count == 0 means "no array" (default
+    // shader path falls back to identity matrix at slot 0; non-default
+    // shaders ignore these entirely and read u_MaskMatrix0/1/2 instead).
+    int maskArrOffset[3];     // -1 if not used
+    uint8_t maskArrCount[3];  // 0..16
+
     // Instance draw data (opaque, cast to InstanceDrawData* by bgfx backend)
     void* instanceDraw;
 
@@ -139,6 +147,14 @@ class BgfxCommandBuffer : public CommandBuffer
         virtual void BindGeometry( Geometry* geometry );
         virtual void BindTexture( Texture* texture, U32 unit );
         virtual void BindUniform( Uniform* uniform, U32 unit );
+
+        // 008 mask per-vertex: upload an array of mask matrices once per batch
+        // (default shader path only). Renderer collects up to 16 unique mat3
+        // per mask level via Uniform*-keyed dedup and calls this once before
+        // submitting the batch. `matrices` points to count*9 floats (compact
+        // mat3 layout). Pass count==0 to clear (no array on subsequent draws).
+        // level: 0..2 (mask depth).
+        void SetMaskMatricesArray( U32 level, const float* matrices, U32 count );
         virtual void BindProgram( Program* program, Program::Version version );
         virtual void BindInstancing( U32 count, Geometry::Vertex* instanceData );
         virtual void BindVertexFormat( FormatExtensionList* list, U16 fullCount, U16 vertexSize, U32 offset );
@@ -193,6 +209,8 @@ class BgfxCommandBuffer : public CommandBuffer
         void ExecuteCaptureRect( const DeferredCmd& cmd );
         void SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd );
         void ApplyNamedUniforms( const DeferredCmd& cmd );
+        // 008 mask per-vertex: upload mat3 arrays for default shader path.
+        void ApplyMaskMatricesArr( BgfxProgram* prog, const DeferredCmd& cmd );
 
         // Draw call batching
         bool CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const;
@@ -300,6 +318,17 @@ class BgfxCommandBuffer : public CommandBuffer
 
         // Side table for named uniform data (indexed by DeferredCmd::namedUniformOffset)
         std::vector<DeferredCmd::NamedUniformSnapshot> fNamedUniformSideTable;
+
+        // 008 mask per-vertex: side table of mat3 mask matrices (compact 9-float
+        // layout). Indexed by DeferredCmd::maskArrOffset[level] (mat3 units).
+        // Cleared at end of every frame alongside fDeferredCmds/fNamedUniformSideTable.
+        std::vector<float> fMaskMatrixArrSideTable;
+        // Pending state — most recent SetMaskMatricesArray() call's offset/count
+        // per level. SnapshotUniforms() copies these into DeferredCmd::maskArr*.
+        // Reset to (-1, 0) at frame end so non-default-program draws don't
+        // accidentally inherit the previous batch's array.
+        int fPendingMaskArrOffset[3];
+        uint8_t fPendingMaskArrCount[3];
 
         // View ID allocator for FBOs
         static bgfx::ViewId sNextViewId;
