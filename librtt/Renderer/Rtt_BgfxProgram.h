@@ -51,6 +51,24 @@ public:
     // Get texture flags uniform handle (for alpha texture swizzle)
     bgfx::UniformHandle GetTexFlagsHandle() const { return fUniformTexFlags; }
 
+    // 008 mask per-vertex: array size shared with vs_default.sc's
+    // u_MaskMatricesArr[N] declaration. Must stay in sync with shader.
+    static const U16 kMaskMatricesArrSize = 16;
+
+    // Getter for mat3-array uniform handles. Only meaningful on the default
+    // shader program; filter VSes don't reference these arrays so setUniform
+    // writes are silently ignored. level: 0..2 (mask depth slot).
+    bgfx::UniformHandle GetMaskMatricesArrHandle(U32 level) const
+    {
+        switch (level)
+        {
+            case 0: return fUniformMaskMatricesArr0;
+            case 1: return fUniformMaskMatricesArr1;
+            case 2: return fUniformMaskMatricesArr2;
+            default: return BGFX_INVALID_HANDLE;
+        }
+    }
+
     // Set uniform value (data points to appropriate type based on uniform)
     void SetUniform(Uniform::Name name, const void* data);
 
@@ -89,10 +107,12 @@ private:
     
     // Load precompiled shader binary
     bool LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem);
-    
+
     // Create all global uniforms (called once)
     void CreateUniforms();
     void DestroyUniforms();
+
+    // (008 mask per-vertex public getters moved above to public section.)
 
 private:
     VersionData fData[Program::kNumVersions];
@@ -104,6 +124,13 @@ private:
     bgfx::UniformHandle fUniformMaskMatrix0;
     bgfx::UniformHandle fUniformMaskMatrix1;
     bgfx::UniformHandle fUniformMaskMatrix2;
+    // 008 mask per-vertex encoding: mat3 array uniforms used by default VS only.
+    // Filter VSes still use the single-mat3 fUniformMaskMatrix0/1/2 above.
+    // bgfx createUniform returns valid handles regardless of shader contents,
+    // so unused handles set values that are simply discarded at draw.
+    bgfx::UniformHandle fUniformMaskMatricesArr0;
+    bgfx::UniformHandle fUniformMaskMatricesArr1;
+    bgfx::UniformHandle fUniformMaskMatricesArr2;
     bgfx::UniformHandle fUniformTotalTime;      // vec4, time in .x
     bgfx::UniformHandle fUniformDeltaTime;      // vec4, delta in .x
     bgfx::UniformHandle fUniformTexelSize;
