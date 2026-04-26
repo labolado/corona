@@ -692,20 +692,30 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     }
     else
     {
+        // 008 mask per-vertex: when bgfx default-shader path encodes mask
+        // matrix slot via per-vertex a_indices, mask matrix changes do NOT
+        // need to flush the batch — the snapshot/dedup map handles divergence
+        // inside one ExecuteBatchedDraws. Three-way guard ensures we never
+        // weaken the legacy path for GL, custom/filter shaders, or when the
+        // env-var fallback is engaged.
+        const bool isDefaultCategory = ( shaderResource->GetCategory() == ShaderTypes::kCategoryDefault );
+        const bool maskUniformBatchable = sIsBgfxRenderer && fMaskPerVertexEnabled && isDefaultCategory;
+        const bool effectiveMaskUniformDirty = maskUniformDirty && !maskUniformBatchable;
+
         bool batch =
             !( blendDirty
                 || blendEquationDirty
                 || fillDirty0
                 || fillDirty1
                 || maskTextureDirty
-                || maskUniformDirty
+                || effectiveMaskUniformDirty
                 || programDirty
                 || userUniformDirty0
                 || userUniformDirty1
                 || userUniformDirty2
                 || userUniformDirty3
                 || formatsDirty
-				|| fCaptureGroups.Length() > 0 
+				|| fCaptureGroups.Length() > 0
                 || dirtyIndices.Length() > 0 );
 
         // Only triangle strips are batched. All other primitive types
