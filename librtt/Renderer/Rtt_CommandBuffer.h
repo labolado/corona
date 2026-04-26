@@ -90,6 +90,13 @@ class CommandBuffer
 		virtual void BindGeometry( Geometry* geometry ) = 0;
         virtual void BindTexture( Texture* texture, U32 unit ) = 0;
         virtual void BindUniform( Uniform* uniform, U32 unit ) = 0;
+
+        // 008 mask per-vertex (bgfx default-shader path only). Default impl
+        // is a no-op so GL backend ignores. BgfxCommandBuffer overrides.
+        virtual void SetMaskMatricesArray( U32 level, const float* matrices, U32 count )
+        {
+            (void)level; (void)matrices; (void)count;
+        }
         virtual void BindProgram( Program* program, Program::Version version ) = 0;
         virtual void BindInstancing( U32 count, Geometry::Vertex* instanceData ) = 0;
         virtual void BindVertexFormat( FormatExtensionList* extensionList, U16 fullCount, U16 vertexSize, U32 offset ) = 0;
