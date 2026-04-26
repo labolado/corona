@@ -48,18 +48,28 @@ jobs:
             tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C external/bgfx/.build/ios-arm64/bin
             mkdir -p external/bgfx/.build/ios-simulator/bin
             tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C external/bgfx/.build/ios-simulator/bin
+            mkdir -p external/bgfx/.build/android-arm64/bin
+            if [ -f "$DL/bgfx-android.tar.gz" ]; then
+              tar -xzf "$DL/bgfx-android.tar.gz" -C external/bgfx/.build/android-arm64/bin
+            else
+              echo "::warning::bgfx-android.tar.gz missing in release $TAG — Android arm64 will be built from source"
+            fi
             echo "hit=true" >> $GITHUB_OUTPUT
           else
             echo "Prebuilt not found, will build from source"
             echo "hit=false" >> $GITHUB_OUTPUT
           fi
-      - name: Generate bgfx projects (macOS arm64 + iOS device + iOS simulator)
-        if: steps.prebuilt.outputs.hit != 'true'
+      - name: Generate bgfx projects (macOS arm64 + iOS device + iOS simulator + Android arm64)
+        if: steps.prebuilt.outputs.hit != 'true' || hashFiles('external/bgfx/.build/android-arm64/bin/libbgfxRelease.a') == ''
         working-directory: ./external/bgfx
         run: |
-          make .build/projects/gmake-osx-arm64
-          make .build/projects/gmake-ios-arm64
-          make .build/projects/gmake-ios-simulator
+          if [ "${{ steps.prebuilt.outputs.hit }}" != "true" ]; then
+            make .build/projects/gmake-osx-arm64
+            make .build/projects/gmake-ios-arm64
+            make .build/projects/gmake-ios-simulator
+          fi
+          export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
+          make .build/projects/gmake-android-arm64
       - name: Build bgfx macOS arm64 (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
@@ -77,6 +87,12 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
+      - name: Build bgfx Android arm64 (Release)
+        if: steps.prebuilt.outputs.hit != 'true' || hashFiles('external/bgfx/.build/android-arm64/bin/libbgfxRelease.a') == ''
+        working-directory: ./external/bgfx
+        run: |
+          export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
+          make -C .build/projects/gmake-android-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
       - name: Stage macOS libs in xcode15 dir
         if: steps.prebuilt.outputs.hit != 'true'
         run: |
@@ -97,6 +113,11 @@ jobs:
         with:
           name: bgfx-libs-ios-simulator
           path: external/bgfx/.build/ios-simulator/bin/lib*.a
+      - name: Upload bgfx Android arm64 libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-android-arm64
+          path: external/bgfx/.build/android-arm64/bin/lib*.a
 
   macOS-build:
     name: macOS ${{ matrix.config }} Build
@@ -196,11 +217,17 @@ jobs:
 
   Android-NDK:
     name: Android NDK Compile Check
+    needs: build-bgfx-libs
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Download bgfx Android arm64 libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-android-arm64
+          path: external/bgfx/.build/android-arm64/bin
       - name: CMake configure and build
         working-directory: ./platform/android/ndk
         run: |
