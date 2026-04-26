@@ -18,27 +18,85 @@ jobs:
   build-bgfx-libs:
     name: Build bgfx static libraries
     runs-on: macos-26
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Generate bgfx projects
+      - name: Compute prebuilt release tag
+        id: tag
+        run: |
+          BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
+          BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
+          BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
+          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Prebuilt tag: $TAG"
+      - name: Try download prebuilt libs
+        id: prebuilt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          DL=$(mktemp -d)
+          if gh release download "$TAG" --repo labolado/corona --dir "$DL" 2>/dev/null; then
+            echo "Prebuilt found: $TAG"
+            mkdir -p external/bgfx/.build/projects/xcode15
+            tar -xzf "$DL/bgfx-macos.tar.gz"         -C external/bgfx/.build/projects/xcode15
+            mkdir -p external/bgfx/.build/ios-arm64/bin
+            tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C external/bgfx/.build/ios-arm64/bin
+            mkdir -p external/bgfx/.build/ios-simulator/bin
+            tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C external/bgfx/.build/ios-simulator/bin
+            echo "hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "Prebuilt not found, will build from source"
+            echo "hit=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Generate bgfx projects (macOS arm64 + iOS device + iOS simulator)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
-        run: make .build/projects/gmake-osx-arm64
-      - name: Build bgfx (Debug + Release)
+        run: |
+          make .build/projects/gmake-osx-arm64
+          make .build/projects/gmake-ios-arm64
+          make .build/projects/gmake-ios-simulator
+      - name: Build bgfx macOS arm64 (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
-      - name: Copy libs to xcode15 dir
+      - name: Build bgfx iOS device (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
+      - name: Build bgfx iOS simulator (Release)
+        if: steps.prebuilt.outputs.hit != 'true'
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
+      - name: Stage macOS libs in xcode15 dir
+        if: steps.prebuilt.outputs.hit != 'true'
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
           cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
-      - name: Upload bgfx libs
+      - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15/lib*.a
+      - name: Upload bgfx iOS device libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-ios-device
+          path: external/bgfx/.build/ios-arm64/bin/lib*.a
+      - name: Upload bgfx iOS simulator libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          path: external/bgfx/.build/ios-simulator/bin/lib*.a
 
   macOS-build:
     name: macOS ${{ matrix.config }} Build
@@ -98,8 +156,10 @@ jobs:
 
   iOS-templates:
     name: iOS Template Build (${{ matrix.target }})
+    needs: build-bgfx-libs
     runs-on: macos-26
     strategy:
+      fail-fast: false
       matrix:
         target: [template, template-angle]
     env:
@@ -109,6 +169,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Download bgfx iOS device libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-device
+          path: external/bgfx/.build/ios-arm64/bin
+      - name: Download bgfx iOS simulator libs
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          path: external/bgfx/.build/ios-simulator/bin
       - name: Set build env
         run: |
           {
@@ -126,8 +196,7 @@ jobs:
 
   Android-NDK:
     name: Android NDK Compile Check
-    runs-on: ubuntu-latest
-    continue-on-error: true
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -140,6 +209,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCORONA_ROOT=${{ github.workspace }} \
             -DLuaIncludePath=${{ github.workspace }}/external/lua-5.1.3/src
-          cmake --build . -j$(nproc)
+          cmake --build . -j$(sysctl -n hw.ncpu)
