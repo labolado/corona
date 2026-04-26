@@ -8,6 +8,10 @@ if(NOT COMMAND lua_2_cpp)
 	if(NOT DEFINED Lua2CppOutputDir)
 		set(Lua2CppOutputDir "${CMAKE_CURRENT_BINARY_DIR}/generated_src")
 	endif()
+	# lua_to_native.sh pushd's into Lua2CppOutputDir before writing — the dir
+	# must exist at build time. Gradle's externalNativeBuild creates it for us
+	# in the SDK path; in the standalone path we have to do it ourselves.
+	file(MAKE_DIRECTORY "${Lua2CppOutputDir}")
 	if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
 		set(CMAKE_BUILD_TYPE Release)
 	endif()
