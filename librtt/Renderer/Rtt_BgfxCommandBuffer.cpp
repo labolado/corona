@@ -81,6 +81,15 @@ static U64 sBatchFail_Texture = 0;
 static U64 sBatchFail_NamedUniforms = 0;
 static U64 sBatchFail_GeometryInvalid = 0;
 
+// 008 mask per-vertex diagnostics (Phase 3 fallback verification).
+// sMaskPvSetUniformCalls: # times SetMaskMatricesArray was actually called by
+//   Renderer with count > 0 (true new-path activity).
+// sMaskPvApplyUploads: # times ApplyMaskMatricesArr issued bgfx::setUniform
+//   (per draw exec; counts batches' draws regardless of which level fired).
+// Both reset alongside batch fail counters every 300 frames in DumpBatchStats.
+static U64 sMaskPvSetUniformCalls = 0;
+static U64 sMaskPvApplyUploads = 0;
+
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -401,6 +410,8 @@ BgfxCommandBuffer::SetMaskMatricesArray( U32 level, const float* matrices, U32 c
         fPendingMaskArrCount[level] = 0;
         return;
     }
+
+    ++sMaskPvSetUniformCalls;
 
     if( count > 16 )
     {
@@ -895,6 +906,7 @@ BgfxCommandBuffer::ApplyMaskMatricesArr( BgfxProgram* prog, const DeferredCmd& c
         // Side table stores compact 9 floats per mat3. offset is in mat3 units.
         const float* base = fMaskMatrixArrSideTable.data() + ( offset * 9 );
         bgfx::setUniform( h, base, count );
+        ++sMaskPvApplyUploads;
     }
 }
 
@@ -1972,6 +1984,11 @@ void BgfxCommandBuffer::DumpBatchStats()
     DUMP(Program); DUMP(ProgramVersion); DUMP(MaskCount);
     DUMP(State); DUMP(Scissor); DUMP(Texture); DUMP(NamedUniforms); DUMP(GeometryInvalid);
 #undef DUMP
+    // 008 mask per-vertex diagnostics — confirms whether the new path is firing.
+    Rtt_TRACE_SIM(("[BatchStats] [maskPV] SetMaskMatricesArray calls: %llu\n",
+                   sMaskPvSetUniformCalls));
+    Rtt_TRACE_SIM(("[BatchStats] [maskPV] ApplyMaskMatricesArr setUniform: %llu\n",
+                   sMaskPvApplyUploads));
     Rtt_TRACE_SIM(("[BatchStats] ===========================================\n"));
 
     // Reset for next round
@@ -1980,6 +1997,8 @@ void BgfxCommandBuffer::DumpBatchStats()
     sBatchFail_TriangleFan = sBatchFail_TriangleStrip = sBatchFail_PrimitiveMismatch = sBatchFail_NotTriangle = 0;
     sBatchFail_Program = sBatchFail_ProgramVersion = sBatchFail_MaskCount = 0;
     sBatchFail_State = sBatchFail_Scissor = sBatchFail_Texture = sBatchFail_NamedUniforms = sBatchFail_GeometryInvalid = 0;
+    sMaskPvSetUniformCalls = 0;
+    sMaskPvApplyUploads = 0;
 }
 
 // ----------------------------------------------------------------------------

@@ -825,6 +825,10 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
                     fMaskPerVertexEnabled = false;
                 }
                 fMaskPerVertexEnvChecked = true;
+                // 008 Phase 3 fallback verification: log decision exactly once
+                // so coordinator can diff env=ON vs env=OFF runs.
+                Rtt_LogException( "[maskPV] env SOLAR2D_MASK_PER_VERTEX=%s -> ENABLED=%d\n",
+                    env ? env : "(unset)", fMaskPerVertexEnabled ? 1 : 0 );
             }
 
             const ShaderResource* sr = data->fProgram
