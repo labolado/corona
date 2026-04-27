@@ -274,7 +274,13 @@ BgfxTexture::Create( CPUResource* resource )
 			static_cast<uint16_t>(w),
 			static_cast<uint16_t>(h),
 			false, 1, format, flags);
-		
+
+		if( !bgfx::isValid( fHandle ) )
+		{
+			Rtt_LogException( "ERROR: BgfxTexture Create FAILED (RT path): format=%d w=%u h=%u flags=0x%llx. Render target will be black.\n",
+				(int)format, w, h, (unsigned long long)flags );
+		}
+
 		fCachedFormat = static_cast<S32>( Texture::kRGBA );
 		fCachedWidth = w;
 		fCachedHeight = h;
@@ -449,6 +455,12 @@ BgfxTexture::Update( CPUResource* resource )
 				flags,
 				mem
 			);
+
+			if( !bgfx::isValid( fHandle ) )
+			{
+				Rtt_LogException( "ERROR: BgfxTexture Update createTexture2D FAILED (format=%d w=%u h=%u samplerFlags=0x%x). Texture will not render.\n",
+					(int)actualFormat, w, h, fSamplerFlags );
+			}
 
 			fCachedFormat = static_cast<S32>( format );
 			fCachedWidth = w;
