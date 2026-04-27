@@ -165,14 +165,6 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     }
 
     fDeferredCmds.reserve( 512 );
-
-    // 008 mask per-vertex: pending mask matrix array state starts unset
-    for( U32 i = 0; i < 3; ++i )
-    {
-        fPendingMaskArrOffset[i] = -1;
-        fPendingMaskArrCount[i] = 0;
-    }
-    fMaskMatrixArrSideTable.reserve( 9 * 16 * 4 );  // 4 batches' worth
 }
 
 BgfxCommandBuffer::~BgfxCommandBuffer()
@@ -384,42 +376,6 @@ BgfxCommandBuffer::BindUniform( Uniform* uniform, U32 unit )
 }
 
 void
-BgfxCommandBuffer::SetMaskMatricesArray( U32 level, const float* matrices, U32 count )
-{
-    if( level >= 3 )
-    {
-        Rtt_ASSERT_NOT_REACHED();
-        return;
-    }
-
-    if( count == 0 )
-    {
-        // Caller wants the default-shader path to "have no array" for this
-        // level on subsequent draws. SnapshotUniforms will write count=0,
-        // ExecuteDraw will skip the bgfx::setUniform upload.
-        fPendingMaskArrOffset[level] = -1;
-        fPendingMaskArrCount[level] = 0;
-        return;
-    }
-
-    if( count > 16 )
-    {
-        Rtt_ASSERT_NOT_REACHED();
-        count = 16;
-    }
-
-    // Append `count` mat3 (9 floats each) into the side table; record offset
-    // in mat3-units so consumers can index sideTable[offset*9 + i*9 ..].
-    int offsetInMat3 = (int)( fMaskMatrixArrSideTable.size() / 9 );
-    const U32 floats = count * 9;
-    fMaskMatrixArrSideTable.insert(
-        fMaskMatrixArrSideTable.end(), matrices, matrices + floats );
-
-    fPendingMaskArrOffset[level] = offsetInMat3;
-    fPendingMaskArrCount[level] = (uint8_t)count;
-}
-
-void
 BgfxCommandBuffer::BindProgram( Program* program, Program::Version version )
 {
     if( program )
@@ -626,16 +582,6 @@ BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
             cmd.uniforms[i].valid = false;
             cmd.uniforms[i].size = 0;
         }
-    }
-
-    // 008 mask per-vertex: snapshot pending mask matrix array offsets/counts.
-    // The actual array data lives in fMaskMatrixArrSideTable (shared) — cmd
-    // only stores indices, so adjacent draws in a batch end up referencing
-    // the same array entry (cheap CanBatchDraws check by integer compare).
-    for( U32 i = 0; i < 3; ++i )
-    {
-        cmd.maskArrOffset[i] = fPendingMaskArrOffset[i];
-        cmd.maskArrCount[i] = fPendingMaskArrCount[i];
     }
 
     // Snapshot pending named uniforms into side table
@@ -870,34 +816,6 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
     }
 }
 
-// 008 mask per-vertex: upload the per-batch mask matrix arrays to the
-// default shader's u_MaskMatricesArr0/1/2 uniforms. Skips levels where
-// count==0 (no array set, or non-default-program draw). Filter VS programs
-// don't declare these uniforms — bgfx::setUniform on a unused-by-shader
-// handle is silently a no-op, so this is safe to call unconditionally.
-void
-BgfxCommandBuffer::ApplyMaskMatricesArr( BgfxProgram* prog, const DeferredCmd& cmd )
-{
-    if( !prog ) return;
-    for( U32 lvl = 0; lvl < 3; ++lvl )
-    {
-        const uint8_t count = cmd.maskArrCount[lvl];
-        const int offset = cmd.maskArrOffset[lvl];
-        if( count == 0 || offset < 0 )
-        {
-            continue;
-        }
-        bgfx::UniformHandle h = prog->GetMaskMatricesArrHandle( lvl );
-        if( !bgfx::isValid( h ) )
-        {
-            continue;
-        }
-        // Side table stores compact 9 floats per mat3. offset is in mat3 units.
-        const float* base = fMaskMatrixArrSideTable.data() + ( offset * 9 );
-        bgfx::setUniform( h, base, count );
-    }
-}
-
 void
 BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
 {
@@ -1062,9 +980,6 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
 
-    // 008 mask per-vertex: upload mat3 arrays (default shader only).
-    ApplyMaskMatricesArr( prog, cmd );
-
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
@@ -1205,9 +1120,6 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
-
-    // 008 mask per-vertex: upload mat3 arrays (default shader only).
-    ApplyMaskMatricesArr( prog, cmd );
 
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
@@ -1408,43 +1320,12 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
         a.primitiveType != Geometry::kIndexedTriangles &&
         a.primitiveType != Geometry::kTriangleStrip ) { ++sBatchFail_NotTriangle; return false; }
 
-    // Same program and version (programVersion encodes MaskCount, which controls
-    // u_TexFlags.y — must match across batched draws so the fragment shader
-    // applies the same number of mask sampler taps).
+    // Same program and version
     if( a.program != b.program ) { ++sBatchFail_Program; return false; }
     if( a.programVersion != b.programVersion ) { ++sBatchFail_ProgramVersion; return false; }
 
-    // 008 mask per-vertex: masked draws ARE batchable now, provided that they
-    // share the same per-batch mask matrix array reference (offset+count) for
-    // every active level. Within one Renderer batch this is automatic — the
-    // Renderer issues a single SetMaskMatricesArray() call before all draws
-    // in the batch, so they all snapshot the same offset.
-    //
-    // Cross-batch draws end up with different offsets (each FlushBatch appends
-    // a fresh slice to the side table) which correctly forces a flush.
-    //
-    // Filter VS draws don't write maskArr* (count stays 0), so mask filter
-    // draws can ONLY batch with maskless (programVersion == kMaskCount0) or
-    // other zero-count cmds — preserved by the offset/count compare below.
-    for( U32 lvl = 0; lvl < 3; ++lvl )
-    {
-        if( a.maskArrOffset[lvl] != b.maskArrOffset[lvl] ||
-            a.maskArrCount[lvl] != b.maskArrCount[lvl] )
-        {
-            ++sBatchFail_MaskCount; return false;
-        }
-    }
-
-    // Filter VS draws (programVersion >= kMaskCount1) that reach here without
-    // any mask array set still rely on per-draw u_MaskMatrix0/1/2 uniforms,
-    // which differ per object → cannot batch. Reject them on the legacy gate.
-    if( a.programVersion != Program::kMaskCount0 &&
-        a.maskArrCount[0] == 0 &&
-        a.maskArrCount[1] == 0 &&
-        a.maskArrCount[2] == 0 )
-    {
-        ++sBatchFail_MaskCount; return false;
-    }
+    // Only batch maskless draws (mask uniforms are per-object)
+    if( a.programVersion != Program::kMaskCount0 ) { ++sBatchFail_MaskCount; return false; }
 
     // Same render state (blend, primitive type, MSAA)
     if( a.bgfxState != b.bgfxState ) { ++sBatchFail_State; return false; }
@@ -1856,16 +1737,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
     fNamedUniformSideTable.clear();
-
-    // 008 mask per-vertex: side table grows as Renderer flushes batches; reset
-    // each frame so offsets restart from 0. Also clear pending state — last
-    // frame's mask arrays must not leak into the first batch of the new frame.
-    fMaskMatrixArrSideTable.clear();
-    for( U32 i = 0; i < 3; ++i )
-    {
-        fPendingMaskArrOffset[i] = -1;
-        fPendingMaskArrCount[i] = 0;
-    }
 
     // Reset instance data for next frame
     fInstanceCount = 0;
