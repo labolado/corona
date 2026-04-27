@@ -186,7 +186,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildCompiledShaderCacheKey(char* key, size_t keySize, const char* shaderStage,
                                         const char* category, const char* name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderStage, category, name,
+    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderStage, category, name,
              GetRuntimeShaderProfileSuffix());
 }
 
@@ -298,6 +298,15 @@ static const char kFragmentScHeaderBody[] =
     "SAMPLER2D(u_MaskSampler1, 3);\n"
     "SAMPLER2D(u_MaskSampler2, 4);\n"
     "\n"
+    "// Transform uniforms — must appear before time/data uniforms so the FS UBO\n"
+    "// layout matches the VS UBO layout (same regIndex for each named uniform).\n"
+    "// The FS does not USE these, but Vulkan requires identical UBO member ordering\n"
+    "// across all shader stages that share a descriptor binding.\n"
+    "uniform mat4 u_ViewProjectionMatrix;\n"
+    "uniform mat3 u_MaskMatrix0;\n"
+    "uniform mat3 u_MaskMatrix1;\n"
+    "uniform mat3 u_MaskMatrix2;\n"
+    "\n"
     "// Time and data uniforms (packed in vec4)\n"
     "uniform vec4 u_TotalTime;\n"
     "uniform vec4 u_DeltaTime;\n"
@@ -352,6 +361,42 @@ static bool PreambleDeclaresUniform(const std::string& preamble, const char* uni
         pos += strlen(uniformName);
     }
     return false;
+}
+
+// Strip a "uniform <type> <name>;" line from src and return the type string.
+// Returns empty if not found.
+static std::string StripAndGetUniformType(std::string& src, const char* uniformName)
+{
+    size_t nameLen = strlen(uniformName);
+    size_t pos = 0;
+    while ((pos = src.find(uniformName, pos)) != std::string::npos)
+    {
+        if (pos > 0 && (isalnum((unsigned char)src[pos-1]) || src[pos-1] == '_'))
+            { pos += nameLen; continue; }
+        size_t endPos = pos + nameLen;
+        if (endPos < src.size() && (isalnum((unsigned char)src[endPos]) || src[endPos] == '_'))
+            { pos += nameLen; continue; }
+
+        size_t lineStart = src.rfind('\n', pos);
+        lineStart = (lineStart == std::string::npos) ? 0 : lineStart + 1;
+        size_t lineEnd = src.find('\n', pos);
+        size_t lineContentEnd = (lineEnd != std::string::npos) ? lineEnd : src.size();
+        std::string line = src.substr(lineStart, lineContentEnd - lineStart);
+
+        size_t uniformPos = line.find("uniform");
+        if (uniformPos == std::string::npos) { pos += nameLen; continue; }
+
+        size_t typeStart = uniformPos + 7;
+        while (typeStart < line.size() && (line[typeStart] == ' ' || line[typeStart] == '\t')) ++typeStart;
+        size_t typeEnd = typeStart;
+        while (typeEnd < line.size() && line[typeEnd] != ' ' && line[typeEnd] != '\t' && line[typeEnd] != '\n') ++typeEnd;
+        std::string type = line.substr(typeStart, typeEnd - typeStart);
+
+        size_t eraseEnd = (lineEnd != std::string::npos) ? lineEnd + 1 : src.size();
+        src.erase(lineStart, eraseEnd - lineStart);
+        return type;
+    }
+    return "";
 }
 
 // Helper: build the $input line with optional custom varying slots
@@ -488,22 +533,26 @@ static std::string ReplaceVaryingNames(const std::string& src, const VaryingMapp
     return result;
 }
 
-// Build the complete template, skipping user data uniforms that preamble already declares.
-static std::string BuildFragmentTemplate(const std::string& preamble,
+// Build the complete template.
+// Strips u_UserData declarations from preamble and re-emits them in standard order
+// (0,1,2,3) so VS and FS share identical UBO member offsets in Vulkan.
+// Type is preserved (e.g. float stays float) so the Vulkan UBO type-promote pass
+// can still find and fix scalar declarations.
+static std::string BuildFragmentTemplate(std::string& preamble,
                                           const VaryingMapping& varyings = VaryingMapping())
 {
     std::string result = BuildFragmentInputLine(varyings) + "\n";
     result += kBgfxShaderInline;
     result += kFragmentScHeaderBody;
 
-    // Emit user data uniforms only if preamble doesn't already declare them
+    // Emit user data uniforms in standard order 0..3, stripping preamble declarations
+    // to prevent duplicate definitions and to guarantee identical UBO layout with VS.
     result += "// User data uniforms\n";
     for (int i = 0; i < kNumUserDataUniforms; ++i)
     {
-        if (!PreambleDeclaresUniform(preamble, kUserDataUniformNames[i]))
-        {
-            result += kUserDataUniformDecls[i];
-        }
+        std::string type = StripAndGetUniformType(preamble, kUserDataUniformNames[i]);
+        if (type.empty()) type = "vec4";
+        result += std::string("uniform ") + type + " " + kUserDataUniformNames[i] + ";\n";
     }
     result += "\n";
 
@@ -1115,11 +1164,13 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "uniform vec4 u_ContentSize;\n";
     result += "\n";
 
-    // User data uniforms (skip duplicates from preamble)
+    // User data uniforms: always emit in standard order 0..3 as vec4.
+    // Strip any preamble declarations first to prevent duplicates and ensure
+    // the VS UBO member offsets match the FS (Vulkan requires identical layout).
     for (int i = 0; i < kNumUserDataUniforms; ++i)
     {
-        if (!PreambleDeclaresUniform(preamble, kUserDataUniformNames[i]))
-            result += kUserDataUniformDecls[i];
+        StripAndGetUniformType(preamble, kUserDataUniformNames[i]);
+        result += kUserDataUniformDecls[i];
     }
     result += "\n";
 
@@ -2279,7 +2330,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         // Cache FS
         char fsKey[256];
         BuildCompiledShaderCacheKey(fsKey, sizeof(fsKey), "fs", category, name);
-        EvictCompiledShader(fsKey);
+        CacheCompiledShader(fsKey, fsBinary);
 
         // Handle vertex shader: custom VS if provided, or compile default VS for SPIR-V compatibility
         if (hasCustomVS)
