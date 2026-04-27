@@ -705,6 +705,12 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
             );
             fStagingW = readW;
             fStagingH = readH;
+
+            if( !bgfx::isValid( fStagingTexture ) )
+            {
+                Rtt_LogException( "ERROR: BgfxRenderer staging texture createTexture2D FAILED (w=%u h=%u). Screen capture will be skipped.\n",
+                    readW, readH );
+            }
         }
 
         if( bgfx::isValid( fStagingTexture ) )
@@ -760,6 +766,16 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
                 currentFrame,
                 attempts );
 #endif
+        }
+        else
+        {
+            static int sStagingWarnCount = 0;
+            if( sStagingWarnCount < 3 )
+            {
+                Rtt_LogException( "WARNING: BgfxRenderer staging texture invalid; screen capture will be skipped.\n" );
+                if( ++sStagingWarnCount == 3 )
+                    Rtt_LogException( "(further staging-texture warnings suppressed)\n" );
+            }
         }
 
 #if defined( Rtt_ANDROID_ENV )
