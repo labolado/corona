@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#include "Renderer/Rtt_BgfxShaderCacheKey.h"
 #include "Renderer/Rtt_Program.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_ShaderTypes.h"
@@ -73,8 +74,8 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 
 // Redirect macros to runtime-selected data
@@ -91,8 +92,8 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 #endif
 
@@ -599,6 +600,14 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                             name.c_str(), categoryStr);
                     }
                 }
+                else if (strcmp(type, "fs") == 0)
+                {
+                    // FS not found in runtime cache — will fall back to default FS silently.
+                    // This is the exact failure mode for mismatched cache keys: effect renders as blank/white.
+                    Rtt_LogException("WARNING: shader cache miss for effect '%s' FS (key='%s'). "
+                        "Using default FS — custom fragment shader WILL NOT run.\n",
+                        name.c_str(), cacheKey);
+                }
             }
         }
     }
@@ -606,6 +615,15 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
     // Fall back to default shaders
     if (!data)
     {
+        if (shaderRes && shaderRes->GetCategory() != ShaderTypes::kCategoryDefault
+            && !shaderRes->GetName().empty())
+        {
+            Rtt_LogException("WARNING: using default %s shader for custom effect '%s' (category '%s') — "
+                "no compiled binary found; the effect will NOT render correctly.\n",
+                type, shaderRes->GetName().c_str(),
+                ShaderTypes::StringForCategory(shaderRes->GetCategory()));
+        }
+
         if (strcmp(type, "vs") == 0)
         {
             data = S_VS_DEFAULT;
