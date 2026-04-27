@@ -148,6 +148,12 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 	const bgfx::Memory* vertexMem = bgfx::copy( vertexData, static_cast<uint32_t>( vertexDataSize ) );
 	fVertexBufferHandle = bgfx::createVertexBuffer( vertexMem, sVertexLayout );
 
+	if( !bgfx::isValid( fVertexBufferHandle ) )
+	{
+		Rtt_LogException( "ERROR: BgfxGeometry createVertexBuffer FAILED (vertexCount=%u size=%zu). Geometry data will not render.\n",
+			vertexCount, vertexDataSize );
+	}
+
 	// Create index buffer if present
 	const Geometry::Index* indexData = geometry->GetIndexData();
 	const U32 indexCount = geometry->GetIndicesAllocated();
@@ -159,6 +165,12 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 		const bgfx::Memory* indexMem = bgfx::copy( indexData, static_cast<uint32_t>( indexDataSize ) );
 		fIndexBufferHandle = bgfx::createIndexBuffer( indexMem, BGFX_BUFFER_NONE );
 		fHasIndexBuffer = true;
+
+		if( !bgfx::isValid( fIndexBufferHandle ) )
+		{
+			Rtt_LogException( "ERROR: BgfxGeometry createIndexBuffer FAILED (indexCount=%u size=%zu). Geometry data will not render.\n",
+				indexCount, indexDataSize );
+		}
 	}
 
 
@@ -172,22 +184,34 @@ BgfxGeometry::CreateDynamic( Geometry* geometry )
 	const U32 vertexCount = geometry->GetVerticesAllocated();
 	
 	// Create dynamic vertex buffer with resize capability
-	fDynamicVertexBufferHandle = bgfx::createDynamicVertexBuffer( 
-		vertexCount, 
-		sVertexLayout, 
+	fDynamicVertexBufferHandle = bgfx::createDynamicVertexBuffer(
+		vertexCount,
+		sVertexLayout,
 		BGFX_BUFFER_ALLOW_RESIZE
 	);
+
+	if( !bgfx::isValid( fDynamicVertexBufferHandle ) )
+	{
+		Rtt_LogException( "ERROR: BgfxGeometry createDynamicVertexBuffer FAILED (vertexCount=%u). Geometry data will not render.\n",
+			vertexCount );
+	}
 
 	// Create dynamic index buffer if present
 	const Geometry::Index* indexData = geometry->GetIndexData();
 	if( indexData )
 	{
 		const U32 indexCount = geometry->GetIndicesAllocated();
-		fDynamicIndexBufferHandle = bgfx::createDynamicIndexBuffer( 
-			indexCount, 
-			BGFX_BUFFER_ALLOW_RESIZE | BGFX_BUFFER_NONE 
+		fDynamicIndexBufferHandle = bgfx::createDynamicIndexBuffer(
+			indexCount,
+			BGFX_BUFFER_ALLOW_RESIZE | BGFX_BUFFER_NONE
 		);
 		fHasIndexBuffer = true;
+
+		if( !bgfx::isValid( fDynamicIndexBufferHandle ) )
+		{
+			Rtt_LogException( "ERROR: BgfxGeometry createDynamicIndexBuffer FAILED (indexCount=%u). Geometry data will not render.\n",
+				indexCount );
+		}
 	}
 
 	fVertexCount = vertexCount;
