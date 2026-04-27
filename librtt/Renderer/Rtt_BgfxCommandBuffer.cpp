@@ -749,6 +749,18 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         sLastBackbufferWidth = cmd.vpW;
         sLastBackbufferHeight = cmd.vpH;
         sPlatformDataChanged = false;
+
+        // bgfx::reset() invalidates all view state (clear color, view mode, etc.).
+        // Re-apply Sequential mode + clear on the screen view so painter's
+        // algorithm holds across resize / surface re-init: without this the
+        // first frames after reset have viewCount=0 and outline / overlap
+        // ordering breaks (BLACK_SCREEN_DETECTED in logcat).
+        bgfx::setViewMode( fDefaultView, bgfx::ViewMode::Sequential );
+        bgfx::setViewClear( fDefaultView,
+            BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+            0x00000000,
+            fClearDepth,
+            fClearStencil );
     }
 
     bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
