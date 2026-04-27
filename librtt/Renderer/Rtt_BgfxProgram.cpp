@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#include "Renderer/Rtt_BgfxShaderCacheKey.h"
 #include "Renderer/Rtt_Program.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_ShaderTypes.h"
@@ -73,8 +74,8 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 
 // Redirect macros to runtime-selected data
@@ -91,8 +92,8 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 #endif
 
