@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#include "Renderer/Rtt_BgfxShaderCacheKey.h"
 #include "Renderer/Rtt_Program.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_ShaderTypes.h"
@@ -71,11 +72,10 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
-    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
-    // the old layout would map attributes wrong, so invalidate the cache.
-    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    // Cache key version is centralized in Rtt_BgfxShaderCacheKey.h.
+    // Currently v8 (mask-PV layout, 68B vertex; bump on any layout change).
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 
 // FS stays single-binary; mask count is gated at runtime via u_TexFlags.y.
@@ -90,11 +90,10 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
-    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
-    // the old layout would map attributes wrong, so invalidate the cache.
-    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    // Cache key version is centralized in Rtt_BgfxShaderCacheKey.h.
+    // Currently v8 (mask-PV layout, 68B vertex; bump on any layout change).
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 #endif
 
