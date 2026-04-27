@@ -1101,10 +1101,7 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
 
     // Build complete .sc source
     std::string result;
-    // 008 mask per-vertex: a_indices must appear in $input so Metal pipeline
-    // state has a consumer for vertex layout slot 4 (BLENDINDICES). Custom
-    // VS body doesn't read a_indices — it still uses u_MaskMatrix0/1/2.
-    result += "$input a_position, a_texcoord0, a_color0, a_texcoord1, a_indices\n";
+    result += "$input a_position, a_texcoord0, a_color0, a_texcoord1\n";
     result += outputLine + "\n";
     result += kBgfxShaderInline;
     result += "uniform mat4 u_ViewProjectionMatrix;\n";
@@ -2247,8 +2244,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             "vec3 a_position  : POSITION;\n"
             "vec3 a_texcoord0 : TEXCOORD0;\n"
             "vec4 a_color0    : COLOR0;\n"
-            "vec4 a_texcoord1 : TEXCOORD1;\n"
-            "vec4 a_indices   : BLENDINDICES;\n";
+            "vec4 a_texcoord1 : TEXCOORD1;\n";
 
         std::string varyingText;
         if (!s_varyingDefPath.empty())
@@ -2316,7 +2312,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             // set layouts are compatible. Using the precompiled default VS (from Metal/
             // GLES path) causes layout mismatch → SIGSEGV in getDescriptorSet.
             static const char kEmbeddedDefaultVS[] =
-                "$input a_position, a_texcoord0, a_color0, a_texcoord1, a_indices\n"
+                "$input a_position, a_texcoord0, a_color0, a_texcoord1\n"
                 "$output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2\n"
                 "\n"
                 "#include <bgfx_shader.sh>\n"
