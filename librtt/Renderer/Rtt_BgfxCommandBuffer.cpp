@@ -115,7 +115,6 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fClearDepth( 1.0f ),
     fClearStencil( 0 ),
     fDefaultView( 0 ),
-    fScreenFb( BGFX_INVALID_HANDLE ),
     fCustomCommands( allocator ),
     fInstanceCount( 0 ),
     fInstanceData( NULL ),
@@ -179,33 +178,12 @@ BgfxCommandBuffer::Initialize()
 }
 
 void
-BgfxCommandBuffer::SetScreenViewId( bgfx::ViewId viewId )
-{
-    fDefaultView = viewId;
-    fCurrentView = viewId;
-}
-
-void
-BgfxCommandBuffer::SetScreenFrameBuffer( bgfx::FrameBufferHandle fb )
-{
-    fScreenFb = fb;
-}
-
-void
 BgfxCommandBuffer::InitializeFBO()
 {
-    // fDefaultView is injected by BgfxRenderer::InitializeBgfx before
-    // Renderer::Initialize() drives us here — see Issue #027. Primary renderer
-    // gets 200 (FBO views 1..199 render first under bgfx ascending order),
-    // secondaries get 201, 202, ... each routed to their own swap chain via
-    // bgfx::setViewFrameBuffer.
-    //
-    // Defensive fallback: if never injected (legacy call path), default to 200.
-    if ( 0 == fDefaultView )
-    {
-        fDefaultView = 200;
-        fCurrentView = fDefaultView;
-    }
+    // Screen uses high view ID so FBO views (1, 2, 3, ...) render first
+    // bgfx renders views in ascending ID order by default
+    fDefaultView = 200;
+    fCurrentView = fDefaultView;
 
     // CRITICAL: Solar2D uses painter's algorithm (draw order = layer order).
     // Without Sequential mode, bgfx may reorder draws by state for performance,
@@ -730,13 +708,7 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
 {
-    // bgfx::reset() resizes the PRIMARY main swap chain globally, so only the
-    // primary BgfxCommandBuffer may call it. Secondary renderers (Issue #027)
-    // own their own swap chain via createFrameBuffer — their FB size is fixed
-    // at attach time and must not stomp on the main swap chain dimensions.
-    const bool isSecondary = bgfx::isValid( fScreenFb );
-    if( !isSecondary
-        && fCurrentView == fDefaultView
+    if( fCurrentView == fDefaultView
         && ( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged ) )
     {
         // RISK: bgfx::reset() clears all view state (clear color, view mode, etc.)
@@ -1536,13 +1508,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     for( bgfx::ViewId v = 0; v <= fDefaultView; ++v )
     {
         bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
-    }
-    // Secondary runtime (Issue #027): re-bind our own swap-chain FB to the
-    // screen view every frame, AFTER the unbind loop above. Primary's
-    // fScreenFb is BGFX_INVALID_HANDLE (main swap chain — no binding needed).
-    if( bgfx::isValid( fScreenFb ) )
-    {
-        bgfx::setViewFrameBuffer( fDefaultView, fScreenFb );
     }
 
     // FBO views use IDs 1-199, screen view uses ID 200
