@@ -73,7 +73,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 
@@ -91,7 +91,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 #endif
