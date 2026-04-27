@@ -246,7 +246,7 @@ jobs:
 
   CoronaCards-iOS:
     needs: source-code
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
@@ -272,7 +272,7 @@ jobs:
 
   CoronaCards-iOS-angle:
     needs: source-code
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - name: Get processed code
