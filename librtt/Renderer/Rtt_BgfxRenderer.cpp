@@ -142,10 +142,24 @@ namespace {
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
                 Rtt_LogException("VulkanProbe: ARM Mali, threshold=1.0.61, safe=%s", safe ? "true" : "false");
                 break;
-            case kVendorQualcomm:    // Adreno: stable from Vulkan 1.0.49
+            case kVendorQualcomm: {  // Adreno: stable from Vulkan 1.0.49, except 5xx + pre-2019 driver
+                // Issue 011: Adreno 5xx (deviceID 0x05XXXXXX) + pre-2019 Vulkan driver
+                // (driverVersion < 0x07010000) have a swapchain present silent-failure
+                // (acquireWait stays 60-130ms / 4-10x vsync, screen black although render
+                // pipeline is active). Block by default; opt-in with SOLAR2D_FORCE_VULKAN=1.
+                bool isAdreno5xx = (props.deviceID & 0xFF000000) == 0x05000000;
+                bool oldDriver   = props.driverVersion < 0x07010000;
+                const char* forceFlag = getenv("SOLAR2D_FORCE_VULKAN");
+                bool forceVulkan = (forceFlag && forceFlag[0] == '1');
+                if (isAdreno5xx && oldDriver && !forceVulkan) {
+                    Rtt_LogException("VulkanProbe: Qualcomm Adreno 5xx + pre-2019 driver, blocklist (set SOLAR2D_FORCE_VULKAN=1 to override) -> GLES");
+                    safe = false;
+                    break;
+                }
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
                 Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
                 break;
+            }
             case kVendorImagination: // PowerVR: highest bar — Vulkan 1.1.170 + driver 1.473
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 1, 170);
                 Rtt_LogException("VulkanProbe: Imagination PowerVR, threshold=1.1.170, safe=%s", safe ? "true" : "false");
