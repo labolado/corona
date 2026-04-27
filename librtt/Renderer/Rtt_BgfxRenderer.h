@@ -81,14 +81,6 @@ private:
     mutable bool fCapsInitialized;
     bool fBgfxInitialized;
 
-    // Multi-window state (Issue #027). Each Solar2D Runtime owns its own
-    // BgfxRenderer; the first to attach becomes primary (owns bgfx::init),
-    // subsequent ones become secondary (own a createFrameBuffer swap chain).
-    // Attach/detach routed through BgfxContext — see Rtt_BgfxContext.h.
-    bool fIsPrimary;
-    bgfx::FrameBufferHandle fWindowFb;   // valid only for secondary
-    bgfx::ViewId fScreenViewId;          // unique per renderer (200, 201, ...)
-
     // Staging texture for CaptureFrameBuffer readback
     bgfx::TextureHandle fStagingTexture;
     U32 fStagingW;
