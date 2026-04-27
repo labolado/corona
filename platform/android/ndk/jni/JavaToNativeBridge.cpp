@@ -126,15 +126,31 @@ JavaToNativeBridge::SetSurface(JNIEnv* env, jobject surface)
 			"JavaToNativeBridge::SetSurface: surface destroyed, set bgfx nwh=NULL before releasing ANativeWindow");
 	}
 
+	if (surface)
+	{
+		ANativeWindow* newWindow = ANativeWindow_fromSurface(env, surface);
+		if (newWindow == fNativeWindow)
+		{
+			// Same underlying ANativeWindow — release the extra ref we just acquired
+			// and bail out without touching bgfx or fNativeWindow.  On older Adreno
+			// 530 drivers (2018-06 firmware) a redundant release+reacquire cycle on
+			// the same nwh causes the Vulkan swapchain to silently mark itself invalid,
+			// resulting in acquireNextImage stalls (60-130 ms) and a black screen.
+			ANativeWindow_release(newWindow);
+			return;
+		}
+		if (fNativeWindow)
+		{
+			ANativeWindow_release(fNativeWindow);
+		}
+		fNativeWindow = newWindow;
+		return;
+	}
+
 	if (fNativeWindow)
 	{
 		ANativeWindow_release(fNativeWindow);
 		fNativeWindow = NULL;
-	}
-
-	if (surface)
-	{
-		fNativeWindow = ANativeWindow_fromSurface(env, surface);
 	}
 }
 
