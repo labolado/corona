@@ -55,32 +55,6 @@ bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default sc
 BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0, 0 };
 bool BgfxCommandBuffer::sBatchingEnabled = true;
 
-// Strip-merge toggle (SOLAR2D_STRIP_BATCH=0 disables). Default: ON.
-// When ON, CanBatchDraws() will accept consecutive kTriangleStrip cmds for
-// merging via degenerate-bridge concatenation in ExecuteBatchedDraws().
-// When OFF, strips fall through as native single-cmd BGFX_STATE_PT_TRISTRIP submits.
-static bool sStripBatchEnabled = true;
-static bool sStripBatchEnvChecked = false;
-
-// CanBatchDraws failure counters
-static U64 sBatchCheck_Total = 0;
-static U64 sBatchCheck_Success = 0;
-static U64 sBatchFail_TypeMismatch = 0;        // a.type != b.type
-static U64 sBatchFail_NotDrawType = 0;          // not kDraw/kDrawIndexed
-static U64 sBatchFail_Instanced = 0;
-static U64 sBatchFail_TriangleFan = 0;
-static U64 sBatchFail_TriangleStrip = 0;
-static U64 sBatchFail_PrimitiveMismatch = 0;
-static U64 sBatchFail_NotTriangle = 0;          // not kTriangles/kIndexedTriangles
-static U64 sBatchFail_Program = 0;              // a.program != b.program
-static U64 sBatchFail_ProgramVersion = 0;       // a.programVersion != b.programVersion
-static U64 sBatchFail_MaskCount = 0;            // programVersion != kMaskCount0
-static U64 sBatchFail_State = 0;                // bgfxState mismatch
-static U64 sBatchFail_Scissor = 0;
-static U64 sBatchFail_Texture = 0;
-static U64 sBatchFail_NamedUniforms = 0;
-static U64 sBatchFail_GeometryInvalid = 0;
-
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -1291,67 +1265,61 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
 bool
 BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const
 {
-    ++sBatchCheck_Total;
-
     // Must be same draw type
-    if( a.type != b.type ) { ++sBatchFail_TypeMismatch; return false; }
+    if( a.type != b.type ) return false;
 
     // Only batch kDraw and kDrawIndexed
-    if( a.type != DeferredCmd::kDraw && a.type != DeferredCmd::kDrawIndexed ) { ++sBatchFail_NotDrawType; return false; }
+    if( a.type != DeferredCmd::kDraw && a.type != DeferredCmd::kDrawIndexed ) return false;
 
     // No instanced draws
-    if( a.instanceDraw || b.instanceDraw ) { ++sBatchFail_Instanced; return false; }
+    if( a.instanceDraw || b.instanceDraw ) return false;
 
     // No triangle fans (can't trivially concatenate without index conversion)
-    if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) { ++sBatchFail_TriangleFan; return false; }
+    if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
-    // Triangle strips: when sStripBatchEnabled is OFF, fall through as native
-    // BGFX_STATE_PT_TRISTRIP submits (legacy behavior — strip merge bypassed).
-    // When ON, allow strip-strip merging via degenerate-bridge concatenation in
-    // ExecuteBatchedDraws(). Both cmds must be strip (mixed strip/list won't merge).
-    if( !sStripBatchEnabled )
-    {
-        if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) { ++sBatchFail_TriangleStrip; return false; }
-    }
+    // No triangle strips: upstream Renderer already batches strips via pool geometry
+    // with degenerate triangles (dupFirst/dupLast padding). The cmd.offset/cmd.count
+    // we receive here points into pool-padded data, not raw strip topology, so we
+    // cannot safely reindex strips at this layer. Let them pass through as native
+    // BGFX_STATE_PT_TRISTRIP instead.
+    if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) return false;
 
-    // Must be same primitive type, and must be triangle-based (or strip when enabled)
-    if( a.primitiveType != b.primitiveType ) { ++sBatchFail_PrimitiveMismatch; return false; }
+    // Must be same primitive type, and must be triangle-based
+    if( a.primitiveType != b.primitiveType ) return false;
     if( a.primitiveType != Geometry::kTriangles &&
-        a.primitiveType != Geometry::kIndexedTriangles &&
-        a.primitiveType != Geometry::kTriangleStrip ) { ++sBatchFail_NotTriangle; return false; }
+        a.primitiveType != Geometry::kIndexedTriangles ) return false;
 
     // Same program and version
-    if( a.program != b.program ) { ++sBatchFail_Program; return false; }
-    if( a.programVersion != b.programVersion ) { ++sBatchFail_ProgramVersion; return false; }
+    if( a.program != b.program ) return false;
+    if( a.programVersion != b.programVersion ) return false;
 
     // Only batch maskless draws (mask uniforms are per-object)
-    if( a.programVersion != Program::kMaskCount0 ) { ++sBatchFail_MaskCount; return false; }
+    if( a.programVersion != Program::kMaskCount0 ) return false;
 
     // Same render state (blend, primitive type, MSAA)
-    if( a.bgfxState != b.bgfxState ) { ++sBatchFail_State; return false; }
+    if( a.bgfxState != b.bgfxState ) return false;
 
     // Same scissor
-    if( a.scissorEnabled != b.scissorEnabled ) { ++sBatchFail_Scissor; return false; }
+    if( a.scissorEnabled != b.scissorEnabled ) return false;
     if( a.scissorEnabled )
     {
         if( a.scissorX != b.scissorX || a.scissorY != b.scissorY ||
-            a.scissorW != b.scissorW || a.scissorH != b.scissorH ) { ++sBatchFail_Scissor; return false; }
+            a.scissorW != b.scissorW || a.scissorH != b.scissorH ) return false;
     }
 
     // Same textures (all units)
     for( U32 i = 0; i < 8; ++i )
     {
-        if( a.textures[i] != b.textures[i] ) { ++sBatchFail_Texture; return false; }
+        if( a.textures[i] != b.textures[i] ) return false;
     }
 
     // No named uniforms (custom effects can't batch)
-    if( a.namedUniformCount > 0 || b.namedUniformCount > 0 ) { ++sBatchFail_NamedUniforms; return false; }
+    if( a.namedUniformCount > 0 || b.namedUniformCount > 0 ) return false;
 
     // Must have valid geometry with CPU data
-    if( !a.geometry || !b.geometry ) { ++sBatchFail_GeometryInvalid; return false; }
-    if( !CPUResource::IsAlive( a.geometry ) || !CPUResource::IsAlive( b.geometry ) ) { ++sBatchFail_GeometryInvalid; return false; }
+    if( !a.geometry || !b.geometry ) return false;
+    if( !CPUResource::IsAlive( a.geometry ) || !CPUResource::IsAlive( b.geometry ) ) return false;
 
-    ++sBatchCheck_Success;
     return true;
 }
 
@@ -1380,20 +1348,13 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     if( batchSize < 2 ) return 0; // Not worth batching a single draw
 
     bool isIndexed = ( first.type == DeferredCmd::kDrawIndexed );
-    bool isStrip = ( first.primitiveType == Geometry::kTriangleStrip );
 
     // Only indexed draws need an index buffer for the merged output
     bool needsIndexBuffer = isIndexed;
 
-    // Calculate total vertices and indices needed.
-    // For strips: each cmd contributes count vertices, plus one degenerate-bridge
-    // vertex between adjacent cmds (= last vertex of prior cmd, duplicated). The
-    // pool data already has internal dupFirst/dupLast padding from upstream
-    // Renderer::CopyVertexData; the cross-cmd bridge collapses to 4 consecutive
-    // degenerate triangles that GPU strip rasterization skips.
+    // Calculate total vertices and indices needed
     U32 totalVertices = 0;
     U32 totalIndices = 0;
-    U32 validCmdCount = 0;
 
     for( size_t i = startIdx; i < end; ++i )
     {
@@ -1407,16 +1368,8 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
         }
         else
         {
-            if( cmd.count == 0 ) continue;
             totalVertices += cmd.count;
-            ++validCmdCount;
         }
-    }
-
-    if( isStrip && validCmdCount > 1 )
-    {
-        // (validCmdCount - 1) bridge vertices between adjacent strip cmds
-        totalVertices += ( validCmdCount - 1 );
     }
 
     if( totalVertices == 0 ) return 0;
@@ -1445,7 +1398,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     U32 vertexOffset = 0;
     U32 indexOffset = 0;
     U32 vertexSize = sizeof( Geometry::Vertex );
-    U32 emittedCmdCount = 0;  // for strip bridge insertion
 
     for( size_t i = startIdx; i < end; ++i )
     {
@@ -1476,29 +1428,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
             vertexOffset += vCount;
             indexOffset += iCount;
-        }
-        else if( isStrip )
-        {
-            U32 vCount = cmd.count;
-            if( vCount == 0 ) continue;
-            const Geometry::Vertex* src = srcVertices + cmd.offset;
-
-            // Bridge: before this cmd (except the very first one), insert a
-            // duplicate of the previous cmd's last vertex. Combined with this
-            // cmd's data starting with its own dupFirst (= v0 == v0_dup), we
-            // get 4 consecutive degenerate triangles spanning the cmd boundary.
-            if( emittedCmdCount > 0 )
-            {
-                memcpy( tvb.data + vertexOffset * vertexSize,
-                        tvb.data + ( vertexOffset - 1 ) * vertexSize,
-                        vertexSize );
-                vertexOffset += 1;
-            }
-
-            memcpy( tvb.data + vertexOffset * vertexSize,
-                    src, vCount * vertexSize );
-            vertexOffset += vCount;
-            ++emittedCmdCount;
         }
         else
         {
@@ -1634,20 +1563,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         }
         sCheckedEnv = true;
     }
-    if( !sStripBatchEnvChecked )
-    {
-        const char* env = getenv( "SOLAR2D_STRIP_BATCH" );
-        if( env && strcmp( env, "0" ) == 0 )
-        {
-            sStripBatchEnabled = false;
-            Rtt_LogException( "Strip batch merge DISABLED via SOLAR2D_STRIP_BATCH=0\n" );
-        }
-        else
-        {
-            Rtt_LogException( "Strip batch merge ENABLED\n" );
-        }
-        sStripBatchEnvChecked = true;
-    }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
     for( size_t i = 0; i < fDeferredCmds.size(); ++i )
@@ -1716,14 +1631,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     }
 
     sFrameNum++;
-
-    // Dump CanBatchDraws failure breakdown every 300 frames
-    static int sDumpCounter = 0;
-    if( ++sDumpCounter >= 300 )
-    {
-        DumpBatchStats();
-        sDumpCounter = 0;
-    }
 
     // Advance static geometry cache frame counter for auto-promotion
     // BgfxGeometry::AdvanceFrame(); // TODO: re-enable when static geometry caching is merged
@@ -1828,29 +1735,6 @@ BgfxCommandBuffer::AllocateViewId()
 
     Rtt_LogException( "bgfx: Out of view IDs!\n" );
     return 0;
-}
-
-void BgfxCommandBuffer::DumpBatchStats()
-{
-    Rtt_TRACE_SIM(("[BatchStats] === CanBatchDraws Failure Breakdown ===\n"));
-    Rtt_TRACE_SIM(("[BatchStats] total checks: %llu\n", sBatchCheck_Total));
-    Rtt_TRACE_SIM(("[BatchStats] success: %llu (%.2f%%)\n", sBatchCheck_Success,
-                   sBatchCheck_Total ? 100.0 * sBatchCheck_Success / sBatchCheck_Total : 0));
-#define DUMP(name) Rtt_TRACE_SIM(("[BatchStats] %s: %llu (%.2f%%)\n", #name, sBatchFail_##name, \
-    sBatchCheck_Total ? 100.0 * sBatchFail_##name / sBatchCheck_Total : 0))
-    DUMP(TypeMismatch); DUMP(NotDrawType); DUMP(Instanced);
-    DUMP(TriangleFan); DUMP(TriangleStrip); DUMP(PrimitiveMismatch); DUMP(NotTriangle);
-    DUMP(Program); DUMP(ProgramVersion); DUMP(MaskCount);
-    DUMP(State); DUMP(Scissor); DUMP(Texture); DUMP(NamedUniforms); DUMP(GeometryInvalid);
-#undef DUMP
-    Rtt_TRACE_SIM(("[BatchStats] ===========================================\n"));
-
-    // Reset for next round
-    sBatchCheck_Total = sBatchCheck_Success = 0;
-    sBatchFail_TypeMismatch = sBatchFail_NotDrawType = sBatchFail_Instanced = 0;
-    sBatchFail_TriangleFan = sBatchFail_TriangleStrip = sBatchFail_PrimitiveMismatch = sBatchFail_NotTriangle = 0;
-    sBatchFail_Program = sBatchFail_ProgramVersion = sBatchFail_MaskCount = 0;
-    sBatchFail_State = sBatchFail_Scissor = sBatchFail_Texture = sBatchFail_NamedUniforms = sBatchFail_GeometryInvalid = 0;
 }
 
 // ----------------------------------------------------------------------------
