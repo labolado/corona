@@ -38,7 +38,7 @@ ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 which adb > /dev/null 2>&1 || fail "adb 不在 PATH 中"
 
 # 检查设备连接
-ADB_DEVICE=$(adb devices 2>/dev/null | grep -v "List" | grep "device$" | head -1 | awk '{print $1}')
+ADB_DEVICE="${ADB_DEVICE:-$(adb devices 2>/dev/null | grep -v "List" | grep "device$" | head -1 | awk '{print $1}')}"
 if [ -z "$ADB_DEVICE" ]; then
     log "  WARNING: 没有 Android 设备连接，跳过安装步骤"
 fi

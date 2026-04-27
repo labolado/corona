@@ -55,41 +55,6 @@ bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default sc
 BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0, 0 };
 bool BgfxCommandBuffer::sBatchingEnabled = true;
 
-// Strip-merge toggle (SOLAR2D_STRIP_BATCH=0 disables). Default: ON.
-// When ON, CanBatchDraws() will accept consecutive kTriangleStrip cmds for
-// merging via degenerate-bridge concatenation in ExecuteBatchedDraws().
-// When OFF, strips fall through as native single-cmd BGFX_STATE_PT_TRISTRIP submits.
-static bool sStripBatchEnabled = true;
-static bool sStripBatchEnvChecked = false;
-
-// CanBatchDraws failure counters
-static U64 sBatchCheck_Total = 0;
-static U64 sBatchCheck_Success = 0;
-static U64 sBatchFail_TypeMismatch = 0;        // a.type != b.type
-static U64 sBatchFail_NotDrawType = 0;          // not kDraw/kDrawIndexed
-static U64 sBatchFail_Instanced = 0;
-static U64 sBatchFail_TriangleFan = 0;
-static U64 sBatchFail_TriangleStrip = 0;
-static U64 sBatchFail_PrimitiveMismatch = 0;
-static U64 sBatchFail_NotTriangle = 0;          // not kTriangles/kIndexedTriangles
-static U64 sBatchFail_Program = 0;              // a.program != b.program
-static U64 sBatchFail_ProgramVersion = 0;       // a.programVersion != b.programVersion
-static U64 sBatchFail_MaskCount = 0;            // programVersion != kMaskCount0
-static U64 sBatchFail_State = 0;                // bgfxState mismatch
-static U64 sBatchFail_Scissor = 0;
-static U64 sBatchFail_Texture = 0;
-static U64 sBatchFail_NamedUniforms = 0;
-static U64 sBatchFail_GeometryInvalid = 0;
-
-// 008 mask per-vertex diagnostics (Phase 3 fallback verification).
-// sMaskPvSetUniformCalls: # times SetMaskMatricesArray was actually called by
-//   Renderer with count > 0 (true new-path activity).
-// sMaskPvApplyUploads: # times ApplyMaskMatricesArr issued bgfx::setUniform
-//   (per draw exec; counts batches' draws regardless of which level fired).
-// Both reset alongside batch fail counters every 300 frames in DumpBatchStats.
-static U64 sMaskPvSetUniformCalls = 0;
-static U64 sMaskPvApplyUploads = 0;
-
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -150,7 +115,6 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fClearDepth( 1.0f ),
     fClearStencil( 0 ),
     fDefaultView( 0 ),
-    fScreenFb( BGFX_INVALID_HANDLE ),
     fCustomCommands( allocator ),
     fInstanceCount( 0 ),
     fInstanceData( NULL ),
@@ -174,14 +138,6 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     }
 
     fDeferredCmds.reserve( 512 );
-
-    // 008 mask per-vertex: pending mask matrix array state starts unset
-    for( U32 i = 0; i < 3; ++i )
-    {
-        fPendingMaskArrOffset[i] = -1;
-        fPendingMaskArrCount[i] = 0;
-    }
-    fMaskMatrixArrSideTable.reserve( 9 * 16 * 4 );  // 4 batches' worth
 }
 
 BgfxCommandBuffer::~BgfxCommandBuffer()
@@ -222,33 +178,12 @@ BgfxCommandBuffer::Initialize()
 }
 
 void
-BgfxCommandBuffer::SetScreenViewId( bgfx::ViewId viewId )
-{
-    fDefaultView = viewId;
-    fCurrentView = viewId;
-}
-
-void
-BgfxCommandBuffer::SetScreenFrameBuffer( bgfx::FrameBufferHandle fb )
-{
-    fScreenFb = fb;
-}
-
-void
 BgfxCommandBuffer::InitializeFBO()
 {
-    // fDefaultView is injected by BgfxRenderer::InitializeBgfx before
-    // Renderer::Initialize() drives us here — see Issue #027. Primary renderer
-    // gets 200 (FBO views 1..199 render first under bgfx ascending order),
-    // secondaries get 201, 202, ... each routed to their own swap chain via
-    // bgfx::setViewFrameBuffer.
-    //
-    // Defensive fallback: if never injected (legacy call path), default to 200.
-    if ( 0 == fDefaultView )
-    {
-        fDefaultView = 200;
-        fCurrentView = fDefaultView;
-    }
+    // Screen uses high view ID so FBO views (1, 2, 3, ...) render first
+    // bgfx renders views in ascending ID order by default
+    fDefaultView = 200;
+    fCurrentView = fDefaultView;
 
     // CRITICAL: Solar2D uses painter's algorithm (draw order = layer order).
     // Without Sequential mode, bgfx may reorder draws by state for performance,
@@ -390,44 +325,6 @@ BgfxCommandBuffer::BindUniform( Uniform* uniform, U32 unit )
         update.timestamp = gUniformTimestamp++;
         // Don't apply to GPU program here - deferred to Execute()
     }
-}
-
-void
-BgfxCommandBuffer::SetMaskMatricesArray( U32 level, const float* matrices, U32 count )
-{
-    if( level >= 3 )
-    {
-        Rtt_ASSERT_NOT_REACHED();
-        return;
-    }
-
-    if( count == 0 )
-    {
-        // Caller wants the default-shader path to "have no array" for this
-        // level on subsequent draws. SnapshotUniforms will write count=0,
-        // ExecuteDraw will skip the bgfx::setUniform upload.
-        fPendingMaskArrOffset[level] = -1;
-        fPendingMaskArrCount[level] = 0;
-        return;
-    }
-
-    ++sMaskPvSetUniformCalls;
-
-    if( count > 16 )
-    {
-        Rtt_ASSERT_NOT_REACHED();
-        count = 16;
-    }
-
-    // Append `count` mat3 (9 floats each) into the side table; record offset
-    // in mat3-units so consumers can index sideTable[offset*9 + i*9 ..].
-    int offsetInMat3 = (int)( fMaskMatrixArrSideTable.size() / 9 );
-    const U32 floats = count * 9;
-    fMaskMatrixArrSideTable.insert(
-        fMaskMatrixArrSideTable.end(), matrices, matrices + floats );
-
-    fPendingMaskArrOffset[level] = offsetInMat3;
-    fPendingMaskArrCount[level] = (uint8_t)count;
 }
 
 void
@@ -639,16 +536,6 @@ BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
         }
     }
 
-    // 008 mask per-vertex: snapshot pending mask matrix array offsets/counts.
-    // The actual array data lives in fMaskMatrixArrSideTable (shared) — cmd
-    // only stores indices, so adjacent draws in a batch end up referencing
-    // the same array entry (cheap CanBatchDraws check by integer compare).
-    for( U32 i = 0; i < 3; ++i )
-    {
-        cmd.maskArrOffset[i] = fPendingMaskArrOffset[i];
-        cmd.maskArrCount[i] = fPendingMaskArrCount[i];
-    }
-
     // Snapshot pending named uniforms into side table
     int count = (int)fPendingNamedUniforms.size();
     if( count > DeferredCmd::kMaxNamedUniforms )
@@ -821,13 +708,7 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
 {
-    // bgfx::reset() resizes the PRIMARY main swap chain globally, so only the
-    // primary BgfxCommandBuffer may call it. Secondary renderers (Issue #027)
-    // own their own swap chain via createFrameBuffer — their FB size is fixed
-    // at attach time and must not stomp on the main swap chain dimensions.
-    const bool isSecondary = bgfx::isValid( fScreenFb );
-    if( !isSecondary
-        && fCurrentView == fDefaultView
+    if( fCurrentView == fDefaultView
         && ( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged ) )
     {
         // RISK: bgfx::reset() clears all view state (clear color, view mode, etc.)
@@ -840,6 +721,18 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         sLastBackbufferWidth = cmd.vpW;
         sLastBackbufferHeight = cmd.vpH;
         sPlatformDataChanged = false;
+
+        // bgfx::reset() invalidates all view state (clear color, view mode, etc.).
+        // Re-apply Sequential mode + clear on the screen view so painter's
+        // algorithm holds across resize / surface re-init: without this the
+        // first frames after reset have viewCount=0 and outline / overlap
+        // ordering breaks (BLACK_SCREEN_DETECTED in logcat).
+        bgfx::setViewMode( fDefaultView, bgfx::ViewMode::Sequential );
+        bgfx::setViewClear( fDefaultView,
+            BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+            0x00000000,
+            fClearDepth,
+            fClearStencil );
     }
 
     bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
@@ -878,35 +771,6 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
     if( bgfx::isValid( texFlagsHandle ) )
     {
         bgfx::setUniform( texFlagsHandle, texFlags );
-    }
-}
-
-// 008 mask per-vertex: upload the per-batch mask matrix arrays to the
-// default shader's u_MaskMatricesArr0/1/2 uniforms. Skips levels where
-// count==0 (no array set, or non-default-program draw). Filter VS programs
-// don't declare these uniforms — bgfx::setUniform on a unused-by-shader
-// handle is silently a no-op, so this is safe to call unconditionally.
-void
-BgfxCommandBuffer::ApplyMaskMatricesArr( BgfxProgram* prog, const DeferredCmd& cmd )
-{
-    if( !prog ) return;
-    for( U32 lvl = 0; lvl < 3; ++lvl )
-    {
-        const uint8_t count = cmd.maskArrCount[lvl];
-        const int offset = cmd.maskArrOffset[lvl];
-        if( count == 0 || offset < 0 )
-        {
-            continue;
-        }
-        bgfx::UniformHandle h = prog->GetMaskMatricesArrHandle( lvl );
-        if( !bgfx::isValid( h ) )
-        {
-            continue;
-        }
-        // Side table stores compact 9 floats per mat3. offset is in mat3 units.
-        const float* base = fMaskMatrixArrSideTable.data() + ( offset * 9 );
-        bgfx::setUniform( h, base, count );
-        ++sMaskPvApplyUploads;
     }
 }
 
@@ -1074,9 +938,6 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
 
-    // 008 mask per-vertex: upload mat3 arrays (default shader only).
-    ApplyMaskMatricesArr( prog, cmd );
-
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
@@ -1217,9 +1078,6 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
-
-    // 008 mask per-vertex: upload mat3 arrays (default shader only).
-    ApplyMaskMatricesArr( prog, cmd );
 
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
@@ -1391,98 +1249,61 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
 bool
 BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const
 {
-    ++sBatchCheck_Total;
-
     // Must be same draw type
-    if( a.type != b.type ) { ++sBatchFail_TypeMismatch; return false; }
+    if( a.type != b.type ) return false;
 
     // Only batch kDraw and kDrawIndexed
-    if( a.type != DeferredCmd::kDraw && a.type != DeferredCmd::kDrawIndexed ) { ++sBatchFail_NotDrawType; return false; }
+    if( a.type != DeferredCmd::kDraw && a.type != DeferredCmd::kDrawIndexed ) return false;
 
     // No instanced draws
-    if( a.instanceDraw || b.instanceDraw ) { ++sBatchFail_Instanced; return false; }
+    if( a.instanceDraw || b.instanceDraw ) return false;
 
     // No triangle fans (can't trivially concatenate without index conversion)
-    if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) { ++sBatchFail_TriangleFan; return false; }
+    if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
-    // Triangle strips: when sStripBatchEnabled is OFF, fall through as native
-    // BGFX_STATE_PT_TRISTRIP submits (legacy behavior — strip merge bypassed).
-    // When ON, allow strip-strip merging via degenerate-bridge concatenation in
-    // ExecuteBatchedDraws(). Both cmds must be strip (mixed strip/list won't merge).
-    if( !sStripBatchEnabled )
-    {
-        if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) { ++sBatchFail_TriangleStrip; return false; }
-    }
+    // No triangle strips: upstream Renderer already batches strips via pool geometry
+    // with degenerate triangles (dupFirst/dupLast padding). The cmd.offset/cmd.count
+    // we receive here points into pool-padded data, not raw strip topology, so we
+    // cannot safely reindex strips at this layer. Let them pass through as native
+    // BGFX_STATE_PT_TRISTRIP instead.
+    if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) return false;
 
-    // Must be same primitive type, and must be triangle-based (or strip when enabled)
-    if( a.primitiveType != b.primitiveType ) { ++sBatchFail_PrimitiveMismatch; return false; }
+    // Must be same primitive type, and must be triangle-based
+    if( a.primitiveType != b.primitiveType ) return false;
     if( a.primitiveType != Geometry::kTriangles &&
-        a.primitiveType != Geometry::kIndexedTriangles &&
-        a.primitiveType != Geometry::kTriangleStrip ) { ++sBatchFail_NotTriangle; return false; }
+        a.primitiveType != Geometry::kIndexedTriangles ) return false;
 
-    // Same program and version (programVersion encodes MaskCount, which controls
-    // u_TexFlags.y — must match across batched draws so the fragment shader
-    // applies the same number of mask sampler taps).
-    if( a.program != b.program ) { ++sBatchFail_Program; return false; }
-    if( a.programVersion != b.programVersion ) { ++sBatchFail_ProgramVersion; return false; }
+    // Same program and version
+    if( a.program != b.program ) return false;
+    if( a.programVersion != b.programVersion ) return false;
 
-    // 008 mask per-vertex: masked draws ARE batchable now, provided that they
-    // share the same per-batch mask matrix array reference (offset+count) for
-    // every active level. Within one Renderer batch this is automatic — the
-    // Renderer issues a single SetMaskMatricesArray() call before all draws
-    // in the batch, so they all snapshot the same offset.
-    //
-    // Cross-batch draws end up with different offsets (each FlushBatch appends
-    // a fresh slice to the side table) which correctly forces a flush.
-    //
-    // Filter VS draws don't write maskArr* (count stays 0), so mask filter
-    // draws can ONLY batch with maskless (programVersion == kMaskCount0) or
-    // other zero-count cmds — preserved by the offset/count compare below.
-    for( U32 lvl = 0; lvl < 3; ++lvl )
-    {
-        if( a.maskArrOffset[lvl] != b.maskArrOffset[lvl] ||
-            a.maskArrCount[lvl] != b.maskArrCount[lvl] )
-        {
-            ++sBatchFail_MaskCount; return false;
-        }
-    }
-
-    // Filter VS draws (programVersion >= kMaskCount1) that reach here without
-    // any mask array set still rely on per-draw u_MaskMatrix0/1/2 uniforms,
-    // which differ per object → cannot batch. Reject them on the legacy gate.
-    if( a.programVersion != Program::kMaskCount0 &&
-        a.maskArrCount[0] == 0 &&
-        a.maskArrCount[1] == 0 &&
-        a.maskArrCount[2] == 0 )
-    {
-        ++sBatchFail_MaskCount; return false;
-    }
+    // Only batch maskless draws (mask uniforms are per-object)
+    if( a.programVersion != Program::kMaskCount0 ) return false;
 
     // Same render state (blend, primitive type, MSAA)
-    if( a.bgfxState != b.bgfxState ) { ++sBatchFail_State; return false; }
+    if( a.bgfxState != b.bgfxState ) return false;
 
     // Same scissor
-    if( a.scissorEnabled != b.scissorEnabled ) { ++sBatchFail_Scissor; return false; }
+    if( a.scissorEnabled != b.scissorEnabled ) return false;
     if( a.scissorEnabled )
     {
         if( a.scissorX != b.scissorX || a.scissorY != b.scissorY ||
-            a.scissorW != b.scissorW || a.scissorH != b.scissorH ) { ++sBatchFail_Scissor; return false; }
+            a.scissorW != b.scissorW || a.scissorH != b.scissorH ) return false;
     }
 
     // Same textures (all units)
     for( U32 i = 0; i < 8; ++i )
     {
-        if( a.textures[i] != b.textures[i] ) { ++sBatchFail_Texture; return false; }
+        if( a.textures[i] != b.textures[i] ) return false;
     }
 
     // No named uniforms (custom effects can't batch)
-    if( a.namedUniformCount > 0 || b.namedUniformCount > 0 ) { ++sBatchFail_NamedUniforms; return false; }
+    if( a.namedUniformCount > 0 || b.namedUniformCount > 0 ) return false;
 
     // Must have valid geometry with CPU data
-    if( !a.geometry || !b.geometry ) { ++sBatchFail_GeometryInvalid; return false; }
-    if( !CPUResource::IsAlive( a.geometry ) || !CPUResource::IsAlive( b.geometry ) ) { ++sBatchFail_GeometryInvalid; return false; }
+    if( !a.geometry || !b.geometry ) return false;
+    if( !CPUResource::IsAlive( a.geometry ) || !CPUResource::IsAlive( b.geometry ) ) return false;
 
-    ++sBatchCheck_Success;
     return true;
 }
 
@@ -1511,20 +1332,13 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     if( batchSize < 2 ) return 0; // Not worth batching a single draw
 
     bool isIndexed = ( first.type == DeferredCmd::kDrawIndexed );
-    bool isStrip = ( first.primitiveType == Geometry::kTriangleStrip );
 
     // Only indexed draws need an index buffer for the merged output
     bool needsIndexBuffer = isIndexed;
 
-    // Calculate total vertices and indices needed.
-    // For strips: each cmd contributes count vertices, plus one degenerate-bridge
-    // vertex between adjacent cmds (= last vertex of prior cmd, duplicated). The
-    // pool data already has internal dupFirst/dupLast padding from upstream
-    // Renderer::CopyVertexData; the cross-cmd bridge collapses to 4 consecutive
-    // degenerate triangles that GPU strip rasterization skips.
+    // Calculate total vertices and indices needed
     U32 totalVertices = 0;
     U32 totalIndices = 0;
-    U32 validCmdCount = 0;
 
     for( size_t i = startIdx; i < end; ++i )
     {
@@ -1538,16 +1352,8 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
         }
         else
         {
-            if( cmd.count == 0 ) continue;
             totalVertices += cmd.count;
-            ++validCmdCount;
         }
-    }
-
-    if( isStrip && validCmdCount > 1 )
-    {
-        // (validCmdCount - 1) bridge vertices between adjacent strip cmds
-        totalVertices += ( validCmdCount - 1 );
     }
 
     if( totalVertices == 0 ) return 0;
@@ -1576,7 +1382,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     U32 vertexOffset = 0;
     U32 indexOffset = 0;
     U32 vertexSize = sizeof( Geometry::Vertex );
-    U32 emittedCmdCount = 0;  // for strip bridge insertion
 
     for( size_t i = startIdx; i < end; ++i )
     {
@@ -1607,29 +1412,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
             vertexOffset += vCount;
             indexOffset += iCount;
-        }
-        else if( isStrip )
-        {
-            U32 vCount = cmd.count;
-            if( vCount == 0 ) continue;
-            const Geometry::Vertex* src = srcVertices + cmd.offset;
-
-            // Bridge: before this cmd (except the very first one), insert a
-            // duplicate of the previous cmd's last vertex. Combined with this
-            // cmd's data starting with its own dupFirst (= v0 == v0_dup), we
-            // get 4 consecutive degenerate triangles spanning the cmd boundary.
-            if( emittedCmdCount > 0 )
-            {
-                memcpy( tvb.data + vertexOffset * vertexSize,
-                        tvb.data + ( vertexOffset - 1 ) * vertexSize,
-                        vertexSize );
-                vertexOffset += 1;
-            }
-
-            memcpy( tvb.data + vertexOffset * vertexSize,
-                    src, vCount * vertexSize );
-            vertexOffset += vCount;
-            ++emittedCmdCount;
         }
         else
         {
@@ -1727,13 +1509,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     {
         bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
     }
-    // Secondary runtime (Issue #027): re-bind our own swap-chain FB to the
-    // screen view every frame, AFTER the unbind loop above. Primary's
-    // fScreenFb is BGFX_INVALID_HANDLE (main swap chain — no binding needed).
-    if( bgfx::isValid( fScreenFb ) )
-    {
-        bgfx::setViewFrameBuffer( fDefaultView, fScreenFb );
-    }
 
     // FBO views use IDs 1-199, screen view uses ID 200
     // bgfx renders views in ascending ID order, so FBOs render before screen
@@ -1764,20 +1539,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             Rtt_LogException( "Draw call batching ENABLED\n" );
         }
         sCheckedEnv = true;
-    }
-    if( !sStripBatchEnvChecked )
-    {
-        const char* env = getenv( "SOLAR2D_STRIP_BATCH" );
-        if( env && strcmp( env, "0" ) == 0 )
-        {
-            sStripBatchEnabled = false;
-            Rtt_LogException( "Strip batch merge DISABLED via SOLAR2D_STRIP_BATCH=0\n" );
-        }
-        else
-        {
-            Rtt_LogException( "Strip batch merge ENABLED\n" );
-        }
-        sStripBatchEnvChecked = true;
     }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
@@ -1848,14 +1609,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     sFrameNum++;
 
-    // Dump CanBatchDraws failure breakdown every 300 frames
-    static int sDumpCounter = 0;
-    if( ++sDumpCounter >= 300 )
-    {
-        DumpBatchStats();
-        sDumpCounter = 0;
-    }
-
     // Advance static geometry cache frame counter for auto-promotion
     // BgfxGeometry::AdvanceFrame(); // TODO: re-enable when static geometry caching is merged
 
@@ -1868,16 +1621,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
     fNamedUniformSideTable.clear();
-
-    // 008 mask per-vertex: side table grows as Renderer flushes batches; reset
-    // each frame so offsets restart from 0. Also clear pending state — last
-    // frame's mask arrays must not leak into the first batch of the new frame.
-    fMaskMatrixArrSideTable.clear();
-    for( U32 i = 0; i < 3; ++i )
-    {
-        fPendingMaskArrOffset[i] = -1;
-        fPendingMaskArrCount[i] = 0;
-    }
 
     // Reset instance data for next frame
     fInstanceCount = 0;
@@ -1969,36 +1712,6 @@ BgfxCommandBuffer::AllocateViewId()
 
     Rtt_LogException( "bgfx: Out of view IDs!\n" );
     return 0;
-}
-
-void BgfxCommandBuffer::DumpBatchStats()
-{
-    Rtt_TRACE_SIM(("[BatchStats] === CanBatchDraws Failure Breakdown ===\n"));
-    Rtt_TRACE_SIM(("[BatchStats] total checks: %llu\n", sBatchCheck_Total));
-    Rtt_TRACE_SIM(("[BatchStats] success: %llu (%.2f%%)\n", sBatchCheck_Success,
-                   sBatchCheck_Total ? 100.0 * sBatchCheck_Success / sBatchCheck_Total : 0));
-#define DUMP(name) Rtt_TRACE_SIM(("[BatchStats] %s: %llu (%.2f%%)\n", #name, sBatchFail_##name, \
-    sBatchCheck_Total ? 100.0 * sBatchFail_##name / sBatchCheck_Total : 0))
-    DUMP(TypeMismatch); DUMP(NotDrawType); DUMP(Instanced);
-    DUMP(TriangleFan); DUMP(TriangleStrip); DUMP(PrimitiveMismatch); DUMP(NotTriangle);
-    DUMP(Program); DUMP(ProgramVersion); DUMP(MaskCount);
-    DUMP(State); DUMP(Scissor); DUMP(Texture); DUMP(NamedUniforms); DUMP(GeometryInvalid);
-#undef DUMP
-    // 008 mask per-vertex diagnostics — confirms whether the new path is firing.
-    Rtt_TRACE_SIM(("[BatchStats] [maskPV] SetMaskMatricesArray calls: %llu\n",
-                   sMaskPvSetUniformCalls));
-    Rtt_TRACE_SIM(("[BatchStats] [maskPV] ApplyMaskMatricesArr setUniform: %llu\n",
-                   sMaskPvApplyUploads));
-    Rtt_TRACE_SIM(("[BatchStats] ===========================================\n"));
-
-    // Reset for next round
-    sBatchCheck_Total = sBatchCheck_Success = 0;
-    sBatchFail_TypeMismatch = sBatchFail_NotDrawType = sBatchFail_Instanced = 0;
-    sBatchFail_TriangleFan = sBatchFail_TriangleStrip = sBatchFail_PrimitiveMismatch = sBatchFail_NotTriangle = 0;
-    sBatchFail_Program = sBatchFail_ProgramVersion = sBatchFail_MaskCount = 0;
-    sBatchFail_State = sBatchFail_Scissor = sBatchFail_Texture = sBatchFail_NamedUniforms = sBatchFail_GeometryInvalid = 0;
-    sMaskPvSetUniformCalls = 0;
-    sMaskPvApplyUploads = 0;
 }
 
 // ----------------------------------------------------------------------------
