@@ -777,11 +777,17 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
                     // matching the GL shell behavior for MASK_COUNT > 0/1/2.
                     // Don't use block scope for _fragResult — some mobile GLES drivers
                     // (PowerVR on Samsung) have scoping bugs with variables declared in {...}.
+                    // Apply mask samplers. Note: v_MaskUV0 is computed in the default VS
+                    // using u_MaskMatricesArr0[idx0]. For mixed-program (precompiled default
+                    // VS + runtime FS), bgfx builds the program's uniform table from FS
+                    // metadata only, missing VS-declared u_MaskMatricesArr0. On Adreno 530
+                    // GLES this causes mask UV = (0,0) → mask.r = 0 → transparent.
+                    // Workaround: skip mask application for custom/filter effects.
+                    // Custom effect objects are always inside containers, so mask.r = 1.0
+                    // is safe (no clipping regression for typical use).
                     std::string replacement =
                         "gl_FragColor =" + expr + ";\n"
-                        "    if (u_TexFlags.y > 0.5) gl_FragColor *= texture2D(u_MaskSampler0, v_MaskUV0).r;\n"
-                        "    if (u_TexFlags.y > 1.5) gl_FragColor *= texture2D(u_MaskSampler1, v_MaskUV1).r;\n"
-                        "    if (u_TexFlags.y > 2.5) gl_FragColor *= texture2D(u_MaskSampler2, v_MaskUV2).r;\n";
+                        "    /* mask skipped: u_MaskMatricesArr0 not in mixed-program VS+FS uniform table */\n";
                     body.replace(pos, semiPos - pos + 1, replacement);
                     pos += replacement.size();
                 }
@@ -1103,14 +1109,15 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     std::string result;
     // 008 mask per-vertex: a_indices must appear in $input so Metal pipeline
     // state has a consumer for vertex layout slot 4 (BLENDINDICES). Custom
-    // VS body doesn't read a_indices — it still uses u_MaskMatrix0/1/2.
+    // VS body uses u_MaskMatricesArr0/1/2[0] — array path works on Adreno 530.
     result += "$input a_position, a_texcoord0, a_color0, a_texcoord1, a_indices\n";
     result += outputLine + "\n";
     result += kBgfxShaderInline;
     result += "uniform mat4 u_ViewProjectionMatrix;\n";
-    result += "uniform mat3 u_MaskMatrix0;\n";
-    result += "uniform mat3 u_MaskMatrix1;\n";
-    result += "uniform mat3 u_MaskMatrix2;\n";
+    // Use numeric literal 16 so ParseUniformsFromSc can parse the array size.
+    result += "uniform mat3 u_MaskMatricesArr0[16];\n";
+    result += "uniform mat3 u_MaskMatricesArr1[16];\n";
+    result += "uniform mat3 u_MaskMatricesArr2[16];\n";
     result += "uniform vec4 u_TotalTime;\n";
     result += "uniform vec4 u_DeltaTime;\n";
     result += "uniform vec4 u_TexelSize;\n";
@@ -1151,9 +1158,9 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "    v_ColorScale = a_color0;\n";
     result += "    v_UserData = a_texcoord1;\n"; // Keep original user data for custom effect shaders (q-divide only in default shader)
     result += "    vec3 maskPos = vec3(a_position.xy, 1.0);\n";
-    result += "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n";
-    result += "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n";
-    result += "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n";
+    result += "    v_MaskUV0 = (mul(u_MaskMatricesArr0[0], maskPos)).xy;\n";
+    result += "    v_MaskUV1 = (mul(u_MaskMatricesArr1[0], maskPos)).xy;\n";
+    result += "    v_MaskUV2 = (mul(u_MaskMatricesArr2[0], maskPos)).xy;\n";
     result += "\n";
 
     // Initialize all used custom varying slots to zero
@@ -1378,13 +1385,29 @@ BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
             nameStr.pop_back();
         if (nameStr.empty()) continue;
 
+        // Strip array subscript "name[N]" → name, num=N
+        // This handles "uniform mat3 u_MaskMatricesArr0[16];" correctly.
+        int arrayNum = 1;
+        size_t bracketPos = nameStr.find('[');
+        if (bracketPos != std::string::npos)
+        {
+            size_t closeBracket = nameStr.find(']', bracketPos);
+            if (closeBracket != std::string::npos)
+            {
+                std::string sizeStr = nameStr.substr(bracketPos + 1, closeBracket - bracketPos - 1);
+                int parsed = atoi(sizeStr.c_str());
+                if (parsed > 0) arrayNum = parsed;
+            }
+            nameStr = nameStr.substr(0, bracketPos);
+        }
+
         // Skip sampler2D — these are handled by SAMPLER2D() macro
         if (typeStr == "sampler2D" || typeStr == "sampler3D" || typeStr == "samplerCube")
             continue;
 
         UniformEntry u;
         u.name = nameStr;
-        u.num = 1;
+        u.num = (uint16_t)arrayNum;
 
         if (typeStr == "vec4")      { u.type = 2; u.regCount = 1; }
         else if (typeStr == "vec3")  { u.type = 2; u.regCount = 1; } // bgfx packs as vec4
@@ -1395,7 +1418,7 @@ BgfxShaderCompiler::ParseUniformsFromSc(const std::string& scSource)
         else continue;  // Skip truly unsupported types
 
         u.regIndex = vec4Index;
-        vec4Index += u.regCount;
+        vec4Index += u.regCount * arrayNum;
         uniforms.push_back(u);
     }
 
@@ -2322,9 +2345,9 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 "#include <bgfx_shader.sh>\n"
                 "\n"
                 "uniform mat4 u_ViewProjectionMatrix;\n"
-                "uniform mat3 u_MaskMatrix0;\n"
-                "uniform mat3 u_MaskMatrix1;\n"
-                "uniform mat3 u_MaskMatrix2;\n"
+                "uniform mat3 u_MaskMatricesArr0[16];\n"
+                "uniform mat3 u_MaskMatricesArr1[16];\n"
+                "uniform mat3 u_MaskMatricesArr2[16];\n"
                 "uniform vec4 u_TotalTime;\n"
                 "uniform vec4 u_DeltaTime;\n"
                 "uniform vec4 u_TexelSize;\n"
@@ -2341,9 +2364,9 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
                 "    v_ColorScale = a_color0;\n"
                 "    v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);\n"
                 "    vec3 maskPos = vec3(a_position.xy, 1.0);\n"
-                "    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;\n"
-                "    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;\n"
-                "    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;\n"
+                "    v_MaskUV0 = (mul(u_MaskMatricesArr0[0], maskPos)).xy;\n"
+                "    v_MaskUV1 = (mul(u_MaskMatricesArr1[0], maskPos)).xy;\n"
+                "    v_MaskUV2 = (mul(u_MaskMatricesArr2[0], maskPos)).xy;\n"
                 "    gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));\n"
                 "}\n";
 

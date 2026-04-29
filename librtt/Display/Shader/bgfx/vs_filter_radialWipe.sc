@@ -16,9 +16,10 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_opennessOffsetMatrix0, v_opennes
 #include <bgfx_shader.sh>
 
 uniform mat4 u_ViewProjectionMatrix;
-uniform mat3 u_MaskMatrix0;
-uniform mat3 u_MaskMatrix1;
-uniform mat3 u_MaskMatrix2;
+#define MASK_MATRIX_ARRAY_SIZE 16
+uniform mat3 u_MaskMatricesArr0[MASK_MATRIX_ARRAY_SIZE];
+uniform mat3 u_MaskMatricesArr1[MASK_MATRIX_ARRAY_SIZE];
+uniform mat3 u_MaskMatricesArr2[MASK_MATRIX_ARRAY_SIZE];
 
 uniform vec4 u_TotalTime;
 uniform vec4 u_DeltaTime;
@@ -65,8 +66,8 @@ void main()
 
     // Compute mask UVs
     vec3 maskPos = vec3(a_position.xy, 1.0);
-    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
-    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
-    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
+    v_MaskUV0 = (mul(u_MaskMatricesArr0[0], maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatricesArr1[0], maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatricesArr2[0], maskPos)).xy;
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));
 }
