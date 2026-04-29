@@ -1077,28 +1077,6 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // 008 mask per-vertex: upload mat3 arrays (default shader only).
     ApplyMaskMatricesArr( prog, cmd );
 
-    // Adreno 530 GLES workaround: single mat3 handle ('u_MaskMatrix*') reads wrong on
-    // Adreno 530 2018-06 driver. For filter VS draws (masked but no PV array), mirror the
-    // per-draw mask matrices to the array handles (u_MaskMatricesArr0/1/2[0]) so the
-    // patched filter VS shaders can read from the array path which works correctly.
-    if( cmd.programVersion > 0 && cmd.maskArrCount[0] == 0 )
-    {
-        static const Uniform::Name kMaskNames[3] = {
-            Uniform::kMaskMatrix0, Uniform::kMaskMatrix1, Uniform::kMaskMatrix2
-        };
-        for( U32 lvl = 0; lvl < 3; ++lvl )
-        {
-            if( cmd.uniforms[kMaskNames[lvl]].valid )
-            {
-                bgfx::UniformHandle arrH = prog->GetMaskMatricesArrHandle( lvl );
-                if( bgfx::isValid( arrH ) )
-                {
-                    bgfx::setUniform( arrH, cmd.uniforms[kMaskNames[lvl]].data, 1 );
-                }
-            }
-        }
-    }
-
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
