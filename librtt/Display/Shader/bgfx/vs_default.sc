@@ -1,4 +1,4 @@
-$input a_position, a_texcoord0, a_color0, a_texcoord1, a_indices
+$input a_position, a_texcoord0, a_color0, a_texcoord1
 $output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 //////////////////////////////////////////////////////////////////////////////
@@ -17,15 +17,9 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 // Uniforms
 uniform mat4 u_ViewProjectionMatrix;
-
-// Per-vertex mask matrix arrays (008 mask per-vertex encoding).
-// Replaces single u_MaskMatrix0/1/2; default shader looks up matrix
-// per-vertex via a_indices.{x,y,z} (0..15). Filter VS still uses the
-// old single u_MaskMatrix* names with their own uniform handles.
-#define MASK_MATRIX_ARRAY_SIZE 16
-uniform mat3 u_MaskMatricesArr0[MASK_MATRIX_ARRAY_SIZE];
-uniform mat3 u_MaskMatricesArr1[MASK_MATRIX_ARRAY_SIZE];
-uniform mat3 u_MaskMatricesArr2[MASK_MATRIX_ARRAY_SIZE];
+uniform mat3 u_MaskMatrix0;
+uniform mat3 u_MaskMatrix1;
+uniform mat3 u_MaskMatrix2;
 
 // Time uniforms (packed in vec4.x as bgfx doesn't have float uniforms)
 uniform vec4 u_TotalTime;
@@ -65,15 +59,11 @@ void main()
     // See Issue #18 for full analysis.
     v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);
 
-    // Compute mask UVs using per-vertex array indices into mat3 arrays.
-    // a_indices arrives as Uint8 unnormalized — value range 0..15.
+    // Compute mask UVs
     vec3 maskPos = vec3(a_position.xy, 1.0);
-    int idx0 = int(a_indices.x);
-    int idx1 = int(a_indices.y);
-    int idx2 = int(a_indices.z);
-    v_MaskUV0 = (mul(u_MaskMatricesArr0[idx0], maskPos)).xy;
-    v_MaskUV1 = (mul(u_MaskMatricesArr1[idx1], maskPos)).xy;
-    v_MaskUV2 = (mul(u_MaskMatricesArr2[idx2], maskPos)).xy;
+    v_MaskUV0 = (mul(u_MaskMatrix0, maskPos)).xy;
+    v_MaskUV1 = (mul(u_MaskMatrix1, maskPos)).xy;
+    v_MaskUV2 = (mul(u_MaskMatrix2, maskPos)).xy;
 
     // Transform to clip space
     gl_Position = mul(u_ViewProjectionMatrix, vec4(a_position.xy, 0.0, 1.0));

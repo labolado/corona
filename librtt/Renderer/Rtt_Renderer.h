@@ -392,23 +392,6 @@ class Renderer
         Array< U32 > fMaskCount; // "Stack" of mask counts
         U32 fCurrentProgramMaskCount;
 
-        // 008 mask per-vertex (bgfx default shader path only):
-        // - fMaskUniformActive[i]: most-recently bound mask matrix at level i.
-        //   Set by PushMask() (after MaskCount bump) and Insert() per-data block.
-        //   Used during Insert() to encode per-vertex matrix indices.
-        // - fMaskMatrixDedup* arrays: per-batch dedup of mask matrices into a
-        //   16-slot array uploaded once (per level, per batch) via
-        //   BgfxCommandBuffer::SetMaskMatricesArray() in CheckAndInsertDrawCommand().
-        //   Reset to count=0 after each batch flush.
-        // - fMaskPerVertexEnabled: env var SOLAR2D_MASK_PER_VERTEX=0 to disable.
-        static const U32 kMaskMatrixArrSize = 16;
-        Uniform* fMaskUniformActive[3];
-        const Uniform* fMaskMatrixDedupKey[3][16];
-        float fMaskMatrixDedupData[3][16 * 9];   // compact mat3 layout (9 floats each)
-        U8 fMaskMatrixDedupCount[3];
-        bool fMaskPerVertexEnabled;
-        bool fMaskPerVertexEnvChecked;
-
         bool fWireframeEnabled;
         bool fStatisticsEnabled;
         Statistics fStatistics;

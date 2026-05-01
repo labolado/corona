@@ -209,20 +209,6 @@ Renderer::Renderer( Rtt_Allocator* allocator )
 {
     // Always have at least 1 mask count.
     fMaskCount.Append( 0 );
-
-    // 008 mask per-vertex: zero-init dedup state (bgfx default-shader path).
-    for( U32 i = 0; i < 3; ++i )
-    {
-        fMaskUniformActive[i] = NULL;
-        fMaskMatrixDedupCount[i] = 0;
-        for( U32 k = 0; k < kMaskMatrixArrSize; ++k )
-        {
-            fMaskMatrixDedupKey[i][k] = NULL;
-        }
-        memset( fMaskMatrixDedupData[i], 0, sizeof(fMaskMatrixDedupData[i]) );
-    }
-    fMaskPerVertexEnabled = true;       // env var checked lazily on first draw
-    fMaskPerVertexEnvChecked = false;
 }
 
 Renderer::~Renderer()
@@ -534,16 +520,7 @@ Renderer::PushMask( Texture* maskTexture, Uniform* maskMatrix )
 
     fPrevious.fMaskTexture = maskTexture;
     fPrevious.fMaskUniform = maskMatrix;
-
-    // 008 mask per-vertex: track active mask uniform per level so subsequent
-    // Insert() calls can compute per-vertex matrix indices without re-walking
-    // the bind chain. Stored regardless of backend; only consumed by the bgfx
-    // default-shader path.
-    if( MaskCount() > 0 && MaskCount() <= 3 )
-    {
-        fMaskUniformActive[MaskCount() - 1] = maskMatrix;
-    }
-
+    
     DEBUG_PRINT( "Push mask: texture=%p, uniform=%p\n", maskTexture, maskMatrix );
 }
 
@@ -692,30 +669,20 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     }
     else
     {
-        // 008 mask per-vertex: when bgfx default-shader path encodes mask
-        // matrix slot via per-vertex a_indices, mask matrix changes do NOT
-        // need to flush the batch — the snapshot/dedup map handles divergence
-        // inside one ExecuteBatchedDraws. Three-way guard ensures we never
-        // weaken the legacy path for GL, custom/filter shaders, or when the
-        // env-var fallback is engaged.
-        const bool isDefaultCategory = ( shaderResource->GetCategory() == ShaderTypes::kCategoryDefault );
-        const bool maskUniformBatchable = sIsBgfxRenderer && fMaskPerVertexEnabled && isDefaultCategory;
-        const bool effectiveMaskUniformDirty = maskUniformDirty && !maskUniformBatchable;
-
         bool batch =
             !( blendDirty
                 || blendEquationDirty
                 || fillDirty0
                 || fillDirty1
                 || maskTextureDirty
-                || effectiveMaskUniformDirty
+                || maskUniformDirty
                 || programDirty
                 || userUniformDirty0
                 || userUniformDirty1
                 || userUniformDirty2
                 || userUniformDirty3
                 || formatsDirty
-				|| fCaptureGroups.Length() > 0
+				|| fCaptureGroups.Length() > 0 
                 || dirtyIndices.Length() > 0 );
 
         // Only triangle strips are batched. All other primitive types
@@ -814,124 +781,12 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             }
         }
 
-        // 008 mask per-vertex (bgfx default-shader path only).
-        // Determine effective active mask levels for THIS draw, dedupe each
-        // level's matrix into the per-batch 16-slot table, and write the
-        // resulting indices into every vertex's maskIdx[]. fCurrentVertex
-        // is about to advance past this draw, so this MUST happen first.
-        // GL backend ignores maskIdx (no a_indices in GL VS), so the writes
-        // are inert there; we still gate by sIsBgfxRenderer to avoid the
-        // dedup table churn altogether on GL.
-        if( sIsBgfxRenderer && fMaskPerVertexEnabled )
-        {
-            // Lazy env-var check: SOLAR2D_MASK_PER_VERTEX=0 disables this path,
-            // shipping all draws on the legacy per-draw u_MaskMatrix uniforms
-            // (skips dedup, skips per-vertex idx writes, skips array upload).
-            if( !fMaskPerVertexEnvChecked )
-            {
-                const char* env = getenv( "SOLAR2D_MASK_PER_VERTEX" );
-                if( env && env[0] == '0' && env[1] == '\0' )
-                {
-                    fMaskPerVertexEnabled = false;
-                }
-                fMaskPerVertexEnvChecked = true;
-                // 008 Phase 3 fallback verification: log decision exactly once
-                // so coordinator can diff env=ON vs env=OFF runs.
-                Rtt_LogException( "[maskPV] env SOLAR2D_MASK_PER_VERTEX=%s -> ENABLED=%d\n",
-                    env ? env : "(unset)", fMaskPerVertexEnabled ? 1 : 0 );
-            }
-
-            const ShaderResource* sr = data->fProgram
-                ? data->fProgram->GetShaderResource() : NULL;
-            const bool isDefaultProgram = sr
-                && sr->GetCategory() == ShaderTypes::kCategoryDefault;
-
-            if( fMaskPerVertexEnabled && isDefaultProgram )
-            {
-                const bool dataHasOwnMask = ( data->fMaskTexture
-                    && data->fMaskUniform );
-                const U32 baseMaskCount = MaskCount();  // pre-bump
-                const U32 effective =
-                    Min( (U32) 3, baseMaskCount + ( dataHasOwnMask ? 1u : 0u ) );
-
-                U8 idx[3] = { 0, 0, 0 };
-                for( U32 attempt = 0; attempt < 2; ++attempt )
-                {
-                    bool overflowed = false;
-                    for( U32 lvl = 0; lvl < effective; ++lvl )
-                    {
-                        Uniform* u = ( lvl == baseMaskCount && dataHasOwnMask )
-                            ? data->fMaskUniform
-                            : fMaskUniformActive[lvl];
-                        if( u == NULL )
-                        {
-                            idx[lvl] = 0;
-                            continue;
-                        }
-                        // Linear probe in 16-slot dedup (count is tiny in
-                        // practice; map<> would inflate hot-path cost).
-                        U8 found = 0xFF;
-                        for( U8 k = 0; k < fMaskMatrixDedupCount[lvl]; ++k )
-                        {
-                            if( fMaskMatrixDedupKey[lvl][k] == u )
-                            {
-                                found = k;
-                                break;
-                            }
-                        }
-                        if( found == 0xFF )
-                        {
-                            if( fMaskMatrixDedupCount[lvl] >= kMaskMatrixArrSize )
-                            {
-                                overflowed = true;
-                                break;
-                            }
-                            U8 newIdx = fMaskMatrixDedupCount[lvl];
-                            fMaskMatrixDedupKey[lvl][newIdx] = u;
-                            const void* src = u->GetData();
-                            float* dst = &fMaskMatrixDedupData[lvl][newIdx * 9];
-                            if( src ) memcpy( dst, src, 9 * sizeof( float ) );
-                            else memset( dst, 0, 9 * sizeof( float ) );
-                            fMaskMatrixDedupCount[lvl] = newIdx + 1;
-                            found = newIdx;
-                        }
-                        idx[lvl] = found;
-                    }
-
-                    if( !overflowed ) break;
-
-                    // 16 slots full at some level — flush this batch and try
-                    // again with empty dedup. Should rarely fire (widget mask
-                    // typically <= 16 unique matrices per scope).
-                    if( attempt == 0 )
-                    {
-                        FlushBatch();
-                        // After FlushBatch the dedup counts are 0 and
-                        // fCurrentVertex has been re-bound; retry from scratch.
-                        continue;
-                    }
-                    // Second overflow indicates effective>16 even after flush
-                    // (should be impossible: kMaskMatrixArrSize >= effective).
-                    Rtt_ASSERT_NOT_REACHED();
-                }
-
-                Geometry::Vertex* v = fCurrentVertex;
-                for( U32 i = 0; i < verticesRequired; ++i )
-                {
-                    v[i].maskIdx[0] = idx[0];
-                    v[i].maskIdx[1] = idx[1];
-                    v[i].maskIdx[2] = idx[2];
-                    v[i].maskIdx[3] = 0;
-                }
-            }
-        }
-
         if (isInstanced)
         {
             Rtt_ASSERT( programList && programList->IsInstanced() );
 
             InsertInstancing( block, programList, extensionList );
-
+            
             mustReconcileFormats = true; // pointers out of date
         }
 
@@ -1818,24 +1673,6 @@ Renderer::CheckAndInsertDrawCommand()
 {
     if( fRenderDataCount != 0 )
     {
-        // 008 mask per-vertex: upload the per-batch mask matrix arrays for the
-        // outgoing batch BEFORE issuing Draw, so SnapshotUniforms picks them
-        // up. Then immediately reset pending state so the next batch starts
-        // with a fresh side-table append.
-        if( sIsBgfxRenderer && fMaskPerVertexEnabled )
-        {
-            for( U32 lvl = 0; lvl < 3; ++lvl )
-            {
-                if( fMaskMatrixDedupCount[lvl] > 0 )
-                {
-                    fBackCommandBuffer->SetMaskMatricesArray(
-                        lvl,
-                        fMaskMatrixDedupData[lvl],
-                        fMaskMatrixDedupCount[lvl] );
-                }
-            }
-        }
-
         if( fPreviousPrimitiveType == Geometry::kIndexedTriangles )
         {
             fBackCommandBuffer->DrawIndexed( fIndexOffset, fIndexCount, fPreviousPrimitiveType );
@@ -1845,26 +1682,6 @@ Renderer::CheckAndInsertDrawCommand()
             fBackCommandBuffer->Draw( fVertexOffset, fVertexCount - fDegenerateVertexCount, fPreviousPrimitiveType );
         }
         INCREMENT( fStatistics.fDrawCallCount );
-
-        // 008 mask per-vertex: clear dedup + pending so the next batch starts
-        // with empty collection. Keys are pointer-based and stale next batch.
-        if( sIsBgfxRenderer && fMaskPerVertexEnabled )
-        {
-            for( U32 lvl = 0; lvl < 3; ++lvl )
-            {
-                if( fMaskMatrixDedupCount[lvl] > 0 )
-                {
-                    for( U8 k = 0; k < fMaskMatrixDedupCount[lvl]; ++k )
-                    {
-                        fMaskMatrixDedupKey[lvl][k] = NULL;
-                    }
-                    fMaskMatrixDedupCount[lvl] = 0;
-                    // Clear CmdBuffer pending so next-batch first Draw doesn't
-                    // accidentally inherit this batch's offset.
-                    fBackCommandBuffer->SetMaskMatricesArray( lvl, NULL, 0 );
-                }
-            }
-        }
 
         if( fStatisticsEnabled )
         {

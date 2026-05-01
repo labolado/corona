@@ -43,21 +43,13 @@ bgfx::ViewId BgfxFrameBufferObject::sNextViewId = 1; // Start at 1, reserve 0 fo
 bgfx::ViewId
 BgfxFrameBufferObject::AllocateViewId()
 {
-	// Allocate next available view ID for FBO rendering.
-	//
-	// FBO views are confined to 1..199 so they never collide with the "screen"
-	// view range 200..254 owned by BgfxRenderer (Issue #027): primary Runtime
-	// uses view 200, secondary Runtimes get 201, 202, ... via BgfxContext.
-	// Without this cap, sNextViewId would roll through 200+ and an FBO could
-	// write into the primary's swap chain — e.g., Welcome window would show
-	// the Game's FBO content.
-	//
-	// RISK (pre-existing): sNextViewId never resets on resume. After
-	// ReleaseGPUResources() + FBO recreation, old view IDs are leaked.
-	// Wraparound prevents crash, but after many cycles, IDs may collide
-	// with deferred command state. Fix if needed: reset in ReleaseGPUResources().
+	// Allocate next available view ID (bgfx supports 0-255)
+	// RISK: sNextViewId never resets on resume. After ReleaseGPUResources() + FBO
+	// recreation, old view IDs are leaked. Wraparound at 255 prevents crash, but
+	// after many resume cycles, IDs may collide with deferred command state.
+	// Fix if needed: reset sNextViewId in ReleaseGPUResources().
 	bgfx::ViewId id = sNextViewId;
-	if( sNextViewId < 199 )
+	if( sNextViewId < 255 )
 	{
 		sNextViewId++;
 	}
