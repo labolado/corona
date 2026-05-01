@@ -73,7 +73,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 
@@ -91,7 +91,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s.bin", shaderType, category, name.c_str(),
+    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 #endif
@@ -147,9 +147,6 @@ BgfxProgram::BgfxProgram()
     fUniformMaskMatrix0 = BGFX_INVALID_HANDLE;
     fUniformMaskMatrix1 = BGFX_INVALID_HANDLE;
     fUniformMaskMatrix2 = BGFX_INVALID_HANDLE;
-    fUniformMaskMatricesArr0 = BGFX_INVALID_HANDLE;
-    fUniformMaskMatricesArr1 = BGFX_INVALID_HANDLE;
-    fUniformMaskMatricesArr2 = BGFX_INVALID_HANDLE;
     fUniformTotalTime = BGFX_INVALID_HANDLE;
     fUniformDeltaTime = BGFX_INVALID_HANDLE;
     fUniformTexelSize = BGFX_INVALID_HANDLE;
@@ -649,14 +646,6 @@ void BgfxProgram::CreateUniforms()
     fUniformMaskMatrix0 = bgfx::createUniform("u_MaskMatrix0", bgfx::UniformType::Mat3);
     fUniformMaskMatrix1 = bgfx::createUniform("u_MaskMatrix1", bgfx::UniformType::Mat3);
     fUniformMaskMatrix2 = bgfx::createUniform("u_MaskMatrix2", bgfx::UniformType::Mat3);
-
-    // 008 mask per-vertex encoding: mat3 array uniforms (default VS only).
-    fUniformMaskMatricesArr0 = bgfx::createUniform(
-        "u_MaskMatricesArr0", bgfx::UniformType::Mat3, kMaskMatricesArrSize);
-    fUniformMaskMatricesArr1 = bgfx::createUniform(
-        "u_MaskMatricesArr1", bgfx::UniformType::Mat3, kMaskMatricesArrSize);
-    fUniformMaskMatricesArr2 = bgfx::createUniform(
-        "u_MaskMatricesArr2", bgfx::UniformType::Mat3, kMaskMatricesArrSize);
     
     // Float uniforms packed in vec4.x
     fUniformTotalTime = bgfx::createUniform(
@@ -715,9 +704,6 @@ void BgfxProgram::DestroyUniforms()
     destroyIfValid(fUniformMaskMatrix0);
     destroyIfValid(fUniformMaskMatrix1);
     destroyIfValid(fUniformMaskMatrix2);
-    destroyIfValid(fUniformMaskMatricesArr0);
-    destroyIfValid(fUniformMaskMatricesArr1);
-    destroyIfValid(fUniformMaskMatricesArr2);
     destroyIfValid(fUniformTotalTime);
     destroyIfValid(fUniformDeltaTime);
     destroyIfValid(fUniformTexelSize);

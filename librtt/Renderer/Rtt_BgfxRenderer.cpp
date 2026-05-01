@@ -352,9 +352,6 @@ BgfxRenderer::BgfxRenderer(Rtt_Allocator* allocator)
     fCaps(),
     fCapsInitialized(false),
     fBgfxInitialized(false),
-    fIsPrimary(false),
-    fWindowFb(BGFX_INVALID_HANDLE),
-    fScreenViewId(0),
     fStagingTexture( BGFX_INVALID_HANDLE ),
     fStagingW( 0 ),
     fStagingH( 0 ),
@@ -454,77 +451,100 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     init.fallback = false; // P5 diag: force Vulkan to fail loudly instead of silently falling back to GLES
     Rtt_LogException("BgfxRenderer: attempting init with type=%s fallback=false", bgfx::getRendererName(init.type));
 
-    // Route through BgfxContext (Issue #027). First renderer becomes primary
-    // (bgfx::init with its nwh); subsequent renderers become secondary
-    // (bgfx::createFrameBuffer with their own nwh — independent swap chain).
-    // Replaces the stale-session shutdown+retry path from commit b92d91e3,
-    // which was the direct cause of #027 (Welcome's bgfx context got torn
-    // down when Game's Runtime attached).
-    BgfxContext::AttachResult attach = BgfxContext::Instance()
-        .AttachWindow(nativeWindowHandle, width, height, init);
+    // Step 0 harness (Issue #027): probe whether bgfx::createFrameBuffer(nwh) on an
+    // already-initialized session returns a valid secondary swap chain.
+    // Activated by SOLAR2D_DEBUG_SECONDARY_FB=1. Removed in Step 1.
+    static int s_bgfxInitCount = 0;
+    const char* dbgSecondary = getenv("SOLAR2D_DEBUG_SECONDARY_FB");
+    bool harnessActive = (dbgSecondary && atoi(dbgSecondary) == 1);
+    if (harnessActive && s_bgfxInitCount > 0)
+    {
+        Rtt_LogException("STEP0_HARNESS: attempting bgfx::createFrameBuffer(nwh=%p, w=%u, h=%u) on existing session",
+                         nativeWindowHandle, width, height);
+        const bgfx::Caps* capsNow = bgfx::getCaps();
+        bool capSwap = capsNow && (capsNow->supported & BGFX_CAPS_SWAP_CHAIN);
+        Rtt_LogException("STEP0_HARNESS: BGFX_CAPS_SWAP_CHAIN supported=%d renderer=%s",
+                         (int)capSwap, capsNow ? bgfx::getRendererName(capsNow->rendererType) : "null");
 
+        bgfx::FrameBufferHandle probeFb = bgfx::createFrameBuffer(
+            nativeWindowHandle,
+            static_cast<uint16_t>(width),
+            static_cast<uint16_t>(height),
+            bgfx::TextureFormat::BGRA8,
+            bgfx::TextureFormat::D24S8);
+        bool probeValid = bgfx::isValid(probeFb);
+        Rtt_LogException("STEP0_HARNESS: createFrameBuffer returned idx=%d isValid=%d",
+                         (int)probeFb.idx, (int)probeValid);
+
+        if (probeValid)
+        {
+            // Try to submit one cleared frame to the secondary FB on a dedicated view.
+            // Magenta fill so we can visually tell if the secondary window picks it up.
+            const bgfx::ViewId kProbeView = 250;
+            bgfx::setViewFrameBuffer(kProbeView, probeFb);
+            bgfx::setViewRect(kProbeView, 0, 0,
+                              static_cast<uint16_t>(width),
+                              static_cast<uint16_t>(height));
+            bgfx::setViewClear(kProbeView, BGFX_CLEAR_COLOR, 0xff00ffff, 1.0f, 0); // magenta
+            bgfx::touch(kProbeView);
+            bgfx::frame();
+            Rtt_LogException("STEP0_HARNESS: frame() after submit to secondary FB OK");
+
+            // Unbind view and destroy probe FB cleanly (2x frame flush per bgfx docs).
+            bgfx::setViewFrameBuffer(kProbeView, BGFX_INVALID_HANDLE);
+            bgfx::destroy(probeFb);
+            bgfx::frame();
+            bgfx::frame();
+            Rtt_LogException("STEP0_HARNESS: probe FB destroyed cleanly");
+        }
+        else
+        {
+            Rtt_LogException("STEP0_HARNESS: FAILED to create secondary FB; Step 0 regarded as FAIL");
+        }
+        // Fall through to existing path so the app continues (this harness only probes the API).
+    }
+
+    fBgfxInitialized = bgfx::init(init);
+    if (!fBgfxInitialized)
+    {
+        // bgfx is a singleton: init() fails if s_ctx != NULL (previous session
+        // not fully shut down, e.g. welcome screen → project window transition).
+        // Force shutdown the stale instance, drain render thread, and retry.
+        Rtt_LogException("BgfxRenderer: init failed (stale session?), forcing shutdown and retrying");
+        bgfx::shutdown();
+        // Wait for renderer thread to fully exit after shutdown.
+        // bgfx::shutdown() may return before the Metal/Vulkan backend thread
+        // has finished its last submit(), causing UAF on reinit.
+        usleep(500000); // 500ms — generous wait for GPU resources to release
+        fBgfxInitialized = bgfx::init(init);
+    }
+    if (fBgfxInitialized)
+    {
+        ++s_bgfxInitCount;
+    }
 #if defined(Rtt_ANDROID_ENV)
-    // Vulkan → GLES fallback (single-Runtime Android only; secondaries do
-    // not reach here because Android doesn't run multiple Runtimes).
-    if (!attach.success && init.type == bgfx::RendererType::Vulkan)
+    // Vulkan fallback: if Vulkan init failed, try GLES
+    if (!fBgfxInitialized && init.type == bgfx::RendererType::Vulkan)
     {
         Rtt_LogException("BgfxRenderer: Vulkan init failed, falling back to OpenGLES");
+        bgfx::shutdown();
         init.type = bgfx::RendererType::OpenGLES;
-        attach = BgfxContext::Instance()
-            .AttachWindow(nativeWindowHandle, width, height, init);
+        fBgfxInitialized = bgfx::init(init);
     }
 #endif
 
-    if (!attach.success)
+    if (fBgfxInitialized)
     {
-        Rtt_LogException("BgfxRenderer: BgfxContext::AttachWindow FAILED");
-        fBgfxInitialized = false;
-        return false;
-    }
+        const char* rendererName = bgfx::getRendererName(bgfx::getRendererType());
+        fprintf(stderr, "BGFX_INIT: renderer=%s nwh=%p w=%u h=%u\n",
+                rendererName, nativeWindowHandle, width, height);
+        Rtt_LogException("BGFX_INIT: renderer=%s w=%u h=%u", rendererName, width, height);
+        bgfx::setDebug(BGFX_DEBUG_NONE);
+        // Set default view clear state (view 200 = screen, FBO views use 1-199)
+        bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);
+        bgfx::setViewRect(200, 0, 0, static_cast<uint16_t>(width), static_cast<uint16_t>(height));
 
-    fIsPrimary       = attach.primary;
-    fWindowFb        = attach.fbHandle;
-    fScreenViewId    = attach.screenViewId;
-    fBgfxInitialized = true;
-
-    // Inject the per-renderer screen view id into both command buffers
-    // BEFORE Renderer::Initialize() drives BgfxCommandBuffer::Initialize().
-    // CommandBuffer base stores fFrontCommandBuffer/fBackCommandBuffer as
-    // CommandBuffer*; we constructed them as BgfxCommandBuffer in the ctor.
-    static_cast<BgfxCommandBuffer*>(fFrontCommandBuffer)->SetScreenViewId(fScreenViewId);
-    static_cast<BgfxCommandBuffer*>(fBackCommandBuffer )->SetScreenViewId(fScreenViewId);
-
-    // Route the secondary renderer's screen view to its dedicated swap chain.
-    // Primary writes to the main swap chain (bgfx default — no binding needed).
-    // We also hand fWindowFb to both command buffers so Execute() can re-bind
-    // it each frame (the FBO-cleanup loop at the top of Execute() would otherwise
-    // clear any persistent binding — see Rtt_BgfxCommandBuffer.cpp).
-    if (!fIsPrimary)
-    {
-        bgfx::setViewFrameBuffer(fScreenViewId, fWindowFb);
-        static_cast<BgfxCommandBuffer*>(fFrontCommandBuffer)->SetScreenFrameBuffer(fWindowFb);
-        static_cast<BgfxCommandBuffer*>(fBackCommandBuffer )->SetScreenFrameBuffer(fWindowFb);
-    }
-
-    const char* rendererName = bgfx::getRendererName(bgfx::getRendererType());
-    fprintf(stderr, "BGFX_INIT: renderer=%s nwh=%p w=%u h=%u primary=%d viewId=%u\n",
-            rendererName, nativeWindowHandle, width, height,
-            (int)fIsPrimary, (unsigned)fScreenViewId);
-    Rtt_LogException("BGFX_INIT: renderer=%s w=%u h=%u primary=%d viewId=%u",
-                     rendererName, width, height,
-                     (int)fIsPrimary, (unsigned)fScreenViewId);
-    bgfx::setDebug(BGFX_DEBUG_NONE);
-    // Set clear state + viewport on THIS renderer's screen view (not hard 200).
-    bgfx::setViewClear(fScreenViewId, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-                       0x303030ff, 1.0f, 0);
-    bgfx::setViewRect(fScreenViewId, 0, 0,
-                      static_cast<uint16_t>(width),
-                      static_cast<uint16_t>(height));
-
-    // SDF renderer is a process-wide bgfx-handle-owning singleton; initialize
-    // idempotently (harmless if called twice, but only primary needs to).
-    if (fIsPrimary)
-    {
+        // Initialize SDF renderer for bgfx
         SDFRenderer::Instance().Initialize();
     }
 
@@ -545,20 +565,15 @@ BgfxRenderer::ShutdownBgfx()
 
     if (fBgfxInitialized)
     {
-        // When this renderer is the last attached one (refCount == 1 about
-        // to drop to 0), we must finalize the process-wide singleton
-        // renderers BEFORE BgfxContext::DetachWindow() calls bgfx::shutdown().
-        // Their handles are owned by bgfx and would be stranded otherwise.
-        if (BgfxContext::Instance().RefCount() == 1)
-        {
-            SDFRenderer::Instance().Finalize();
-            InstancedBatchRenderer::Instance().Finalize();
-        }
+        // Finalize singleton renderers BEFORE bgfx::shutdown() to ensure
+        // bgfx handles are destroyed while bgfx is still alive.
+        // Static singleton destructors have undefined order relative to
+        // bgfx::shutdown(), so explicit cleanup here is required.
+        SDFRenderer::Instance().Finalize();
+        InstancedBatchRenderer::Instance().Finalize();
 
-        BgfxContext::Instance().DetachWindow(fIsPrimary, fWindowFb, fScreenViewId);
+        bgfx::shutdown();
         fBgfxInitialized = false;
-        fWindowFb = BGFX_INVALID_HANDLE;
-        fScreenViewId = 0;
     }
 }
 
