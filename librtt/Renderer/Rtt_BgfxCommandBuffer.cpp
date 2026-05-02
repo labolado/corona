@@ -1443,10 +1443,6 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
     SetTexFlagsUniform( prog, first );
 
-    // 008 mask per-vertex: upload mask matrix arrays for batched draws.
-    // Previously missing — batched masked draws had stale/zero mask matrices.
-    ApplyMaskMatricesArr( prog, first );
-
     bgfx::setState( first.bgfxState );
 
     if( first.scissorEnabled )
