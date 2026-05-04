@@ -82,6 +82,32 @@ namespace {
     #define VK_MAKE_API_VERSION(major, minor, patch) \
         (((uint32_t)(major) << 22) | ((uint32_t)(minor) << 12) | (uint32_t)(patch))
 
+    // Parses 'Adreno (TM) NNN' / 'Adreno NNN' deviceName and returns NNN.
+    // Returns 0 if the string does not contain an Adreno series number.
+    // Industry-aligned with bgfx renderer_vk.cpp parseAdreno5xxNumber + Google
+    // VkQuality / Unity / Godot 4.4: Adreno < 600 has lies-about-success driver
+    // bugs (vkAcquire/vkPresent return VK_SUCCESS but never present to screen).
+    static int parseAdrenoNumber(const char* deviceName)
+    {
+        if (!deviceName) return 0;
+        const char* p = deviceName;
+        while (*p) {
+            if ((p[0] == 'A' || p[0] == 'a') && p[1] == 'd' && p[2] == 'r'
+                && p[3] == 'e' && p[4] == 'n' && p[5] == 'o') {
+                const char* q = p + 6;
+                while (*q != '\0' && (*q < '0' || *q > '9')) ++q;
+                int num = 0;
+                while (*q >= '0' && *q <= '9') {
+                    num = num * 10 + (*q - '0');
+                    ++q;
+                }
+                return num;
+            }
+            ++p;
+        }
+        return 0;
+    }
+
     // Returns true if this GPU should use Vulkan based on Unity's vendor thresholds
     static bool isVulkanSafeForDevice()
     {
@@ -142,10 +168,16 @@ namespace {
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
                 Rtt_LogException("VulkanProbe: ARM Mali, threshold=1.0.61, safe=%s", safe ? "true" : "false");
                 break;
-            case kVendorQualcomm:    // Adreno: stable from Vulkan 1.0.49
+            case kVendorQualcomm: {  // Adreno: stable from Vulkan 1.0.49
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
                 Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
+                int adrenoNum = parseAdrenoNumber(props.deviceName);
+                if (adrenoNum > 0 && adrenoNum < 600) {
+                    safe = false;
+                    Rtt_LogException("VulkanProbe: Qualcomm Adreno %d (<600), force GLES (driver lies-about-success bug; ref: Google VkQuality / Godot 4.4 / Unity industry default)", adrenoNum);
+                }
                 break;
+            }
             case kVendorImagination: // PowerVR: highest bar — Vulkan 1.1.170 + driver 1.473
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 1, 170);
                 Rtt_LogException("VulkanProbe: Imagination PowerVR, threshold=1.1.170, safe=%s", safe ? "true" : "false");
