@@ -30,7 +30,7 @@ jobs:
           BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
           BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
           BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
-          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
+          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}-fat"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Prebuilt tag: $TAG"
       - name: Try download prebuilt libs
@@ -87,6 +87,32 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu)
+          # Build x86_64 simulator slice (for Intel Mac simulator support)
+          cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
+          find .build/projects/gmake-ios-simulator-x86 -name "*.make" -exec \
+            sed -i '' \
+              -e 's/-arch arm64/-arch x86_64/g' \
+              -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
+            {} \;
+          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu)
+          # Merge into fat binary
+          if [ -d .build/ios-simulator-x86/bin ]; then
+            for arm_lib in .build/ios-simulator/bin/lib*.a; do
+              name=$(basename "$arm_lib")
+              x86_lib=".build/ios-simulator-x86/bin/$name"
+              if [ -f "$x86_lib" ]; then
+                lipo -create "$arm_lib" "$x86_lib" -output "$arm_lib"
+                echo "Created fat binary: $name"
+              fi
+            done
+          fi
+          # Sanity: libbgfxRelease.a must contain both arm64 and x86_64 architectures
+          ARCHS=$(lipo -info .build/ios-simulator/bin/libbgfxRelease.a | sed -E 's/.*architectures? in the .*: //')
+          echo "iOS simulator libbgfxRelease.a archs: $ARCHS"
+          if ! echo "$ARCHS" | grep -q arm64 || ! echo "$ARCHS" | grep -q x86_64; then
+            echo "ERROR: iOS simulator libbgfxRelease.a missing required architectures (need arm64+x86_64, got: $ARCHS)" >&2
+            exit 1
+          fi
       - name: Build bgfx Android arm64 (Release)
         if: steps.prebuilt.outputs.hit != 'true' || hashFiles('external/bgfx/.build/android-arm64/bin/libbgfxRelease.a') == ''
         working-directory: ./external/bgfx
