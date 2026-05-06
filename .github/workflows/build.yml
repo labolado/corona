@@ -149,9 +149,10 @@ jobs:
           # Build x86_64 simulator slice (for Intel Mac simulator support)
           # Copy project and patch arch + output paths for x86_64
           cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
+          # -msse4.2 mirrors bx osx-x64 toolchain config (genie ios-simulator default is arm64 + NEON, no -msse* flag); needed for bx simd128_sse.inl _mm_dp_ps / _mm_round_ps
           find .build/projects/gmake-ios-simulator-x86 -name "*.make" -exec \
             sed -i '' \
-              -e 's/-arch arm64/-arch x86_64/g' \
+              -e 's/-arch arm64/-arch x86_64 -msse4.2/g' \
               -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
             {} \;
           make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu)
