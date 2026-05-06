@@ -55,6 +55,10 @@ bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default sc
 BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0, 0 };
 bool BgfxCommandBuffer::sBatchingEnabled = true;
 
+// D1' strip→indexed-tri conversion toggle (default ON, MASK_PV_STRIP_INDEX=0 to disable)
+static bool sStripIndexConvert = true;
+static bool sCheckedStripEnv = false;
+
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -1259,17 +1263,18 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     // No triangle fans (can't trivially concatenate without index conversion)
     if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
-    // No triangle strips: upstream Renderer already batches strips via pool geometry
-    // with degenerate triangles (dupFirst/dupLast padding). The cmd.offset/cmd.count
-    // we receive here points into pool-padded data, not raw strip topology, so we
-    // cannot safely reindex strips at this layer. Let them pass through as native
-    // BGFX_STATE_PT_TRISTRIP instead.
-    if( a.primitiveType == Geometry::kTriangleStrip || b.primitiveType == Geometry::kTriangleStrip ) return false;
+    // No triangle strips unless D1' index conversion is enabled.
+    // When enabled, strip batches are reindexed to indexed triangles via
+    // transient IBO in ExecuteBatchedDraws.
+    bool aStrip = ( a.primitiveType == Geometry::kTriangleStrip );
+    bool bStrip = ( b.primitiveType == Geometry::kTriangleStrip );
+    if( !sStripIndexConvert && ( aStrip || bStrip ) ) return false;
 
     // Must be same primitive type, and must be triangle-based
     if( a.primitiveType != b.primitiveType ) return false;
     if( a.primitiveType != Geometry::kTriangles &&
-        a.primitiveType != Geometry::kIndexedTriangles ) return false;
+        a.primitiveType != Geometry::kIndexedTriangles &&
+        a.primitiveType != Geometry::kTriangleStrip ) return false;
 
     // Same program and version
     if( a.program != b.program ) return false;
@@ -1333,9 +1338,10 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     if( batchSize < 2 ) return 0; // Not worth batching a single draw
 
     bool isIndexed = ( first.type == DeferredCmd::kDrawIndexed );
+    bool hasStrip = ( first.primitiveType == Geometry::kTriangleStrip );
 
-    // Only indexed draws need an index buffer for the merged output
-    bool needsIndexBuffer = isIndexed;
+    // Indexed draws and strip draws need an index buffer for the merged output
+    bool needsIndexBuffer = isIndexed || hasStrip;
 
     // Calculate total vertices and indices needed
     U32 totalVertices = 0;
@@ -1350,6 +1356,14 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
         {
             totalVertices += cmd.geometry->GetVerticesUsed();
             totalIndices += cmd.geometry->GetIndicesUsed();
+        }
+        else if( hasStrip )
+        {
+            totalVertices += cmd.count;
+            if( cmd.count > 2 )
+            {
+                totalIndices += ( cmd.count - 2 ) * 3;
+            }
         }
         else
         {
@@ -1414,6 +1428,41 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
             vertexOffset += vCount;
             indexOffset += iCount;
         }
+        else if( hasStrip )
+        {
+            // Strip→indexed tri conversion
+            U32 vCount = cmd.count;
+            if( vCount == 0 ) continue;
+
+            // Copy vertices
+            memcpy( tvb.data + vertexOffset * vertexSize,
+                    srcVertices + cmd.offset, vCount * vertexSize );
+
+            // Generate indices for strip topology
+            if( vCount > 2 )
+            {
+                uint32_t triCount = vCount - 2;
+                uint16_t* dstIndices = reinterpret_cast<uint16_t*>( tib.data ) + indexOffset;
+                for( uint32_t t = 0; t < triCount; ++t )
+                {
+                    if( ( t & 1u ) == 0 )
+                    {
+                        dstIndices[t * 3 + 0] = static_cast<uint16_t>( vertexOffset + t );
+                        dstIndices[t * 3 + 1] = static_cast<uint16_t>( vertexOffset + t + 1 );
+                        dstIndices[t * 3 + 2] = static_cast<uint16_t>( vertexOffset + t + 2 );
+                    }
+                    else
+                    {
+                        dstIndices[t * 3 + 0] = static_cast<uint16_t>( vertexOffset + t + 1 );
+                        dstIndices[t * 3 + 1] = static_cast<uint16_t>( vertexOffset + t );
+                        dstIndices[t * 3 + 2] = static_cast<uint16_t>( vertexOffset + t + 2 );
+                    }
+                }
+                indexOffset += triCount * 3;
+            }
+
+            vertexOffset += vCount;
+        }
         else
         {
             // Plain triangles: just copy vertices
@@ -1446,7 +1495,13 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
     SetTexFlagsUniform( prog, first );
 
-    bgfx::setState( first.bgfxState );
+    // For strip batches, submit as indexed triangles (clear TRISTRIP flag)
+    uint64_t submitState = first.bgfxState;
+    if( hasStrip )
+    {
+        submitState &= ~BGFX_STATE_PT_TRISTRIP;
+    }
+    bgfx::setState( submitState );
 
     if( first.scissorEnabled )
     {
@@ -1540,6 +1595,18 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             Rtt_LogException( "Draw call batching ENABLED\n" );
         }
         sCheckedEnv = true;
+    }
+
+    // Check env var for strip→indexed-tri conversion (first frame only)
+    // Default is ON; set MASK_PV_STRIP_INDEX=0 to disable.
+    if( !sCheckedStripEnv )
+    {
+        const char* env = getenv( "MASK_PV_STRIP_INDEX" );
+        if( env && strcmp( env, "0" ) == 0 )
+        {
+            sStripIndexConvert = false;
+        }
+        sCheckedStripEnv = true;
     }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
