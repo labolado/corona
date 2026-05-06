@@ -34,8 +34,6 @@
     // macOS and iOS both use Metal
     #include "Renderer/Rtt_BgfxShaderData_metal.h"
     #include "Renderer/Rtt_BgfxShaderData_effects_metal.h"
-    #define S_VS_DEFAULT s_vs_default_metal
-    #define S_VS_DEFAULT_SIZE s_vs_default_metal_size
     #define S_FS_DEFAULT s_fs_default_metal
     #define S_FS_DEFAULT_SIZE s_fs_default_metal_size
     #define S_SHADER_TABLE s_bgfxShaderTable_metal
@@ -73,13 +71,14 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
+    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
+    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
+    // the old layout would map attributes wrong, so invalidate the cache.
+    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 
-// Redirect macros to runtime-selected data
-#define S_VS_DEFAULT (s_useVulkanShaders ? s_vs_default_spirv : s_vs_default_essl)
-#define S_VS_DEFAULT_SIZE (s_useVulkanShaders ? s_vs_default_spirv_size : s_vs_default_essl_size)
+// FS stays single-binary; mask count is gated at runtime via u_TexFlags.y.
 #define S_FS_DEFAULT (s_useVulkanShaders ? s_fs_default_spirv : s_fs_default_essl)
 #define S_FS_DEFAULT_SIZE (s_useVulkanShaders ? s_fs_default_spirv_size : s_fs_default_essl_size)
 #else
@@ -91,7 +90,10 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderType, category, name.c_str(),
+    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
+    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
+    // the old layout would map attributes wrong, so invalidate the cache.
+    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
              GetRuntimeShaderProfileSuffix());
 }
 #endif
@@ -513,6 +515,87 @@ static bool FindEffectShader(const char* filename, const unsigned char*& outData
     return false;
 }
 
+// 008 mask-PV: per-version default VS binaries. kMaskCount0 declares no PV
+// attributes (avoids the v2 global-binary-expectation pitfall); kMaskCount1+
+// consume baked a_texcoord2/3/4 mask UVs. fs_default stays a single binary.
+// kWireframe shares the kMaskCount0 binary — it never reads mask UVs.
+namespace
+{
+    const unsigned char* PickDefaultVSData(Program::Version version)
+    {
+#if defined(Rtt_ANDROID_ENV)
+        if (s_useVulkanShaders)
+        {
+            switch (version)
+            {
+                case Program::kMaskCount1: return s_vs_default_m1_spirv;
+                case Program::kMaskCount2: return s_vs_default_m2_spirv;
+                case Program::kMaskCount3: return s_vs_default_m3_spirv;
+                case Program::kMaskCount0:
+                case Program::kWireframe:
+                default:                   return s_vs_default_m0_spirv;
+            }
+        }
+        switch (version)
+        {
+            case Program::kMaskCount1: return s_vs_default_m1_essl;
+            case Program::kMaskCount2: return s_vs_default_m2_essl;
+            case Program::kMaskCount3: return s_vs_default_m3_essl;
+            case Program::kMaskCount0:
+            case Program::kWireframe:
+            default:                   return s_vs_default_m0_essl;
+        }
+#else
+        switch (version)
+        {
+            case Program::kMaskCount1: return s_vs_default_m1_metal;
+            case Program::kMaskCount2: return s_vs_default_m2_metal;
+            case Program::kMaskCount3: return s_vs_default_m3_metal;
+            case Program::kMaskCount0:
+            case Program::kWireframe:
+            default:                   return s_vs_default_m0_metal;
+        }
+#endif
+    }
+
+    unsigned int PickDefaultVSSize(Program::Version version)
+    {
+#if defined(Rtt_ANDROID_ENV)
+        if (s_useVulkanShaders)
+        {
+            switch (version)
+            {
+                case Program::kMaskCount1: return s_vs_default_m1_spirv_size;
+                case Program::kMaskCount2: return s_vs_default_m2_spirv_size;
+                case Program::kMaskCount3: return s_vs_default_m3_spirv_size;
+                case Program::kMaskCount0:
+                case Program::kWireframe:
+                default:                   return s_vs_default_m0_spirv_size;
+            }
+        }
+        switch (version)
+        {
+            case Program::kMaskCount1: return s_vs_default_m1_essl_size;
+            case Program::kMaskCount2: return s_vs_default_m2_essl_size;
+            case Program::kMaskCount3: return s_vs_default_m3_essl_size;
+            case Program::kMaskCount0:
+            case Program::kWireframe:
+            default:                   return s_vs_default_m0_essl_size;
+        }
+#else
+        switch (version)
+        {
+            case Program::kMaskCount1: return s_vs_default_m1_metal_size;
+            case Program::kMaskCount2: return s_vs_default_m2_metal_size;
+            case Program::kMaskCount3: return s_vs_default_m3_metal_size;
+            case Program::kMaskCount0:
+            case Program::kWireframe:
+            default:                   return s_vs_default_m0_metal_size;
+        }
+#endif
+    }
+}
+
 bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, const bgfx::Memory*& outMem)
 {
 #if defined(Rtt_ANDROID_ENV)
@@ -608,8 +691,8 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
     {
         if (strcmp(type, "vs") == 0)
         {
-            data = S_VS_DEFAULT;
-            size = S_VS_DEFAULT_SIZE;
+            data = PickDefaultVSData(version);
+            size = PickDefaultVSSize(version);
         }
         else if (strcmp(type, "fs") == 0)
         {
@@ -742,13 +825,17 @@ BgfxProgram::GetDefaultFSSize()
     return S_FS_DEFAULT_SIZE;
 }
 
+// Returns the kMaskCount0 default VS binary. ExtractInterfaceHash uses this
+// to discover the default-VS uniform/varying interface so custom effect VS
+// can match — that interface is identical across mask-count variants, so
+// kMaskCount0 is a safe canonical choice.
 const unsigned char*
 BgfxProgram::GetDefaultVSData()
 {
 #if defined(Rtt_ANDROID_ENV)
     InitShaderSelection();
 #endif
-    return S_VS_DEFAULT;
+    return PickDefaultVSData(Program::kMaskCount0);
 }
 
 unsigned int
@@ -757,7 +844,7 @@ BgfxProgram::GetDefaultVSSize()
 #if defined(Rtt_ANDROID_ENV)
     InitShaderSelection();
 #endif
-    return S_VS_DEFAULT_SIZE;
+    return PickDefaultVSSize(Program::kMaskCount0);
 }
 
 // ----------------------------------------------------------------------------
