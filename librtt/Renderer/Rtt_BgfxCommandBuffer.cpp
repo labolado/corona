@@ -927,6 +927,15 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     bgfx::ProgramHandle programHandle = prog->GetHandle( cmd.programVersion );
     if( !bgfx::isValid( programHandle ) )
     {
+        static int sDrawInvalidCount = 0;
+        if( ++sDrawInvalidCount <= 3 )
+        {
+            ShaderResource* sr = cmd.program
+                ? static_cast<Program*>(cmd.program)->GetShaderResource() : NULL;
+            Rtt_LogException("WARNING: ExecuteDraw skipped: invalid program handle for effect='%s' "
+                "(version=%d) — shader load/compile failed; draw will not appear\n",
+                sr ? sr->GetName().c_str() : "(default)", (int)cmd.programVersion);
+        }
         return;
     }
 
@@ -1066,6 +1075,15 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
     bgfx::ProgramHandle programHandle = prog->GetHandle( cmd.programVersion );
     if( !bgfx::isValid( programHandle ) )
     {
+        static int sDrawIdxInvalidCount = 0;
+        if( ++sDrawIdxInvalidCount <= 3 )
+        {
+            ShaderResource* sr = cmd.program
+                ? static_cast<Program*>(cmd.program)->GetShaderResource() : NULL;
+            Rtt_LogException("WARNING: ExecuteDrawIndexed skipped: invalid program handle for effect='%s' "
+                "(version=%d) — shader load/compile failed; draw will not appear\n",
+                sr ? sr->GetName().c_str() : "(default)", (int)cmd.programVersion);
+        }
         return;
     }
 

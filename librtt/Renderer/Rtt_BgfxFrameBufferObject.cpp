@@ -98,6 +98,12 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 	// destroyTextures = false - texture is managed by BgfxTexture
 	fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
 
+	if( !bgfx::isValid( fHandle ) )
+	{
+		Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
+			fTextureHandle.idx, fViewId );
+	}
+
 	DEBUG_PRINT( "%s : bgfx framebuffer handle: %d, view: %d\n",
 				__FUNCTION__,
 				fHandle.idx,
@@ -131,6 +137,12 @@ BgfxFrameBufferObject::Update( CPUResource* resource )
 
 		fTextureHandle = newTextureHandle;
 		fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
+
+		if( !bgfx::isValid( fHandle ) )
+		{
+			Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED during FBO update (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
+				fTextureHandle.idx, fViewId );
+		}
 	}
 }
 
