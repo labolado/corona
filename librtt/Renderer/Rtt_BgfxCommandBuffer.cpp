@@ -1275,8 +1275,11 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     if( a.program != b.program ) return false;
     if( a.programVersion != b.programVersion ) return false;
 
-    // Only batch maskless draws (mask uniforms are per-object)
-    if( a.programVersion != Program::kMaskCount0 ) return false;
+    // 008 mask-PV: mask UVs are baked into the vertex stream, so masked draws
+    // sharing the same programVersion can now be batched across different
+    // mask matrices. Same programVersion is still required because the FS
+    // expects a fixed mask count (kMaskCountN). The kMaskCount0 short-circuit
+    // is removed.
 
     // Same render state (blend, primitive type, MSAA)
     if( a.bgfxState != b.bgfxState ) return false;

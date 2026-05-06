@@ -392,6 +392,11 @@ class Renderer
         Array< U32 > fMaskCount; // "Stack" of mask counts
         U32 fCurrentProgramMaskCount;
 
+        // 008 mask-PV: active parent-mask uniform per level. Synced by
+        // PushMask/PopMask. Read by BakeMaskUVsIntoVertices to compute
+        // per-vertex mask UVs (vertex.maskU{0..2} / maskV{0..2}).
+        Uniform* fMaskUniformActive[3];
+
         bool fWireframeEnabled;
         bool fStatisticsEnabled;
         Statistics fStatistics;
