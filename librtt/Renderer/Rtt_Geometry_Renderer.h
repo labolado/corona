@@ -125,11 +125,18 @@ class Geometry : public CPUResource
 
             static U32 SizeInVertices( U32 size );
             
-            Real x, y, z;         // 12 bytes
-            Real u, v, q;         // 12 bytes
-            U8 rs, gs, bs, as;     // 4 bytes
-            Real ux, uy, uz, uw; // 16 bytes
+            Real x, y, z;         // 12 bytes  (offset 0)
+            Real u, v, q;         // 12 bytes  (offset 12)
+            U8 rs, gs, bs, as;     // 4 bytes  (offset 24)
+            Real ux, uy, uz, uw; // 16 bytes   (offset 28)
+            // Mask UV slots — pre-baked by Renderer::BakeMaskUVsIntoVertices
+            // (008 mask-PV). Layout must stay in lockstep with the bgfx
+            // sVertexLayout in Rtt_BgfxGeometry.cpp (TexCoord2/3/4).
+            Real maskU0, maskV0;  // 8 bytes   (offset 44)
+            Real maskU1, maskV1;  // 8 bytes   (offset 52)
+            Real maskU2, maskV2;  // 8 bytes   (offset 60)
         };
+        // Total: 68 bytes — bgfx layout asserts stride == 68 at init.
 
         typedef U16 Index;
 
