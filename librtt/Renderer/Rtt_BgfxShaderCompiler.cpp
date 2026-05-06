@@ -186,7 +186,7 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildCompiledShaderCacheKey(char* key, size_t keySize, const char* shaderStage,
                                         const char* category, const char* name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v7.bin", shaderStage, category, name,
+    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderStage, category, name,
              GetRuntimeShaderProfileSuffix());
 }
 
