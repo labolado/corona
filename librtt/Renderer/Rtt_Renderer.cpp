@@ -37,6 +37,7 @@
 #include "Rtt_Profiling.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 #define ENABLE_DEBUG_PRINT	0
 
@@ -66,6 +67,104 @@ namespace /*anonymous*/
     #endif
 
     // ...
+    // 008 mask-PV: gated coverage audit. Set MASK_PV_AUDIT=1 to enable
+    // warnings when the active mask stack disagrees with what the FS will
+    // try to read (regression guard for future mask-PV work).
+    bool IsMaskPVAuditEnabled()
+    {
+        static bool sEnabled = []() {
+            const char* env = ::getenv( "MASK_PV_AUDIT" );
+            return env != NULL && env[0] != '\0' && env[0] != '0';
+        }();
+        return sEnabled;
+    }
+
+    // 008 mask-PV: pre-compute per-vertex mask UVs and write into the
+    // vertex pool. Called by Renderer::Insert after CopyVertexData. The
+    // bgfx vs_default_mN binary reads these slots (a_texcoord2/3/4) for
+    // its corresponding mask level; vs_default_m0 ignores them, so writing
+    // 0 for inactive levels is safe.
+    void BakeMaskUVsIntoVertices(
+        Rtt::Geometry::Vertex* verts,
+        U32 count,
+        Rtt::Uniform* const* parentMasks,
+        U32 parentCount,
+        Rtt::Uniform* selfMask )
+    {
+        // Compose effective mask uniform list: parent masks (PushMask
+        // stack) followed by an optional self-mask (RenderData fMaskUniform
+        // for an object that has its own setMask).
+        Rtt::Uniform* effective[3] = { NULL, NULL, NULL };
+        U32 effectiveCount = 0;
+        for ( U32 i = 0; i < parentCount && effectiveCount < 3; ++i )
+        {
+            effective[effectiveCount++] = parentMasks[i];
+        }
+        if ( selfMask != NULL && effectiveCount < 3 )
+        {
+            effective[effectiveCount++] = selfMask;
+        }
+
+        // Audit: if MASK_PV_AUDIT=1, warn when an active parent-mask level
+        // is missing its uniform — this should never happen but catches
+        // any future PushMask/PopMask drift.
+        if ( IsMaskPVAuditEnabled() )
+        {
+            for ( U32 i = 0; i < parentCount && i < 3; ++i )
+            {
+                if ( parentMasks[i] == NULL )
+                {
+                    Rtt_LogException( "[mask-PV] missing parent mask at level %u (parentCount=%u)\n", i, parentCount );
+                }
+            }
+        }
+
+        // Cache mat3 columns per active level (column-major from
+        // Matrix::ToGLMatrix3x3): m[0,3,6] col0, m[1,4,7] col1, m[2,5,8] col2.
+        // (u, v) = mat3 * (x, y, 1), so:
+        //   u = m[0]*x + m[3]*y + m[6]
+        //   v = m[1]*x + m[4]*y + m[7]
+        Rtt::Real a0 = 0, b0 = 0, c0 = 0, d0 = 0, e0 = 0, f0 = 0;
+        Rtt::Real a1 = 0, b1 = 0, c1 = 0, d1 = 0, e1 = 0, f1 = 0;
+        Rtt::Real a2 = 0, b2 = 0, c2 = 0, d2 = 0, e2 = 0, f2 = 0;
+        bool has0 = false, has1 = false, has2 = false;
+
+        if ( effective[0] != NULL )
+        {
+            const Rtt::Real* m = reinterpret_cast<const Rtt::Real*>( effective[0]->GetData() );
+            a0 = m[0]; b0 = m[3]; c0 = m[6];
+            d0 = m[1]; e0 = m[4]; f0 = m[7];
+            has0 = true;
+        }
+        if ( effective[1] != NULL )
+        {
+            const Rtt::Real* m = reinterpret_cast<const Rtt::Real*>( effective[1]->GetData() );
+            a1 = m[0]; b1 = m[3]; c1 = m[6];
+            d1 = m[1]; e1 = m[4]; f1 = m[7];
+            has1 = true;
+        }
+        if ( effective[2] != NULL )
+        {
+            const Rtt::Real* m = reinterpret_cast<const Rtt::Real*>( effective[2]->GetData() );
+            a2 = m[0]; b2 = m[3]; c2 = m[6];
+            d2 = m[1]; e2 = m[4]; f2 = m[7];
+            has2 = true;
+        }
+
+        for ( U32 i = 0; i < count; ++i )
+        {
+            Rtt::Real x = verts[i].x;
+            Rtt::Real y = verts[i].y;
+
+            verts[i].maskU0 = has0 ? ( a0 * x + b0 * y + c0 ) : Rtt_REAL_0;
+            verts[i].maskV0 = has0 ? ( d0 * x + e0 * y + f0 ) : Rtt_REAL_0;
+            verts[i].maskU1 = has1 ? ( a1 * x + b1 * y + c1 ) : Rtt_REAL_0;
+            verts[i].maskV1 = has1 ? ( d1 * x + e1 * y + f1 ) : Rtt_REAL_0;
+            verts[i].maskU2 = has2 ? ( a2 * x + b2 * y + c2 ) : Rtt_REAL_0;
+            verts[i].maskV2 = has2 ? ( d2 * x + e2 * y + f2 ) : Rtt_REAL_0;
+        }
+    }
+
     U32 ComputeRequiredVertices( Rtt::Geometry* geometry, bool wireframe )
     {
         if( wireframe )
@@ -209,6 +308,11 @@ Renderer::Renderer( Rtt_Allocator* allocator )
 {
     // Always have at least 1 mask count.
     fMaskCount.Append( 0 );
+
+    // 008 mask-PV: parent-mask uniform tracking starts empty.
+    fMaskUniformActive[0] = NULL;
+    fMaskUniformActive[1] = NULL;
+    fMaskUniformActive[2] = NULL;
 }
 
 Renderer::~Renderer()
@@ -268,6 +372,9 @@ Renderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTi
     
     fMaskCountIndex = 0;
     fMaskCount[0] = 0;
+    fMaskUniformActive[0] = NULL;
+    fMaskUniformActive[1] = NULL;
+    fMaskUniformActive[2] = NULL;
     fInsertionCount = 0;
     
     SetGeometryWriters( NULL, 0 );
@@ -513,20 +620,34 @@ void
 Renderer::PushMask( Texture* maskTexture, Uniform* maskMatrix )
 {
     CheckAndInsertDrawCommand();
-    
+
     ++MaskCount();
     BindTexture( maskTexture, Texture::kMask0 + MaskCount() - 1 );
     BindUniform( maskMatrix, Uniform::kMaskMatrix0 + MaskCount() - 1 );
 
+    // 008 mask-PV: track active parent mask matrix per level so
+    // BakeMaskUVsIntoVertices can read mat3 data when computing per-vertex UVs.
+    if ( MaskCount() <= 3 )
+    {
+        fMaskUniformActive[MaskCount() - 1] = maskMatrix;
+    }
+
     fPrevious.fMaskTexture = maskTexture;
     fPrevious.fMaskUniform = maskMatrix;
-    
+
     DEBUG_PRINT( "Push mask: texture=%p, uniform=%p\n", maskTexture, maskMatrix );
 }
 
 void
 Renderer::PopMask()
 {
+    // 008 mask-PV: clear the active uniform slot before decrementing so
+    // the array stays in lockstep with MaskCount().
+    if ( MaskCount() > 0 && MaskCount() <= 3 )
+    {
+        fMaskUniformActive[MaskCount() - 1] = NULL;
+    }
+
     --MaskCount();
 
     // fCurrentProgramMaskCount is used to track batches. Thing is if we pop and then push new mask, it thinks we're in same batch.
@@ -750,6 +871,23 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         // Copy the the incoming vertex data into the current Geometry
         // pool instance, even if the data will not be batched.
         CopyVertexData( geometry, fCurrentVertex, batch && enoughSpace );
+
+        // 008 mask-PV: pre-compute per-vertex mask UVs from the active
+        // parent-mask stack and any self-mask carried by the RenderData.
+        // The PV vs_default_mN binary reads vertex.maskU{0..2}/maskV{0..2}
+        // (a_texcoord2/3/4) directly; m0 ignores them, so writing 0 for
+        // inactive levels is harmless. Only bake the primary vertex range
+        // (verticesComputed) — extension/instance data has its own layout.
+        if ( !isInstanced && fVertexExtra == 0 )
+        {
+            Uniform* selfMaskUniform = ( data->fMaskTexture != NULL ) ? data->fMaskUniform : NULL;
+            BakeMaskUVsIntoVertices(
+                fCurrentVertex,
+                verticesComputed,
+                fMaskUniformActive,
+                MaskCount(),
+                selfMaskUniform );
+        }
 
         // Fix: Ensure pool geometry has authoritative shader vertex data.
         // After a fill/shader transition (e.g., changeTexture from Lua),

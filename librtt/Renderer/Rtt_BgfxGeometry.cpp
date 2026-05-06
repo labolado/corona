@@ -39,20 +39,25 @@ BgfxGeometry::InitializeVertexLayout()
 {
 	if( !sLayoutInitialized )
 	{
-		// 44 bytes stride layout:
+		// 68 bytes stride layout (008 mask-PV):
 		// Position(3f) + TexCoord0(3f) + Color0(4ub normalized) + TexCoord1(4f)
+		// + TexCoord2/3/4(2f each, mask UV slots consumed by vs_default_mN binaries)
 		sVertexLayout
 			.begin()
 			.add( bgfx::Attrib::Position,  3, bgfx::AttribType::Float )           // offset 0,  12 bytes
 			.add( bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float )           // offset 12, 12 bytes
 			.add( bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true )     // offset 24, 4 bytes (normalized)
 			.add( bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float )           // offset 28, 16 bytes
+			.add( bgfx::Attrib::TexCoord2, 2, bgfx::AttribType::Float )           // offset 44, 8 bytes (mask UV 0)
+			.add( bgfx::Attrib::TexCoord3, 2, bgfx::AttribType::Float )           // offset 52, 8 bytes (mask UV 1)
+			.add( bgfx::Attrib::TexCoord4, 2, bgfx::AttribType::Float )           // offset 60, 8 bytes (mask UV 2)
 			.end();
-		
+
 		sLayoutInitialized = true;
-		
-		// Verify stride matches expected 44 bytes
-		Rtt_ASSERT( sVertexLayout.getStride() == 44 );
+
+		// Verify stride matches expected 68 bytes (must stay in lockstep with
+		// Geometry::Vertex layout — see Rtt_Geometry_Renderer.h).
+		Rtt_ASSERT( sVertexLayout.getStride() == 68 );
 	}
 }
 
