@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
+#include "Renderer/Rtt_BgfxShaderCacheKey.h"
 #include "Renderer/Rtt_Program.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_ShaderTypes.h"
@@ -71,11 +72,10 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
-    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
-    // the old layout would map attributes wrong, so invalidate the cache.
-    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    // Cache key version is centralized in Rtt_BgfxShaderCacheKey.h.
+    // Currently v8 (mask-PV layout, 68B vertex; bump on any layout change).
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 
 // FS stays single-binary; mask count is gated at runtime via u_TexFlags.y.
@@ -90,11 +90,10 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildRuntimeShaderCacheKey(char* key, size_t keySize, const char* shaderType,
                                        const char* category, const std::string& name)
 {
-    // 008 mask-PV: v8 — vertex layout grew from 44 to 68 bytes (added
-    // TexCoord2/3/4 mask UV slots). Effect shaders runtime-compiled under
-    // the old layout would map attributes wrong, so invalidate the cache.
-    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderType, category, name.c_str(),
-             GetRuntimeShaderProfileSuffix());
+    // Cache key version is centralized in Rtt_BgfxShaderCacheKey.h.
+    // Currently v8 (mask-PV layout, 68B vertex; bump on any layout change).
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderType, category, name.c_str(), GetRuntimeShaderProfileSuffix());
 }
 #endif
 
@@ -419,10 +418,19 @@ void BgfxProgram::CreateVersion(Program::Version version, VersionData& data)
     {
         Program* prog = static_cast<Program*>(fResource);
         ShaderResource* sr = prog ? prog->GetShaderResource() : NULL;
-        Rtt_LogException("CreateVersion: program=%s valid=%d VS.idx=%d FS.idx=%d version=%d\n",
-                         sr ? sr->GetName().c_str() : "default",
-                         bgfx::isValid(data.fProgram) ? 1 : 0,
-                         data.fVertexShader.idx, data.fFragmentShader.idx, version);
+        bool progValid = bgfx::isValid(data.fProgram);
+        if( progValid )
+        {
+            Rtt_LogException("CreateVersion: program=%s valid=1 VS.idx=%d FS.idx=%d version=%d\n",
+                             sr ? sr->GetName().c_str() : "default",
+                             data.fVertexShader.idx, data.fFragmentShader.idx, version);
+        }
+        else
+        {
+            Rtt_LogException("ERROR: CreateVersion: program=%s valid=0 VS.idx=%d FS.idx=%d version=%d; program creation failed, default shader fallback will be used.\n",
+                             sr ? sr->GetName().c_str() : "default",
+                             data.fVertexShader.idx, data.fFragmentShader.idx, version);
+        }
     }
 
     if (!bgfx::isValid(data.fProgram))
@@ -682,6 +690,14 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
                             name.c_str(), categoryStr);
                     }
                 }
+                else if (strcmp(type, "fs") == 0)
+                {
+                    // FS not found in runtime cache — will fall back to default FS silently.
+                    // This is the exact failure mode for mismatched cache keys: effect renders as blank/white.
+                    Rtt_LogException("WARNING: shader cache miss for effect '%s' FS (key='%s'). "
+                        "Using default FS — custom fragment shader WILL NOT run.\n",
+                        name.c_str(), cacheKey);
+                }
             }
         }
     }
@@ -689,6 +705,15 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
     // Fall back to default shaders
     if (!data)
     {
+        if (shaderRes && shaderRes->GetCategory() != ShaderTypes::kCategoryDefault
+            && !shaderRes->GetName().empty())
+        {
+            Rtt_LogException("WARNING: using default %s shader for custom effect '%s' (category '%s') — "
+                "no compiled binary found; the effect will NOT render correctly.\n",
+                type, shaderRes->GetName().c_str(),
+                ShaderTypes::StringForCategory(shaderRes->GetCategory()));
+        }
+
         if (strcmp(type, "vs") == 0)
         {
             data = PickDefaultVSData(version);
@@ -719,56 +744,38 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
 
 void BgfxProgram::CreateUniforms()
 {
-    // Create built-in uniforms (global, created once)
-    // Note: bgfx doesn't support float uniforms directly, so we use Vec4
-    // and pack float values in the .x component
-    
-    fUniformViewProjectionMatrix = bgfx::createUniform(
-        "u_ViewProjectionMatrix", bgfx::UniformType::Mat4);
-    
-    fUniformMaskMatrix0 = bgfx::createUniform("u_MaskMatrix0", bgfx::UniformType::Mat3);
-    fUniformMaskMatrix1 = bgfx::createUniform("u_MaskMatrix1", bgfx::UniformType::Mat3);
-    fUniformMaskMatrix2 = bgfx::createUniform("u_MaskMatrix2", bgfx::UniformType::Mat3);
-    
-    // Float uniforms packed in vec4.x
-    fUniformTotalTime = bgfx::createUniform(
-        "u_TotalTime", bgfx::UniformType::Vec4);
-    fUniformDeltaTime = bgfx::createUniform(
-        "u_DeltaTime", bgfx::UniformType::Vec4);
-    
-    fUniformTexelSize = bgfx::createUniform(
-        "u_TexelSize", bgfx::UniformType::Vec4);
-    
-    // vec2 packed in vec4.xy
-    fUniformContentScale = bgfx::createUniform(
-        "u_ContentScale", bgfx::UniformType::Vec4);
-    fUniformContentSize = bgfx::createUniform(
-        "u_ContentSize", bgfx::UniformType::Vec4);
-    
-    fUniformUserData0 = bgfx::createUniform(
-        "u_UserData0", bgfx::UniformType::Vec4);
-    fUniformUserData1 = bgfx::createUniform(
-        "u_UserData1", bgfx::UniformType::Vec4);
-    fUniformUserData2 = bgfx::createUniform(
-        "u_UserData2", bgfx::UniformType::Vec4);
-    fUniformUserData3 = bgfx::createUniform(
-        "u_UserData3", bgfx::UniformType::Vec4);
-    
-    // Texture flags: .x = 1.0 for alpha-only texture (needs R->A swizzle)
-    fUniformTexFlags = bgfx::createUniform(
-        "u_TexFlags", bgfx::UniformType::Vec4);
+#define BGFX_CREATE_UNIFORM_OR_LOG(field, name, type) \
+    do { (field) = bgfx::createUniform((name), (type)); \
+         if (!bgfx::isValid(field)) Rtt_LogException("ERROR: createUniform '%s' FAILED\n", (name)); \
+    } while (0)
 
-    // Create sampler uniforms
-    fSamplerFill0 = bgfx::createUniform(
-        "u_FillSampler0", bgfx::UniformType::Sampler);
-    fSamplerFill1 = bgfx::createUniform(
-        "u_FillSampler1", bgfx::UniformType::Sampler);
-    fSamplerMask0 = bgfx::createUniform(
-        "u_MaskSampler0", bgfx::UniformType::Sampler);
-    fSamplerMask1 = bgfx::createUniform(
-        "u_MaskSampler1", bgfx::UniformType::Sampler);
-    fSamplerMask2 = bgfx::createUniform(
-        "u_MaskSampler2", bgfx::UniformType::Sampler);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformViewProjectionMatrix, "u_ViewProjectionMatrix", bgfx::UniformType::Mat4);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformMaskMatrix0, "u_MaskMatrix0", bgfx::UniformType::Mat3);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformMaskMatrix1, "u_MaskMatrix1", bgfx::UniformType::Mat3);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformMaskMatrix2, "u_MaskMatrix2", bgfx::UniformType::Mat3);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformTotalTime,  "u_TotalTime",  bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformDeltaTime,  "u_DeltaTime",  bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformTexelSize,  "u_TexelSize",  bgfx::UniformType::Vec4);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformContentScale, "u_ContentScale", bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformContentSize,  "u_ContentSize",  bgfx::UniformType::Vec4);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformUserData0, "u_UserData0", bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformUserData1, "u_UserData1", bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformUserData2, "u_UserData2", bgfx::UniformType::Vec4);
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformUserData3, "u_UserData3", bgfx::UniformType::Vec4);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fUniformTexFlags, "u_TexFlags", bgfx::UniformType::Vec4);
+
+    BGFX_CREATE_UNIFORM_OR_LOG(fSamplerFill0, "u_FillSampler0", bgfx::UniformType::Sampler);
+    BGFX_CREATE_UNIFORM_OR_LOG(fSamplerFill1, "u_FillSampler1", bgfx::UniformType::Sampler);
+    BGFX_CREATE_UNIFORM_OR_LOG(fSamplerMask0, "u_MaskSampler0", bgfx::UniformType::Sampler);
+    BGFX_CREATE_UNIFORM_OR_LOG(fSamplerMask1, "u_MaskSampler1", bgfx::UniformType::Sampler);
+    BGFX_CREATE_UNIFORM_OR_LOG(fSamplerMask2, "u_MaskSampler2", bgfx::UniformType::Sampler);
+
+#undef BGFX_CREATE_UNIFORM_OR_LOG
 }
 
 void BgfxProgram::DestroyUniforms()

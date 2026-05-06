@@ -13,6 +13,7 @@
 
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
 #include "Renderer/Rtt_BgfxProgram.h"
+#include "Renderer/Rtt_BgfxShaderCacheKey.h"
 #include "Core/Rtt_Assert.h"
 
 #include <cstdio>
@@ -186,8 +187,8 @@ static const char* GetRuntimeShaderProfileSuffix()
 static void BuildCompiledShaderCacheKey(char* key, size_t keySize, const char* shaderStage,
                                         const char* category, const char* name)
 {
-    snprintf(key, keySize, "%s_%s_%s_%s_v8.bin", shaderStage, category, name,
-             GetRuntimeShaderProfileSuffix());
+    snprintf(key, keySize, "%s_%s_%s_%s_" BGFX_RUNTIME_SHADER_CACHE_VERSION ".bin",
+             shaderStage, category, name, GetRuntimeShaderProfileSuffix());
 }
 
 // Inline bgfx shader compatibility definitions.
