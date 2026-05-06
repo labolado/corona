@@ -12,6 +12,11 @@ $input v_TexCoord, v_ColorScale, v_UserData, v_MaskUV0, v_MaskUV1, v_MaskUV2
 
 // Solar2D Default Fragment Shader for bgfx
 
+// Compile-time switch: set to 1 to visualize baked v_MaskUV0 as RG colour
+// (used by the Step 5 binding-chain verification gate). Leave at 0 for
+// production builds.
+#define MASK_PV_DEBUG 0
+
 #include <bgfx_shader.sh>
 
 // Sampler uniforms
@@ -63,6 +68,14 @@ void main()
     }
 
     vec4 result = texColor * v_ColorScale;
+
+#if MASK_PV_DEBUG
+    if (u_TexFlags.y > 0.5)
+    {
+        gl_FragColor = vec4(v_MaskUV0, 0.0, 1.0);
+        return;
+    }
+#endif
 
     if (u_TexFlags.y > 0.5)
         result *= texture2D(u_MaskSampler0, v_MaskUV0).r;
