@@ -118,27 +118,40 @@ compile_default() {
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; elif [ "$PROFILE" = "spirv" ]; then SUFFIX="spirv"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h"
 
-        echo "  Compiling vs_default ($SUFFIX)..."
-        compile_shader "$SHADER_DIR/vs_default.sc" vertex "$PROFILE" "$TMP_DIR/vs_default_${SUFFIX}.bin"
+        # 008 mask-PV: emit 4 mask-count variants of the default VS so the
+        # kMaskCount0 binary does not declare a_texcoord2/3/4 (avoids the
+        # global-binary-expectation pitfall that sank v2). fs_default stays
+        # a single binary; mask count is gated at runtime via u_TexFlags.y.
+        for MASK_COUNT in 0 1 2 3; do
+            local VS_NAME="vs_default_m${MASK_COUNT}"
+            echo "  Compiling ${VS_NAME} (${SUFFIX})..."
+            compile_shader "$SHADER_DIR/${VS_NAME}.sc" vertex "$PROFILE" "$TMP_DIR/${VS_NAME}_${SUFFIX}.bin"
+        done
 
-        echo "  Compiling fs_default ($SUFFIX)..."
+        echo "  Compiling fs_default (${SUFFIX})..."
         compile_shader "$SHADER_DIR/fs_default.sc" fragment "$PROFILE" "$TMP_DIR/fs_default_${SUFFIX}.bin"
 
         # Generate header
         {
             echo "// Auto-generated bgfx shader data ($SUFFIX)"
-            echo "// Source: vs_default.sc, fs_default.sc"
+            echo "// Source: vs_default_m{0,1,2,3}.sc, fs_default.sc"
             echo "// Generated: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "// DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh default"
             echo ""
             echo "#pragma once"
             echo ""
-            bin_to_c_array "$TMP_DIR/vs_default_${SUFFIX}.bin" "s_vs_default_${SUFFIX}"
-            echo ""
+            for MASK_COUNT in 0 1 2 3; do
+                bin_to_c_array "$TMP_DIR/vs_default_m${MASK_COUNT}_${SUFFIX}.bin" "s_vs_default_m${MASK_COUNT}_${SUFFIX}"
+                echo ""
+            done
             bin_to_c_array "$TMP_DIR/fs_default_${SUFFIX}.bin" "s_fs_default_${SUFFIX}"
         } > "$HEADER"
 
-        echo "  → $HEADER (VS: $(wc -c < "$TMP_DIR/vs_default_${SUFFIX}.bin") bytes, FS: $(wc -c < "$TMP_DIR/fs_default_${SUFFIX}.bin") bytes)"
+        local TOTAL_VS=0
+        for MASK_COUNT in 0 1 2 3; do
+            TOTAL_VS=$((TOTAL_VS + $(wc -c < "$TMP_DIR/vs_default_m${MASK_COUNT}_${SUFFIX}.bin")))
+        done
+        echo "  → $HEADER (VS×4: $TOTAL_VS bytes, FS: $(wc -c < "$TMP_DIR/fs_default_${SUFFIX}.bin") bytes)"
     done
 
     rm -rf "$TMP_DIR"
@@ -241,37 +254,51 @@ check_sync() {
         local SUFFIX
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; else SUFFIX="essl"; fi
 
-        # Check default shaders
-        compile_shader "$SHADER_DIR/vs_default.sc" vertex "$PROFILE" "$TMP_DIR/vs_default.bin" > /dev/null 2>&1
-        compile_shader "$SHADER_DIR/fs_default.sc" fragment "$PROFILE" "$TMP_DIR/fs_default.bin" > /dev/null 2>&1
+        # Check 4 vs_default mask-count variants
+        for MASK_COUNT in 0 1 2 3; do
+            local VS_NAME="vs_default_m${MASK_COUNT}"
+            local TMP_BIN="$TMP_DIR/${VS_NAME}_${SUFFIX}.bin"
+            compile_shader "$SHADER_DIR/${VS_NAME}.sc" vertex "$PROFILE" "$TMP_BIN" > /dev/null 2>&1
 
-        local VS_SIZE=$(wc -c < "$TMP_DIR/vs_default.bin")
-        local FS_SIZE=$(wc -c < "$TMP_DIR/fs_default.bin")
+            local BIN_HASH=$(md5 -q "$TMP_BIN" 2>/dev/null || md5sum "$TMP_BIN" | cut -d' ' -f1)
 
-        # Compare by counting hex bytes in header array
-        local HEADER_VS_COUNT=$(grep -c '0x[0-9a-f][0-9a-f]' "$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h" 2>/dev/null | head -1 || echo "0")
-        # More reliable: hash the compiled binary vs extracted header bytes
-        local BIN_HASH=$(md5 -q "$TMP_DIR/vs_default.bin" 2>/dev/null || md5sum "$TMP_DIR/vs_default.bin" | cut -d' ' -f1)
-        local BIN_HASH_FS=$(md5 -q "$TMP_DIR/fs_default.bin" 2>/dev/null || md5sum "$TMP_DIR/fs_default.bin" | cut -d' ' -f1)
-
-        # Extract binary from header and compare
-        local HEADER_BIN="$TMP_DIR/header_vs_${SUFFIX}.bin"
-        python3 -c "
+            local HEADER_BIN="$TMP_DIR/header_${VS_NAME}_${SUFFIX}.bin"
+            python3 -c "
 import re
 data = open('$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h').read()
-# Find vs array
-m = re.search(r's_vs_default_${SUFFIX}\[\] = \{([^}]+)\}', data)
+m = re.search(r's_${VS_NAME}_${SUFFIX}\[\] = \{([^}]+)\}', data)
 if m:
     hexvals = re.findall(r'0x[0-9a-fA-F]+', m.group(1))
     open('$HEADER_BIN', 'wb').write(bytes(int(h,16) for h in hexvals))
 " 2>/dev/null
-        local HEADER_HASH=$(md5 -q "$HEADER_BIN" 2>/dev/null || echo "none")
+            local HEADER_HASH=$(md5 -q "$HEADER_BIN" 2>/dev/null || echo "none")
 
-        if [ "$BIN_HASH" != "$HEADER_HASH" ]; then
-            echo "  STALE: default VS ($SUFFIX) — compiled=$BIN_HASH header=$HEADER_HASH"
+            if [ "$BIN_HASH" != "$HEADER_HASH" ]; then
+                echo "  STALE: ${VS_NAME} ($SUFFIX) — compiled=$BIN_HASH header=$HEADER_HASH"
+                STALE=$((STALE + 1))
+            else
+                echo "  OK: ${VS_NAME} ($SUFFIX)"
+            fi
+        done
+
+        # Check fs_default (single binary)
+        compile_shader "$SHADER_DIR/fs_default.sc" fragment "$PROFILE" "$TMP_DIR/fs_default.bin" > /dev/null 2>&1
+        local FS_BIN_HASH=$(md5 -q "$TMP_DIR/fs_default.bin" 2>/dev/null || md5sum "$TMP_DIR/fs_default.bin" | cut -d' ' -f1)
+        local FS_HEADER_BIN="$TMP_DIR/header_fs_${SUFFIX}.bin"
+        python3 -c "
+import re
+data = open('$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h').read()
+m = re.search(r's_fs_default_${SUFFIX}\[\] = \{([^}]+)\}', data)
+if m:
+    hexvals = re.findall(r'0x[0-9a-fA-F]+', m.group(1))
+    open('$FS_HEADER_BIN', 'wb').write(bytes(int(h,16) for h in hexvals))
+" 2>/dev/null
+        local FS_HEADER_HASH=$(md5 -q "$FS_HEADER_BIN" 2>/dev/null || echo "none")
+        if [ "$FS_BIN_HASH" != "$FS_HEADER_HASH" ]; then
+            echo "  STALE: fs_default ($SUFFIX) — compiled=$FS_BIN_HASH header=$FS_HEADER_HASH"
             STALE=$((STALE + 1))
         else
-            echo "  OK: default ($SUFFIX)"
+            echo "  OK: fs_default ($SUFFIX)"
         fi
     done
 
