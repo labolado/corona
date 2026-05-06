@@ -370,23 +370,25 @@ BgfxGeometry::Update( CPUResource* resource )
 	Rtt_ASSERT( CPUResource::kGeometry == resource->GetType() );
 	Geometry* geometry = static_cast<Geometry*>( resource );
 
+	// Phase 16 experiment: force stored-on-GPU geometry to use transient path
+	// to bypass Adreno 530 GLES DynamicVertexBuffer update latency.
+	// Hypothesis: bgfx::update() doesn't reach GPU before the next render reads
+	// the buffer, leaving stale (initial white) vertex colors after fade-out.
+	if( fWasStoredOnGPU && !fIsTransient )
+	{
+		DestroyDynamic();
+		DestroyStatic();
+		fIsTransient = true;
+		fVertexCount = geometry->GetVerticesAllocated();
+	}
+
 	if( fIsTransient )
 	{
 		UpdateTransient( geometry );
 	}
 	else if( fIsDynamic )
 	{
-		// Auto-promote: if this was a StoredOnGPU geometry that was converted
-		// to dynamic (on first update), and it has been stable for many frames,
-		// promote back to static for optimal GPU rendering performance.
-		if( fWasStoredOnGPU && (sFrameCount - fLastUpdateFrame) > kPromotionThreshold )
-		{
-			PromoteToStatic( geometry );
-		}
-		else
-		{
-			UpdateDynamic( geometry );
-		}
+		UpdateDynamic( geometry );
 		fLastUpdateFrame = sFrameCount;
 	}
 	else
