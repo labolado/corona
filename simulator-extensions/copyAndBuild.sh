@@ -2,6 +2,7 @@
 
 # $1 is the src folder
 
+set -euo pipefail
 shopt -s extglob
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
@@ -34,7 +35,7 @@ dir=$(pwd)
 LUAC_DIR=$dir
 popd > /dev/null
 
-if [ "$CONFIGURATION" = "Debug" ]
+if [ "${CONFIGURATION:-}" = "Debug" ]
 then
 	OPTIONS=
 else
