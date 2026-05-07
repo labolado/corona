@@ -48,6 +48,38 @@ log "  包名: $PACKAGE_NAME"
 log "  设备: ${ADB_DEVICE:-未连接}"
 
 # ============================================================
+# Step 0.5: 插件服务器健康检查
+# ============================================================
+log "Step 0.5: 插件服务器健康检查"
+
+PLUGIN_SERVER_URL="http://127.0.0.1:10980/"
+PLATYPUS_APP="/Users/yee/data/dev/env/solar2d_plugins/Start Server(platypus).app"
+
+check_plugin_server() {
+    curl -s --max-time 5 "$PLUGIN_SERVER_URL" > /dev/null 2>&1
+}
+
+if check_plugin_server; then
+    log "  插件服务器在线 ($PLUGIN_SERVER_URL)"
+else
+    log "  插件服务器无响应，尝试重启..."
+    pkill -9 -f "Start Server.*platypus" 2>/dev/null || true
+    sleep 1
+    if [ -d "$PLATYPUS_APP" ]; then
+        open "$PLATYPUS_APP"
+        log "  已启动 $PLATYPUS_APP"
+    else
+        fail "插件服务器应用不存在: $PLATYPUS_APP"
+    fi
+    sleep 6
+    if check_plugin_server; then
+        log "  插件服务器已恢复"
+    else
+        fail "插件服务器无法启动，请先确保 127.0.0.1:10980 可达"
+    fi
+fi
+
+# ============================================================
 # Step 1: 编译 Corona AAR (包含 bgfx)
 # ============================================================
 AAR_OUTPUT="$CORONA_DIR/platform/android/sdk/build/outputs/aar/Corona-release.aar"
@@ -248,6 +280,81 @@ else
         echo "$BUILD_OUTPUT" | tail -20
         fail "CoronaBuilder 打包失败，$DST 中没有 APK/AAB"
     fi
+fi
+
+# ============================================================
+# Step 4.5: 插件完整性校验
+# ============================================================
+log "Step 4.5: 插件完整性校验"
+
+BUILD_SETTINGS="$PROJECT_PATH/build.settings"
+if [ -f "$BUILD_SETTINGS" ] && [ -f "$APK_PATH" ]; then
+    ANDROID_PLUGINS=$(python3 -c "
+import re, sys
+with open(sys.argv[1]) as f:
+    text = f.read()
+m = re.search(r'plugins\s*=\s*\{(.*?)\n\t\}', text, re.DOTALL)
+if m:
+    block = m.group(1)
+    for match in re.finditer(r'\[\"([^\"]+)\"\]\s*=\s*\{', block):
+        start = match.end()
+        end, depth = start, 1
+        while depth > 0 and end < len(block):
+            if block[end] == '{': depth += 1
+            elif block[end] == '}': depth -= 1
+            end += 1
+        pb = block[start:end-1]
+        if '\"android\"' in pb or '[\"android\"]' in pb:
+            print(match.group(1))
+" "$BUILD_SETTINGS")
+
+    MISSING_PLUGINS=""
+    while read -r pname; do
+        [ -z "$pname" ] && continue
+        PLUGIN_FOUND=0
+
+        # 原生 .so 插件（多架构）
+        if unzip -l "$APK_PATH" "lib/*/lib${pname}.so" > /dev/null 2>&1; then
+            PLUGIN_FOUND=1
+        fi
+
+        # Java/Lua 插件目录
+        if [ "$PLUGIN_FOUND" -eq 0 ]; then
+            shortname="${pname#plugin.}"
+            if [ "$shortname" != "$pname" ]; then
+                if unzip -l "$APK_PATH" | grep -q "plugin/${shortname}/"; then
+                    PLUGIN_FOUND=1
+                fi
+            fi
+        fi
+
+        # CoronaProvider 特殊处理
+        if [ "$PLUGIN_FOUND" -eq 0 ]; then
+            case "$pname" in
+                CoronaProvider.*)
+                    cp_short="${pname#CoronaProvider.}"
+                    cp_short="${cp_short//./\/}"
+                    if unzip -l "$APK_PATH" | grep -q "plugin/${cp_short}"; then
+                        PLUGIN_FOUND=1
+                    fi
+                    ;;
+            esac
+        fi
+
+        if [ "$PLUGIN_FOUND" -eq 0 ]; then
+            MISSING_PLUGINS="$MISSING_PLUGINS $pname"
+        fi
+    done <<< "$ANDROID_PLUGINS"
+
+    if [ -n "$MISSING_PLUGINS" ]; then
+        log "  APK 中实际包含的 plugin 列表:"
+        unzip -l "$APK_PATH" 2>/dev/null | grep -E "libplugin|plugin/" | awk '{print "    " $4}' | sort | uniq
+        fail "APK 缺失以下 Android plugin:$MISSING_PLUGINS"
+    else
+        log "  所有 Android plugin 已确认打包"
+    fi
+else
+    log "  无 build.settings 或无 APK，跳过 plugin 检查"
 fi
 
 # ============================================================
