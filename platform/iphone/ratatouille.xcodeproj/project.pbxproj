@@ -5796,6 +5796,13 @@
 					"-ObjC",
 					"-all_load",
 				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-Wl,-U,_MTLIOErrorDomain",
+					"-Wl,-U,_MTLTensorDomain",
+				);
 				PRODUCT_NAME = "template-angle";
 				PROVISIONING_PROFILE = "";
 				PROVISIONING_PROFILE_SPECIFIER = ios;
@@ -5830,6 +5837,13 @@
 					"$(inherited)",
 					"-ObjC",
 					"-all_load",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-Wl,-U,_MTLIOErrorDomain",
+					"-Wl,-U,_MTLTensorDomain",
 				);
 				PRODUCT_NAME = "template-angle";
 				PROVISIONING_PROFILE = "";
