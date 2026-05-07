@@ -32,12 +32,16 @@ fi
 
 BUILD_NUMBER=${BUILD_NUMBER:-3575}
 YEAR=${YEAR:-2020}
+# DMG filename suffix must match the release job's rename target,
+# which uses the cosmetic ${BUILD} (full tag, e.g. "3729.bgfx.v2"),
+# not the numeric ${BUILD_NUMBER} (used only for version macros).
+BUILD=${BUILD:-$BUILD_NUMBER}
 
 NATIVE_FLAG=""
 if [ -f "${WORKSPACE}/Native/CoronaNative.tar.gz" ]; then
     NATIVE_FLAG="-e ${WORKSPACE}/Native/CoronaNative.tar.gz"
 fi
-if ! bin/mac/build_dmg.sh -d -b "$YEAR.$BUILD_NUMBER" $NATIVE_FLAG "${WORKSPACE}" "${WORKSPACE}/docs"
+if ! bin/mac/build_dmg.sh -d -b "$YEAR.$BUILD" $NATIVE_FLAG "${WORKSPACE}" "${WORKSPACE}/docs"
 then
     BUILD_FAILED=YES
     echo "BUILD FAILED"
