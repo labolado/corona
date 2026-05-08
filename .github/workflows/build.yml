@@ -706,6 +706,32 @@ jobs:
         run: ./tools/GHAction/build_dmg.sh
         env:
           CERT_PASSWORD: ${{ secrets.CertPassword }}
+      - name: Notarize DMG
+        env:
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NOTARY_KEY_ID:-}" ] || [ -z "${NOTARY_ISSUER_ID:-}" ] || [ -z "${NOTARY_API_KEY:-}" ]; then
+            echo "Notarization secrets not set — skipping (DMG will be signed but not notarized)."
+            exit 0
+          fi
+          DMG=$(ls ./output/Corona-*.dmg 2>/dev/null | head -1 || true)
+          if [ -z "$DMG" ]; then echo "No DMG found in ./output"; exit 1; fi
+          echo "Notarizing $DMG"
+          KEY_FILE=$(mktemp -t notary_key)
+          chmod 600 "$KEY_FILE"
+          printf '%s\n' "$NOTARY_API_KEY" > "$KEY_FILE"
+          xcrun notarytool submit "$DMG" \
+              --key "$KEY_FILE" \
+              --key-id "$NOTARY_KEY_ID" \
+              --issuer "$NOTARY_ISSUER_ID" \
+              --wait \
+              --timeout 30m
+          rm -f "$KEY_FILE"
+          xcrun stapler staple "$DMG"
+          spctl --assess --type install --verbose=4 "$DMG" || true
       - name: Upload macOS Daily build artifact
         uses: actions/upload-artifact@v4
         with:
