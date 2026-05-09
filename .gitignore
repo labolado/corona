@@ -297,3 +297,6 @@ jre.win32.7z
 redist.win32.7z
 *.log
 .claude/
+
+# ADB device lists (machine-specific)
+tests/.adb_*_devices.txt
