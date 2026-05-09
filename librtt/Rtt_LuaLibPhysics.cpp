@@ -785,7 +785,6 @@ common_ray_cast( lua_State *L,
 	int top_index_before_RayCast = lua_gettop( L );
 
 	b2QueryFilter filter = b2DefaultQueryFilter();
-	filter.categoryBits = UINT64_MAX;
 	if ( lua_istable( L, 6 ) )
 	{
 		lua_getfield( L, 6, "categoryBits" );
@@ -1117,7 +1116,6 @@ QueryRegion( lua_State *L )
 		// world->QueryAABB( &callback, aabb );
 
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		filter.categoryBits = UINT64_MAX;
 		if ( lua_istable( L, 5 ) )
 		{
 			lua_getfield( L, 5, "categoryBits" );
@@ -1181,7 +1179,6 @@ QueryCircle( lua_State *L )
 		int top_index_before_query = lua_gettop( L );
 
 		b2QueryFilter filter = b2DefaultQueryFilter();
-		filter.categoryBits = UINT64_MAX;
 		if ( lua_istable( L, 4 ) )
 		{
 			lua_getfield( L, 4, "categoryBits" );
@@ -1235,7 +1232,6 @@ QueryBody( lua_State *L )
 			int top_index_before_query = lua_gettop( L );
 
 			b2QueryFilter filter = b2DefaultQueryFilter();
-			filter.categoryBits = UINT64_MAX;
 			if ( lua_istable( L, 2 ) )
 			{
 				lua_getfield( L, 2, "categoryBits" );
@@ -3932,7 +3928,6 @@ SolveCharacterMove( lua_State *L )
 
 	lua_getfield( L, lua_arg_index, "collideFilter" );
 	b2QueryFilter collideFilter = b2DefaultQueryFilter();
-	collideFilter.categoryBits = UINT64_MAX;
 	if ( lua_istable( L, -1 ) )
 	{
 		lua_getfield( L, -1, "categoryBits" );
@@ -3953,7 +3948,6 @@ SolveCharacterMove( lua_State *L )
 
 	lua_getfield( L, lua_arg_index, "castFilter" );
 	b2QueryFilter castFilter = b2DefaultQueryFilter();
-	castFilter.categoryBits = UINT64_MAX;
 	if ( lua_istable( L, -1 ) )
 	{
 		lua_getfield( L, -1, "categoryBits" );
@@ -4071,7 +4065,6 @@ common_shape_cast( lua_State *L, const b2ShapeProxy *proxy )
 
 	lua_getfield( L, lua_arg_index, "castFilter" );
 	b2QueryFilter castFilter = b2DefaultQueryFilter();
-	castFilter.categoryBits = UINT64_MAX;
 	if ( lua_istable( L, -1 ) )
 	{
 		lua_getfield( L, -1, "categoryBits" );
