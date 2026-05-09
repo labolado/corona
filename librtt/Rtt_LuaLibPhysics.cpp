@@ -1248,8 +1248,28 @@ QueryBody( lua_State *L )
 				}
 				lua_pop( L, 1 );
 			}
+
+			b2Vec2 translation = b2Vec2_zero;
+			if ( lua_istable( L, 3 ) )
+			{
+				lua_getfield( L, 3, "x" );
+				if ( lua_isnumber( L, -1 ) )
+				{
+					translation.x = (float)lua_tonumber( L, -1 ) * meters_per_pixels;
+				}
+				lua_pop( L, 1 );
+
+				lua_getfield( L, 3, "y" );
+				if ( lua_isnumber( L, -1 ) )
+				{
+					translation.y = (float)lua_tonumber( L, -1 ) * meters_per_pixels;
+				}
+				lua_pop( L, 1 );
+			}
+
 			b2BodyId bodyId = o->GetExtensions()->GetBody();
 			b2Transform transform = b2Body_GetTransform( bodyId );
+			transform.p += translation;
 			int count = b2Body_GetShapeCount( bodyId );
 			b2ShapeId *shapeArray = new b2ShapeId[ count ];
 			b2Body_GetShapes( bodyId, shapeArray, count );
