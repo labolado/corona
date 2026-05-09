@@ -124,7 +124,7 @@ PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
 	fTimeRemainder( 0.0f ),
 	fNumSteps(1)
 {
-	fMouseBodys.reserve( estimateMaxMouseBodies );
+	fMouseBodies.reserve( estimateMaxMouseBodies );
 	fWorkerCount = b2MinInt( 32, b2MaxInt((int)enki::GetNumHardwareThreads() / 2, 1) );
 #if defined ( Rtt_APPLE_ENV )
 	if ( fWorkerCount == 1 ) { fWorkerCount = 2; }
@@ -289,7 +289,7 @@ PhysicsWorld::StopWorld()
 		b2DestroyWorld( fWorld->GetWorldId() );
 
 		// Clear mouse body pool (all IDs are now invalid after world destruction)
-		fMouseBodys.clear();
+		fMouseBodies.clear();
 
 		Rtt_DELETE( fWorld );
 		fWorld = NULL;
@@ -583,9 +583,9 @@ PhysicsWorld::StepEvents() {
 b2BodyId PhysicsWorld::FetchUsableMouseBodyId() {
 	b2BodyId foundMouseBodyId = b2_nullBodyId;
 	int foundIndex = -1;
-	for (int i = 0; i < fMouseBodys.size(); ++i) {
-		if ( b2Body_GetJointCount( fMouseBodys[i] ) == 0 ) {
-			foundMouseBodyId = fMouseBodys[i];
+	for (int i = 0; i < fMouseBodies.size(); ++i) {
+		if ( b2Body_GetJointCount( fMouseBodies[i] ) == 0 ) {
+			foundMouseBodyId = fMouseBodies[i];
 			foundIndex = i;
 			break;
 		}
@@ -597,7 +597,7 @@ b2BodyId PhysicsWorld::FetchUsableMouseBodyId() {
 		bd.enableSleep = false;
 		bd.userData = const_cast< void* >( LuaLibPhysics::GetGroundBodyUserdata() );
 		foundMouseBodyId = b2CreateBody( fWorld->GetWorldId(), &bd );
-		fMouseBodys.emplace_back( foundMouseBodyId );
+		fMouseBodies.emplace_back( foundMouseBodyId );
 	}
 	return foundMouseBodyId;
 }

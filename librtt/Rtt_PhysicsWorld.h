@@ -184,7 +184,7 @@ class PhysicsWorld
 		//! true: The point of contact reported is the average of all contact points.
 		bool fAverageCollisionPositions;
 
-		std::vector<b2BodyId> fMouseBodys;
+		std::vector<b2BodyId> fMouseBodies;
 
 	public:
 		int fWorkerCount;
