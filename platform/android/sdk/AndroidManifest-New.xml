@@ -26,6 +26,20 @@
             </intent-filter>
         </activity>
         <activity
+            android:name="com.ansca.corona.GameLoopActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|screenSize|orientation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=":gameloop"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="com.google.intent.action.TEST_LOOP" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/javascript" />
+            </intent-filter>
+            <meta-data android:name="com.google.test.loops" android:value="1" />
+        </activity>
+        <activity
             android:name="com.ansca.corona.CameraActivity"
             android:configChanges="keyboardHidden|orientation"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
