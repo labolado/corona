@@ -34,7 +34,7 @@ oriole|33|hohuukieule@gmail.com|ftl-hohuu-23505|Pixel 6 / Tensor G1 / Mali-G78
 r8q|33|khanhkhanh77960@gmail.com|ftl-khanh-22226|Galaxy S20 FE 5G / SD 865 / Adreno 650
 redfin|30|laboladoads@gmail.com|ftl-laboladoads-23655|Pixel 5 / SD 765G / Adreno 620
 a54x|34|laboladopay@gmail.com|ftl-laboladopay-22264|Galaxy A54 5G / Exynos 1380 / Mali-G68
-panther|33|no5@drsmarttrade.com|ftl-no5-23698|Pixel 7 / Tensor G2 / Mali-G710
+husky|35|no5@drsmarttrade.com|ftl-no5-23698|Pixel 8 Pro / Tensor G3 / Mali-G715
 austin|33|pkysoft@gmail.com|ftl-pkysoft-23615|moto g 5G 2022 / SD 480 / Adreno 619
 OP5552L1|34|countrymancostanza9@gmail.com|ftl-costanza-22188|OnePlus 10T 5G / SD 8+ Gen 1 / Adreno 730
 EOF
