@@ -209,6 +209,12 @@ end
 local function onFrame(event)
     if phase == "done" or phase == "idle" then return end
 
+    -- Guard: if objects were removed (e.g., by regression cleanup), stop
+    if not objectsGroup or objectsGroup.parent == nil then
+        phase = "idle"
+        return
+    end
+
     -- Animate objects
     for _, obj in ipairs(objects) do
         obj.x = obj.x + obj.vx

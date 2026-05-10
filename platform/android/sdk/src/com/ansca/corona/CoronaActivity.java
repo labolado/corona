@@ -259,6 +259,17 @@ public class CoronaActivity extends Activity {
 		// Make this activity available to the rest of the application.
 		CoronaEnvironment.setCoronaActivity(this);
 
+		// Check for force-GLES flag asset (bundled in APK for test variants)
+		try {
+			getAssets().open("solar2d_force_gles.txt").close();
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+				android.system.Os.setenv("SOLAR2D_VULKAN", "0", true);
+				android.util.Log.i("CoronaActivity", "Force GLES: solar2d_force_gles.txt found, SOLAR2D_VULKAN=0");
+			}
+		} catch (Exception e) {
+			// asset not found or Os.setenv not available, use default renderer selection
+		}
+
 		// Create our CoronaRuntime, which also initializes the native side of the CoronaRuntime.
 		fCoronaRuntime = new CoronaRuntime(this, false, wantsDepthBuffer, wantsStencilBuffer);
 

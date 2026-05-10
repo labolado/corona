@@ -2,7 +2,7 @@
 settings = {
     orientation = {
         default = "portrait",
-        supported = { "portrait", "portraitUpsideDown", "landscapeLeft", "landscapeRight" },
+        supported = { "portrait" },
     },
     iphone = {
         plist = {
