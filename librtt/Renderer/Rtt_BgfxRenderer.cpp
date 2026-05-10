@@ -108,7 +108,34 @@ namespace {
         return 0;
     }
 
-    // Returns true if this GPU should use Vulkan based on Unity's vendor thresholds
+    // Parses 'Mali-GNNN' / 'Immortalis-GNNN' deviceName and returns NNN.
+    // Returns 0 if the string does not match the Mali/Immortalis naming pattern.
+    static int parseMaliNumber(const char* deviceName)
+    {
+        if (!deviceName) return 0;
+        const char* p = deviceName;
+        while (*p) {
+            if (p[0] == '-' && p[1] == 'G' && p[2] >= '0' && p[2] <= '9') {
+                const char* q = p + 2;
+                int num = 0;
+                while (*q >= '0' && *q <= '9') { num = num * 10 + (*q - '0'); ++q; }
+                return num;
+            }
+            ++p;
+        }
+        return 0;
+    }
+
+    // Per-GPU-model deny entry for Mali. If gpuModel matches AND
+    // driverVersion <= maxDriverVersion, Vulkan is forced off.
+    struct MaliDenyEntry {
+        int      gpuModel;
+        uint32_t maxDriverVersion;
+        const char* reason;
+    };
+
+    // Returns true if this GPU should use Vulkan based on vendor thresholds
+    // and per-model driverVersion deny lists.
     static bool isVulkanSafeForDevice()
     {
         void* lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
@@ -158,17 +185,45 @@ namespace {
         uint32_t apiMajor = (props.apiVersion >> 22) & 0x3FF;
         uint32_t apiMinor = (props.apiVersion >> 12) & 0x3FF;
         uint32_t apiPatch = props.apiVersion & 0xFFF;
+        uint32_t drvMajor = (props.driverVersion >> 22) & 0x3FF;
+        uint32_t drvMinor = (props.driverVersion >> 12) & 0x3FF;
 
-        Rtt_LogException("VulkanProbe: GPU=\"%s\" vendorID=0x%04X deviceID=0x%04X apiVersion=%u.%u.%u driverVersion=0x%08X",
-            props.deviceName, props.vendorID, props.deviceID, apiMajor, apiMinor, apiPatch, props.driverVersion);
+        Rtt_LogException("VulkanProbe: GPU=\"%s\" vendorID=0x%04X deviceID=0x%04X apiVersion=%u.%u.%u driverVersion=%u.%u (0x%08X)",
+            props.deviceName, props.vendorID, props.deviceID,
+            apiMajor, apiMinor, apiPatch, drvMajor, drvMinor, props.driverVersion);
+
+        // Mali per-model deny list: driverVersion <= maxDriverVersion → force GLES.
+        // AHB bug (VkGetPhysicalDeviceImageFormatProperties2 returns -11 for AHB
+        // usage) is confirmed OEM-layer — Arm raised it to MediaTek, no unified fix.
+        // Conservative: deny all G715 until OEM-specific safe versions are confirmed
+        // by FTL testing. maxDriverVersion=0xFFFFFFFF means "all current versions".
+        static const MaliDenyEntry kMaliDenyList[] = {
+            { 715, 0xFFFFFFFF, "AHB format query bug; OEM-layer (Arm/MediaTek), no confirmed safe version; affects Pixel 8/8 Pro + Dimensity 9200 family" },
+        };
+        const size_t kMaliDenyCount = sizeof(kMaliDenyList) / sizeof(kMaliDenyList[0]);
 
         bool safe = false;
         switch (props.vendorID) {
-            case kVendorARM:         // Mali: stable from Vulkan 1.0.61
+            case kVendorARM: {         // Mali / Immortalis: baseline Vulkan 1.0.61
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
-                Rtt_LogException("VulkanProbe: ARM Mali, threshold=1.0.61, safe=%s", safe ? "true" : "false");
+                int maliNum = parseMaliNumber(props.deviceName);
+                if (maliNum > 0) {
+                    Rtt_LogException("VulkanProbe: ARM Mali-G%d, baseline safe=%s", maliNum, safe ? "true" : "false");
+                    for (size_t i = 0; i < kMaliDenyCount && safe; ++i) {
+                        if (kMaliDenyList[i].gpuModel == maliNum &&
+                            props.driverVersion <= kMaliDenyList[i].maxDriverVersion) {
+                            safe = false;
+                            Rtt_LogException("VulkanProbe: Mali-G%d DENY — %s",
+                                maliNum, kMaliDenyList[i].reason);
+                        }
+                    }
+                } else {
+                    Rtt_LogException("VulkanProbe: ARM Mali (model unknown '%s'), threshold=1.0.61, safe=%s",
+                        props.deviceName, safe ? "true" : "false");
+                }
                 break;
-            case kVendorQualcomm: {  // Adreno: stable from Vulkan 1.0.49
+            }
+            case kVendorQualcomm: {    // Adreno: stable from Vulkan 1.0.49
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
                 Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
                 int adrenoNum = parseAdrenoNumber(props.deviceName);
@@ -178,14 +233,18 @@ namespace {
                 }
                 break;
             }
-            case kVendorImagination: // PowerVR: highest bar — Vulkan 1.1.170 + driver 1.473
+            case kVendorImagination: { // PowerVR: highest bar — Vulkan 1.1.170
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 1, 170);
                 Rtt_LogException("VulkanProbe: Imagination PowerVR, threshold=1.1.170, safe=%s", safe ? "true" : "false");
                 break;
-            case kVendorSamsung:     // Xclipse (Exynos): treat like Mali
-                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 61);
-                Rtt_LogException("VulkanProbe: Samsung Xclipse, threshold=1.0.61, safe=%s", safe ? "true" : "false");
+            }
+            case kVendorSamsung: {     // Xclipse (Exynos, AMD RDNA-based, vendorID=0x144D)
+                // Xclipse 920 (Exynos 2200) has known visual glitches on Vulkan 1.1.x;
+                // fixed in Android 14 / Vulkan 1.3.231. Use 1.3.0 as safe baseline.
+                safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 3, 0);
+                Rtt_LogException("VulkanProbe: Samsung Xclipse, threshold=1.3.0, safe=%s", safe ? "true" : "false");
                 break;
+            }
             default:
                 Rtt_LogException("VulkanProbe: unknown vendor 0x%04X, defaulting to GLES", props.vendorID);
                 safe = false;
@@ -537,7 +596,13 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     }
 
     fBgfxInitialized = bgfx::init(init);
-    if (!fBgfxInitialized)
+    // Guard the stale-session retry on s_bgfxInitCount: we only know a real bgfx
+    // singleton context exists if a previous init() succeeded. On first-launch
+    // failures (driver rejects the renderer, e.g. Pixel 8 / Mali-G715 / Vulkan
+    // 1.3.269 — see issue #51), s_ctx is null/partial and bgfx::shutdown()
+    // dereferences it → SIGSEGV in bgfx::Context::shutdown(). Skipping shutdown
+    // here lets the Vulkan→GLES fallback below handle the recovery cleanly.
+    if (!fBgfxInitialized && s_bgfxInitCount > 0)
     {
         // bgfx is a singleton: init() fails if s_ctx != NULL (previous session
         // not fully shut down, e.g. welcome screen → project window transition).
@@ -555,11 +620,16 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         ++s_bgfxInitCount;
     }
 #if defined(Rtt_ANDROID_ENV)
-    // Vulkan fallback: if Vulkan init failed, try GLES
+    // Vulkan fallback: if Vulkan init failed, try GLES.
+    // Same guard as above — only call shutdown() when a session has previously
+    // been initialised; otherwise s_ctx may be null and shutdown() crashes.
     if (!fBgfxInitialized && init.type == bgfx::RendererType::Vulkan)
     {
         Rtt_LogException("BgfxRenderer: Vulkan init failed, falling back to OpenGLES");
-        bgfx::shutdown();
+        if (s_bgfxInitCount > 0)
+        {
+            bgfx::shutdown();
+        }
         init.type = bgfx::RendererType::OpenGLES;
         fBgfxInitialized = bgfx::init(init);
     }
