@@ -10,8 +10,8 @@
 
 display.setStatusBar(display.HiddenStatusBar)
 
-local LEVEL = tonumber(os.getenv("REPRO_LEVEL") or "1")
-local CYCLES = tonumber(os.getenv("REPRO_CYCLES") or "1")
+local LEVEL = tonumber(os.getenv("REPRO_LEVEL") or _G.REPRO_LEVEL or "1")
+local CYCLES = tonumber(os.getenv("REPRO_CYCLES") or _G.REPRO_CYCLES or "1")
 print("=== scene_switch test, LEVEL=" .. LEVEL .. " CYCLES=" .. CYCLES .. " ===")
 
 _G.REPRO_LEVEL = LEVEL
@@ -19,7 +19,7 @@ _G.REPRO_LEVEL = LEVEL
 local composer = require("composer")
 composer.recycleOnSceneChange = true  -- match mech_test_copy behavior
 
-local AUTO = os.getenv("REPRO_AUTO")
+local AUTO = os.getenv("REPRO_AUTO") or _G.REPRO_AUTO
 if AUTO then
     print("[AUTO] Will auto-cycle A->B->A x" .. CYCLES)
     local delay = 0

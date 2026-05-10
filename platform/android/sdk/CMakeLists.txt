@@ -13,7 +13,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size
 set(Lua2CppOutputDir "${CMAKE_CURRENT_BINARY_DIR}/generated_src")
 set(LuaIncludePath "${CORONA_ROOT}/external/lua-5.1.3/src")
 
-include(AndroidNdkModules)
+include("${CMAKE_CURRENT_SOURCE_DIR}/AndroidNdkModules.cmake")
 android_ndk_import_module_cpufeatures()
 include(CMakeGenLua.cmake)
 
