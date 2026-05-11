@@ -23,7 +23,7 @@ import android.util.Log;
 public class GameLoopActivity extends CoronaActivity {
 	private static final String TAG = "GameLoop";
 	private static final String ACTION_TEST_LOOP = "com.google.intent.action.TEST_LOOP";
-	private static final long DEFAULT_DURATION_MS = 90_000L;
+	private static final long DEFAULT_DURATION_MS = 900_000L;
 
 	// Scenario mapping:
 	//   1 = regression (20-scene walkthrough, default)
@@ -65,11 +65,12 @@ public class GameLoopActivity extends CoronaActivity {
 
 		super.onCreate(savedInstanceState);
 
+		final long finalDurationMs = durationMs;
 		fFinishHandler = new Handler(Looper.getMainLooper());
 		fFinishRunnable = new Runnable() {
 			@Override
 			public void run() {
-				Log.i(TAG, "Auto-finishing TEST_LOOP after " + DEFAULT_DURATION_MS + " ms");
+				Log.i(TAG, "Auto-finishing TEST_LOOP after " + finalDurationMs + " ms");
 				setResult(RESULT_OK);
 				finish();
 			}
