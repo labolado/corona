@@ -1,86 +1,102 @@
 #!/usr/bin/env bash
-# FTL Benchmark matrix — dispatches bgfx-demo scenario 2 (bench) to multiple devices.
-# Requires GameLoopActivity scenario 2 support (sets SOLAR2D_TEST=bench via Os.setenv).
+# FTL Performance Benchmark — bgfx fork vs 官方 SDK，5 设备并行 dispatch
+# bench 由 solar2d_test.txt="perf" 触发（无需 GameLoop scenario 2）
 #
-# Usage: ftl_bench_matrix.sh <APK_PATH> [OUT_DIR]
-#
-# Bench output in logcat: "[Bench] NNNN objects: avg=XX.X min=XX.X max=XX.X FPS"
-# Collect results with: ftl_collect_bench.sh <matrix_dir>
+# 用法: bash tests/ftl_bench_matrix.sh <bgfx_apk> <official_apk> [OUT_DIR]
+# 收集: bash tests/ftl_collect_bench.sh <OUT_DIR>
 
 set -uo pipefail
 
-APK="${1:-}"
-OUT_DIR="${2:-/Users/yee/data/dev/app/labo/game_engine/tmp/coordinator/regression-android/ftl-bench-$(date +%Y%m%d-%H%M%S)}"
+BGFX_APK="${1:-/Users/yee/data/dev/app/labo/game_engine/tmp/w-bench-build/bgfx-bench.apk}"
+OFFICIAL_APK="${2:-/Users/yee/data/dev/app/labo/game_engine/tmp/w-bench-build/official-bench.apk}"
+OUT_DIR="${3:-/Users/yee/data/dev/app/labo/game_engine/tmp/ftl-bench-$(date +%Y%m%d-%H%M)}"
 
-if [ -z "$APK" ] || [ ! -f "$APK" ]; then
-    echo "Usage: $0 <APK_PATH> [OUT_DIR]" >&2
-    exit 1
-fi
-
+[ -f "$BGFX_APK" ]    || { echo "ERROR: bgfx APK not found: $BGFX_APK"; exit 1; }
+[ -f "$OFFICIAL_APK" ] || { echo "ERROR: official APK not found: $OFFICIAL_APK"; exit 1; }
 mkdir -p "$OUT_DIR"
 
-# Device matrix for benchmark — balanced across GPU families
-# codename | api | account | project | label
+# device | api | bgfx_acct | bgfx_proj | official_acct | official_proj | label
 MATRIX=$(cat <<'EOF'
-oriole|31|aicoding.yee@gmail.com|ftl-aicoding-23858|Pixel 6 / Tensor G1 / Mali-G78
-OP5552L1|31|countrymancostanza9@gmail.com|ebook-ocr-488201|OnePlus 11 / SD 8 Gen 2 / Adreno 740
-b0q|33|dmeapp.usa@gmail.com|ftl-dmeapp-23893|Galaxy S22 Ultra / SD 8 Gen 1 / Adreno 730
-husky|35|aicoding.yee@gmail.com|ftl-aicoding-23858|Pixel 8 Pro / Tensor G3 / Mali-G715
-caiman|35|dmeapp.usa@gmail.com|ftl-dmeapp-23893|Pixel 9 Pro / Tensor G4 / Mali-G715
-pa3q|36|laboladoads@gmail.com|ftl-laboladoads-23655|Galaxy S25 Ultra / SD 8 Elite / Adreno 830
+oriole|33|hohuukieule@gmail.com|ftl-hohuu-23505|aicoding.yee@gmail.com|ftl-aicoding-23858|Pixel 6 / Tensor G1 / Mali-G78
+b0q|33|dmeapp.usa@gmail.com|ftl-dmeapp-23893|khanhkhanh77960@gmail.com|ftl-khanh-22226|Galaxy S22 Ultra / SD 8 Gen 1 / Adreno 730
+redfin|30|laboladoads@gmail.com|ftl-laboladoads-23655|pkysoft@gmail.com|ftl-pkysoft-23615|Pixel 5 / SD 765G / Adreno 620
+a54x|34|laboladopay@gmail.com|ftl-laboladopay-22264|no5@drsmarttrade.com|ftl-no5-23698|Galaxy A54 5G / Exynos 1380 / Mali-G68
+OP5552L1|34|countrymancostanza9@gmail.com|ftl-costanza-22188|yuyong@labolado.com|project-5dce9ec5-f92e-46af-ae9|OnePlus 10T / SD 8+ Gen 1 / Adreno 730
 EOF
 )
 
-dispatch_bench() {
-    local codename="$1" api="$2" account="$3" project="$4" label="$5"
-    local DEVICE_DIR="$OUT_DIR/$codename"
-    mkdir -p "$DEVICE_DIR"
-    local LOG="$DEVICE_DIR/dispatch.log"
-    # Scenario 2 = bench mode; timeout 10m to cover all 5 stress levels
-    gcloud --account="$account" --project="$project" \
+dispatch_bgfx() {
+    local device="$1" api="$2" acct="$3" proj="$4" label="$7"
+    local dir="$OUT_DIR/${device}-bgfx"; mkdir -p "$dir"
+    gcloud --account="$acct" --project="$proj" \
         firebase test android run \
-        --type=game-loop --scenario-numbers=2 --app="$APK" \
-        --device "model=$codename,version=$api,locale=en,orientation=portrait" \
-        --timeout 10m --no-record-video --no-performance-metrics --async \
-        > "$LOG" 2>&1
-    echo "$?" > "$DEVICE_DIR/dispatch.rc"
+        --type=game-loop --scenario-numbers=1 \
+        --app="$BGFX_APK" \
+        --device="model=$device,version=$api,locale=en,orientation=portrait" \
+        --timeout=960s \
+        --no-record-video --no-performance-metrics --async \
+        > "$dir/dispatch.log" 2>&1
+    echo "$?" > "$dir/dispatch.rc"
 }
 
-echo "==> FTL Bench dispatch: APK=$APK"
-echo "==> Output: $OUT_DIR"
+dispatch_official() {
+    local device="$1" api="$2" acct="$5" proj="$6" label="$7"
+    local dir="$OUT_DIR/${device}-official"; mkdir -p "$dir"
+    gcloud --account="$acct" --project="$proj" \
+        firebase test android run \
+        --type=robo \
+        --app="$OFFICIAL_APK" \
+        --device="model=$device,version=$api,locale=en,orientation=portrait" \
+        --timeout=900s \
+        --no-record-video --no-performance-metrics --async \
+        > "$dir/dispatch.log" 2>&1
+    echo "$?" > "$dir/dispatch.rc"
+}
+
+echo "=== FTL Bench Matrix ==="
+echo "bgfx APK:     $(du -sh "$BGFX_APK" | cut -f1)  $BGFX_APK"
+echo "official APK: $(du -sh "$OFFICIAL_APK" | cut -f1)  $OFFICIAL_APK"
+echo "output:       $OUT_DIR"
 echo ""
 
 PIDS=()
-while IFS='|' read -r codename api account project label; do
-    [ -z "$codename" ] && continue
-    echo "    launching $codename ($label) [$account]"
-    dispatch_bench "$codename" "$api" "$account" "$project" "$label" &
+while IFS='|' read -r device api b_acct b_proj o_acct o_proj label; do
+    [ -z "$device" ] && continue
+    echo "  dispatching $device: bgfx[$b_acct] + official[$o_acct]"
+    dispatch_bgfx    "$device" "$api" "$b_acct" "$b_proj" "$o_acct" "$o_proj" "$label" &
+    PIDS+=($!)
+    dispatch_official "$device" "$api" "$b_acct" "$b_proj" "$o_acct" "$o_proj" "$label" &
     PIDS+=($!)
 done <<< "$MATRIX"
 
 echo ""
-echo "==> Waiting for ${#PIDS[@]} dispatches..."
-for pid in "${PIDS[@]}"; do wait "$pid"; done
-echo "==> All dispatches complete."
-echo ""
+echo "Waiting for ${#PIDS[@]} dispatches..."
+for pid in "${PIDS[@]}"; do wait "$pid" || true; done
 
+echo ""
+echo "=== Dispatch Summary ==="
 CSV="$OUT_DIR/dispatch.csv"
-echo "codename,api,matrix_id,console_url,account,project,label" > "$CSV"
-while IFS='|' read -r codename api account project label; do
-    [ -z "$codename" ] && continue
-    LOG="$OUT_DIR/$codename/dispatch.log"
-    rc=$(cat "$OUT_DIR/$codename/dispatch.rc" 2>/dev/null || echo "?")
-    matrix_id=$(grep -oE 'matrix-[a-z0-9]+' "$LOG" | head -1)
-    console=$(grep -oE 'https://console\.firebase\.google\.com[^ ]+matrices/[0-9]+' "$LOG" | head -1)
-    if [ "$rc" = "0" ] && [ -n "$matrix_id" ]; then
-        echo "$codename,$api,$matrix_id,$console,$account,$project,$label" >> "$CSV"
-    else
-        echo "$codename,$api,DISPATCH_FAILED_rc=$rc,,,$account,$project,$label" >> "$CSV"
-    fi
+echo "device,apk,matrix_id,console,account,project" > "$CSV"
+
+while IFS='|' read -r device api b_acct b_proj o_acct o_proj label; do
+    [ -z "$device" ] && continue
+    for variant in bgfx official; do
+        LOG="$OUT_DIR/${device}-${variant}/dispatch.log"
+        rc=$(cat "$OUT_DIR/${device}-${variant}/dispatch.rc" 2>/dev/null || echo "?")
+        matrix_id=$(grep -oE 'matrix-[a-z0-9]+' "$LOG" 2>/dev/null | head -1)
+        console=$(grep -oE 'https://console\.firebase[^ ]+' "$LOG" 2>/dev/null | head -1)
+        acct=$([[ "$variant" = "bgfx" ]] && echo "$b_acct" || echo "$o_acct")
+        proj=$([[ "$variant" = "bgfx" ]] && echo "$b_proj" || echo "$o_proj")
+        if [ "$rc" = "0" ] && [ -n "$matrix_id" ]; then
+            echo "$device,$variant,$matrix_id,$console,$acct,$proj" >> "$CSV"
+            echo "  ✅ $device-$variant: $matrix_id"
+        else
+            echo "$device,$variant,FAILED_rc=$rc,,$acct,$proj" >> "$CSV"
+            echo "  ❌ $device-$variant: rc=$rc"
+        fi
+    done
 done <<< "$MATRIX"
 
-echo "==> Bench dispatch summary:"
-column -ts, "$CSV" 2>/dev/null || cat "$CSV"
 echo ""
-echo "==> After tests complete (~15 min), collect results with:"
-echo "    bash tests/ftl_collect_bench.sh $OUT_DIR"
+echo "Tests running on FTL (~15 min). Collect results:"
+echo "  bash tests/ftl_collect_bench.sh $OUT_DIR"
