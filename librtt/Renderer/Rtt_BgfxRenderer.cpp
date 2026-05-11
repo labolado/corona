@@ -144,6 +144,18 @@ namespace {
             return false;
         }
 
+        int androidApi = 0;
+        {
+            void* libc = dlopen("libc.so", RTLD_NOW);
+            if (libc) {
+                using FnGetApi = int (*)(void);
+                FnGetApi fn = (FnGetApi)dlsym(libc, "android_get_device_api_level");
+                if (fn) androidApi = fn();
+                dlclose(libc);
+            }
+        }
+        Rtt_LogException("VulkanProbe: Android API level=%d", androidApi);
+
         auto fnCreateInstance = (PFN_vkCreateInstance)dlsym(lib, "vkCreateInstance");
         auto fnDestroyInstance = (PFN_vkDestroyInstance)dlsym(lib, "vkDestroyInstance");
         auto fnEnumDevices = (PFN_vkEnumeratePhysicalDevices)dlsym(lib, "vkEnumeratePhysicalDevices");
@@ -199,6 +211,10 @@ namespace {
         // by FTL testing. maxDriverVersion=0xFFFFFFFF means "all current versions".
         static const MaliDenyEntry kMaliDenyList[] = {
             { 715, 0xFFFFFFFF, "AHB format query bug; OEM-layer (Arm/MediaTek), no confirmed safe version; affects Pixel 8/8 Pro + Dimensity 9200 family" },
+            { 71,  0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G71)" },
+            { 72,  0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G72)" },
+            { 625, 0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G625)" },
+            { 925, 0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G925)" },
         };
         const size_t kMaliDenyCount = sizeof(kMaliDenyList) / sizeof(kMaliDenyList[0]);
 
@@ -215,6 +231,12 @@ namespace {
                             safe = false;
                             Rtt_LogException("VulkanProbe: Mali-G%d DENY — %s",
                                 maliNum, kMaliDenyList[i].reason);
+                        }
+                    }
+                    if (safe && androidApi > 0 && androidApi < 34) {
+                        if (maliNum == 71 || maliNum == 72 || maliNum == 625 || maliNum == 925) {
+                            safe = false;
+                            Rtt_LogException("VulkanProbe: Mali-G%d Android API %d < 34, VkQuality deny", maliNum, androidApi);
                         }
                     }
                 } else {
@@ -244,6 +266,14 @@ namespace {
             case kVendorImagination: { // PowerVR: highest bar — Vulkan 1.1.170
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 1, 170);
                 Rtt_LogException("VulkanProbe: Imagination PowerVR, threshold=1.1.170, safe=%s", safe ? "true" : "false");
+                if (safe && props.driverVersion < 6660496) {
+                    safe = false;
+                    Rtt_LogException("VulkanProbe: PowerVR driver %u < 6660496, VkQuality deny", props.driverVersion);
+                }
+                if (safe && androidApi > 0 && androidApi < 36) {
+                    safe = false;
+                    Rtt_LogException("VulkanProbe: PowerVR Android API %d < 36, VkQuality deny", androidApi);
+                }
                 break;
             }
             case kVendorSamsung: {     // Xclipse (Exynos, AMD RDNA-based, vendorID=0x144D)
@@ -251,6 +281,10 @@ namespace {
                 // fixed in Android 14 / Vulkan 1.3.231. Use 1.3.0 as safe baseline.
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 3, 0);
                 Rtt_LogException("VulkanProbe: Samsung Xclipse, threshold=1.3.0, safe=%s", safe ? "true" : "false");
+                if (safe && androidApi > 0 && androidApi < 34) {
+                    safe = false;
+                    Rtt_LogException("VulkanProbe: Xclipse Android API %d < 34, VkQuality deny", androidApi);
+                }
                 break;
             }
             default:
