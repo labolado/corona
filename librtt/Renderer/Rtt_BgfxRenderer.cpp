@@ -227,9 +227,17 @@ namespace {
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
                 Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
                 int adrenoNum = parseAdrenoNumber(props.deviceName);
-                if (adrenoNum > 0 && adrenoNum < 600) {
-                    safe = false;
-                    Rtt_LogException("VulkanProbe: Qualcomm Adreno %d (<600), force GLES (driver lies-about-success bug; ref: Google VkQuality / Godot 4.4 / Unity industry default)", adrenoNum);
+                if (safe && adrenoNum > 0) {
+                    if (adrenoNum < 700) {
+                        Rtt_LogException("VulkanProbe: Adreno %d perf-deny (6xx family)", adrenoNum);
+                        safe = false;
+                    } else if (adrenoNum < 800 && props.driverVersion < 0x802A4000) {
+                        Rtt_LogException("VulkanProbe: Adreno %d driver too old (7xx need 670+)", adrenoNum);
+                        safe = false;
+                    } else if (adrenoNum < 900 && props.driverVersion < 0x802E8012) {
+                        Rtt_LogException("VulkanProbe: Adreno %d driver too old (8xx need 744.18+)", adrenoNum);
+                        safe = false;
+                    }
                 }
                 break;
             }
