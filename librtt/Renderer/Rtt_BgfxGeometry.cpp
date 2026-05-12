@@ -39,9 +39,9 @@ BgfxGeometry::InitializeVertexLayout()
 {
 	if( !sLayoutInitialized )
 	{
-		// 68 bytes stride layout (008 mask-PV):
+		// 68 bytes stride layout (H2 unified mask VS):
 		// Position(3f) + TexCoord0(3f) + Color0(4ub normalized) + TexCoord1(4f)
-		// + TexCoord2/3/4(2f each, mask UV slots consumed by vs_default_mN binaries)
+		// + TexCoord2/3/4(2f each, mask UV slots consumed by the default VS)
 		sVertexLayout
 			.begin()
 			.add( bgfx::Attrib::Position,  3, bgfx::AttribType::Float )           // offset 0,  12 bytes

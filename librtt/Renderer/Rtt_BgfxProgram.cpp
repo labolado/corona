@@ -523,10 +523,9 @@ static bool FindEffectShader(const char* filename, const unsigned char*& outData
     return false;
 }
 
-// 008 mask-PV: per-version default VS binaries. kMaskCount0 declares no PV
-// attributes (avoids the v2 global-binary-expectation pitfall); kMaskCount1+
-// consume baked a_texcoord2/3/4 mask UVs. fs_default stays a single binary.
-// kWireframe shares the kMaskCount0 binary — it never reads mask UVs.
+// H2 uniform mask count: mask0-3 share the full mask-capable VS layout.
+// The fragment shader uses u_TexFlags.y for the actual mask count, so mask
+// nesting no longer needs separate bgfx programs. kWireframe keeps m0.
 namespace
 {
     const unsigned char* PickDefaultVSData(Program::Version version)
@@ -536,30 +535,30 @@ namespace
         {
             switch (version)
             {
-                case Program::kMaskCount1: return s_vs_default_m1_spirv;
-                case Program::kMaskCount2: return s_vs_default_m2_spirv;
-                case Program::kMaskCount3: return s_vs_default_m3_spirv;
                 case Program::kMaskCount0:
+                case Program::kMaskCount1:
+                case Program::kMaskCount2:
+                case Program::kMaskCount3: return s_vs_default_m3_spirv;
                 case Program::kWireframe:
                 default:                   return s_vs_default_m0_spirv;
             }
         }
         switch (version)
         {
-            case Program::kMaskCount1: return s_vs_default_m1_essl;
-            case Program::kMaskCount2: return s_vs_default_m2_essl;
-            case Program::kMaskCount3: return s_vs_default_m3_essl;
             case Program::kMaskCount0:
+            case Program::kMaskCount1:
+            case Program::kMaskCount2:
+            case Program::kMaskCount3: return s_vs_default_m3_essl;
             case Program::kWireframe:
             default:                   return s_vs_default_m0_essl;
         }
 #else
         switch (version)
         {
-            case Program::kMaskCount1: return s_vs_default_m1_metal;
-            case Program::kMaskCount2: return s_vs_default_m2_metal;
-            case Program::kMaskCount3: return s_vs_default_m3_metal;
             case Program::kMaskCount0:
+            case Program::kMaskCount1:
+            case Program::kMaskCount2:
+            case Program::kMaskCount3: return s_vs_default_m3_metal;
             case Program::kWireframe:
             default:                   return s_vs_default_m0_metal;
         }
@@ -573,30 +572,30 @@ namespace
         {
             switch (version)
             {
-                case Program::kMaskCount1: return s_vs_default_m1_spirv_size;
-                case Program::kMaskCount2: return s_vs_default_m2_spirv_size;
-                case Program::kMaskCount3: return s_vs_default_m3_spirv_size;
                 case Program::kMaskCount0:
+                case Program::kMaskCount1:
+                case Program::kMaskCount2:
+                case Program::kMaskCount3: return s_vs_default_m3_spirv_size;
                 case Program::kWireframe:
                 default:                   return s_vs_default_m0_spirv_size;
             }
         }
         switch (version)
         {
-            case Program::kMaskCount1: return s_vs_default_m1_essl_size;
-            case Program::kMaskCount2: return s_vs_default_m2_essl_size;
-            case Program::kMaskCount3: return s_vs_default_m3_essl_size;
             case Program::kMaskCount0:
+            case Program::kMaskCount1:
+            case Program::kMaskCount2:
+            case Program::kMaskCount3: return s_vs_default_m3_essl_size;
             case Program::kWireframe:
             default:                   return s_vs_default_m0_essl_size;
         }
 #else
         switch (version)
         {
-            case Program::kMaskCount1: return s_vs_default_m1_metal_size;
-            case Program::kMaskCount2: return s_vs_default_m2_metal_size;
-            case Program::kMaskCount3: return s_vs_default_m3_metal_size;
             case Program::kMaskCount0:
+            case Program::kMaskCount1:
+            case Program::kMaskCount2:
+            case Program::kMaskCount3: return s_vs_default_m3_metal_size;
             case Program::kWireframe:
             default:                   return s_vs_default_m0_metal_size;
         }
@@ -832,10 +831,9 @@ BgfxProgram::GetDefaultFSSize()
     return S_FS_DEFAULT_SIZE;
 }
 
-// Returns the kMaskCount0 default VS binary. ExtractInterfaceHash uses this
-// to discover the default-VS uniform/varying interface so custom effect VS
-// can match — that interface is identical across mask-count variants, so
-// kMaskCount0 is a safe canonical choice.
+// Returns the unified default VS binary. ExtractInterfaceHash uses this to
+// discover the default-VS uniform/varying interface so custom effect VS can
+// match.
 const unsigned char*
 BgfxProgram::GetDefaultVSData()
 {
