@@ -193,6 +193,12 @@ BgfxCommandBuffer::InitializeFBO()
     // Without Sequential mode, bgfx may reorder draws by state for performance,
     // causing incorrect overlapping (e.g., background drawn over foreground).
     bgfx::setViewMode( fDefaultView, bgfx::ViewMode::Sequential );
+
+    // Pre-register the default view with a dummy rect so bgfx knows about it
+    // before Solar2D Splash submits its first draw calls. Without this, the
+    // Splash phase (~45 draws before real setViewRect) triggers a false
+    // BLACK_SCREEN_DETECTED diagnostic (numViews==0 while numDraw>0).
+    bgfx::setViewRect( fDefaultView, 0, 0, 1, 1 );
 }
 
 void
