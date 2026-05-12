@@ -59,6 +59,18 @@ bool BgfxCommandBuffer::sBatchingEnabled = true;
 static bool sStripIndexConvert = true;
 static bool sCheckedStripEnv = false;
 
+static U8
+MaskCountFromVersion( Program::Version version )
+{
+    return version == Program::kWireframe ? 0 : static_cast<U8>( version );
+}
+
+static Program::Version
+BgfxProgramVersionForMaskCount( Program::Version version )
+{
+    return version == Program::kWireframe ? Program::kWireframe : Program::kMaskCount3;
+}
+
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -106,6 +118,7 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fCurrentGeometry( NULL ),
     fCurrentProgram( NULL ),
     fCurrentVersion( Program::kMaskCount0 ),
+    fCurrentMaskCount( 0 ),
     fBlendEnabled( true ),
     fBlendState( BGFX_STATE_BLEND_FUNC_SEPARATE(
         BGFX_STATE_BLEND_SRC_ALPHA,
@@ -344,7 +357,8 @@ BgfxCommandBuffer::BindProgram( Program* program, Program::Version version )
     {
         // Store CPU resource pointer - resolve to GPU in Execute()
         fCurrentProgram = program;
-        fCurrentVersion = version;
+        fCurrentVersion = BgfxProgramVersionForMaskCount( version );
+        fCurrentMaskCount = MaskCountFromVersion( version );
 
         // AcquireTimeTransform accesses CPU-side shader metadata, safe to call now
         AcquireTimeTransform( program->GetShaderResource() );
@@ -615,6 +629,7 @@ BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
     cmd.geometry = fCurrentGeometry;
     cmd.program = fCurrentProgram;
     cmd.programVersion = fCurrentVersion;
+    cmd.maskCount = fCurrentMaskCount;
     cmd.offset = offset;
     cmd.count = count;
     cmd.primitiveType = type;
@@ -671,6 +686,7 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
     cmd.geometry = fCurrentGeometry;
     cmd.program = fCurrentProgram;
     cmd.programVersion = fCurrentVersion;
+    cmd.maskCount = fCurrentMaskCount;
     cmd.offset = offset;
     cmd.count = count;
     cmd.primitiveType = type;
@@ -775,8 +791,8 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
             texFlags[0] = 1.0f;
         }
     }
-    // Pass mask count so shader knows how many mask samplers to apply
-    texFlags[1] = static_cast<float>( cmd.programVersion );
+    // Pass mask count so shader knows how many mask samplers to apply.
+    texFlags[1] = static_cast<float>( cmd.maskCount );
     bgfx::UniformHandle texFlagsHandle = prog->GetTexFlagsHandle();
     if( bgfx::isValid( texFlagsHandle ) )
     {
@@ -1300,15 +1316,16 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
         a.primitiveType != Geometry::kIndexedTriangles &&
         a.primitiveType != Geometry::kTriangleStrip ) return false;
 
-    // Same program and version
+    // Same program and bgfx handle version. Masked draws all use the same
+    // canonical version; wireframe remains distinct.
     if( a.program != b.program ) return false;
     if( a.programVersion != b.programVersion ) return false;
 
-    // 008 mask-PV: mask UVs are baked into the vertex stream, so masked draws
-    // sharing the same programVersion can now be batched across different
-    // mask matrices. Same programVersion is still required because the FS
-    // expects a fixed mask count (kMaskCountN). The kMaskCount0 short-circuit
-    // is removed.
+    // Mask UVs are baked into the vertex stream, so draws with the same
+    // actual mask count can batch across different mask matrices. The count is
+    // now a uniform, not a program version, and a batched submit can only set
+    // that uniform once.
+    if( a.maskCount != b.maskCount ) return false;
 
     // Same render state (blend, primitive type, MSAA)
     if( a.bgfxState != b.bgfxState ) return false;

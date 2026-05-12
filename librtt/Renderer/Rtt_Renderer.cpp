@@ -81,9 +81,8 @@ namespace /*anonymous*/
 
     // 008 mask-PV: pre-compute per-vertex mask UVs and write into the
     // vertex pool. Called by Renderer::Insert after CopyVertexData. The
-    // bgfx vs_default_mN binary reads these slots (a_texcoord2/3/4) for
-    // its corresponding mask level; vs_default_m0 ignores them, so writing
-    // 0 for inactive levels is safe.
+    // unified bgfx default VS reads these slots (a_texcoord2/3/4); writing 0
+    // for inactive levels is safe because the FS applies only maskCount slots.
     void BakeMaskUVsIntoVertices(
         Rtt::Geometry::Vertex* verts,
         U32 count,
@@ -874,9 +873,9 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 
         // 008 mask-PV: pre-compute per-vertex mask UVs from the active
         // parent-mask stack and any self-mask carried by the RenderData.
-        // The PV vs_default_mN binary reads vertex.maskU{0..2}/maskV{0..2}
-        // (a_texcoord2/3/4) directly; m0 ignores them, so writing 0 for
-        // inactive levels is harmless. Only bake the primary vertex range
+        // The unified bgfx default VS reads vertex.maskU{0..2}/maskV{0..2}
+        // (a_texcoord2/3/4) directly; writing 0 for inactive levels is
+        // harmless. Only bake the primary vertex range
         // (verticesComputed) — extension/instance data has its own layout.
         if ( !isInstanced && fVertexExtra == 0 )
         {

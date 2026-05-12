@@ -59,6 +59,7 @@ struct DeferredCmd
     Texture* textures[8];
     Program* program;
     Program::Version programVersion;
+    U8 maskCount;
     U32 offset, count;
     Geometry::PrimitiveType primitiveType;
     uint64_t bgfxState;
@@ -221,6 +222,7 @@ class BgfxCommandBuffer : public CommandBuffer
         Geometry* fCurrentGeometry;
         Program* fCurrentProgram;
         Program::Version fCurrentVersion;
+        U8 fCurrentMaskCount;
         Texture* fBoundTextures[kMaxTextureUnits];
 
         // Blend state
