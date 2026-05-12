@@ -446,7 +446,10 @@ static void LogBgfxFrameStats( const char* phase, bool isCapture )
     // Auto-detect black screen: viewCount=0 but draws > 0
     if( phase[0] == 'e' ) // "end" phase
     {
-        if( stats->numViews == 0 && stats->numDraw > 0 )
+        // numViews is only populated when BGFX_DEBUG_PROFILER is enabled;
+        // without profiler it's always 0, so the check would be a false positive.
+        const bool profilerEnabled = (bgfx::getDebug() & BGFX_DEBUG_PROFILER) != 0;
+        if( profilerEnabled && stats->numViews == 0 && stats->numDraw > 0 )
         {
             sZeroViewFrames++;
             if( sZeroViewFrames == 3 && !sBugDumped )
