@@ -125,8 +125,8 @@ jobs:
           CXX: sccache clang++
         working-directory: ./external/bgfx
         run: |
-          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu)
-          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu)
+          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-mmacosx-version-min=10.15" CXXFLAGS="-mmacosx-version-min=10.15"
+          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-mmacosx-version-min=10.15" CXXFLAGS="-mmacosx-version-min=10.15"
       - name: Build bgfx iOS device (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         env:
@@ -137,7 +137,7 @@ jobs:
         run: |
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           make -C .build/projects/gmake-ios-arm64 config=debug   -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
-          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
       - name: Build bgfx iOS simulator (Release)
         if: steps.prebuilt.outputs.hit != 'true'
         env:
@@ -147,7 +147,7 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
+          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Build x86_64 simulator slice (for Intel Mac simulator support)
           # Copy project and patch arch + output paths for x86_64
           cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
