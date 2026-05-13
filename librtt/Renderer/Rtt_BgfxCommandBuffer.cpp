@@ -749,18 +749,19 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         sPlatformDataChanged = false;
 
         // bgfx::reset() invalidates all view state (clear color, view mode, etc.).
-        // Re-apply Sequential mode + clear on ALL views so no view has stale
-        // default state (rect=(0,0,1,1), clear=NONE, mode=Default) that could
-        // produce rendering artifacts on certain drivers (e.g. Mali-G76).
+        // Re-apply Sequential mode on ALL views to prevent stale Default mode
+        // from producing rendering artifacts on certain drivers (e.g. Mali-G76).
+        // But clear only for fDefaultView — FBO views keep BGFX_CLEAR_NONE
+        // and get explicit clear from ExecuteClear() when needed.
         const uint32_t numViews = bgfx::getCaps()->limits.maxViews;
         for (uint32_t v = 0; v < numViews; ++v) {
             bgfx::setViewMode( (bgfx::ViewId)v, bgfx::ViewMode::Sequential );
-            bgfx::setViewClear( (bgfx::ViewId)v,
-                BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
-                0x00000000,
-                fClearDepth,
-                fClearStencil );
         }
+        bgfx::setViewClear( fDefaultView,
+            BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+            0x00000000,
+            fClearDepth,
+            fClearStencil );
     }
 
     bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
@@ -1604,7 +1605,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // CRITICAL: Reset ALL views' framebuffer bindings every frame.
     // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
     // from previous scenes cause rendering failures after scene transitions.
-    for( bgfx::ViewId v = 0; v < BGFX_CONFIG_MAX_VIEWS; ++v )
+    for( bgfx::ViewId v = 0, numViews = (bgfx::ViewId)bgfx::getCaps()->limits.maxViews; v < numViews; ++v )
     {
         bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
     }
