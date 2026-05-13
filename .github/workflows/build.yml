@@ -144,7 +144,7 @@ jobs:
         run: |
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           make -C .build/projects/gmake-ios-arm64 config=debug   -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
-          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
       - name: Build bgfx iOS simulator (Release)
         if: steps.prebuilt.outputs.hit != 'true'
         env:
