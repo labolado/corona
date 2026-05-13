@@ -97,7 +97,9 @@ jobs:
               -e 's/-arch arm64/-arch x86_64 -msse4.2/g' \
               -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
             {} \;
-          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
+          # ARCH is $(empty) in genie makefile; clang defaults to host (arm64 on AS Mac).
+          # Must pass ARCH explicitly for x86_64 cross-compile.
+          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64 -msse4.2" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Merge into fat binary
           if [ -d .build/ios-simulator-x86/bin ]; then
             for arm_lib in .build/ios-simulator/bin/lib*.a; do
