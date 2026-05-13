@@ -107,6 +107,13 @@ jobs:
           make .build/projects/gmake-ios-simulator
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
           make .build/projects/gmake-android-arm64
+      - name: Patch osx-x64 target triple for Xcode 26.3
+        if: steps.prebuilt.outputs.hit != 'true'
+        run: |
+          # genie on Xcode 26.3 hardcodes -target x86_64-apple-macos10.13.6 in makefiles,
+          # which overrides -mmacosx-version-min=10.15 from CFLAGS. Patch to 10.15.
+          find external/bgfx/.build/projects/gmake-osx-x64 -name "*.make" -exec \
+            sed -i '' 's/x86_64-apple-macos10\.13\.6/x86_64-apple-macos10.15/g' {} \;
       - name: Build bgfx macOS arm64 (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         env:
