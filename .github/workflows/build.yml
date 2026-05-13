@@ -154,7 +154,7 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
+          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Build x86_64 simulator slice (for Intel Mac simulator support)
           # Copy project and patch arch + output paths for x86_64
           cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
