@@ -1604,7 +1604,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // CRITICAL: Reset ALL views' framebuffer bindings every frame.
     // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
     // from previous scenes cause rendering failures after scene transitions.
-    for( bgfx::ViewId v = 0; v <= fDefaultView; ++v )
+    for( bgfx::ViewId v = 0; v < BGFX_CONFIG_MAX_VIEWS; ++v )
     {
         bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
     }
