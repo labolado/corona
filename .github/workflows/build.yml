@@ -147,7 +147,7 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Build x86_64 simulator slice (for Intel Mac simulator support)
           # Copy project and patch arch + output paths for x86_64
           cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
@@ -157,7 +157,7 @@ jobs:
               -e 's/-arch arm64/-arch x86_64 -msse4.2/g' \
               -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
             {} \;
-          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Merge into fat binary
           if [ -d .build/ios-simulator-x86/bin ]; then
             for arm_lib in .build/ios-simulator/bin/lib*.a; do
