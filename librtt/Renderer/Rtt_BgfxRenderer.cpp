@@ -448,7 +448,7 @@ static void LogBgfxFrameStats( const char* phase, bool isCapture )
     {
         // numViews is only populated when BGFX_DEBUG_PROFILER is enabled;
         // without profiler it's always 0, so the check would be a false positive.
-        const bool profilerEnabled = (bgfx::getDebug() & BGFX_DEBUG_PROFILER) != 0;
+        const bool profilerEnabled = false; // bgfx::getDebug() removed in newer bgfx; profiler always off in Release
         if( profilerEnabled && stats->numViews == 0 && stats->numDraw > 0 )
         {
             sZeroViewFrames++;

@@ -222,3 +222,10 @@
 - **根因**：bgfx 用 BX_TRACE 输出 link error，Release 构建下被 strip
 - **修复**：在 Rtt_BgfxProgram.cpp 加 Rtt_LogException 详细日志（effect 名、handle 状态）
 - **教训**：不要依赖 bgfx 内部的错误输出，在我们的代码层加独立日志
+
+### bgfx make android 报 clang++: No such file (Error 127)（2026-05-12）
+- **场景**：跑 `make android-arm64-release` 重编 bgfx 静态库
+- **根因**：bgfx Makefile 用 `$(ANDROID_NDK_ROOT)/toolchains/.../clang++`，shell 里没有 `ANDROID_NDK_ROOT`
+- **修复**：`export ANDROID_NDK_ROOT=~/Library/Android/sdk/ndk/27.0.12077973` 后再 make
+- **永久修复**：加到 `~/.zshrc`
+- **教训**：bgfx make 依赖 `ANDROID_NDK_ROOT`，NDK 本身没丢，是环境变量问题
