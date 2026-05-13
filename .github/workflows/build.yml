@@ -135,8 +135,9 @@ jobs:
           CXX: sccache clang++
         working-directory: ./external/bgfx
         run: |
-          make -C .build/projects/gmake-ios-arm64 config=debug -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu)
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          make -C .build/projects/gmake-ios-arm64 config=debug   -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
       - name: Build bgfx iOS simulator (Release)
         if: steps.prebuilt.outputs.hit != 'true'
         env:
