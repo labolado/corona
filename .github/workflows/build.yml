@@ -67,7 +67,7 @@ jobs:
           BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
           BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
           BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
-          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}-fat"
+          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Prebuilt tag: $TAG"
       - name: Try download prebuilt libs
