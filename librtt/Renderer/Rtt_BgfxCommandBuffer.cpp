@@ -749,16 +749,18 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         sPlatformDataChanged = false;
 
         // bgfx::reset() invalidates all view state (clear color, view mode, etc.).
-        // Re-apply Sequential mode + clear on the screen view so painter's
-        // algorithm holds across resize / surface re-init: without this the
-        // first frames after reset have viewCount=0 and outline / overlap
-        // ordering breaks (BLACK_SCREEN_DETECTED in logcat).
-        bgfx::setViewMode( fDefaultView, bgfx::ViewMode::Sequential );
-        bgfx::setViewClear( fDefaultView,
-            BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
-            0x00000000,
-            fClearDepth,
-            fClearStencil );
+        // Re-apply Sequential mode + clear on ALL views so no view has stale
+        // default state (rect=(0,0,1,1), clear=NONE, mode=Default) that could
+        // produce rendering artifacts on certain drivers (e.g. Mali-G76).
+        const uint32_t numViews = bgfx::getCaps()->limits.maxViews;
+        for (uint32_t v = 0; v < numViews; ++v) {
+            bgfx::setViewMode( (bgfx::ViewId)v, bgfx::ViewMode::Sequential );
+            bgfx::setViewClear( (bgfx::ViewId)v,
+                BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+                0x00000000,
+                fClearDepth,
+                fClearStencil );
+        }
     }
 
     bgfx::setViewRect( fCurrentView, cmd.vpX, cmd.vpY, cmd.vpW, cmd.vpH );
