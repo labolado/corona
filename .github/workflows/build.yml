@@ -53,6 +53,8 @@ jobs:
   build-bgfx-libs:
     name: Build bgfx static libraries
     runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
         with:
