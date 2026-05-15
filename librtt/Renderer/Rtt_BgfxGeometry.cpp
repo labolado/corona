@@ -412,12 +412,24 @@ BgfxGeometry::Update( CPUResource* resource )
 	}
 	else if( fIsDynamic )
 	{
-		UpdateDynamic( geometry );
-		fLastUpdateFrame = sFrameCount;
+		// Auto-promote to static after kPromotionThreshold frames without dirty.
+		if( !geometry->IsGPUDirty() && (sFrameCount - fLastUpdateFrame) >= kPromotionThreshold )
+		{
+			PromoteToStatic( geometry );
+		}
+		else
+		{
+			UpdateDynamic( geometry );
+			fLastUpdateFrame = sFrameCount;
+		}
 	}
 	else
 	{
-		UpdateStatic( geometry );
+		// Static: only re-upload if data changed (else skip unnecessary update).
+		if( geometry->IsGPUDirty() )
+		{
+			UpdateStatic( geometry );
+		}
 		fLastUpdateFrame = sFrameCount;
 	}
 
