@@ -121,16 +121,25 @@ else
         [ "${FORCE_BUILD:-}" = "1" ] && fail "FORCE_BUILD=1 但 bgfx .a 未重编，请先 make android-arm64-release"
     fi
 
+    GRADLE_LOG="${TMPDIR:-/tmp}/corona-android-gradle-$$.log"
+    log "  Gradle 日志: $GRADLE_LOG"
+
     # FORCE_BUILD=1 时必须 clean，否则 CMake 可能跳过 C++ 重编
     if [ "${FORCE_BUILD:-}" = "1" ]; then
         log "  FORCE_BUILD: 执行 clean + assembleRelease"
-        ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+        ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
     else
-        ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+        ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
     fi
 
     cd "$CORONA_DIR"
-    [ -f "$AAR_OUTPUT" ] || fail "AAR 编译失败"
+    if [ ! -f "$AAR_OUTPUT" ]; then
+        if [ -f "$GRADLE_LOG" ]; then
+            log "  最近 100 行 Gradle 输出 ($GRADLE_LOG):"
+            tail -100 "$GRADLE_LOG"
+        fi
+        fail "AAR 编译失败（完整 Gradle 日志: ${GRADLE_LOG:-未保存}）"
+    fi
 fi
 
 AAR_SIZE=$(ls -lh "$AAR_OUTPUT" | awk '{print $5}')
