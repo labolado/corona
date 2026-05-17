@@ -300,3 +300,7 @@ redist.win32.7z
 
 # ADB device lists (machine-specific)
 tests/.adb_*_devices.txt
+
+# Worker / build temp files
+/game_engine/
+/tmp/
