@@ -211,6 +211,7 @@ namespace {
         // by FTL testing. maxDriverVersion=0xFFFFFFFF means "all current versions".
         static const MaliDenyEntry kMaliDenyList[] = {
             { 715, 0xFFFFFFFF, "AHB format query bug; OEM-layer (Arm/MediaTek), no confirmed safe version; affects Pixel 8/8 Pro + Dimensity 9200 family" },
+            { 68,  0xFFFFFFFF, "Vulkan perf regression vs GLES (-27% on A54 Mali-G68)" },
             { 71,  0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G71)" },
             { 72,  0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G72)" },
             { 625, 0x0B64FFFF, "VkQuality: driver < 0x0B650000 unsafe (Mali-G625)" },
