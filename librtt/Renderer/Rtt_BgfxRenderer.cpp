@@ -248,9 +248,11 @@ namespace {
             }
             case kVendorQualcomm: {    // Adreno: stable from Vulkan 1.0.49
                 safe = props.apiVersion >= VK_MAKE_API_VERSION(1, 0, 49);
-                Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, safe=%s", safe ? "true" : "false");
+                bool qcomMsb = (props.driverVersion & 0x80000000u) != 0;
+                Rtt_LogException("VulkanProbe: Qualcomm Adreno, threshold=1.0.49, MSB=%s, safe=%s",
+                    qcomMsb ? "set" : "clear", safe ? "true" : "false");
                 int adrenoNum = parseAdrenoNumber(props.deviceName);
-                if (safe && adrenoNum > 0) {
+                if (adrenoNum > 0) {
                     if (adrenoNum < 700) {
                         Rtt_LogException("VulkanProbe: Adreno %d perf-deny (6xx family)", adrenoNum);
                         safe = false;
@@ -261,6 +263,9 @@ namespace {
                         Rtt_LogException("VulkanProbe: Adreno %d driver too old (8xx need 744.18+)", adrenoNum);
                         safe = false;
                     }
+                } else {
+                    safe = false;
+                    Rtt_LogException("VulkanProbe: Adreno model unknown '%s', deny pending validation", props.deviceName);
                 }
                 break;
             }
