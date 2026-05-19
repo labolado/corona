@@ -50,6 +50,7 @@ namespace Rtt
 // Static members
 U32 BgfxCommandBuffer::gUniformTimestamp = 0;
 bgfx::ViewId BgfxCommandBuffer::sNextViewId = 1;  // Start at 1, 0 is default screen
+std::unordered_map<std::string, bgfx::UniformHandle> BgfxCommandBuffer::sUniformHandleCache;
 
 // Batch statistics
 BgfxCommandBuffer::BatchStats BgfxCommandBuffer::sBatchStats = { 0, 0, 0, 0, 0, 0 };
@@ -159,6 +160,7 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
 
 BgfxCommandBuffer::~BgfxCommandBuffer()
 {
+    ClearUniformCache();
 }
 
 void
@@ -245,6 +247,7 @@ void
 BgfxCommandBuffer::Denitialize()
 {
     fDeferredCmds.clear();
+    ClearUniformCache();
 }
 
 void
@@ -836,7 +839,26 @@ BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
             if( numElements == 0 ) numElements = 1;
         }
 
-        bgfx::UniformHandle handle = bgfx::createUniform( nu.name, utype, numElements );
+        // Build cache key from name, type, and element count
+        std::string key = std::string( nu.name ) + "|" + std::to_string( static_cast<int>( utype ) ) + "|" + std::to_string( numElements );
+
+        // Look up or create cached uniform handle
+        auto it = sUniformHandleCache.find( key );
+        bgfx::UniformHandle handle = BGFX_INVALID_HANDLE;
+        bool found = ( it != sUniformHandleCache.end() && bgfx::isValid( it->second ) );
+        if( found )
+        {
+            handle = it->second;
+        }
+        else
+        {
+            handle = bgfx::createUniform( nu.name, utype, numElements );
+            if( bgfx::isValid( handle ) )
+            {
+                sUniformHandleCache[key] = handle;
+            }
+        }
+
         if( bgfx::isValid( handle ) )
         {
             if( utype == bgfx::UniformType::Vec4 && numFloats < 4 )
@@ -850,9 +872,22 @@ BgfxCommandBuffer::ApplyNamedUniforms( const DeferredCmd& cmd )
             {
                 bgfx::setUniform( handle, nu.data, numElements );
             }
-            bgfx::destroy( handle ); // Release ref from createUniform
+            // Keep handle in cache — don't destroy until ClearUniformCache
         }
     }
+}
+
+void
+BgfxCommandBuffer::ClearUniformCache()
+{
+    for( auto& entry : sUniformHandleCache )
+    {
+        if( bgfx::isValid( entry.second ) )
+        {
+            bgfx::destroy( entry.second );
+        }
+    }
+    sUniformHandleCache.clear();
 }
 
 void

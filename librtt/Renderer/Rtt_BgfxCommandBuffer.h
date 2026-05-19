@@ -15,6 +15,8 @@
 #include "Renderer/Rtt_Uniform.h"
 #include "Renderer/Rtt_RenderTypes.h"
 #include <bgfx/bgfx.h>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 // ----------------------------------------------------------------------------
@@ -213,6 +215,9 @@ class BgfxCommandBuffer : public CommandBuffer
         // to ensure the new EGL context is active first.
         static void FlushPlatformDataChange();
 
+        // Clear the named uniform handle cache (called on shutdown/reinit)
+        static void ClearUniformCache();
+
         virtual void PrepareForResourceCreation() override;
 
     private:
@@ -285,6 +290,9 @@ class BgfxCommandBuffer : public CommandBuffer
 
         // Side table for named uniform data (indexed by DeferredCmd::namedUniformOffset)
         std::vector<DeferredCmd::NamedUniformSnapshot> fNamedUniformSideTable;
+
+        // Named uniform handle cache (avoids create/destroy per draw in ApplyNamedUniforms)
+        static std::unordered_map<std::string, bgfx::UniformHandle> sUniformHandleCache;
 
         // View ID allocator for FBOs
         static bgfx::ViewId sNextViewId;
