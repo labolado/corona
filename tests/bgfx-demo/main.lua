@@ -8,7 +8,37 @@
       SOLAR2D_TEST=bench  → run test_bench.lua (performance benchmark)
       SOLAR2D_TEST=xxx    → run test_xxx.lua
       (no env var)        → normal demo with navigation
+
+    FTL Game Loop:
+      launchArgs.gameLoopScenario=N  → run test_benchmark_all and exit
 --]]
+
+-- Firebase Test Lab Game Loop support
+local launchArgs = system.getInfo("launchArgs")
+local gameLoopScenario = launchArgs and launchArgs.gameLoopScenario
+if gameLoopScenario then
+    print("=== FTL Game Loop Mode: Scenario " .. tostring(gameLoopScenario) .. " ===")
+    if tonumber(gameLoopScenario) == 1 then
+        local ok = pcall(require, "test_benchmark_all")
+        if not ok then os.exit(1) end
+        local t0 = system.getTimer()
+        local function waitLoop()
+            if phase == "done" then
+                print("=== GAME LOOP COMPLETE ===")
+                os.exit(0)
+            elseif system.getTimer() - t0 > 60000 then
+                print("=== GAME LOOP TIMEOUT ===")
+                os.exit(1)
+            else
+                timer.performWithDelay(500, waitLoop)
+            end
+        end
+        timer.performWithDelay(1000, waitLoop)
+        return
+    end
+    print("=== GAME LOOP: unknown scenario " .. tostring(gameLoopScenario) .. " ===")
+    os.exit(1)
+end
 
 -- Check for test entry: env var, flag file, or build-time override
 local testEntry = os.getenv("SOLAR2D_TEST")

@@ -10,6 +10,40 @@ local composer = require("composer")
 -- Disable status bar
 display.setStatusBar(display.HiddenStatusBar)
 
+-- Firebase Test Lab Game Loop support (iOS & Android)
+-- FTL sends: -com.google.games.test.loops <scenario>
+local launchArgs = system.getInfo("launchArgs")
+local gameLoopScenario = launchArgs and launchArgs.gameLoopScenario
+if gameLoopScenario then
+    print("=== FTL Game Loop Mode: Scenario " .. tostring(gameLoopScenario) .. " ===")
+    if tonumber(gameLoopScenario) == 1 then
+        -- Scenario 1: run all benchmarks, output FPS results, exit
+        local ok = pcall(require, "test_benchmark_all")
+        if not ok then
+            print("=== GAME LOOP ERROR: benchmark require failed ===")
+            os.exit(1)
+        end
+        -- Poll until benchmarks complete (~12s) or timeout (60s)
+        local t0 = system.getTimer()
+        local function waitLoop()
+            if phase == "done" then
+                print("=== GAME LOOP COMPLETE ===")
+                os.exit(0)
+            elseif system.getTimer() - t0 > 60000 then
+                print("=== GAME LOOP TIMEOUT ===")
+                os.exit(1)
+            else
+                timer.performWithDelay(500, waitLoop)
+            end
+        end
+        timer.performWithDelay(1000, waitLoop)
+    else
+        print("=== GAME LOOP: unknown scenario " .. tostring(gameLoopScenario) .. " ===")
+        os.exit(1)
+    end
+    return
+end
+
 -- Enable debugging output
 print("=== Solar2D bgfx Test Demo Starting ===")
 print("Display size: " .. display.contentWidth .. "x" .. display.contentHeight)

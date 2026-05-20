@@ -597,6 +597,17 @@ SetLaunchArgs( UIApplication *application, NSDictionary *launchOptions, Rtt::Run
 			lua_setfield( L, -2, "url" );
 		}
 
+		// Firebase Test Lab Game Loop detection
+		// FTL sends: -com.google.games.test.loops <scenario>
+		NSArray *args = [[NSProcessInfo processInfo] arguments];
+		NSUInteger idx = [args indexOfObject:@"-com.google.games.test.loops"];
+		if ( idx != NSNotFound && idx + 1 < [args count] )
+		{
+			NSString *scenario = [args objectAtIndex:idx + 1];
+			lua_pushstring( L, [scenario UTF8String] );
+			lua_setfield( L, -2, "gameLoopScenario" );
+		}
+
 		lua_pop( L, 1 );
 	}
 }

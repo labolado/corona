@@ -28,7 +28,9 @@ public class GameLoopActivity extends CoronaActivity {
 	// Scenario mapping:
 	//   1 = regression (20-scene walkthrough, default)
 	//   2 = bench (performance benchmark, 5 stress levels, ~8 min)
-	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench" };
+	//   3 = all_scenes (walk all nav scenes, measure FPS per scene)
+	//   4 = shapes (vector graphics benchmark: rects/circles/roundedRects)
+	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes" };
 
 	private Handler fFinishHandler;
 	private Runnable fFinishRunnable;
@@ -38,7 +40,7 @@ public class GameLoopActivity extends CoronaActivity {
 		Intent intent = getIntent();
 		long durationMs = DEFAULT_DURATION_MS;
 		if (intent != null && ACTION_TEST_LOOP.equals(intent.getAction())) {
-			int scenarioNumber = intent.getIntExtra("scenarioNumber", 1);
+			int scenarioNumber = intent.getIntExtra("scenario", 1);
 			Log.i(TAG, "TEST_LOOP launched scenario=" + scenarioNumber);
 
 			// Inject SOLAR2D_TEST for non-default scenarios
@@ -53,8 +55,14 @@ public class GameLoopActivity extends CoronaActivity {
 						Log.w(TAG, "setenv failed: " + e.getMessage());
 					}
 				}
-				// Bench needs more time: 5 levels × ~300 frames + overhead ≈ 8 min
-				durationMs = 540_000L;
+				// Per-scenario duration
+				if (scenarioNumber == 2) {
+					durationMs = 540_000L; // bench: 5 levels × ~300 frames + overhead ≈ 8 min
+				} else if (scenarioNumber == 3) {
+					durationMs = 180_000L; // all_scenes: 11 scenes × ~8s + transitions ≈ 2 min
+				} else if (scenarioNumber == 4) {
+					durationMs = 180_000L; // shapes: 5 levels × ~20s + warmup ≈ 2 min
+				}
 			}
 
 			long override = intent.getLongExtra("durationMs", 0L);
