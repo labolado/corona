@@ -29,6 +29,11 @@
 // Set the timer interval to something that is low impact.
 // 1 second usually is sufficient to not be noticed on the CPU monitors.
 #define RTT_NICE_BACKGROUND_TIMER_INTERVAL 3.0
+
+// Global: used by FTL Game Loop to force NSTimer mode.
+// CADisplayLink doesn't fire in headless/FTL environment.
+static Rtt::AppleTimer* sActiveTimer = nullptr;
+static bool sForceNSTimerMode = false;
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -123,17 +128,29 @@ AppleTimer::Start()
 	NSTimeInterval interval = ((NSTimeInterval)fInterval) / 1000.0;
 
 #ifdef Rtt_IPHONE_ENV
-	if ( fDisplayLinkSupported )
-	{
-		// interval is number of screen refreshes. on iPhone the screen refresh rate is 60Hz
-		// fInterval is measured in milliseconds, so 33.3 is 30fps and 16.7 is 60 fps
-		NSInteger interval = ( fInterval < 33 ? 1 : 2 );
+		// FTL Game Loop: CADisplayLink doesn't fire in headless FTL environment,
+		// so force NSTimer mode to keep the runtime advancing.
+		if ( sForceNSTimerMode )
+		{
+			sActiveTimer = this;
+			fTimer = [NSTimer
+						scheduledTimerWithTimeInterval:1.0/60.0
+						target:fTarget
+						selector:@selector(invoke:)
+						userInfo:nil
+						repeats:YES];
+		}
+		else if ( fDisplayLinkSupported )
+		{
+			// interval is number of screen refreshes. on iPhone the screen refresh rate is 60Hz
+			// fInterval is measured in milliseconds, so 33.3 is 30fps and 16.7 is 60 fps
+			NSInteger interval = ( fInterval < 33 ? 1 : 2 );
 
-		fDisplayLink = [CADisplayLink displayLinkWithTarget:fTarget selector:@selector(invoke:)];
-		[fDisplayLink setFrameInterval:interval];
-		[fDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-	}
-	else
+			fDisplayLink = [CADisplayLink displayLinkWithTarget:fTarget selector:@selector(invoke:)];
+			[fDisplayLink setFrameInterval:interval];
+			[fDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+		}
+		else
 #endif
 	{
 		fTimer = [NSTimer
@@ -201,6 +218,25 @@ AppleTimer::IsRunning() const
 // ----------------------------------------------------------------------------
 
 } // namespace Rtt
+
+// ----------------------------------------------------------------------------
+
+// C bridge for FTL Game Loop: forces AppleTimer into NSTimer mode.
+// Called from AppDelegate when FTL Game Loop scenario is detected.
+extern "C" void Rtt_ForceNSTimerMode( void *timerPtr )
+{
+	Rtt::AppleTimer* timer = static_cast<Rtt::AppleTimer*>(timerPtr);
+	if ( timer )
+	{
+		sForceNSTimerMode = true;
+		sActiveTimer = timer;
+		if ( timer->IsRunning() )
+		{
+			timer->Stop();
+			timer->Start();
+		}
+	}
+}
 
 // ----------------------------------------------------------------------------
 
