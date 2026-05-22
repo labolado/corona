@@ -56,8 +56,11 @@ if [ "${FULL_BUILD_NUM}" != "" ]
 then
 	# Get the base buildnum with a dash at the front of it suitable for concatenating with "${PRODUCT_DIR}"
 	# (the code that follows is ok with this not being set)
+	# When FULL_BUILD_NUM includes a non-numeric suffix (e.g. "2026.3734.laboladoDev"),
+	# strip it so the DMG volume name stays ≤ 27 chars for notarization.
+	# The DMG filename ($DMG_FILE) still uses the full $FULL_BUILD_NUM.
 	# shellcheck disable=2001
-	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/')
+	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/' -e 's/\.[^.]*$//')
 else
 	echo "Error: FULL_BUILD_NUM is a required parameter"
 	exit 1
