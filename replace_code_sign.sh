@@ -53,7 +53,7 @@ rm -f platform/iphone/ratatouille.xcodeproj/project.pbxproj.bak
 
 # platform tvos
 sign6_a='PROVISIONING_PROFILE_SPECIFIER = tvos'
-sign6_b='PROVISIONING_PROFILE_SPECIFIER = "dev tv wildcard"'
+sign6_b='PROVISIONING_PROFILE_SPECIFIER = "com.labolado.* Development"'
 sign7_a='com.coronalabs.'
 sign7_b='com.labolado.'
 sed -i.bak "s/${sign2_a}/${sign2_b}/g" platform/tvos/ratatouille.xcodeproj/project.pbxproj
