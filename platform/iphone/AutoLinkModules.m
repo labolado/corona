@@ -7,23 +7,23 @@ otool -l libplayer.a | grep -A 4 LC_LINKER_OPTION | grep string | grep -v '\-fra
 
 */
 
-@import AssetsLibrary;
-@import AVKit;
-@import CoreLocation;
-@import CoreMotion;
-@import Foundation;
-@import GameController;
+#import <AssetsLibrary/AssetsLibrary.h>
+#import <AVKit/AVKit.h>
+#import <CoreLocation/CoreLocation.h>
+#import <CoreMotion/CoreMotion.h>
+#import <Foundation/Foundation.h>
+#import <GameController/GameController.h>
 #ifndef Rtt_MetalANGLE
-@import GLKit;
+#import <GLKit/GLKit.h>
 #else
-@import MetalANGLE;
+/* MetalANGLE requires modules; skipped with CLANG_ENABLE_MODULES=NO */
 #endif
-@import MapKit;
-@import MessageUI;
-@import MobileCoreServices;
-@import OpenAL;
-@import Photos;
-@import SQLite3;
-@import StoreKit;
-@import SystemConfiguration;
-@import WebKit;
+#import <MapKit/MapKit.h>
+#import <MessageUI/MessageUI.h>
+#import <MobileCoreServices/MobileCoreServices.h>
+#import <OpenAL/al.h>
+#import <Photos/Photos.h>
+#import <sqlite3.h>
+#import <StoreKit/StoreKit.h>
+#import <SystemConfiguration/SystemConfiguration.h>
+#import <WebKit/WebKit.h>

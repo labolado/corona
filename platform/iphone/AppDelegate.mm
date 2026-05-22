@@ -23,7 +23,13 @@
 #include "Rtt_LuaContext.h"
 #include "Rtt_LuaResource.h"
 #include "Rtt_MPlatformDevice.h"
+#include "Rtt_PlatformTimer.h"
 #include "Rtt_Runtime.h"
+
+// C bridge for FTL Game Loop: forces NSTimer mode on the runtime timer.
+// Implemented in platform/apple/Rtt_AppleTimer.mm (in libtemplate.a) to avoid
+// direct C++ AppleTimer references from the template binary.
+extern "C" void Rtt_ForceNSTimerMode( void *timerPtr );
 
 #include "Display/Rtt_Display.h"
 
@@ -605,7 +611,22 @@ SetLaunchArgs( UIApplication *application, NSDictionary *launchOptions, Rtt::Run
 		{
 			NSString *scenario = [args objectAtIndex:idx + 1];
 			lua_pushstring( L, [scenario UTF8String] );
-			lua_setfield( L, -2, "gameLoopScenario" );
+			lua_setglobal( L, "gameLoopScenario" );
+
+			// Pre-create game_loop_results directory for FTL results output
+			// Lua's lfs is not available on iOS standalone, so native is the only option
+			NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+			NSString *docsPath = [paths firstObject];
+			NSString *glResultsPath = [docsPath stringByAppendingPathComponent:@"game_loop_results"];
+			[[NSFileManager defaultManager] createDirectoryAtPath:glResultsPath
+			                          withIntermediateDirectories:YES
+			                                           attributes:nil
+			                                                error:nil];
+
+			// Force NSTimer mode for the runtime timer.
+			// FTL headless mode has no real display, so CADisplayLink never fires,
+			// which means the Corona runtime never advances (no enterFrame, no timers).
+			Rtt_ForceNSTimerMode( runtime->GetTimer() );
 		}
 
 		lua_pop( L, 1 );
@@ -863,12 +884,86 @@ SetLaunchArgs( UIApplication *application, NSDictionary *launchOptions, Rtt::Run
 {
 	using namespace Rtt;
 
+	// Firebase Test Lab Game Loop detection via URL scheme
+	// FTL sends: firebase-game-loop://<scenario>
+	if ( [[[url scheme] lowercaseString] isEqualToString:@"firebase-game-loop"] )
+	{
+		NSString *scenario = [[url host] length] > 0 ? [url host] : @"1";
+
+		// Set Lua global for scenario number
+		if ( view && view.runtime )
+		{
+			lua_State *L = view.runtime->VMContext().L();
+			lua_pushstring( L, [scenario UTF8String] );
+			lua_setglobal( L, "gameLoopScenario" );
+
+			// Create game_loop_results directory
+			NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+			NSString *docsPath = [paths firstObject];
+			NSString *glResultsPath = [docsPath stringByAppendingPathComponent:@"game_loop_results"];
+			[[NSFileManager defaultManager] createDirectoryAtPath:glResultsPath
+			                          withIntermediateDirectories:YES
+			                                           attributes:nil
+			                                                error:nil];
+
+			// Force NSTimer mode (CADisplayLink doesn't fire on headless FTL)
+			Rtt_ForceNSTimerMode( view.runtime->GetTimer() );
+		}
+	}
+
 	BOOL result = NO;
 
 	if ( [[self getCoronaAppDelegate] respondsToSelector:_cmd] )
 	{
 		result = [[self getCoronaAppDelegate] application:application openURL:url sourceApplication:sourceApplication annotation:annotation];
 		}
+
+	if ( ! result )
+	{
+		SystemOpenEvent e( [[url absoluteString] UTF8String] );
+		Runtime *runtime = view.runtime;
+		if ( Rtt_VERIFY( runtime ) )
+		{
+			runtime->DispatchEvent( e );
+		}
+	}
+
+	return result;
+}
+
+// For iOS 9+ URL handling (FTL sends Game Loop URL via the modern API).
+// This override is required because iOS calls application:openURL:options:
+// instead of the deprecated sourceApplication:annotation: variant on iOS 9+.
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options
+{
+	using namespace Rtt;
+
+	if ( [[[url scheme] lowercaseString] isEqualToString:@"firebase-game-loop"] )
+	{
+		NSString *scenario = [[url host] length] > 0 ? [url host] : @"1";
+		if ( view && view.runtime )
+		{
+			lua_State *L = view.runtime->VMContext().L();
+			lua_pushstring( L, [scenario UTF8String] );
+			lua_setglobal( L, "gameLoopScenario" );
+
+			NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+			NSString *docsPath = [paths firstObject];
+			NSString *glResultsPath = [docsPath stringByAppendingPathComponent:@"game_loop_results"];
+			[[NSFileManager defaultManager] createDirectoryAtPath:glResultsPath
+									  withIntermediateDirectories:YES
+													   attributes:nil
+															error:nil];
+
+			Rtt_ForceNSTimerMode( view.runtime->GetTimer() );
+		}
+	}
+
+	BOOL result = NO;
+	if ( [[self getCoronaAppDelegate] respondsToSelector:_cmd] )
+	{
+		result = [[self getCoronaAppDelegate] application:app openURL:url options:options];
+	}
 
 	if ( ! result )
 	{
