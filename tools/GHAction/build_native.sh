@@ -28,6 +28,21 @@ then
     fi
 fi
 
+# When certificates are not available, disable code signing via xcconfig
+# so xcodebuild calls inside the enterprise build.sh don't fail
+if [ -z "$CERT_PASSWORD" ]
+then
+    NOSIGN_XCCONFIG="/tmp/nosign_$$.xcconfig"
+    cat > "$NOSIGN_XCCONFIG" << 'XCEOF'
+CODE_SIGN_IDENTITY =
+CODE_SIGNING_REQUIRED = NO
+CODE_SIGNING_ALLOWED = NO
+ARCHS = arm64 x86_64
+ONLY_ACTIVE_ARCH = NO
+XCEOF
+    export XCODE_XCCONFIG_FILE="$NOSIGN_XCCONFIG"
+fi
+
 java -version
 echo $JAVA_HOME
 cd "${WORKSPACE}/subrepos/enterprise"
