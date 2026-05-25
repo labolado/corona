@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
-: "${YEAR:=$(date +"%Y")}"
 if [[ "$GITHUB_REF" == refs/tags/* ]]
 then
-    : "${BUILD_NUMBER:=${GITHUB_REF#refs/tags/}}"
+    # Tag push: always extract BUILD_NUMBER from tag, regardless of
+    # workflow_dispatch input defaults (which would be "9999").
+    BUILD_NUMBER="${GITHUB_REF#refs/tags/}"
+    YEAR="$(date +"%Y")"
 else
+    : "${YEAR:=$(date +"%Y")}"
     : "${BUILD_NUMBER:=$GITHUB_RUN_NUMBER}"
 fi
 
