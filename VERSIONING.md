@@ -11,17 +11,18 @@ Our tags append a suffix to distinguish our branches:
 ```
 
 - `BASE_VERSION` = Solar2D upstream tag number (e.g. `3730`)
-- `SUFFIX` = branch identifier (`laboladoDev`, `bgfx`, `b3`, etc.)
+- `SUFFIX` = branch identifier (`bgfx`, `b3`, etc.)
 - `.v<N>` = sub-version increment when the same branch gets updated without upstream bump
+- Master branch uses bare `.v<N>` (no suffix): e.g. `3730.v1`
 
 ## Examples
 
 | Branch | Tag | When to bump |
 |---|---|---|
-| master (laboladoDev) | `3730.laboladoDev` | Per upstream release |
+| master | `3730.v1` → `3730.v2` | Per upstream release |
 | bgfx-solar2d | `3730.bgfx.v1` → `3730.bgfx.v2` | Per bgfx feature update |
 | dev_add_box2d_v3 | `3730.b3.v1` → `3730.b3.v2` | Per box2d feature update |
-| (next upstream) | `3731.laboladoDev` | Only after upstream tags 3731 |
+| (next upstream) | `3731.v1` | Only after upstream tags 3731 |
 | (upstream + bgfx) | `3731.bgfx.v1` | Only after upstream tags 3731 |
 
 ## DO NOT
