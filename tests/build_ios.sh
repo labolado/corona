@@ -1,8 +1,9 @@
 #!/bin/bash
 # 一键 iOS 构建脚本：编译 → 验证 → 打包 tar → CoronaBuilder 打包 → 签名 → 安装
-# 用法: bash tests/build_ios.sh <project_path> [bundle_id] [profile_path] [display_name]
+# 用法: bash tests/build_ios.sh <project_path> [bundle_id] [profile_path] [display_name] [--ftl]
 # 示例: bash tests/build_ios.sh /tmp/uaf_repro_project com.labolado.labo-brick-tank
 #       bash tests/build_ios.sh /Users/yee/data/dev/app/labo/tank_test_copy com.labolado.labo-brick-tank-full
+#       bash tests/build_ios.sh tests/bgfx-demo com.labolado.bgfxdemo --ftl   # 出 FTL-ready IPA（distribution 签名 + URL scheme）
 
 # 不用 set -e，手动检查关键步骤
 # set -e 会导致 grep/strings 等返回非零时意外退出
@@ -11,18 +12,38 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CORONA_DIR="${CORONA_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 TDIR="${CORONA_TEMPLATE_DIR:-/Applications/Corona-b3/Corona Simulator.app/Contents/Resources/iostemplate}"
-SIGN_ID="${IOS_SIGN_ID:-$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" | head -1 | awk '{print $2}')}"
-DEVICE="${IOS_DEVICE:-$(xcrun devicectl list devices 2>/dev/null | grep "available.*paired" | head -1 | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}')}"
+# FTL mode: 输出 distribution-signed + URL scheme 注入的 IPA（不装设备，直接给 FTL 用）
+# 触发：FTL_MODE=1 或 --ftl flag
+FTL_MODE="${FTL_MODE:-0}"
+for arg in "$@"; do [ "$arg" = "--ftl" ] && FTL_MODE=1; done
+
 API_DIR="${API_DIR:-/Users/yee/data/dev/app/api}"
+FTL_PROFILE="${FTL_PROFILE:-/Users/yee/ftl-resources/profiles/AdHoc_com.labolado.*.mobileprovision}"
+FTL_SIGN_ID="${FTL_SIGN_ID:-61F861C8E26319F52E90AA240DE2125135BDAD80}"  # iPhone Distribution: Labo Lado Co., Ltd.
+
+if [ "$FTL_MODE" = "1" ]; then
+    SIGN_ID="${IOS_SIGN_ID:-$FTL_SIGN_ID}"
+else
+    SIGN_ID="${IOS_SIGN_ID:-$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" | head -1 | awk '{print $2}')}"
+fi
+DEVICE="${IOS_DEVICE:-$(xcrun devicectl list devices 2>/dev/null | grep "available.*paired" | head -1 | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}')}"
 
 # 如果自动检测失败，用默认值
 [ -z "$SIGN_ID" ] && SIGN_ID="5421015426E6E4E23B8FB8C0184A3DF0ED4E343B"
 [ -z "$DEVICE" ] && DEVICE="59B21151-EC4C-5713-98A1-AA0B324E0AD5"
 
-PROJECT_PATH="${1:?用法: bash tests/build_ios.sh <project_path> [bundle_id] [profile_path] [display_name]}"
-BUNDLE_ID="${2:-com.labolado.labo-brick-tank}"
-PROFILE="${3:-$API_DIR/Development_${BUNDLE_ID//./_}.mobileprovision}"
-DISPLAY_NAME="${4:-$(basename "$PROJECT_PATH")}"
+# 解析位置参数（跳过 --ftl flag）
+POS=()
+for arg in "$@"; do [ "$arg" != "--ftl" ] && POS+=("$arg"); done
+
+PROJECT_PATH="${POS[0]:?用法: bash tests/build_ios.sh <project_path> [bundle_id] [profile_path] [display_name] [--ftl]}"
+BUNDLE_ID="${POS[1]:-com.labolado.labo-brick-tank}"
+if [ "$FTL_MODE" = "1" ]; then
+    PROFILE="${POS[2]:-$FTL_PROFILE}"
+else
+    PROFILE="${POS[2]:-$API_DIR/Development_${BUNDLE_ID//./_}.mobileprovision}"
+fi
+DISPLAY_NAME="${POS[3]:-$(basename "$PROJECT_PATH")}"
 APP_NAME="$(basename "$PROJECT_PATH")"
 DST="/tmp/ios-build-$(date +%H%M%S)"
 
@@ -212,13 +233,42 @@ log "Step 7: 签名"
 if [ -n "$DISPLAY_NAME" ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $DISPLAY_NAME" "$APP_PATH/Info.plist" 2>/dev/null
 fi
+
+# FTL mode: 注入 firebase-game-loop URL scheme（FTL iOS Game Loop 强制要求 CFBundleURLTypes）
+if [ "$FTL_MODE" = "1" ]; then
+    log "  FTL mode: 注入 firebase-game-loop URL scheme"
+    /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' "$APP_PATH/Info.plist" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes array' "$APP_PATH/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0 dict' "$APP_PATH/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string $BUNDLE_ID" "$APP_PATH/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes array' "$APP_PATH/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string firebase-game-loop' "$APP_PATH/Info.plist"
+fi
+
 cp "$PROFILE" "$APP_PATH/embedded.mobileprovision"
 
-security cms -D -i "$PROFILE" 2>/dev/null | python3 -c "
+# 提取 entitlements；FTL mode 下把 wildcard application-identifier 替换为实际 bundle id
+if [ "$FTL_MODE" = "1" ]; then
+    security cms -D -i "$PROFILE" 2>/dev/null | BUNDLE_ID="$BUNDLE_ID" python3 -c "
+import plistlib, sys, os
+bundle = os.environ['BUNDLE_ID']
+data = plistlib.loads(sys.stdin.buffer.read())
+ent = data['Entitlements']
+appid = ent.get('application-identifier','')
+if appid.endswith('*'):
+    team = appid.split('.')[0]
+    ent['application-identifier'] = f'{team}.{bundle}'
+if 'keychain-access-groups' in ent:
+    ent['keychain-access-groups'] = [g.replace('*', bundle) if g.endswith('*') else g for g in ent['keychain-access-groups']]
+plistlib.dump(ent, open('/tmp/ios-build-ent.plist','wb'))
+"
+else
+    security cms -D -i "$PROFILE" 2>/dev/null | python3 -c "
 import plistlib, sys
 data = plistlib.loads(sys.stdin.buffer.read())
 plistlib.dump(data['Entitlements'], open('/tmp/ios-build-ent.plist','wb'))
 "
+fi
 
 codesign --force --sign "$SIGN_ID" --entitlements /tmp/ios-build-ent.plist "$APP_PATH" 2>&1 | tail -1
 log "  ✅ 已签名"
@@ -226,6 +276,36 @@ log "  ✅ 已签名"
 # 最终验证：二进制包含 bgfx
 FINAL_BGFX=$(strings "$APP_PATH/$APP_NAME" 2>/dev/null | grep -c "BgfxRenderer" || true)
 log "  最终二进制 bgfx 符号: $FINAL_BGFX"
+
+# FTL mode: 校验 get-task-allow=false（distribution 签名标志），打包成 IPA
+if [ "$FTL_MODE" = "1" ]; then
+    GTA=$(security cms -D -i "$APP_PATH/embedded.mobileprovision" 2>/dev/null | plutil -extract Entitlements.get-task-allow raw - -o - 2>/dev/null)
+    if [ "$GTA" != "false" ]; then
+        fail "FTL mode: get-task-allow=$GTA (期望 false; profile 可能不是 distribution 类)"
+    fi
+    log "  ✅ FTL 校验: get-task-allow=false"
+
+    # 打包成 IPA
+    IPA_DIR="$DST/Payload"
+    rm -rf "$IPA_DIR"
+    mkdir -p "$IPA_DIR"
+    ditto "$APP_PATH" "$IPA_DIR/$(basename "$APP_PATH")"
+    (cd "$DST" && zip -qr "$APP_NAME.ipa" Payload/)
+    IPA_PATH="$DST/$APP_NAME.ipa"
+    [ -f "$IPA_PATH" ] || fail "IPA 打包失败"
+    IPA_SIZE=$(ls -lh "$IPA_PATH" | awk '{print $5}')
+    log "  ✅ IPA: $IPA_PATH ($IPA_SIZE)"
+
+    echo ""
+    echo "============================================"
+    echo "  ✅ iOS FTL-ready IPA 构建完成"
+    echo "  分支: $BRANCH"
+    echo "  Bundle ID: $BUNDLE_ID"
+    echo "  IPA: $IPA_PATH"
+    echo "  下一步: ftl run smoke-ios $IPA_PATH --async"
+    echo "============================================"
+    exit 0
+fi
 
 # ============================================================
 # Step 8: 安装到设备
