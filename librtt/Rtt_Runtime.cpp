@@ -177,7 +177,7 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 #if defined(Rtt_ANDROID_ENV)
 		fBackend("bgfxBackend"),  // Android: always use bgfx
 #else
-		fBackend(getenv("SOLAR2D_BACKEND") && strcmp(getenv("SOLAR2D_BACKEND"), "bgfx") == 0 ? "bgfxBackend" : "glBackend"),
+		fBackend((!getenv("SOLAR2D_BACKEND") || strcmp(getenv("SOLAR2D_BACKEND"), "gl") != 0) ? "bgfxBackend" : "glBackend"),
 #endif
 #else
 		fBackend("glBackend"),

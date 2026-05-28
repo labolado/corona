@@ -42,7 +42,7 @@ MacViewCallback::operator()()
 		if (sBgfxMode < 0)
 		{
 			const char* backend = getenv("SOLAR2D_BACKEND");
-			sBgfxMode = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
+			sBgfxMode = (!backend || strcmp(backend, "gl") != 0) ? 1 : 0;
 		}
 		if (sBgfxMode)
 		{

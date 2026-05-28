@@ -303,9 +303,9 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
     NSDEBUG(@"XXX: GLView: prepareOpenGL: fRuntime %p, self.isReady %s", fRuntime, (self.isReady ? "YES" : "NO"));
 	//[super prepareOpenGL];
 
-	// Check if bgfx backend is active
+	// Check if bgfx backend is active (default: bgfx; only "gl" forces GL)
 	const char* backend = getenv("SOLAR2D_BACKEND");
-	bool isBgfx = (backend && strcmp(backend, "bgfx") == 0);
+	bool isBgfx = (!backend || strcmp(backend, "gl") != 0);
 
 	if (!isBgfx)
 	{
@@ -354,7 +354,7 @@ NSOpenGLPixelFormatAttribute attributes1 [] = {
 	if (sBgfxBackend < 0)
 	{
 		const char* backend = getenv("SOLAR2D_BACKEND");
-		sBgfxBackend = (backend && strcmp(backend, "bgfx") == 0) ? 1 : 0;
+		sBgfxBackend = (!backend || strcmp(backend, "gl") != 0) ? 1 : 0;
 	}
 
 	if (sBgfxBackend)

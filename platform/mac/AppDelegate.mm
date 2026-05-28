@@ -2662,7 +2662,7 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		// bgfx mode: restart the process instead of in-memory relaunch
 		// bgfx::shutdown() + bgfx::init() in same process causes Metal crashes
 		const char* backend = getenv("SOLAR2D_BACKEND");
-		if (backend && strcmp(backend, "bgfx") == 0)
+		if (!backend || strcmp(backend, "gl") != 0)
 		{
 			NSString *execPath = [[NSBundle mainBundle] executablePath];
 			NSMutableArray *args = [NSMutableArray array];
