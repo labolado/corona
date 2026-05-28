@@ -692,6 +692,23 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         fprintf(stderr, "BGFX_INIT: renderer=%s nwh=%p w=%u h=%u\n",
                 rendererName, nativeWindowHandle, width, height);
         Rtt_LogException("BGFX_INIT: renderer=%s w=%u h=%u", rendererName, width, height);
+#if defined(Rtt_MAC_ENV)
+        // bgfx Metal creates a CAMetalLayer with contentsScale=1.0 by default.
+        // On Retina displays, the drawable is then 1x and gets upscaled by the
+        // system, producing visible jaggies.  Set contentsScale to match the
+        // window's backingScaleFactor so the layer allocates a 2x drawable.
+        double Rtt_GetBgfxMetalLayerScale(void* nsViewHandle);
+        void   Rtt_SetBgfxMetalLayerScale(void* nsViewHandle, double scale);
+        const double retinaScale = Rtt_GetBgfxMetalLayerScale(nativeWindowHandle);
+        if (retinaScale > 1.0)
+        {
+            Rtt_SetBgfxMetalLayerScale(nativeWindowHandle, retinaScale);
+            width  = (U32)(width  * retinaScale);
+            height = (U32)(height * retinaScale);
+            bgfx::reset(static_cast<uint32_t>(width), static_cast<uint32_t>(height), init.resolution.reset);
+        }
+#endif
+
         bgfx::setDebug(BGFX_DEBUG_NONE);
         // Set default view clear state (view 200 = screen, FBO views use 1-199)
         bgfx::setViewClear(200, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030ff, 1.0f, 0);

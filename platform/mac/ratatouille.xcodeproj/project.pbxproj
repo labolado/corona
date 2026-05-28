@@ -337,25 +337,22 @@
 		0797EB5D181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0797EB5C181F0CC400FA57B5 /* Rtt_MacVideoProvider.mm */; };
 		0924D6B9DB8C1E16036909A8 /* Rtt_BgfxProgram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29941 /* Rtt_BgfxProgram.cpp */; };
 		0924D6B9DB8C1E16036909A9 /* Rtt_BgfxShaderCompiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7C715DEA65B27FE5AC29942 /* Rtt_BgfxShaderCompiler.cpp */; };
-		2DBFF4E099FE15A92111EE09 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
-		E3E0370A3E9F9055888AB456 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		0E8BA1D8696BA165C3BA3F10 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		1F34F53D21115FB2006EE117 /* Rtt_LinuxAppPackager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1F34F53321115FB1006EE117 /* Rtt_LinuxAppPackager.cpp */; };
 		1F34F54021116446006EE117 /* LinuxAppBuild.xib in Resources */ = {isa = PBXBuildFile; fileRef = 1F34F53E21116445006EE117 /* LinuxAppBuild.xib */; };
 		1F34F5432111661E006EE117 /* LinuxAppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1F34F5412111661E006EE117 /* LinuxAppBuildController.mm */; };
+		217E2F6AB3CC8666D5EB2A27 /* Rtt_BgfxMetalScale.mm in Sources */ = {isa = PBXBuildFile; fileRef = F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */; };
 		22EA586B206094C270D49A1F /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		27C268D863D57AC463E8C57A /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		2B371B81E9AFFA5E0B6FB4A1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
 		2B7F54680296C729DB295298 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
+		2DBFF4E099FE15A92111EE09 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		30165D4C9FE7243BB8B5012B /* Rtt_TextureAtlas_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */; };
 		37CD1BDC89083A1E1AA8E704 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F39D5C684AA098023A5A409 /* libbimgRelease.a */; };
 		3A549BB22B167806E935C406 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
 		4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */; };
 		4123D2F8292CCD1A008C1068 /* b2FakeJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */; };
-		447CB5DFFFD754146C49BCD6 /* Rtt_LineObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 738B4AC7D7E97C9F998364F3 /* Rtt_LineObject_Lua.cpp */; };
-		49D566976E388567ED41B4E8 /* Rtt_ShapeObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49F3069029F61FF0BCAD7E2 /* Rtt_ShapeObject_Lua.cpp */; };
 		4B1A83A22B184FF46E34A111 /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
-		4123D2F7292CCD1A008C1068 /* b2FakeJoint.h in Headers */ = {isa = PBXBuildFile; fileRef = 4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */; };
-		4123D2F8292CCD1A008C1068 /* b2FakeJoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */; };
 		4C111FCB1B2A41B200DF8BE8 /* Rtt_KeyName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */; };
 		4D158B9EBBF63E00FA44B951 /* Rtt_BgfxExports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */; };
 		5019605B186145FC0092E97E /* b2Separator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50196059186145FC0092E97E /* b2Separator.cpp */; };
@@ -488,16 +485,18 @@
 		50FB089217B1E22E005ED7B7 /* kernel_filter_scatter_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = 50FB088917B1E1CE005ED7B7 /* kernel_filter_scatter_gl.lua */; };
 		516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */; };
 		5C532566ECBFF606DDAF230F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
+		5C5D28EA09B34088BC2C2D6A /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
 		6B4AAC87E853A5793AD55E9A /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
-		A24CAF5D1FC6FD51E982FFDD /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
-		27C268D863D57AC463E8C57A /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		70A3C9F252A24877FE2D4A2A /* Rtt_TextureAtlas_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */; };
 		7F3FB9D72506F06274B305C2 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		9AFC57363710CD0062F7A649 /* Rtt_BgfxExports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */; };
+		9E274D72B1C36E72DD5DCD00 /* Rtt_BgfxMetalScale.mm in Sources */ = {isa = PBXBuildFile; fileRef = F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */; };
 		A19881EA5CF3C88271B4BAB3 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
+		A24CAF5D1FC6FD51E982FFDD /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
+		A320556C7AC54A7592AB98F0 /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		A40A90631BD99B0E001D2038 /* TVOSAppBuild.xib in Resources */ = {isa = PBXBuildFile; fileRef = A40A90611BD99B0D001D2038 /* TVOSAppBuild.xib */; };
 		A40A906F1BD99B23001D2038 /* TVOSAppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A40A906D1BD99B23001D2038 /* TVOSAppBuildController.mm */; };
 		A40A90701BD99B23001D2038 /* TVOSAppPackageSheet.xib in Resources */ = {isa = PBXBuildFile; fileRef = A40A906E1BD99B23001D2038 /* TVOSAppPackageSheet.xib */; };
@@ -552,8 +551,6 @@
 		A4328881176A621200ACB6FF /* Rtt_ShaderFactory.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328822176A621100ACB6FF /* Rtt_ShaderFactory.h */; };
 		A4328882176A621200ACB6FF /* Rtt_ShaderName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328823176A621100ACB6FF /* Rtt_ShaderName.cpp */; };
 		A4328883176A621200ACB6FF /* Rtt_ShaderName.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328824176A621100ACB6FF /* Rtt_ShaderName.h */; };
-		D0A0B0C0D0E05DF000000003 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
-		D0A0B0C0D0E05DF000000004 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
 		A4328884176A621200ACB6FF /* Rtt_ShapeObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328825176A621100ACB6FF /* Rtt_ShapeObject.cpp */; };
 		A4328885176A621200ACB6FF /* Rtt_ShapeObject.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */; };
 		A4328886176A621200ACB6FF /* Rtt_ShapePath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4328827176A621100ACB6FF /* Rtt_ShapePath.cpp */; };
@@ -726,7 +723,6 @@
 		AA2C69AA2914777C0093B0BE /* kernel_filter_blurLinearHorizontal_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = AA2C69A7291476D90093B0BE /* kernel_filter_blurLinearHorizontal_gl.lua */; };
 		AA2C69AB2914777C0093B0BE /* kernel_filter_blurLinearVertical_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = AA2C69A8291476D90093B0BE /* kernel_filter_blurLinearVertical_gl.lua */; };
 		AA561644D795490BDF59A197 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
-		A320556C7AC54A7592AB98F0 /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		AAA301372CEAEC2400FF77DE /* Rtt_ObjectHandle.h in Headers */ = {isa = PBXBuildFile; fileRef = AAA3012F2CEAEC2400FF77DE /* Rtt_ObjectHandle.h */; };
 		AAA301382CEAEC2400FF77DE /* Rtt_ObjectHandle.h in Headers */ = {isa = PBXBuildFile; fileRef = AAA3012F2CEAEC2400FF77DE /* Rtt_ObjectHandle.h */; };
 		AAA301392CEAEC2400FF77DE /* Rtt_ObjectHandle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AAA301362CEAEC2400FF77DE /* Rtt_ObjectHandle.cpp */; };
@@ -936,12 +932,6 @@
 		C229E07C1B32221B00D87A7C /* Rtt_ShapeAdapterPolygon.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC8AB1783F17D00BE6805 /* Rtt_ShapeAdapterPolygon.h */; };
 		C229E07D1B32221B00D87A7C /* Rtt_ShapeAdapterRect.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC88B17820C9A00BE6805 /* Rtt_ShapeAdapterRect.h */; };
 		C229E07E1B32221B00D87A7C /* Rtt_ShapeAdapterRoundedRect.h in Headers */ = {isa = PBXBuildFile; fileRef = A4B66B2417728CF90077B2BF /* Rtt_ShapeAdapterRoundedRect.h */; };
-		D0A0B0C0D0E05DF000000005 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
-		D0A0B0C0D0E05DF000000006 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
-		D0A0B0C0D0E06DF000000003 /* Rtt_InstancedBatchRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */; };
-		D0A0B0C0D0E06DF000000004 /* Rtt_InstancedBatchRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000002 /* Rtt_InstancedBatchRenderer.h */; };
-		D0A0B0C0D0E06DF000000005 /* Rtt_InstancedBatchRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */; };
-		D0A0B0C0D0E06DF000000006 /* Rtt_InstancedBatchRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000002 /* Rtt_InstancedBatchRenderer.h */; };
 		C229E07F1B32221B00D87A7C /* Rtt_ShapeObject.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */; };
 		C229E0801B32221B00D87A7C /* Rtt_ShapePath.h in Headers */ = {isa = PBXBuildFile; fileRef = A4328828176A621100ACB6FF /* Rtt_ShapePath.h */; };
 		C229E0811B32221B00D87A7C /* Rtt_SharedCount.h in Headers */ = {isa = PBXBuildFile; fileRef = A46AC8BF178A25FD00BE6805 /* Rtt_SharedCount.h */; };
@@ -1654,8 +1644,14 @@
 		C2FCD3E41B38D06000EF7B02 /* AppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4B00FA014565609008FB6E6 /* AppBuildController.mm */; };
 		C2FCD3E61B38D0BD00EF7B02 /* WebAppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A425454E18DB9EF400EE06A8 /* WebAppBuildController.mm */; };
 		C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
-		5C5D28EA09B34088BC2C2D6A /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
+		D0A0B0C0D0E05DF000000003 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
+		D0A0B0C0D0E05DF000000004 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
+		D0A0B0C0D0E05DF000000005 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
+		D0A0B0C0D0E05DF000000006 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
+		D0A0B0C0D0E06DF000000003 /* Rtt_InstancedBatchRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */; };
+		D0A0B0C0D0E06DF000000005 /* Rtt_InstancedBatchRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */; };
 		D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
+		D4FB584AE38B7B4C1E73EB69 /* Rtt_BgfxMetalScale.mm in Sources */ = {isa = PBXBuildFile; fileRef = F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */; };
 		D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
 		DB56B4CA284C2E7D00EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B4C8284C2E7C00EC8B14 /* Rtt_AppleKeyServices.h */; };
 		DB56B4CB284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */; };
@@ -1666,6 +1662,7 @@
 		E0B0A1C4D2F3E4A5B6C7D8EC /* Rtt_BatchObject_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */; };
 		E23CD30D147C725200BC9038 /* BuildSessionState.mm in Sources */ = {isa = PBXBuildFile; fileRef = E23CD30C147C725200BC9038 /* BuildSessionState.mm */; };
 		E2A81B8B0DCA0F6C34EE443B /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
+		E3E0370A3E9F9055888AB456 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
 		EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
 		F500FB401FED5CE20050B28B /* webtemplate.zip in Resources */ = {isa = PBXBuildFile; fileRef = F500FB3F1FED5CE20050B28B /* webtemplate.zip */; };
@@ -2843,16 +2840,11 @@
 		2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxTexture.h; path = ../../librtt/Renderer/Rtt_BgfxTexture.h; sourceTree = "<group>"; };
 		2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxExports.h; path = ../../librtt/Renderer/Rtt_BgfxExports.h; sourceTree = "<group>"; };
 		323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureAtlas.cpp; path = Display/Rtt_TextureAtlas.cpp; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject.cpp; path = Display/Rtt_BatchObject.cpp; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject_Lua.cpp; path = Display/Rtt_BatchObject_Lua.cpp; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B5E /* Rtt_BatchObject.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject.h; path = Display/Rtt_BatchObject.h; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B5F /* Rtt_BatchObject_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject_Lua.h; path = Display/Rtt_BatchObject_Lua.h; sourceTree = "<group>"; };
-				BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_BgfxMetalReadback.mm; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.mm; sourceTree = "<group>"; };
-				457832139A460173839236AA /* Rtt_BgfxMetalReadback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxMetalReadback.h; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.h; sourceTree = "<group>"; };
 		3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = ../../librtt/Renderer/Rtt_BgfxRenderer.cpp; sourceTree = "<group>"; };
-		3D0B7EE7B36CDB1F6D47E5A3 /* Rtt_CompositeObject_Lua.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_CompositeObject_Lua.cpp; path = ../../librtt/Display/Rtt_CompositeObject_Lua.cpp; sourceTree = "<group>"; };
+		3D64F18EE1694AFB91BFE52D /* Rtt_BgfxGeometryPool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometryPool.h; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.h; sourceTree = "<group>"; };
 		4123D2EF292CCD1A008C1068 /* b2FakeJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2FakeJoint.h; sourceTree = "<group>"; };
 		4123D2F6292CCD1A008C1068 /* b2FakeJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2FakeJoint.cpp; sourceTree = "<group>"; };
+		457832139A460173839236AA /* Rtt_BgfxMetalReadback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxMetalReadback.h; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.h; sourceTree = "<group>"; };
 		4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_KeyName.cpp; sourceTree = "<group>"; };
 		4C111FCA1B2A41B200DF8BE8 /* Rtt_KeyName.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_KeyName.h; sourceTree = "<group>"; };
 		50196059186145FC0092E97E /* b2Separator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = b2Separator.cpp; path = "../../external/b2Separator-cpp/b2Separator.cpp"; sourceTree = "<group>"; };
@@ -3029,8 +3021,13 @@
 		7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxExports.cpp; path = ../../librtt/Renderer/Rtt_BgfxExports.cpp; sourceTree = "<group>"; };
 		81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = ../../external/bgfx/.build/projects/xcode15/libbimg_decodeRelease.a; sourceTree = "<group>"; };
 		86E69617C47C8930B0EF5814 /* Rtt_BgfxRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxRenderer.h; path = ../../librtt/Renderer/Rtt_BgfxRenderer.h; sourceTree = "<group>"; };
+		87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometryPool.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.cpp; sourceTree = "<group>"; };
 		8C52BCA21BF78A826020BA7F /* Rtt_BgfxCommandBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxCommandBuffer.h; path = ../../librtt/Renderer/Rtt_BgfxCommandBuffer.h; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Corona Simulator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Corona Simulator.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F60718293A4B5C /* Rtt_BatchObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject.cpp; path = Display/Rtt_BatchObject.cpp; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* Rtt_BatchObject_Lua.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BatchObject_Lua.cpp; path = Display/Rtt_BatchObject_Lua.cpp; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5E /* Rtt_BatchObject.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject.h; path = Display/Rtt_BatchObject.h; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5F /* Rtt_BatchObject_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_BatchObject_Lua.h; path = Display/Rtt_BatchObject_Lua.h; sourceTree = "<group>"; };
 		A40A90621BD99B0D001D2038 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/TVOSAppBuild.xib; sourceTree = "<group>"; };
 		A40A906C1BD99B23001D2038 /* TVOSAppBuildController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TVOSAppBuildController.h; sourceTree = "<group>"; };
 		A40A906D1BD99B23001D2038 /* TVOSAppBuildController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TVOSAppBuildController.mm; sourceTree = "<group>"; };
@@ -3125,10 +3122,6 @@
 		A4328822176A621100ACB6FF /* Rtt_ShaderFactory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShaderFactory.h; path = Display/Rtt_ShaderFactory.h; sourceTree = "<group>"; };
 		A4328823176A621100ACB6FF /* Rtt_ShaderName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShaderName.cpp; path = Display/Rtt_ShaderName.cpp; sourceTree = "<group>"; };
 		A4328824176A621100ACB6FF /* Rtt_ShaderName.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShaderName.h; path = Display/Rtt_ShaderName.h; sourceTree = "<group>"; };
-		D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFRenderer.cpp; path = Display/Rtt_SDFRenderer.cpp; sourceTree = "<group>"; };
-		D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_SDFRenderer.h; path = Display/Rtt_SDFRenderer.h; sourceTree = "<group>"; };
-		D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_InstancedBatchRenderer.cpp; path = Display/Rtt_InstancedBatchRenderer.cpp; sourceTree = "<group>"; };
-		D0A0B0C0D0E06DF000000002 /* Rtt_InstancedBatchRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_InstancedBatchRenderer.h; path = Display/Rtt_InstancedBatchRenderer.h; sourceTree = "<group>"; };
 		A4328825176A621100ACB6FF /* Rtt_ShapeObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShapeObject.cpp; path = Display/Rtt_ShapeObject.cpp; sourceTree = "<group>"; };
 		A4328826176A621100ACB6FF /* Rtt_ShapeObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_ShapeObject.h; path = Display/Rtt_ShapeObject.h; sourceTree = "<group>"; };
 		A4328827176A621100ACB6FF /* Rtt_ShapePath.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_ShapePath.cpp; path = Display/Rtt_ShapePath.cpp; sourceTree = "<group>"; };
@@ -3348,10 +3341,10 @@
 		AAF34A7C29F9CAA800076706 /* Rtt_TextureResourceCaptureAdapter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureResourceCaptureAdapter.h; path = Display/Rtt_TextureResourceCaptureAdapter.h; sourceTree = "<group>"; };
 		AAF34A7D29F9CAA800076706 /* Rtt_TextureResourceCapture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureResourceCapture.h; path = Display/Rtt_TextureResourceCapture.h; sourceTree = "<group>"; };
 		ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometry.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometry.cpp; sourceTree = "<group>"; };
-		87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxGeometryPool.cpp; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.cpp; sourceTree = "<group>"; };
 		B15F32CA67E350CDC68BF0E4 /* Rtt_BgfxProgram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxProgram.h; path = ../../librtt/Renderer/Rtt_BgfxProgram.h; sourceTree = "<group>"; };
 		B15F32CA67E350CDC68BF0E5 /* Rtt_BgfxShaderCompiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxShaderCompiler.h; path = ../../librtt/Renderer/Rtt_BgfxShaderCompiler.h; sourceTree = "<group>"; };
 		B5C34561E307CC8B13FF96D9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_BgfxMetalReadback.mm; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.mm; sourceTree = "<group>"; };
 		C200AAE919626D86005828AA /* CoronaPListSupport.lua */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = CoronaPListSupport.lua; path = ../platform/resources/CoronaPListSupport.lua; sourceTree = "<group>"; };
 		C2038B0F1DDCF1970071594F /* AnalyticsProvider.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AnalyticsProvider.mm; sourceTree = "<group>"; };
 		C2038B111DDCF1BD0071594F /* AnalyticsProvider.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnalyticsProvider.h; sourceTree = "<group>"; };
@@ -3453,6 +3446,10 @@
 		C2F8376C1AC205FA00D33D6E /* CoronaViewRuntimeDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CoronaViewRuntimeDelegate.mm; path = browser/CoronaViewRuntimeDelegate.mm; sourceTree = "<group>"; };
 		C2FCD3CE1B377B5C00EF7B02 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		C2FCEBA51B701A1800587F1E /* gameoverlayrenderer.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = gameoverlayrenderer.dylib; path = /Applications/Steam.app/Contents/MacOS/gameoverlayrenderer.dylib; sourceTree = "<group>"; };
+		D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFRenderer.cpp; path = Display/Rtt_SDFRenderer.cpp; sourceTree = "<group>"; };
+		D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_SDFRenderer.h; path = Display/Rtt_SDFRenderer.h; sourceTree = "<group>"; };
+		D0A0B0C0D0E06DF000000001 /* Rtt_InstancedBatchRenderer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_InstancedBatchRenderer.cpp; path = Display/Rtt_InstancedBatchRenderer.cpp; sourceTree = "<group>"; };
+		D0A0B0C0D0E06DF000000002 /* Rtt_InstancedBatchRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_InstancedBatchRenderer.h; path = Display/Rtt_InstancedBatchRenderer.h; sourceTree = "<group>"; };
 		DB56B4C8284C2E7C00EC8B14 /* Rtt_AppleKeyServices.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_AppleKeyServices.h; path = ../apple/Rtt_AppleKeyServices.h; sourceTree = "<group>"; };
 		DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_AppleKeyServices.mm; path = ../apple/Rtt_AppleKeyServices.mm; sourceTree = "<group>"; };
 		E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureAtlas_Lua.cpp; path = Display/Rtt_TextureAtlas_Lua.cpp; sourceTree = "<group>"; };
@@ -3460,6 +3457,7 @@
 		E23CD30C147C725200BC9038 /* BuildSessionState.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = BuildSessionState.mm; sourceTree = "<group>"; };
 		E978C2CD57765C5A466E0FA1 /* Rtt_TextureAtlas.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureAtlas.h; path = Display/Rtt_TextureAtlas.h; sourceTree = "<group>"; };
 		EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxFrameBufferObject.cpp; path = ../../librtt/Renderer/Rtt_BgfxFrameBufferObject.cpp; sourceTree = "<group>"; };
+		F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = Rtt_BgfxMetalScale.mm; sourceTree = "<group>"; };
 		F3DA624CFE341B5429521C87 /* Rtt_TextureAtlas_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureAtlas_Lua.h; path = Display/Rtt_TextureAtlas_Lua.h; sourceTree = "<group>"; };
 		F500FB3F1FED5CE20050B28B /* webtemplate.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; name = webtemplate.zip; path = ../resources/webtemplate.zip; sourceTree = "<group>"; };
 		F50F51B61B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureResourceBitmap.cpp; path = Display/Rtt_TextureResourceBitmap.cpp; sourceTree = "<group>"; };
@@ -3548,7 +3546,6 @@
 		F86F3306171886AA00F98693 /* widget_tableview.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget_tableview.lua; path = ../../subrepos/widget/widgetLibrary/widget_tableview.lua; sourceTree = "<group>"; };
 		F86F3307171886AA00F98693 /* widget.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget.lua; path = ../../subrepos/widget/widgetLibrary/widget.lua; sourceTree = "<group>"; };
 		FB9AC8A1CAFF93BBC4E36A12 /* Rtt_BgfxGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometry.h; path = ../../librtt/Renderer/Rtt_BgfxGeometry.h; sourceTree = "<group>"; };
-		3D64F18EE1694AFB91BFE52D /* Rtt_BgfxGeometryPool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxGeometryPool.h; path = ../../librtt/Renderer/Rtt_BgfxGeometryPool.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -5453,6 +5450,7 @@
 				0799601417EBC78000A632B9 /* Rtt_MacViewCallback.mm */,
 				00B73D0712B720C90057F594 /* Rtt_MacViewSurface.h */,
 				00B73D0612B720C90057F594 /* Rtt_MacViewSurface.mm */,
+				F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */,
 			);
 			name = mac;
 			sourceTree = "<group>";
@@ -7455,6 +7453,7 @@
 				70A3C9F252A24877FE2D4A2A /* Rtt_TextureAtlas_Lua.cpp in Sources */,
 				E0B0A1C3D2F3E4A5B6C7D8EB /* Rtt_BatchObject.cpp in Sources */,
 				E0B0A1C4D2F3E4A5B6C7D8EC /* Rtt_BatchObject_Lua.cpp in Sources */,
+				D4FB584AE38B7B4C1E73EB69 /* Rtt_BgfxMetalScale.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7713,6 +7712,7 @@
 				C2D3DA6A1B179DA000137331 /* Rtt_NativeWindowMode.cpp in Sources */,
 				C2D3DA591B179C2400137331 /* Rtt_ProjectSettings.cpp in Sources */,
 				C2D3DA5D1B179C2400137331 /* Rtt_ReadOnlyProjectSettings.cpp in Sources */,
+				217E2F6AB3CC8666D5EB2A27 /* Rtt_BgfxMetalScale.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8084,6 +8084,7 @@
 				30165D4C9FE7243BB8B5012B /* Rtt_TextureAtlas_Lua.cpp in Sources */,
 				05B0A1C1D2F3E4A5B6C7D8E9 /* Rtt_BatchObject.cpp in Sources */,
 				05B0A1C2D2F3E4A5B6C7D8EA /* Rtt_BatchObject_Lua.cpp in Sources */,
+				9E274D72B1C36E72DD5DCD00 /* Rtt_BgfxMetalScale.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
