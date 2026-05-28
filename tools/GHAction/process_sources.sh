@@ -20,7 +20,15 @@ rm -f librtt/Core/Rtt_Version.h.bak
 
 function upgradePlist {
     plutil -replace CFBundleVersion -string "$YEAR.$BUILD_NUMBER"  "$1"
-    plutil -replace CFBundleShortVersionString -string "$YEAR.$BUILD_NUMBER"  "$1"
+    # For tag builds (e.g., "3730.bgfx.v3"), show full tag in title bar
+    # so different branches (laboladoDev/bgfx-solar2d/b3) are distinguishable.
+    # For non-tag builds (BUILD is a plain number), fall back to year.build.
+    if [[ "$BUILD" =~ ^[0-9]+$ ]]; then
+        DISPLAY_VERSION="$YEAR.$BUILD_NUMBER"
+    else
+        DISPLAY_VERSION="$BUILD"
+    fi
+    plutil -replace CFBundleShortVersionString -string "$DISPLAY_VERSION"  "$1"
     plutil -convert xml1 "$1"
 }
 
