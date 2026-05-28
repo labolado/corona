@@ -122,15 +122,16 @@ else
     fi
 
     # FORCE_BUILD=1 时必须 clean，否则 CMake 可能跳过 C++ 重编
+    GRADLE_LOG="/tmp/corona-android-gradle-$$.log"
     if [ "${FORCE_BUILD:-}" = "1" ]; then
         log "  FORCE_BUILD: 执行 clean + assembleRelease"
-        ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+        ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
     else
-        ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tail -5
+        ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
     fi
 
     cd "$CORONA_DIR"
-    [ -f "$AAR_OUTPUT" ] || fail "AAR 编译失败"
+    [ -f "$AAR_OUTPUT" ] || fail "AAR 编译失败（完整日志：$GRADLE_LOG）"
 fi
 
 AAR_SIZE=$(ls -lh "$AAR_OUTPUT" | awk '{print $5}')
