@@ -726,6 +726,10 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
             fCurrentView = bgfxFbo->GetViewId();
             bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
             bgfx::setViewMode( fCurrentView, bgfx::ViewMode::Sequential );
+            // bgfx setViewClear is sticky across frames. Reset it here so accumulative
+            // canvas draws (tex:invalidate() without "cache") preserve FBO contents.
+            // If a Clear command follows in the same frame, ExecuteClear will override.
+            bgfx::setViewClear( fCurrentView, BGFX_CLEAR_NONE );
         }
     }
     else
