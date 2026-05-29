@@ -108,6 +108,24 @@ ditto "$SRCROOT/platform/resources/icons/CoronaSDK-DMG-DS_Store" "$TMPPATH"/.DS_
 bin/mac/seticon "$TMPPATH/${PRODUCT_DIR}" "$SRCROOT/platform/resources/icons/CoronaIcon-Folder.png"
 
 ditto -v -X "$TOOLSPATH/Corona Simulator.app" "$TMPPATH/${PRODUCT_DIR}/Corona Simulator.app"
+
+# Bundle shaderc + varying.def.sc for runtime custom Metal shader compilation.
+# Without these, installed-app builds fall back to GLES binary generation which
+# Metal cannot compile, causing custom graphics.defineEffect() to silently fail.
+APP_MACOS="$TMPPATH/${PRODUCT_DIR}/Corona Simulator.app/Contents/MacOS"
+SHADERC_SRC="$SRCROOT/external/bgfx/tools/bin/darwin/shaderc"
+VARYING_SRC="$SRCROOT/librtt/Display/Shader/bgfx/varying.def.sc"
+if [ -f "$SHADERC_SRC" ]; then
+    cp -v "$SHADERC_SRC" "$APP_MACOS/shaderc"
+    chmod +x "$APP_MACOS/shaderc"
+    echo "Bundled shaderc for runtime Metal shader compilation"
+else
+    echo "WARNING: shaderc not found at $SHADERC_SRC — custom Metal shaders will not work in installed app"
+fi
+if [ -f "$VARYING_SRC" ]; then
+    cp -v "$VARYING_SRC" "$APP_MACOS/varying.def.sc"
+fi
+
 mkdir "${TMPPATH}/${PRODUCT_DIR}/${RESOURCE_DIR}"
 cp -v "$TOOLSPATH"/{debugger,"Corona Terminal"} "${TMPPATH}/${PRODUCT_DIR}/${RESOURCE_DIR}"
 cp -v "$SRCROOT"/platform/resources/icons/Documentation.html "$TMPPATH"/${PRODUCT_DIR}/

@@ -147,6 +147,24 @@ static std::string GetProjectRoot()
     return "";
 }
 
+#if defined(Rtt_MAC_ENV)
+#include <mach-o/dyld.h>
+// Returns the directory containing the running executable (e.g. .app/Contents/MacOS/).
+static std::string GetExecutableDir()
+{
+    char path[4096];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0)
+    {
+        std::string execPath(path);
+        size_t slash = execPath.rfind('/');
+        if (slash != std::string::npos)
+            return execPath.substr(0, slash + 1);
+    }
+    return "";
+}
+#endif
+
 static bool s_autoDetected = false;
 
 static void AutoDetectPaths()
@@ -154,25 +172,46 @@ static void AutoDetectPaths()
     if (s_autoDetected) return;
     s_autoDetected = true;
 
-    std::string root = GetProjectRoot();
-    if (root.empty()) return;
-
     struct stat st;
 
-    // shaderc binary
-    std::string shadercPath = root + "external/bgfx/.build/osx-arm64/bin/shadercRelease";
-    if (stat(shadercPath.c_str(), &st) == 0)
-        BgfxShaderCompiler::SetShadercPath(shadercPath.c_str());
+    // Primary: source-tree layout (dev build, __FILE__ points to live source).
+    std::string root = GetProjectRoot();
+    if (!root.empty())
+    {
+        std::string shadercPath = root + "external/bgfx/.build/osx-arm64/bin/shadercRelease";
+        if (stat(shadercPath.c_str(), &st) == 0)
+            BgfxShaderCompiler::SetShadercPath(shadercPath.c_str());
 
-    // bgfx include dir (contains bgfx_shader.sh)
-    std::string bgfxInclude = root + "external/bgfx/src";
-    if (stat(bgfxInclude.c_str(), &st) == 0)
-        BgfxShaderCompiler::SetBgfxIncludeDir(bgfxInclude.c_str());
+        std::string bgfxInclude = root + "external/bgfx/src";
+        if (stat(bgfxInclude.c_str(), &st) == 0)
+            BgfxShaderCompiler::SetBgfxIncludeDir(bgfxInclude.c_str());
 
-    // varying.def.sc
-    std::string varyingDef = root + "librtt/Display/Shader/bgfx/varying.def.sc";
-    if (stat(varyingDef.c_str(), &st) == 0)
-        BgfxShaderCompiler::SetVaryingDefPath(varyingDef.c_str());
+        std::string varyingDef = root + "librtt/Display/Shader/bgfx/varying.def.sc";
+        if (stat(varyingDef.c_str(), &st) == 0)
+            BgfxShaderCompiler::SetVaryingDefPath(varyingDef.c_str());
+    }
+
+#if defined(Rtt_MAC_ENV)
+    // Fallback: CI-built app bundle. shaderc and varying.def.sc are copied
+    // into Contents/MacOS/ next to the executable during the macOS release build.
+    if (!BgfxShaderCompiler::IsAvailable())
+    {
+        std::string execDir = GetExecutableDir();
+        if (!execDir.empty())
+        {
+            std::string bundledShaderc = execDir + "shaderc";
+            if (stat(bundledShaderc.c_str(), &st) == 0)
+                BgfxShaderCompiler::SetShadercPath(bundledShaderc.c_str());
+
+            // bgfx include dir not strictly required when kBgfxShaderInline
+            // is already inlined by TransformFragmentKernel/TransformVertexKernel.
+
+            std::string bundledVarying = execDir + "varying.def.sc";
+            if (stat(bundledVarying.c_str(), &st) == 0)
+                BgfxShaderCompiler::SetVaryingDefPath(bundledVarying.c_str());
+        }
+    }
+#endif
 }
 
 static const char* GetRuntimeShaderProfileSuffix()
