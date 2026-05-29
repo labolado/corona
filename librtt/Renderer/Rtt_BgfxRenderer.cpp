@@ -341,12 +341,36 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
         fprintf(stderr, "BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
         Rtt_LogException("BGFX ERROR [%s:%d] code=%d: %s\n", _filePath, _line, _code, _str);
 
-        // Recoverable errors: log but don't abort.
-        // InvalidShader: bgfx uses invalid handle, rendering may glitch but won't crash.
+        // InvalidShader is a build/programming defect (shader won't compile, or the
+        // wrong binary format reached the GPU), NOT a runtime condition. Silently
+        // degrading to the default shader masks the bug and produces subtly broken
+        // visuals that are very hard to diagnose. On the Simulator (the dev tool) we
+        // abort so the defect surfaces immediately; on shipped device builds we
+        // continue so a device-specific shader failure doesn't crash the end user.
+        if (_code == bgfx::Fatal::InvalidShader)
+        {
+            Rtt_LogException(
+                "\n==================== BGFX SHADER FAILURE ====================\n"
+                "InvalidShader at %s:%d\n  %s\n"
+                "A shader failed to compile/load — this is a build defect, not a\n"
+                "runtime condition. The affected effect will render incorrectly.\n"
+                "=============================================================\n",
+                _filePath, _line, _str);
+#if defined(Rtt_AUTHORING_SIMULATOR)
+            if (getenv("SOLAR2D_SHADER_LENIENT") == NULL)
+            {
+                Rtt_LogException("Aborting (Simulator strict mode). Set SOLAR2D_SHADER_LENIENT=1 to continue past shader failures.\n");
+                abort();
+            }
+            Rtt_LogException("SOLAR2D_SHADER_LENIENT=1 — continuing past shader failure.\n");
+#endif
+            return; // device builds: degrade gracefully
+        }
+
+        // Genuinely recoverable runtime conditions: log but don't abort.
         // DeviceLost: common on mobile (lock screen, app suspend). bgfx may recover.
         // UnableToCreateTexture: memory pressure, can degrade gracefully.
-        if (_code == bgfx::Fatal::InvalidShader
-            || _code == bgfx::Fatal::DeviceLost
+        if (_code == bgfx::Fatal::DeviceLost
             || _code == bgfx::Fatal::UnableToCreateTexture)
         {
             const char* names[] = { "DebugCheck", "InvalidShader", "UnableToInitialize",
