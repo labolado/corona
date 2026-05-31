@@ -189,6 +189,7 @@ void TextureResourceCanvas::Render(Rtt::Renderer &renderer, GroupObject *group, 
 	// For backends where framebuffer origin is top-left (Metal/DX/Vulkan via bgfx),
 	// flip Y axis so canvas texture content is stored right-side-up.
 	bool flipY = !renderer.GetCaps().originBottomLeft;
+	GetTexture().SetCanvasFlipY(flipY);
 	Rtt::CreateOrthoMatrix(
 						   contentBounds.xMin, contentBounds.xMax,
 						   flipY ? contentBounds.yMax : contentBounds.yMin,

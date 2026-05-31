@@ -992,6 +992,9 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         // TODO: Eliminate duplication with fFillTexture1
         float f0 = 1.0f / (float)data->fFillTexture0->GetWidth();
         float f1 = 1.0f / (float)data->fFillTexture0->GetHeight();
+        // Canvas textures with flipY (bgfx Metal) have content Y-flipped;
+        // negate texel size.y so CoronaTexelSize-based offsets are correct.
+        if (data->fFillTexture0->IsCanvasFlipY()) { f1 = -f1; }
 
         float f2;
         float f3;
@@ -1031,6 +1034,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         // TODO: Need to use a different Uniform since fTexelSize is used for fFillTexture0
         float f0 = 1.0f / (float)data->fFillTexture1->GetWidth();
         float f1 = 1.0f / (float)data->fFillTexture1->GetHeight();
+        if (data->fFillTexture1->IsCanvasFlipY()) { f1 = -f1; }
         float f2;
         float f3;
         if( data->fFillTexture1->IsRetina() )
