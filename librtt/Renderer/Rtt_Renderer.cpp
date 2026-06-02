@@ -710,10 +710,10 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 	bool maskTextureDirty = data->fMaskTexture != fPrevious.fMaskTexture; // since PushMask() can stomp on the previous texture, a "not NULL" check here is unreliable
 	bool maskUniformDirty = data->fMaskUniform != fPrevious.fMaskUniform; // ...ditto
 	bool programDirty = data->fProgram != fPrevious.fProgram || MaskCount() != fCurrentProgramMaskCount;
-	bool userUniformDirty0 = data->fUserUniform0 != fPrevious.fUserUniform0 && data->fUserUniform0;
-	bool userUniformDirty1 = data->fUserUniform1 != fPrevious.fUserUniform1 && data->fUserUniform1;
-	bool userUniformDirty2 = data->fUserUniform2 != fPrevious.fUserUniform2 && data->fUserUniform2;
-	bool userUniformDirty3 = data->fUserUniform3 != fPrevious.fUserUniform3 && data->fUserUniform3;
+	bool userUniformDirty0 = data->fUserUniform0 != NULL;
+	bool userUniformDirty1 = data->fUserUniform1 != NULL;
+	bool userUniformDirty2 = data->fUserUniform2 != NULL;
+	bool userUniformDirty3 = data->fUserUniform3 != NULL;
 	
 
     ArrayS32 dirtyIndices( fAllocator );

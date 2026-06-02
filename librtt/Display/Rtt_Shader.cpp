@@ -214,6 +214,7 @@ Shader::RenderToTexture( Renderer& renderer, Geometry& cache ) const
 			// Match TextureResourceCanvas/SnapshotObject: flip Y for non-GL backends
 			// so intermediate composite FBO content has consistent orientation.
 			bool flipY = !renderer.GetCaps().originBottomLeft;
+			if ( fTexture ) { fTexture->SetCanvasFlipY( flipY ); }
 			Rtt::CreateOrthoMatrix(
 								   bounds.xMin, bounds.xMax,
 								   flipY ? bounds.yMax : bounds.yMin,

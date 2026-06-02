@@ -555,6 +555,10 @@ BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
             cmd.uniforms[i].valid = true;
             cmd.uniforms[i].size = size;
             memcpy( cmd.uniforms[i].data, update.uniform->GetData(), size );
+            if( size < 16 )
+            {
+                memset( cmd.uniforms[i].data + size, 0, 16 - size );
+            }
         }
         else
         {
