@@ -215,6 +215,10 @@ Shader::RenderToTexture( Renderer& renderer, Geometry& cache ) const
 			// so intermediate composite FBO content has consistent orientation.
 			bool flipY = !renderer.GetCaps().originBottomLeft;
 			if ( fTexture ) { fTexture->SetCanvasFlipY( flipY ); }
+			if ( flipY && fRenderData && fRenderData->fFillTexture0 )
+			{
+				fRenderData->fFillTexture0->SetCanvasFlipY( true );
+			}
 			Rtt::CreateOrthoMatrix(
 								   bounds.xMin, bounds.xMax,
 								   flipY ? bounds.yMax : bounds.yMin,
