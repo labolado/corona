@@ -679,16 +679,10 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     // here lets the Vulkan→GLES fallback below handle the recovery cleanly.
     if (!fBgfxInitialized && s_bgfxInitCount > 0)
     {
-        // bgfx is a singleton: init() fails if s_ctx != NULL (previous session
-        // not fully shut down, e.g. welcome screen → project window transition).
-        // Force shutdown the stale instance, drain render thread, and retry.
-        Rtt_LogException("BgfxRenderer: init failed (stale session?), forcing shutdown and retrying");
-        bgfx::shutdown();
-        // Wait for renderer thread to fully exit after shutdown.
-        // bgfx::shutdown() may return before the Metal/Vulkan backend thread
-        // has finished its last submit(), causing UAF on reinit.
-        usleep(500000); // 500ms — generous wait for GPU resources to release
-        fBgfxInitialized = bgfx::init(init);
+        // bgfx singleton still alive from previous session (e.g. welcome→project).
+        // shutdown() + reinit crashes on Metal; treat existing context as valid.
+        Rtt_LogException("BgfxRenderer: init failed (stale session?), reusing existing bgfx context");
+        fBgfxInitialized = true;
     }
     if (fBgfxInitialized)
     {
