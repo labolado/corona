@@ -103,6 +103,18 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 		Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
 			fTextureHandle.idx, fViewId );
 	}
+	else
+	{
+		// Clear FBO to transparent immediately after creation.
+		// Metal FBO textures default to alpha=1.0; without this,
+		// dropshadow blur/shadow FBOs sample solid alpha and
+		// render as opaque gray blocks instead of subtle shadows.
+		bgfx::setViewFrameBuffer( fViewId, fHandle );
+		bgfx::setViewClear( fViewId,
+			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+			0x00000000, 1.0f, 0 );
+		bgfx::touch( fViewId );
+	}
 
 	DEBUG_PRINT( "%s : bgfx framebuffer handle: %d, view: %d\n",
 				__FUNCTION__,
