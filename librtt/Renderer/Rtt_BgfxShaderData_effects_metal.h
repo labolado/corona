@@ -1,5 +1,5 @@
 // Auto-generated bgfx effect shader data (metal)
-// Generated: 2026-04-21 15:58:38
+// Generated: 2026-06-04 08:42:18
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh effects
 
 #pragma once

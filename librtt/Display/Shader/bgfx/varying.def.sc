@@ -1,5 +1,5 @@
 vec3 v_TexCoord   : TEXCOORD5 = vec3(0.0, 0.0, 0.0);
-vec4 v_ColorScale : COLOR0    = vec4(1.0, 1.0, 1.0, 1.0);
+vec4 v_ColorScale : TEXCOORD23 = vec4(1.0, 1.0, 1.0, 1.0);
 vec4 v_UserData   : TEXCOORD6 = vec4(0.0, 0.0, 0.0, 0.0);
 vec2 v_MaskUV0    : TEXCOORD2 = vec2(0.0, 0.0);
 vec2 v_MaskUV1    : TEXCOORD3 = vec2(0.0, 0.0);

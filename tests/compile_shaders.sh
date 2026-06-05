@@ -206,7 +206,7 @@ compile_effects() {
         # Compile all vertex shaders (except vs_default)
         for SC in "$SHADER_DIR"/vs_*.sc; do
             local NAME=$(basename "$SC" .sc)
-            [ "$NAME" = "vs_default" ] && continue
+            [[ "$NAME" == vs_default* ]] && continue
 
             local BIN="$TMP_DIR/${NAME}_${SUFFIX}.bin"
             echo -n "  $NAME ($SUFFIX)... "

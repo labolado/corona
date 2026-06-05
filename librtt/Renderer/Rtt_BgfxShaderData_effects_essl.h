@@ -1,5 +1,5 @@
 // Auto-generated bgfx effect shader data (essl)
-// Generated: 2026-04-21 15:58:45
+// Generated: 2026-06-04 08:42:24
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh effects
 
 #pragma once

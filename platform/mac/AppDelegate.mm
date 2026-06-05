@@ -1217,7 +1217,17 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
                 // Point the menuitem at the extension's window size so we can pick it up when the window is instantiated
                 [extMenuItem setRepresentedObject:extParams];
                 
-                if (runningExt != nil)
+                // When launched with a specific project (-project, or a
+                // double-clicked project that set launchedWithFile), do not
+                // restore previously-running extension windows (the Welcome
+                // homescreen). bgfx is single-context; a restored Welcome window
+                // grabs bgfx before the project window and the project renders
+                // into the wrong window. NOTE: do NOT gate this on launchedWithFile
+                // alone — for -project, launchedWithFile is NO and the project is
+                // loaded later by startDebugAndOpenPanel, so we must check the
+                // -project arg directly here.
+                BOOL hasProjectArg = ([[NSUserDefaults standardUserDefaults] stringForKey:@"project"] != nil);
+                if (runningExt != nil && NO == self.launchedWithFile && NO == hasProjectArg)
                 {
                     // If this extension was loaded last time we ran, load it again
                     for (NSString *extPath in runningExt)
@@ -2035,7 +2045,38 @@ Rtt_EXPORT const luaL_Reg* Rtt_GetCustomModulesList()
 		}
 
 		self.fAppPath = [appPath stringByStandardizingPath];
-				
+
+		// bgfx single-context: if bgfx is already rendering in this process
+		// (the Welcome homescreen is up, or another project is running), we
+		// cannot bind it to a second window — bgfx::shutdown()+init() in the
+		// same process crashes Metal. Restart the process with -project so the
+		// fresh process loads ONLY this project (the -project launch path skips
+		// the Welcome restore). Mirrors the relaunch path in launchSimulator:.
+		// Note: a command-line -project launch does NOT hit this — at that point
+		// the Welcome restore is already suppressed, so fHomeScreen is nil.
+		{
+			const char* backend = getenv("SOLAR2D_BACKEND");
+			BOOL bgfxMode = (backend == NULL || strcmp(backend, "gl") != 0);
+			BOOL bgfxRunning = (fSimulator != nil) ||
+				(fHomeScreen != nil && [[fHomeScreen window] isVisible]);
+			if ( bgfxMode && bgfxRunning && self.fAppPath != nil )
+			{
+				NSString* execPath = [[NSBundle mainBundle] executablePath];
+				NSMutableArray* args = [NSMutableArray array];
+				[args addObject:@"-no-console"];
+				[args addObject:@"YES"];
+				[args addObject:@"-project"];
+				[args addObject:self.fAppPath];
+				NSTask* task = [[NSTask alloc] init];
+				[task setLaunchPath:execPath];
+				[task setArguments:args];
+				[task setEnvironment:[[NSProcessInfo processInfo] environment]];
+				[task launch];
+				[NSApp terminate:nil];
+				return YES;
+			}
+		}
+
 		[self closeWelcomeWindow];
 
 		// There is an inital state condition where we need to make sure the skin checkmarks have been checked.

@@ -1,6 +1,6 @@
 // Auto-generated bgfx shader data (metal)
 // Source: vs_default_m{0,1,2,3}.sc, fs_default.sc
-// Generated: 2026-05-06 01:45:05
+// Generated: 2026-06-04 08:39:49
 // DO NOT EDIT — regenerate with: bash tests/compile_shaders.sh default
 
 #pragma once
