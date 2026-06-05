@@ -303,11 +303,10 @@ DisplayObjectExtensions::getInertia(lua_State* L)
 
 	if (o)
 	{
-		const PhysicsWorld& physics = LuaContext::GetRuntime(L)->GetPhysicsWorld();
-		Real scale = physics.GetPixelsPerMeter();
+		// const PhysicsWorld& physics = LuaContext::GetRuntime(L)->GetPhysicsWorld();
+		// Real scale = physics.GetPixelsPerMeter();
 
-		Self* extensions = o->GetExtensions();
-		b2BodyId bodyId = extensions->GetBody();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
 
 		// float32 inertia = fBody->GetInertia() * scale;
 		float inertia = b2Body_GetRotationalInertia(bodyId);
@@ -536,6 +535,62 @@ DisplayObjectExtensions::setFilter( lua_State* L )
 	return 0;
 }
 
+int
+DisplayObjectExtensions::wakeTouching( lua_State* L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if (o)
+	{
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		b2Body_WakeTouching( bodyId );
+	}
+
+	return 0;
+}
+
+int
+DisplayObjectExtensions::setSleepThreshold( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o )
+	{
+		const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		Real scale = physics.GetPixelsPerMeter();
+
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+
+		Real v = Rtt_RealDiv( lua_tonumber( L, 2 ), scale );
+
+		b2Body_SetSleepThreshold( bodyId, v );
+	}
+
+	return 0;
+}
+
+int
+DisplayObjectExtensions::getSleepThreshold( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o )
+	{
+		const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+
+		lua_pushnumber( L, b2Body_GetSleepThreshold(bodyId) * physics.GetPixelsPerMeter() );
+	}
+
+	return 1;
+}
 
 #endif // Rtt_PHYSICS
 
@@ -589,9 +644,15 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			"setPreSolveEventsEnabled",         // 28
 			"setFilter",                        // 29
 			"allowFastRotation",                // 30
+			"wakeTouching",                     // 31
+			"setSleepThreshold",                // 32
+			"getSleepThreshold",                // 33
+			"shapeCount",                       // 34
+			"jointCount",                       // 35
+			"isContactRecycling",               // 36
 		};
 		static const int numKeys = sizeof( keys ) / sizeof( const char * );
-		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 31, 28, 14, __FILE__, __LINE__ );
+		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 37, 31, 14, __FILE__, __LINE__ );
 		StringHash *hash = &sHash;
 
 		int index = hash->Lookup( key );
@@ -764,6 +825,36 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 				lua_pushboolean( L, b2Body_AllowFastRotation(fBodyId) );
 			}
 			break;
+		case 31:
+			{
+				lua_pushcfunction( L, Self::wakeTouching );
+			}
+			break;
+		case 32:
+			{
+				lua_pushcfunction( L, Self::setSleepThreshold );
+			}
+			break;
+		case 33:
+			{
+				lua_pushcfunction( L, Self::getSleepThreshold );
+			}
+			break;
+		case 34:
+			{
+				lua_pushnumber( L, b2Body_GetShapeCount(fBodyId) );
+			}
+			break;
+		case 35:
+			{
+				lua_pushnumber( L, b2Body_GetJointCount(fBodyId) );
+			}
+			break;
+		case 36:
+			{
+				lua_pushboolean( L, b2Body_IsContactRecyclingEnabled(fBodyId) );
+			}
+			break;
 		default:
 			{
 				result = 0;
@@ -812,8 +903,9 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 			"isSensor",					// 9
 			"gravityScale",				// 10
 			"allowFastRotation",        // 11
+			"isContactRecycling",       // 12
 		};
-		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, sizeof( keys ) / sizeof( const char * ), 12, 21, 2, __FILE__, __LINE__ );
+		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, sizeof( keys ) / sizeof( const char * ), 13, 31, 3, __FILE__, __LINE__ );
 		StringHash *hash = &sHash;
 
 		int index = hash->Lookup( key );
@@ -1055,6 +1147,11 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 		case 11:
 			{
 				b2Body_SetAllowFastRotation( fBodyId, lua_toboolean( L, valueIndex ) );
+			}
+			break;
+		case 12:
+			{
+				b2Body_EnableContactRecycling( fBodyId, lua_toboolean( L, valueIndex ) );
 			}
 			break;
 		default:

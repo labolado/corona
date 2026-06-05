@@ -20,6 +20,17 @@
 #include "Rtt_Runtime.h"
 #include "Rtt_PhysicsContactListener.h"
 
+#if defined( _WIN32 )
+	#include <Windows.h>
+	#include <cstdlib>
+#elif defined( __APPLE__ )
+	#include <sys/sysctl.h>
+	#include <unistd.h>
+#elif defined( __ANDROID__ ) || defined( __linux__ ) || defined( __EMSCRIPTEN__ )
+	#include <unistd.h>
+	// #include <cstdio>
+#endif
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -59,46 +70,149 @@ const S32 kPositionIterations = 3;
 // }
 
 // ----------------------------------------------------------------------------
-
-static void* EnqueueTask( b2TaskCallback* taskCallback, int32_t itemCount, int32_t minRange, void* taskContext, void* userContext )
-{
-	PhysicsWorld* world = static_cast<PhysicsWorld*>( userContext );
-	if ( world->fTaskCount < maxTasks )
-	{
-		// Rtt_Log("EnqueueTask, fTaskCount %d", world->fTaskCount);
-		PhysicsTask& task = world->fTasks[ world->fTaskCount ];
-		task.m_SetSize = itemCount;
-		task.m_MinRange = minRange;
-		task.m_task = taskCallback;
-		task.m_taskContext = taskContext;
-		world->fScheduler.AddTaskSetToPipe( &task );
-		++world->fTaskCount;
-		return &task;
-	}
-	else
-	{
-		// This is not fatal but the maxTasks should be increased
-		Rtt_Log("Warning: Task queue full, executing task immediately (PhysicsWorld).");
-
-		taskCallback( 0, itemCount, 0, taskContext );
-		return nullptr;
-	}
-}
-
-static void FinishTask( void* taskPtr, void* userContext )
-{
-	if (taskPtr != nullptr)
-	{
-		PhysicsTask* task = static_cast<PhysicsTask*>( taskPtr );
-		PhysicsWorld* world = static_cast<PhysicsWorld*>( userContext );
-		world->fScheduler.WaitforTask( task );
-	}
-}
-
 static bool PreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, void* context )
 {
 	PhysicsContactListener* contactListener = (PhysicsContactListener*) context;
 	return contactListener->PreSolve( shapeIdA, shapeIdB, point, normal );
+}
+
+// Core count used as the fallback when the big.LITTLE split can't be
+// determined. On macOS and Windows we count physical cores so SMT/hyperthread
+// siblings don't inflate the worker pool; Linux/Emscripten use the logical
+// count (the big.LITTLE detection above already covers the ARM case).
+static int
+GetFallbackCoreCount()
+{
+#if defined( _WIN32 )
+	// Each RelationProcessorCore entry is one physical core (SMT siblings are
+	// folded into a single entry).
+	DWORD length = 0;
+	GetLogicalProcessorInformationEx( RelationProcessorCore, NULL, &length );
+	if ( length > 0 )
+	{
+		SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer =
+			(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)malloc( length );
+		if ( buffer )
+		{
+			int physicalCores = 0;
+			if ( GetLogicalProcessorInformationEx( RelationProcessorCore, buffer, &length ) )
+			{
+				char *ptr = (char *)buffer;
+				char *end = ptr + length;
+				while ( ptr < end )
+				{
+					SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *info =
+						(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)ptr;
+					if ( info->Relationship == RelationProcessorCore )
+					{
+						++physicalCores;
+					}
+					ptr += info->Size;
+				}
+			}
+			free( buffer );
+			if ( physicalCores > 0 )
+			{
+				return physicalCores;
+			}
+		}
+	}
+
+	// Query failed: fall back to the logical processor count.
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo( &sysinfo );
+	return (int)sysinfo.dwNumberOfProcessors;
+#elif defined( __APPLE__ )
+	// Physical cores on Intel Macs (the Apple Silicon case is handled by
+	// perflevel0 before we ever reach this fallback).
+	int physicalCores = 0;
+	size_t size = sizeof( physicalCores );
+	if ( sysctlbyname( "hw.physicalcpu", &physicalCores, &size, NULL, 0 ) == 0 && physicalCores > 0 )
+	{
+		return physicalCores;
+	}
+	return (int)sysconf( _SC_NPROCESSORS_ONLN );
+#elif defined( __linux__ ) || defined( __EMSCRIPTEN__ )
+	return (int)sysconf( _SC_NPROCESSORS_ONLN );
+#else
+	return 1;
+#endif
+}
+
+// #if defined( __ANDROID__ ) || defined( __linux__ )
+// static long
+// ReadCpuMaxFreq( int cpuIndex )
+// {
+// 	char path[64];
+// 	snprintf( path, sizeof( path ), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpuIndex );
+
+// 	long freq = 0;
+// 	FILE *f = fopen( path, "r" );
+// 	if ( f )
+// 	{
+// 		if ( fscanf( f, "%ld", &freq ) != 1 )
+// 		{
+// 			freq = 0;
+// 		}
+// 		fclose( f );
+// 	}
+
+// 	return freq;
+// }
+// #endif
+
+// See PhysicsWorld::GetNumHardwareThreads() for the rationale. Returns the
+// count of performance-class cores, or the fallback core count when undetectable.
+static int
+DetectPerformanceCoreCount()
+{
+#if defined( __APPLE__ )
+	// hw.perflevel0 is the performance ("P") cluster on Apple Silicon and
+	// A-series SoCs (macOS 11.3+ / iOS 14+); perflevel1, when present, is the
+	// efficiency ("E") cluster we intentionally skip.
+	int perfCores = 0;
+	size_t size = sizeof( perfCores );
+	if ( sysctlbyname( "hw.perflevel0.logicalcpu", &perfCores, &size, NULL, 0 ) == 0 && perfCores > 0 )
+	{
+		return perfCores;
+	}
+// #elif defined( __ANDROID__ ) || defined( __linux__ )
+// 	// No portable big.LITTLE API on Android: infer the performance cluster
+// 	// from CPU max frequency and count the cores tied for the highest value.
+// 	// Two passes so we don't have to buffer per-core data.
+// 	int total = (int)sysconf( _SC_NPROCESSORS_CONF );
+// 	if ( total > 0 )
+// 	{
+// 		long maxFreq = 0;
+// 		for ( int i = 0; i < total; ++i )
+// 		{
+// 			long freq = ReadCpuMaxFreq( i );
+// 			if ( freq > maxFreq )
+// 			{
+// 				maxFreq = freq;
+// 			}
+// 		}
+
+// 		if ( maxFreq > 0 )
+// 		{
+// 			int perfCores = 0;
+// 			for ( int i = 0; i < total; ++i )
+// 			{
+// 				if ( ReadCpuMaxFreq( i ) == maxFreq )
+// 				{
+// 					++perfCores;
+// 				}
+// 			}
+
+// 			if ( perfCores > 0 )
+// 			{
+// 				return perfCores;
+// 			}
+// 		}
+// 	}
+#endif
+	// Desktop / web / detection failure: every core is fair game.
+	return GetFallbackCoreCount();
 }
 
 PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
@@ -125,12 +239,11 @@ PhysicsWorld::PhysicsWorld( Rtt_Allocator& allocator )
 	fNumSteps(1)
 {
 	fMouseBodies.reserve( estimateMaxMouseBodies );
-	fWorkerCount = b2MinInt( 32, b2MaxInt((int)enki::GetNumHardwareThreads() / 2, 1) );
-#if defined ( Rtt_APPLE_ENV )
-	if ( fWorkerCount == 1 ) { fWorkerCount = 2; }
-#endif
-	// fScheduler.Initialize( fWorkerCount );
-	fTaskCount = 0;
+
+	// GetNumHardwareThreads() already reports performance-class cores only.
+	// Leave one for the main/render thread; the rest form Box2D's worker pool.
+	const int perfCores = GetNumHardwareThreads();
+	fWorkerCount = b2MinInt( 8, b2MaxInt( perfCores, 1 ) );
 }
 
 PhysicsWorld::~PhysicsWorld()
@@ -186,13 +299,11 @@ PhysicsWorld::StartWorld( Runtime& runtime, bool noSleep )
 		// fWorld->SetDestructionListener( fWorldDestructionListener );
 		b2WorldDef worldDef = b2DefaultWorldDef();
 		// Rtt_Log("PhysicsWorld::StartWorld, workerCount = %d", fWorkerCount);
-		fScheduler.Initialize( fWorkerCount );
-		fTaskCount = 0;
 
 		if ( fWorkerCount > 1 ) {
 			worldDef.workerCount = fWorkerCount;
-			worldDef.enqueueTask = EnqueueTask;
-			worldDef.finishTask = FinishTask;
+			// worldDef.enqueueTask = EnqueueTask;
+			// worldDef.finishTask = FinishTask;
 			worldDef.userTaskContext = this;
 		}
 		worldDef.gravity = gravity;
@@ -273,10 +384,6 @@ PhysicsWorld::onSuspended()
 void
 PhysicsWorld::onResumed()
 {
-#ifdef Rtt_ANDROID_ENV
-	fScheduler.Initialize( fWorkerCount );
-	fTaskCount = 0;
-#endif
 }
 
 void
@@ -299,10 +406,6 @@ PhysicsWorld::StopWorld()
 
 		Rtt_DELETE( fWorldDebugDraw );
 		fWorldDebugDraw = NULL;
-
-		// Shut down the task scheduler threads
-		fScheduler.WaitforAllAndShutdown();
-		fTaskCount = 0;
 	}
 }
 
@@ -417,7 +520,6 @@ PhysicsWorld::StepWorld( double elapsedMS )
 				// Rtt_Log( "PhysicsWorld::StepWorld A, timeStep = %f, step=%d, fSubStepCount=%d", dt * fTimeScale, i, fSubStepCount );
 				// b2World_Step(fWorldId, dt * fTimeScale, fSubStepCount);
 				world.Step(dt * fTimeScale, fSubStepCount);
-				fTaskCount = 0;
 				StepEvents();
 			}
 		}
@@ -448,7 +550,6 @@ PhysicsWorld::StepWorld( double elapsedMS )
 					// Rtt_Log( "PhysicsWorld::StepWorld B, timeStep = %f, tStep = %f, step=%d", dt, tStep, i );
 					// b2World_Step(fWorldId, dt * fTimeScale, fSubStepCount);
 					world.Step(dt * fTimeScale, fSubStepCount);
-					fTaskCount = 0;
 					StepEvents();
 				}
 				tStep -= dt;
@@ -605,6 +706,27 @@ b2BodyId PhysicsWorld::FetchUsableMouseBodyId() {
 void PhysicsWorld::SetWorkerCount( int newValue )
 {
 	fWorkerCount = b2MaxInt( newValue, 1 );
+	if ( fWorld )
+	{
+		b2World_SetWorkerCount( fWorld->GetWorldId(), fWorkerCount );
+	}
+}
+
+// Number of CPU cores worth handing Box2D worker threads.
+//
+// On big.LITTLE mobile SoCs (Apple A-series, most ARM Android) the
+// raw core count over-reports usable parallelism: a worker placed on
+// a slow efficiency core stalls every sub-step barrier on the laggard
+// and drains battery for little gain. We report only the
+// performance-class ("big") cores, falling back to the total core
+// count when the layout can't be detected (desktop, web, or a failed
+// query).
+int PhysicsWorld::GetNumHardwareThreads() const
+{
+	// The performance-core count is constant for the process lifetime, so
+	// the (potentially sysfs-reading) detection runs only once.
+	static const int sThreadCount = DetectPerformanceCoreCount();
+	return sThreadCount;
 }
 // ----------------------------------------------------------------------------
 

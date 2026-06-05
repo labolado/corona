@@ -28,6 +28,8 @@
 		03D1C5401D70CBC500DB02EE /* Rtt_PreferenceValue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03D1C53C1D70CBB400DB02EE /* Rtt_PreferenceValue.cpp */; };
 		414D6BC32D8D53CC008B70EF /* sensor.c in Sources */ = {isa = PBXBuildFile; fileRef = 414D6BC22D8D53CC008B70EF /* sensor.c */; };
 		414D6BC42D8D53CC008B70EF /* arena_allocator.c in Sources */ = {isa = PBXBuildFile; fileRef = 414D6BBE2D8D53CC008B70EF /* arena_allocator.c */; };
+		41617A062FCFEE250084DB15 /* scheduler.c in Sources */ = {isa = PBXBuildFile; fileRef = 41617A052FCFEE250084DB15 /* scheduler.c */; };
+		41617A072FCFEE250084DB15 /* parallel_for.c in Sources */ = {isa = PBXBuildFile; fileRef = 41617A032FCFEE250084DB15 /* parallel_for.c */; };
 		41DC1BC82C9C2D94000E52D2 /* block_allocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B1C2C9C2D94000E52D2 /* block_allocator.cpp */; };
 		41DC1BC92C9C2D94000E52D2 /* free_list.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B1E2C9C2D94000E52D2 /* free_list.cpp */; };
 		41DC1BCA2C9C2D94000E52D2 /* liquid_callbacks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B222C9C2D94000E52D2 /* liquid_callbacks.cpp */; };
@@ -42,7 +44,6 @@
 		41DC1BD32C9C2D94000E52D2 /* tracked_block.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B372C9C2D94000E52D2 /* tracked_block.cpp */; };
 		41DC1BD42C9C2D94000E52D2 /* voronoi_diagram.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B392C9C2D94000E52D2 /* voronoi_diagram.cpp */; };
 		41DC1BEA2C9C2D94000E52D2 /* aabb.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B702C9C2D94000E52D2 /* aabb.c */; };
-		41DC1BEC2C9C2D94000E52D2 /* array.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B742C9C2D94000E52D2 /* array.c */; };
 		41DC1BED2C9C2D94000E52D2 /* bitset.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B762C9C2D94000E52D2 /* bitset.c */; };
 		41DC1BEF2C9C2D94000E52D2 /* body.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B7A2C9C2D94000E52D2 /* body.c */; };
 		41DC1BF02C9C2D94000E52D2 /* broad_phase.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B7D2C9C2D94000E52D2 /* broad_phase.c */; };
@@ -72,8 +73,6 @@
 		41DC1C0A2C9C2D94000E52D2 /* weld_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA62C9C2D94000E52D2 /* weld_joint.c */; };
 		41DC1C0B2C9C2D94000E52D2 /* wheel_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA72C9C2D94000E52D2 /* wheel_joint.c */; };
 		41DC1C0C2C9C2D94000E52D2 /* physics_world.c in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1BA82C9C2D94000E52D2 /* physics_world.c */; };
-		41DC1C512C9C2E52000E52D2 /* TaskScheduler_c.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1C322C9C2E52000E52D2 /* TaskScheduler_c.cpp */; };
-		41DC1C522C9C2E52000E52D2 /* TaskScheduler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1C342C9C2E52000E52D2 /* TaskScheduler.cpp */; };
 		41FC45E52DB5FB6000383E06 /* mover.c in Sources */ = {isa = PBXBuildFile; fileRef = 41FC45E42DB5FB6000383E06 /* mover.c */; };
 		A40A90531BD984AD001D2038 /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A40A90521BD984AD001D2038 /* CoreText.framework */; };
 		A4384F521BAA1F49005750A3 /* b2GLESDebugDraw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4384F491BAA1F49005750A3 /* b2GLESDebugDraw.cpp */; };
@@ -1586,9 +1585,14 @@
 		414D6BBD2D8D53CC008B70EF /* arena_allocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = arena_allocator.h; sourceTree = "<group>"; };
 		414D6BBE2D8D53CC008B70EF /* arena_allocator.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = arena_allocator.c; sourceTree = "<group>"; };
 		414D6BBF2D8D53CC008B70EF /* atomic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = atomic.h; sourceTree = "<group>"; };
-		414D6BC02D8D53CC008B70EF /* constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = constants.h; sourceTree = "<group>"; };
 		414D6BC12D8D53CC008B70EF /* sensor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sensor.h; sourceTree = "<group>"; };
 		414D6BC22D8D53CC008B70EF /* sensor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sensor.c; sourceTree = "<group>"; };
+		41617A002FCFEE110084DB15 /* constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = constants.h; sourceTree = "<group>"; };
+		41617A012FCFEE250084DB15 /* container.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = container.h; sourceTree = "<group>"; };
+		41617A022FCFEE250084DB15 /* parallel_for.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parallel_for.h; sourceTree = "<group>"; };
+		41617A032FCFEE250084DB15 /* parallel_for.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parallel_for.c; sourceTree = "<group>"; };
+		41617A042FCFEE250084DB15 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = scheduler.h; sourceTree = "<group>"; };
+		41617A052FCFEE250084DB15 /* scheduler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = scheduler.c; sourceTree = "<group>"; };
 		41DC1B1C2C9C2D94000E52D2 /* block_allocator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = block_allocator.cpp; sourceTree = "<group>"; };
 		41DC1B1D2C9C2D94000E52D2 /* block_allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = block_allocator.h; sourceTree = "<group>"; };
 		41DC1B1E2C9C2D94000E52D2 /* free_list.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = free_list.cpp; sourceTree = "<group>"; };
@@ -1628,8 +1632,6 @@
 		41DC1B422C9C2D94000E52D2 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
 		41DC1B702C9C2D94000E52D2 /* aabb.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = aabb.c; sourceTree = "<group>"; };
 		41DC1B712C9C2D94000E52D2 /* aabb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aabb.h; sourceTree = "<group>"; };
-		41DC1B742C9C2D94000E52D2 /* array.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = array.c; sourceTree = "<group>"; };
-		41DC1B752C9C2D94000E52D2 /* array.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = array.h; sourceTree = "<group>"; };
 		41DC1B762C9C2D94000E52D2 /* bitset.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = bitset.c; sourceTree = "<group>"; };
 		41DC1B772C9C2D94000E52D2 /* bitset.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = bitset.h; sourceTree = "<group>"; };
 		41DC1B7A2C9C2D94000E52D2 /* body.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = body.c; sourceTree = "<group>"; };
@@ -1677,11 +1679,6 @@
 		41DC1BA72C9C2D94000E52D2 /* wheel_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = wheel_joint.c; sourceTree = "<group>"; };
 		41DC1BA82C9C2D94000E52D2 /* physics_world.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = physics_world.c; sourceTree = "<group>"; };
 		41DC1BA92C9C2D94000E52D2 /* physics_world.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = physics_world.h; sourceTree = "<group>"; };
-		41DC1C312C9C2E52000E52D2 /* LockLessMultiReadPipe.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LockLessMultiReadPipe.h; sourceTree = "<group>"; };
-		41DC1C322C9C2E52000E52D2 /* TaskScheduler_c.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TaskScheduler_c.cpp; sourceTree = "<group>"; };
-		41DC1C332C9C2E52000E52D2 /* TaskScheduler_c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TaskScheduler_c.h; sourceTree = "<group>"; };
-		41DC1C342C9C2E52000E52D2 /* TaskScheduler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TaskScheduler.cpp; sourceTree = "<group>"; };
-		41DC1C352C9C2E52000E52D2 /* TaskScheduler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TaskScheduler.h; sourceTree = "<group>"; };
 		41FC45E42DB5FB6000383E06 /* mover.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mover.c; sourceTree = "<group>"; };
 		A40A90521BD984AD001D2038 /* CoreText.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreText.framework; path = System/Library/Frameworks/CoreText.framework; sourceTree = SDKROOT; };
 		A4124B7C1BB2070F001421F5 /* CoronaDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = CoronaDelegate.h; path = ../iphone/Corona/CoronaDelegate.h; sourceTree = "<group>"; };
@@ -2852,6 +2849,7 @@
 		41DC1B432C9C2D94000E52D2 /* box2d */ = {
 			isa = PBXGroup;
 			children = (
+				41617A002FCFEE110084DB15 /* constants.h */,
 				41DC1B3D2C9C2D94000E52D2 /* base.h */,
 				41DC1B3E2C9C2D94000E52D2 /* box2d.h */,
 				41DC1B3F2C9C2D94000E52D2 /* collision.h */,
@@ -2873,17 +2871,19 @@
 		41DC1BAA2C9C2D94000E52D2 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				41617A012FCFEE250084DB15 /* container.h */,
+				41617A022FCFEE250084DB15 /* parallel_for.h */,
+				41617A032FCFEE250084DB15 /* parallel_for.c */,
+				41617A042FCFEE250084DB15 /* scheduler.h */,
+				41617A052FCFEE250084DB15 /* scheduler.c */,
 				41FC45E42DB5FB6000383E06 /* mover.c */,
 				414D6BBD2D8D53CC008B70EF /* arena_allocator.h */,
 				414D6BBE2D8D53CC008B70EF /* arena_allocator.c */,
 				414D6BBF2D8D53CC008B70EF /* atomic.h */,
-				414D6BC02D8D53CC008B70EF /* constants.h */,
 				414D6BC12D8D53CC008B70EF /* sensor.h */,
 				414D6BC22D8D53CC008B70EF /* sensor.c */,
 				41DC1B702C9C2D94000E52D2 /* aabb.c */,
 				41DC1B712C9C2D94000E52D2 /* aabb.h */,
-				41DC1B742C9C2D94000E52D2 /* array.c */,
-				41DC1B752C9C2D94000E52D2 /* array.h */,
 				41DC1B762C9C2D94000E52D2 /* bitset.c */,
 				41DC1B772C9C2D94000E52D2 /* bitset.h */,
 				41DC1B7A2C9C2D94000E52D2 /* body.c */,
@@ -2944,27 +2944,6 @@
 			);
 			name = box2d_v3;
 			path = ../../external/box2d_v3;
-			sourceTree = "<group>";
-		};
-		41DC1C362C9C2E52000E52D2 /* src */ = {
-			isa = PBXGroup;
-			children = (
-				41DC1C312C9C2E52000E52D2 /* LockLessMultiReadPipe.h */,
-				41DC1C322C9C2E52000E52D2 /* TaskScheduler_c.cpp */,
-				41DC1C332C9C2E52000E52D2 /* TaskScheduler_c.h */,
-				41DC1C342C9C2E52000E52D2 /* TaskScheduler.cpp */,
-				41DC1C352C9C2E52000E52D2 /* TaskScheduler.h */,
-			);
-			path = src;
-			sourceTree = "<group>";
-		};
-		41DC1C3B2C9C2E52000E52D2 /* enkiTS */ = {
-			isa = PBXGroup;
-			children = (
-				41DC1C362C9C2E52000E52D2 /* src */,
-			);
-			name = enkiTS;
-			path = ../../external/enkiTS;
 			sourceTree = "<group>";
 		};
 		A40A901C1BD97FB5001D2038 /* libnetwork */ = {
@@ -3434,7 +3413,6 @@
 		A4551F8F1BAA1B6000FB3BDF /* libbox2d */ = {
 			isa = PBXGroup;
 			children = (
-				41DC1C3B2C9C2E52000E52D2 /* enkiTS */,
 				41DC1BC02C9C2D94000E52D2 /* box2d_v3 */,
 			);
 			name = libbox2d;
@@ -5614,6 +5592,8 @@
 				41DC1BF32C9C2D94000E52D2 /* contact.c in Sources */,
 				41DC1BF62C9C2D94000E52D2 /* distance.c in Sources */,
 				41DC1C082C9C2D94000E52D2 /* timer.c in Sources */,
+				41617A062FCFEE250084DB15 /* scheduler.c in Sources */,
+				41617A072FCFEE250084DB15 /* parallel_for.c in Sources */,
 				41DC1BD42C9C2D94000E52D2 /* voronoi_diagram.cpp in Sources */,
 				41DC1C092C9C2D94000E52D2 /* types.c in Sources */,
 				41DC1BFB2C9C2D94000E52D2 /* island.c in Sources */,
@@ -5622,10 +5602,8 @@
 				41DC1C032C9C2D94000E52D2 /* shape.c in Sources */,
 				41DC1BEA2C9C2D94000E52D2 /* aabb.c in Sources */,
 				41DC1C052C9C2D94000E52D2 /* solver.c in Sources */,
-				41DC1C512C9C2E52000E52D2 /* TaskScheduler_c.cpp in Sources */,
 				41DC1BD22C9C2D94000E52D2 /* settings.cpp in Sources */,
 				41DC1BFC2C9C2D94000E52D2 /* joint.c in Sources */,
-				41DC1BEC2C9C2D94000E52D2 /* array.c in Sources */,
 				41DC1BF02C9C2D94000E52D2 /* broad_phase.c in Sources */,
 				41DC1BFA2C9C2D94000E52D2 /* id_pool.c in Sources */,
 				41DC1BFF2C9C2D94000E52D2 /* motor_joint.c in Sources */,
@@ -5637,7 +5615,6 @@
 				41DC1C0A2C9C2D94000E52D2 /* weld_joint.c in Sources */,
 				41DC1BCF2C9C2D94000E52D2 /* particle_group.cpp in Sources */,
 				41DC1BCE2C9C2D94000E52D2 /* particle_assembly.cpp in Sources */,
-				41DC1C522C9C2E52000E52D2 /* TaskScheduler.cpp in Sources */,
 				41DC1BFD2C9C2D94000E52D2 /* manifold.c in Sources */,
 				41DC1BED2C9C2D94000E52D2 /* bitset.c in Sources */,
 				41DC1C042C9C2D94000E52D2 /* solver_set.c in Sources */,
@@ -6550,14 +6527,11 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				EXECUTABLE_PREFIX = "";
 				GCC_C_LANGUAGE_STANDARD = c11;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				HEADER_SEARCH_PATHS = (
 					../../external/box2d_v3,
 					../../external/box2d_v3/include,
 					../../external/box2d_v3/extern/liquidfun,
-					../../external/enkiTS/src,
 				);
 				OTHER_CFLAGS = "-ffp-contract=off";
 				OTHER_LDFLAGS = "-ObjC";
@@ -6571,14 +6545,11 @@
 			buildSettings = {
 				EXECUTABLE_PREFIX = "";
 				GCC_C_LANGUAGE_STANDARD = c11;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
 				HEADER_SEARCH_PATHS = (
 					../../external/box2d_v3,
 					../../external/box2d_v3/include,
 					../../external/box2d_v3/extern/liquidfun,
-					../../external/enkiTS/src,
 				);
 				OTHER_CFLAGS = "-ffp-contract=off";
 				OTHER_LDFLAGS = "-ObjC";
@@ -6786,14 +6757,13 @@
 				HEADER_SEARCH_PATHS = (
 					../../external/box2d_v3/include,
 					../../external/box2d_v3/extern/liquidfun,
-					../../external/enkiTS/src,
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Debug;
 		};
@@ -6809,14 +6779,13 @@
 				HEADER_SEARCH_PATHS = (
 					../../external/box2d_v3/include,
 					../../external/box2d_v3/extern/liquidfun,
-					../../external/enkiTS/src,
 					/System/Library/Frameworks/OpenAL.framework/Headers,
 				);
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Release;
 		};
@@ -6833,7 +6802,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Debug;
 		};
@@ -6845,7 +6814,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Release;
 		};
@@ -6943,7 +6912,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
@@ -6974,7 +6943,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
@@ -7154,7 +7123,7 @@
 				PRODUCT_NAME = CoronaCards;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
@@ -7189,7 +7158,7 @@
 				PRODUCT_NAME = CoronaCards;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/lua-5.1.3/src ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
@@ -7208,7 +7177,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Debug;
 		};
@@ -7224,7 +7193,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun ../../external/enkiTS/src";
+				USER_HEADER_SEARCH_PATHS = "../../librtt ../../external/box2d_v3 ../../external/box2d_v3/include ../../external/box2d_v3/extern/liquidfun";
 			};
 			name = Release;
 		};

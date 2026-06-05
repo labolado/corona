@@ -27,7 +27,7 @@ ifeq ($(config),Debug)
   DEFINES   += -DRtt_DEBUG -DLUA_USE_APICHECK
   INCLUDES  += -I../../../external/box2d_v3/extern/glad/include -I../../../external/box2d_v3/include -I../../../external/box2d_v3/
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -g -msimd128 -msse2
+  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -g -msimd128 -msse2 -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
   ALL_CXXFLAGS  += $(CXXFLAGS) $(ALL_CFLAGS) -fno-exceptions -fno-rtti
   ALL_RESFLAGS  += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   ALL_LDFLAGS   += $(LDFLAGS)
@@ -51,7 +51,7 @@ ifeq ($(config),Release)
   DEFINES   += -DNDEBUG
   INCLUDES  += -I../../../external/box2d_v3/extern/glad/include -I../../../external/box2d_v3/include -I../../../external/box2d_v3/
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -O2 -msimd128 -msse2
+  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -O2 -msimd128 -msse2 -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
   ALL_CXXFLAGS  += $(CXXFLAGS) $(ALL_CFLAGS) -fno-exceptions -fno-rtti
   ALL_RESFLAGS  += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   ALL_LDFLAGS   += $(LDFLAGS) -Wl,-x
@@ -83,7 +83,8 @@ OBJECTS := \
 	$(OBJDIR)/voronoi_diagram.o \
 	$(OBJDIR)/aabb.o \
 	$(OBJDIR)/arena_allocator.o \
-	$(OBJDIR)/array.o \
+	$(OBJDIR)/parallel_for.o \
+	$(OBJDIR)/scheduler.o \
 	$(OBJDIR)/bitset.o \
 	$(OBJDIR)/body.o \
 	$(OBJDIR)/mover.o \
@@ -219,7 +220,10 @@ $(OBJDIR)/aabb.o: ../../../external/box2d_v3/src/aabb.c
 $(OBJDIR)/arena_allocator.o: ../../../external/box2d_v3/src/arena_allocator.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/array.o: ../../../external/box2d_v3/src/array.c
+$(OBJDIR)/parallel_for.o: ../../../external/box2d_v3/src/parallel_for.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/scheduler.o: ../../../external/box2d_v3/src/scheduler.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/bitset.o: ../../../external/box2d_v3/src/bitset.c

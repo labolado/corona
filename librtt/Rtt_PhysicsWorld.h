@@ -13,7 +13,6 @@
 // ----------------------------------------------------------------------------
 
 #include "box2d/box2d.h"
-#include "TaskScheduler.h"
 #include "liquid_world.h"
 
 // class b2Body;
@@ -29,21 +28,6 @@ class PhysicsContactListener;
 class Runtime;
 class Renderer;
 
-class PhysicsTask : public enki::ITaskSet
-{
-  public:
-	PhysicsTask() = default;
-
-	void ExecuteRange( enki::TaskSetPartition range, uint32_t threadIndex ) override
-	{
-		m_task( range.start, range.end, threadIndex, m_taskContext );
-	}
-
-	b2TaskCallback* m_task = nullptr;
-	void* m_taskContext = nullptr;
-};
-
-static constexpr int32_t maxTasks = 64;
 static constexpr int32_t estimateMaxMouseBodies = 32;
 
 // ----------------------------------------------------------------------------
@@ -120,7 +104,8 @@ class PhysicsWorld
 
 		int GetWorkerCount() const { return fWorkerCount; }
 		void SetWorkerCount( int newValue );
-		int GetNumHardwareThreads() const { return enki::GetNumHardwareThreads(); }
+
+		int GetNumHardwareThreads() const;
 
 	private:
 		void StepEvents();
@@ -188,9 +173,6 @@ class PhysicsWorld
 
 	public:
 		int fWorkerCount;
-		enki::TaskScheduler fScheduler;
-		PhysicsTask fTasks[maxTasks];
-		int32_t fTaskCount;
 };
 
 // ----------------------------------------------------------------------------

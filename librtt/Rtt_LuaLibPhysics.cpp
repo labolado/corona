@@ -1373,6 +1373,15 @@ setScale( lua_State *L )
 	return 0;
 }
 
+static int
+getScale( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushnumber( L, physics.GetPixelsPerMeter() );
+
+	return 1;
+}
+
 // Creates a b2Body with no fixtures
 static b2BodyId
 CreateBody( const PhysicsWorld& physics, DisplayObject *o )
@@ -3064,8 +3073,8 @@ InitializeFixtureUsing_Shape( lua_State *L,
 
 		b2Hull hull = b2ComputeHull( &vertexList[ 0 ],
 									(int)vertexList.size() );
-		bool ok = b2ValidateHull(&hull);
-		if( ok )
+		// bool ok = b2ValidateHull(&hull);
+		if( hull.count != 0 )
 		{
 			lua_getfield( L, lua_arg_index, "roundness" );
 			float radius = 	luaL_torealphysics( L, -1, 1.0f / meter_per_pixels_scale );;
@@ -3460,17 +3469,43 @@ setPositionIterations( lua_State *L )
 	return 0;
 }
 
+// physics.setContinuous(flag)
+// Enable/disable continuous collision between dynamic and static bodies.
 static int
-setContinuous( lua_State *L )
+SetContinuous( lua_State *L )
 {
 	if ( ! lua_isnone( L, 1 ) )
 	{
-		bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setContinuous()" );
+		bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setContinuous(flag)" );
 
 		if ( result )
 		{
 			PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 			b2World_EnableContinuous( physics.GetWorldId(), lua_toboolean( L, 1 ) );
+		}
+	}
+	else
+	{
+		luaL_typerror( L, 1, lua_typename( L, LUA_TBOOLEAN ) );
+	}
+
+	return 0;
+}
+
+// physics.setSleepingEnabled(flag)
+// Enable/disable sleep. If your application does not need sleeping, you can gain some performance
+// by disabling sleep completely at the world level.
+static int
+SetSleepingEnabled( lua_State *L )
+{
+	if ( ! lua_isnone( L, 1 ) )
+	{
+		bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setSleepingEnabled(flag)" );
+
+		if ( result )
+		{
+			PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+			b2World_EnableSleeping( physics.GetWorldId(), lua_toboolean( L, 1 ) );
 		}
 	}
 	else
@@ -4278,8 +4313,8 @@ ShapeCast( lua_State *L )
 				{
 					b2Hull hull = b2ComputeHull( &vertexList[ 0 ],
 												(int)vertexList.size() );
-					bool ok = b2ValidateHull(&hull);
-					if ( ok )
+					// bool ok = b2ValidateHull(&hull);
+					if ( hull.count != 0 )
 					{
 						lua_getfield( L, lua_arg_index, "radius" );
 						float radius = 	luaL_torealphysics( L, -1, pixels_per_meter_scale );;
@@ -4334,6 +4369,7 @@ ShapeCast( lua_State *L )
 	return result;
 }
 
+// physics.setContactTuning(hertz, dampingRatio, pushSpeed)
 static int
 SetContactTuning( lua_State *L )
 {
@@ -4342,15 +4378,147 @@ SetContactTuning( lua_State *L )
 	if ( result )
 	{
 		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-		Real scale = physics.GetPixelsPerMeter();
 
 		float hertz = lua_tonumber( L , 1 ); // The contact stiffness (cycles per second)
 		float dampingRatio = lua_tonumber( L , 2 ); // The contact bounciness with 1 being critical damping (non-dimensional)
-		float pushVelocity = lua_tonumber( L , 3 ); // The maximum contact constraint push out velocity (meters per second)
+		float pushVelocity = lua_tonumber( L , 3 ) * physics.GetMetersPerPixel(); // The maximum contact constraint push out velocity (meters per second)
 		b2World_SetContactTuning( physics.GetWorldId(), hertz, dampingRatio, pushVelocity );
 	}
 
 	return 0;
+}
+
+// physics.setContactRecycleDistance(recycleDistance)
+// Set the contact point recycling distance. Setting this to zero disables contact point recycling.
+static int
+SetContactRecycleDistance( lua_State *L )
+{
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setContactRecycleDistance()" );
+
+	if ( result )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+		float recycleDistance = lua_tonumber( L , 1 ) * physics.GetMetersPerPixel();
+		b2World_SetContactRecycleDistance( physics.GetWorldId(),  recycleDistance );
+	}
+
+	return 0;
+}
+
+// physics.getContactRecycleDistance()
+// Get the contact point recycling distance.
+static int
+GetContactRecycleDistance( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	float distance = b2World_GetContactRecycleDistance( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
+	lua_pushnumber( L, distance );
+
+	return 1;
+}
+
+// physics.setRestitutionThreshold(value)
+// Adjust the restitution threshold. It is recommended not to make this value very small
+// because it will prevent bodies from sleeping. Usually in meters per second.
+static int
+SetRestitutionThreshold( lua_State *L )
+{
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setRestitutionThreshold()" );
+
+	if ( result )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+		float value = lua_tonumber( L , 1 ) * physics.GetMetersPerPixel();
+		b2World_SetRestitutionThreshold( physics.GetWorldId(),  value );
+	}
+
+	return 0;
+}
+
+// physics.getRestitutionThreshold()
+// Get the the restitution speed threshold. Usually in meters per second.
+static int
+GetRestitutionThreshold( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	float value = b2World_GetRestitutionThreshold( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
+	lua_pushnumber( L, value );
+
+	return 1;
+}
+
+// physics.setHitEventThreshold(value)
+// Adjust the hit event threshold. This controls the collision speed needed to generate a b2ContactHitEvent.
+// Usually in meters per second.
+static int
+SetHitEventThreshold( lua_State *L )
+{
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setHitEventThreshold()" );
+
+	if ( result )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+		float value = lua_tonumber( L , 1 ) * physics.GetMetersPerPixel();
+		b2World_SetHitEventThreshold( physics.GetWorldId(),  value );
+	}
+
+	return 0;
+}
+
+// physics.getRestitutionThreshold()
+// Get the the hit event speed threshold. Usually in meters per second.
+static int
+GetHitEventThreshold( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	float value = b2World_GetHitEventThreshold( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
+	lua_pushnumber( L, value );
+
+	return 1;
+}
+
+// physics.setMaximumLinearSpeed(maximumLinearSpeed)
+// Set the maximum linear speed.
+static int
+SetMaximumLinearSpeed( lua_State *L )
+{
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setMaximumLinearSpeed()" );
+
+	if ( result )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+		float maximumLinearSpeed = lua_tonumber( L , 1 ) * physics.GetMetersPerPixel();
+		b2World_SetMaximumLinearSpeed( physics.GetWorldId(),  maximumLinearSpeed );
+	}
+
+	return 0;
+}
+
+// physics.getMaximumLinearSpeed()
+// Get the maximum linear speed.
+static int
+GetMaximumLinearSpeed( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	float speed = b2World_GetMaximumLinearSpeed( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
+	lua_pushnumber( L, speed );
+
+	return 1;
+}
+
+// physics.getAwakeBodyCount()
+// Get the number of awake bodies.
+static int
+GetAwakeBodyCount( lua_State *L )
+{
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushinteger( L,  b2World_GetAwakeBodyCount( physics.GetWorldId() ) );
+
+	return 1;
 }
 
 // physics.setWorkerCount( workerCount )
@@ -4377,7 +4545,7 @@ static int
 GetWorkerCount( lua_State *L )
 {
 	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-	lua_pushinteger(L, physics.GetWorkerCount());
+	lua_pushinteger( L, physics.GetWorkerCount() );
 	return 1;
 }
 
@@ -4387,7 +4555,7 @@ static int
 GetNumHardwareThreads( lua_State *L )
 {
 	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-	lua_pushinteger(L, physics.GetNumHardwareThreads());
+	lua_pushinteger( L, physics.GetNumHardwareThreads() );
 	return 1;
 }
 
@@ -4417,6 +4585,7 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "setAverageCollisionPositions", SetAverageCollisionPositions },
 		{ "getAverageCollisionPositions", GetAverageCollisionPositions },
 		{ "setScale", setScale },
+		{ "getScale", getScale },
 		{ "newJoint", newJoint },
 		{ "newParticleSystem", newParticleSystem },
 		{ "addBody", addBody },
@@ -4424,7 +4593,8 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "setDrawMode", setDrawMode },
 		{ "setVelocityIterations", setVelocityIterations },
 		{ "setPositionIterations", setPositionIterations },
-		{ "setContinuous", setContinuous },
+		{ "setContinuous", SetContinuous },
+		{ "setSleepingEnabled", SetSleepingEnabled },
 		{ "setMKS", setMKS },
 		{ "getMKS", getMKS },
 		{ "toMKS", toMKS },
@@ -4437,6 +4607,15 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getNumSteps", GetNumSteps },
 		{ "explode", Explode },
 		{ "setContactTuning", SetContactTuning },
+		{ "setContactRecycleDistance", SetContactRecycleDistance },
+		{ "getContactRecycleDistance", GetContactRecycleDistance },
+		{ "setMaximumLinearSpeed", SetMaximumLinearSpeed },
+		{ "getMaximumLinearSpeed", GetMaximumLinearSpeed },
+		{ "setRestitutionThreshold", SetRestitutionThreshold },
+		{ "getRestitutionThreshold", GetRestitutionThreshold },
+		{ "setHitEventThreshold", SetHitEventThreshold },
+		{ "getHitEventThreshold", GetHitEventThreshold },
+		{ "getAwakeBodyCount", GetAwakeBodyCount },
 		{ "setWorkerCount", SetWorkerCount },
 		{ "getWorkerCount", GetWorkerCount },
 		{ "getNumHardwareThreads", GetNumHardwareThreads },

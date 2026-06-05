@@ -13,8 +13,15 @@ add_definitions(
 	-DLUA_USE_POSIX
 )
 
-if(ANDROID_ABI MATCHES "armeabi")
-	add_definitions(-DBOX2D_DISABLE_SIMD)
+# box2d_v3 selects B2_SIMD_NEON on any ARM CPU (see external/box2d_v3/src/core.h).
+# contact_solver.c is the only TU that includes <arm_neon.h>. NDK 18 defaults
+# armeabi-v7a to -mfpu=vfpv3-d16 (no NEON), so arm_neon.h errors out. Enable NEON
+# for that one file on armeabi-v7a (arm64-v8a already has NEON unconditionally).
+if(ANDROID_ABI STREQUAL "armeabi-v7a")
+	set_source_files_properties(
+		${CORONA_ROOT}/external/box2d_v3/src/contact_solver.c
+		PROPERTIES COMPILE_OPTIONS "-mfpu=neon"
+	)
 endif()
 
 include_directories (
@@ -327,7 +334,7 @@ add_library( corona SHARED
 		${Lua2CppOutputDir}/ssl.cpp
 		${Lua2CppOutputDir}/tp.cpp
 		${Lua2CppOutputDir}/url.cpp
-		
+
 		${CORONA_ROOT}/external/LuaHashMap/LuaHashMap.c
 		${CORONA_ROOT}/librtt/Core/Rtt_Allocator.cpp
 		${CORONA_ROOT}/librtt/Core/Rtt_Array.cpp
@@ -738,7 +745,6 @@ add_library( corona SHARED
 
 		${CORONA_ROOT}/external/box2d_v3/src/aabb.c
 		${CORONA_ROOT}/external/box2d_v3/src/arena_allocator.c
-		${CORONA_ROOT}/external/box2d_v3/src/array.c
 		${CORONA_ROOT}/external/box2d_v3/src/bitset.c
 		${CORONA_ROOT}/external/box2d_v3/src/body.c
 		${CORONA_ROOT}/external/box2d_v3/src/mover.c
@@ -770,6 +776,8 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/weld_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/wheel_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/physics_world.c
+		${CORONA_ROOT}/external/box2d_v3/src/parallel_for.c
+		${CORONA_ROOT}/external/box2d_v3/src/scheduler.c
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/block_allocator.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/free_list.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/liquid_shape.cpp
@@ -788,14 +796,10 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/smoothpolygon/SmoothPolygon.cpp
 )
 
-set(ENKITS_BUILD_C_INTERFACE OFF CACHE BOOL "Build C interface")
-set(ENKITS_BUILD_EXAMPLES OFF CACHE BOOL "Build example applications")
-add_subdirectory("${CORONA_ROOT}/external/enkiTS" "${CMAKE_CURRENT_BINARY_DIR}/libenkiTS_build/")
-
 if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64"))
 	# NDK version < 28
 	target_link_options(corona PRIVATE "-Wl,-z,max-page-size=16384")
 	# NDK version <= 22
 	target_link_options(corona PRIVATE "-Wl,-z,common-page-size=16384")
 endif()
-target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES enkiTS )
+target_link_libraries ( corona lua jnlua5.1 mpg123 OpenAL almixer cpufeatures GLESv2 EGL jnigraphics dl log z OpenSLES )

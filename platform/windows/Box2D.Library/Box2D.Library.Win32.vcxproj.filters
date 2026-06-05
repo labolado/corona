@@ -19,6 +19,9 @@
     <ClInclude Include="..\..\..\external\box2d_v3\include\box2d\types.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\include\box2d\constants.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\bitset.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -49,10 +52,13 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\contact.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\external\box2d_v3\src\array.h">
+    <ClInclude Include="..\..\..\external\box2d_v3\src\table.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\external\box2d_v3\src\table.h">
+    <ClInclude Include="..\..\..\external\box2d_v3\src\scheduler.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\src\parallel_for.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\physics_world.h">
@@ -127,15 +133,6 @@
     <ClInclude Include="..\..\..\external\box2d_v3\extern\liquidfun\particle_assembly.h">
       <Filter>extern\liquidfun</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\external\enkiTS\src\LockLessMultiReadPipe.h">
-      <Filter>enkiTS\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\external\enkiTS\src\TaskScheduler_c.h">
-      <Filter>enkiTS\src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\external\enkiTS\src\TaskScheduler.h">
-      <Filter>enkiTS\src</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\sensor.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -145,7 +142,7 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\atomic.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\external\box2d_v3\src\constants.h">
+    <ClInclude Include="..\..\..\external\box2d_v3\src\container.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -161,12 +158,6 @@
     </Filter>
     <Filter Include="extern\liquidfun">
       <UniqueIdentifier>{a3a0ae87-ca8e-4874-8a77-f05d0b564805}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="enkiTS">
-      <UniqueIdentifier>{cdb8045c-0a24-4c05-98f4-e826af6e4605}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="enkiTS\src">
-      <UniqueIdentifier>{c5788bed-8d06-4cbc-8136-1b40d7ac6661}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -188,9 +179,6 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\manifold.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\external\box2d_v3\src\array.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\contact_solver.c">
       <Filter>src</Filter>
     </ClCompile>
@@ -198,6 +186,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\solver_set.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\src\scheduler.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\src\parallel_for.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\physics_world.c">
@@ -304,12 +298,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\extern\liquidfun\settings.cpp">
       <Filter>extern\liquidfun</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\external\enkiTS\src\TaskScheduler_c.cpp">
-      <Filter>enkiTS\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\external\enkiTS\src\TaskScheduler.cpp">
-      <Filter>enkiTS\src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\arena_allocator.c">
       <Filter>src</Filter>
