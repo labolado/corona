@@ -654,10 +654,12 @@ DisplayV2::Capture( DisplayObject* object,
 		}
 	}
 
-	// Restore state so further rendering is unaffected
+	// Restore the FBO first. Deferred backends attach viewport/frustum
+	// commands to the currently bound view, so restoring viewport while the
+	// capture FBO is still bound would resize the offscreen view.
+	fRenderer->SetFrameBufferObject( previous_fbo );
 	fRenderer->SetViewport( previous_viewport_x, previous_viewport_y, previous_viewport_width, previous_viewport_height );
 	fRenderer->SetFrustum( previous_viewMatrix, previous_projMatrix );
-	fRenderer->SetFrameBufferObject( previous_fbo );
 	fRenderer->PopMaskCount();
 
 	Rtt_DELETE( fbo );
@@ -1232,4 +1234,3 @@ DisplayV2::SetWireframe( bool newValue )
 // ----------------------------------------------------------------------------
 
 #endif
-

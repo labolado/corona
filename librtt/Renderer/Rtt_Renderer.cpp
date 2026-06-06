@@ -975,86 +975,108 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 	// Fill texture [0]
 	if( fillDirty0 )
 	{
-		if( !data->fFillTexture0->fGPUResource )
+		if( ! data->fFillTexture0 )
 		{
-			QueueCreate( data->fFillTexture0 );
+			if( IsBgfx() )
+			{
+				fBackCommandBuffer->BindTexture( NULL, Texture::kFill0 );
+			}
+			fPrevious.fFillTexture0 = NULL;
 		}
-
-		bool postponeBind = fCaptureGroups.Length() > 0 && !HasFramebufferBlit( NULL );
-		if (!postponeBind)
+		else
 		{
-			fBackCommandBuffer->BindTexture( data->fFillTexture0, Texture::kFill0 );
+			if( !data->fFillTexture0->fGPUResource )
+			{
+				QueueCreate( data->fFillTexture0 );
+			}
+
+			bool postponeBind = fCaptureGroups.Length() > 0 && !HasFramebufferBlit( NULL );
+			if (!postponeBind)
+			{
+				fBackCommandBuffer->BindTexture( data->fFillTexture0, Texture::kFill0 );
+			}
+
+			fPrevious.fFillTexture0 = data->fFillTexture0;
+			INCREMENT( fStatistics.fTextureBindCount );
+
+			// TODO: Eliminate duplication with fFillTexture1
+			float f0 = 1.0f / (float)data->fFillTexture0->GetWidth();
+			float f1 = 1.0f / (float)data->fFillTexture0->GetHeight();
+			// Canvas textures with flipY (bgfx Metal) have content Y-flipped;
+			// negate texel size.y so CoronaTexelSize-based offsets are correct.
+			if (data->fFillTexture0->IsCanvasFlipY()) { f1 = -f1; }
+
+			float f2;
+			float f3;
+			if( data->fFillTexture0->IsRetina() )
+			{
+				f2 = ( f0 / fContentScaleX );
+				f3 = ( f1 / fContentScaleY );
+			}
+			else
+			{
+				f2 = f0;
+				f3 = f1;
+			}
+
+			fTexelSize->SetValue( f0,
+								  f1,
+								  f2,
+								  f3 );
+
+			fBackCommandBuffer->BindUniform( fTexelSize, Uniform::kTexelSize );
+			INCREMENT( fStatistics.fUniformBindCount );
 		}
-
-		fPrevious.fFillTexture0 = data->fFillTexture0;
-		INCREMENT( fStatistics.fTextureBindCount );
-
-        // TODO: Eliminate duplication with fFillTexture1
-        float f0 = 1.0f / (float)data->fFillTexture0->GetWidth();
-        float f1 = 1.0f / (float)data->fFillTexture0->GetHeight();
-        // Canvas textures with flipY (bgfx Metal) have content Y-flipped;
-        // negate texel size.y so CoronaTexelSize-based offsets are correct.
-        if (data->fFillTexture0->IsCanvasFlipY()) { f1 = -f1; }
-
-        float f2;
-        float f3;
-        if( data->fFillTexture0->IsRetina() )
-        {
-            f2 = ( f0 / fContentScaleX );
-            f3 = ( f1 / fContentScaleY );
-        }
-        else
-        {
-            f2 = f0;
-            f3 = f1;
-        }
-
-        fTexelSize->SetValue( f0,
-                                f1,
-                                f2,
-                                f3 );
-
-        fBackCommandBuffer->BindUniform( fTexelSize, Uniform::kTexelSize );
-        INCREMENT( fStatistics.fUniformBindCount );
     }
 
 	// Fill texture [1]
 	if( fillDirty1 )
 	{
-		if( !data->fFillTexture1->fGPUResource )
+		if( ! data->fFillTexture1 )
 		{
-			QueueCreate( data->fFillTexture1 );
+			if( IsBgfx() )
+			{
+				fBackCommandBuffer->BindTexture( NULL, Texture::kFill1 );
+			}
+			fPrevious.fFillTexture1 = NULL;
 		}
+		else
+		{
+			if( !data->fFillTexture1->fGPUResource )
+			{
+				QueueCreate( data->fFillTexture1 );
+			}
 
-        fBackCommandBuffer->BindTexture( data->fFillTexture1, Texture::kFill1 );
-        fPrevious.fFillTexture1 = data->fFillTexture1;
-        INCREMENT( fStatistics.fTextureBindCount );
+			fBackCommandBuffer->BindTexture( data->fFillTexture1, Texture::kFill1 );
+			fPrevious.fFillTexture1 = data->fFillTexture1;
+			INCREMENT( fStatistics.fTextureBindCount );
 
-        // TODO: Eliminate duplication with above
-        // TODO: Need to use a different Uniform since fTexelSize is used for fFillTexture0
-        float f0 = 1.0f / (float)data->fFillTexture1->GetWidth();
-        float f1 = 1.0f / (float)data->fFillTexture1->GetHeight();
-        if (data->fFillTexture1->IsCanvasFlipY()) { f1 = -f1; }
-        float f2;
-        float f3;
-        if( data->fFillTexture1->IsRetina() )
-        {
-            f2 = ( f0 / fContentScaleX );
-            f3 = ( f1 / fContentScaleY );
-        }
-        else
-        {
-            f2 = f0;
-            f3 = f1;
-        }
+			// TODO: Eliminate duplication with above
+			// TODO: Need to use a different Uniform since fTexelSize is used for fFillTexture0
+			float f0 = 1.0f / (float)data->fFillTexture1->GetWidth();
+			float f1 = 1.0f / (float)data->fFillTexture1->GetHeight();
+			if (data->fFillTexture1->IsCanvasFlipY()) { f1 = -f1; }
+			float f2;
+			float f3;
+			if( data->fFillTexture1->IsRetina() )
+			{
+				f2 = ( f0 / fContentScaleX );
+				f3 = ( f1 / fContentScaleY );
+			}
+			else
+			{
+				f2 = f0;
+				f3 = f1;
+			}
 
-        fTexelSize->SetValue( f0,
-                                f1,
-                                f2,
-                                f3 );
+			fTexelSize->SetValue( f0,
+								  f1,
+								  f2,
+								  f3 );
 
-        fBackCommandBuffer->BindUniform( fTexelSize, Uniform::kTexelSize );
-        INCREMENT( fStatistics.fUniformBindCount );
+			fBackCommandBuffer->BindUniform( fTexelSize, Uniform::kTexelSize );
+			INCREMENT( fStatistics.fUniformBindCount );
+		}
     }
 
     // Program

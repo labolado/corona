@@ -730,10 +730,22 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
             fCurrentView = bgfxFbo->GetViewId();
             bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
             bgfx::setViewMode( fCurrentView, bgfx::ViewMode::Sequential );
-            // bgfx setViewClear is sticky across frames. Reset it here so accumulative
-            // canvas draws (tex:invalidate() without "cache") preserve FBO contents.
-            // If a Clear command follows in the same frame, ExecuteClear will override.
-            bgfx::setViewClear( fCurrentView, BGFX_CLEAR_NONE );
+            if( cmd.fbo->GetMustClear() )
+            {
+                // Default offscreen shader passes need a transparent render target.
+                // Metal can otherwise load stale alpha and make blur/dropshadow
+                // sample a solid block.
+                bgfx::setViewClear( fCurrentView,
+                    BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+                    0x00000000, 1.0f, 0 );
+            }
+            else
+            {
+                // Preserve contents for accumulative targets such as canvas
+                // tex:invalidate() without "cache". Explicit Clear commands
+                // still override this in the same frame.
+                bgfx::setViewClear( fCurrentView, BGFX_CLEAR_NONE );
+            }
         }
     }
     else
@@ -762,8 +774,7 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         // bgfx::reset() invalidates all view state (clear color, view mode, etc.).
         // Re-apply Sequential mode on ALL views to prevent stale Default mode
         // from producing rendering artifacts on certain drivers (e.g. Mali-G76).
-        // But clear only for fDefaultView — FBO views keep BGFX_CLEAR_NONE
-        // and get explicit clear from ExecuteClear() when needed.
+        // But clear only for fDefaultView; FBO views are configured when bound.
         const uint32_t numViews = bgfx::getCaps()->limits.maxViews;
         for (uint32_t v = 0; v < numViews; ++v) {
             bgfx::setViewMode( (bgfx::ViewId)v, bgfx::ViewMode::Sequential );
@@ -1653,9 +1664,40 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
     }
 
-    // FBO views use IDs 1-199, screen view uses ID 200
-    // bgfx renders views in ascending ID order, so FBOs render before screen
-    // No setViewOrder needed - natural ordering handles this
+    // bgfx::reset() invalidates view state and must not happen after offscreen
+    // views have already submitted work in this replay. Pre-scan the deferred
+    // stream for the first default-view viewport and perform any required reset
+    // before replaying FBO draws.
+    bool scanDefaultView = true;
+    for( const DeferredCmd& cmd : fDeferredCmds )
+    {
+        if( cmd.type == DeferredCmd::kBindFBO )
+        {
+            scanDefaultView = !( cmd.fbo && CPUResource::IsAlive( cmd.fbo ) );
+        }
+        else if( cmd.type == DeferredCmd::kSetViewport && scanDefaultView )
+        {
+            if( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged )
+            {
+                bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
+                sLastBackbufferWidth = cmd.vpW;
+                sLastBackbufferHeight = cmd.vpH;
+                sPlatformDataChanged = false;
+
+                const uint32_t numViews = bgfx::getCaps()->limits.maxViews;
+                for( uint32_t v = 0; v < numViews; ++v )
+                {
+                    bgfx::setViewMode( (bgfx::ViewId)v, bgfx::ViewMode::Sequential );
+                }
+                bgfx::setViewClear( fDefaultView,
+                    BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+                    0x00000000,
+                    fClearDepth,
+                    fClearStencil );
+            }
+            break;
+        }
+    }
 
     static uint32_t sFrameNum = 0;
 

@@ -239,11 +239,12 @@ Shader::RenderToTexture( Renderer& renderer, Geometry& cache ) const
 			renderer.PopMaskCount();
 		}
 
-        // Restore state so further rendering is unaffected
+        // Restore the FBO first. Deferred backends attach viewport/frustum
+        // commands to the currently bound view, so doing this in the opposite
+        // order would resize the offscreen shader view to the screen viewport.
+        renderer.SetFrameBufferObject( fbo );
         renderer.SetViewport( x, y, width, height );
         renderer.SetFrustum( viewMatrix, projMatrix );
-        
-        renderer.SetFrameBufferObject( fbo );
         
         //fDirty = true;
     }
@@ -428,4 +429,3 @@ Shader::IsCompatible( const Geometry* geometry )
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

@@ -76,8 +76,10 @@ TextureResourceCanvas* TextureResourceCanvas::Create(Rtt::TextureFactory &factor
 	 
 		TODO: add appropriate frame buffer resources...
 	 */	
+	FrameBufferObject::ExtraOptions opts = {};
+	opts.mustClear = false;
 	FrameBufferObject * fbo = Rtt_NEW( pAllocator,
-									  FrameBufferObject( pAllocator, texture, nullptr ) );
+									  FrameBufferObject( pAllocator, texture, &opts ) );
 
 	GroupObject *cache = Rtt_NEW( pAllocator,
 								 GroupObject(display.GetAllocator(), display.GetStageOffscreen() ) );
@@ -229,6 +231,3 @@ void TextureResourceCanvas::Render(Rtt::Renderer &renderer, GroupObject *group, 
 }
 
 } // namespace Rtt
-
-
-
