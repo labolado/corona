@@ -31,9 +31,12 @@ local measureStart = 0
 local results = {}
 local phase = "idle"  -- idle | warmup | measure | done
 
--- UI overlay
+-- UI overlay. bg must sit BEHIND the composer scenes (composer.stage), otherwise
+-- this opaque rect hides every scene's visuals and only the text overlay shows —
+-- which makes the recorded video useless for visual regression.
 local bg = display.newRect(W/2, H/2, W, H)
 bg:setFillColor(0.05, 0.05, 0.08)
+bg:toBack()
 
 local statusText = display.newText({
     text = "Initializing...", x = W/2, y = 40,

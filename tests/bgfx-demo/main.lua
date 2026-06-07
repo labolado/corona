@@ -13,12 +13,31 @@
       launchArgs.gameLoopScenario=N  → run test_benchmark_all and exit
 --]]
 
--- Firebase Test Lab Game Loop support
+-- Firebase Test Lab Game Loop support. Map a scenario number to a test entry so
+-- both platforms select the same test from one source of truth.
+-- Scenario arrives differently per platform:
+--   Android: GameLoopActivity sets SOLAR2D_TEST (handled by the env path below).
+--   iOS: launched cold via the firebase-game-loop://<n> URL scheme, which lands in
+--        launchArgs.url (AppDelegate SetLaunchArgs). The bare global gameLoopScenario
+--        is only set for the -com.google.games.test.loops arg / warm openURL paths,
+--        which FTL cold launch does NOT hit — so launchArgs.url is the real source.
+local FTL_SCENARIO_TESTS = { [1] = "benchmark_all", [2] = "bench", [3] = "all_scenes", [4] = "shapes" }
 local launchArgs = system.getInfo("launchArgs")
-local gameLoopScenario = launchArgs and launchArgs.gameLoopScenario
+local gameLoopScenario = _G.gameLoopScenario
+if not gameLoopScenario and launchArgs and launchArgs.url then
+    gameLoopScenario = tostring(launchArgs.url):match("firebase%-game%-loop://(%d+)")
+end
 if gameLoopScenario then
-    print("=== FTL Game Loop Mode: Scenario " .. tostring(gameLoopScenario) .. " ===")
-    if tonumber(gameLoopScenario) == 1 then
+    local n = tonumber(gameLoopScenario)
+    local testName = FTL_SCENARIO_TESTS[n]
+    print("=== FTL Game Loop Mode: Scenario " .. tostring(gameLoopScenario)
+        .. " -> " .. tostring(testName) .. " ===")
+    if not testName then
+        print("=== GAME LOOP: unknown scenario " .. tostring(gameLoopScenario) .. " ===")
+        os.exit(1)
+    end
+    if n == 1 then
+        -- benchmark_all self-terminates via the phase/waitLoop guard
         local ok = pcall(require, "test_benchmark_all")
         if not ok then os.exit(1) end
         local t0 = system.getTimer()
@@ -36,8 +55,10 @@ if gameLoopScenario then
         timer.performWithDelay(1000, waitLoop)
         return
     end
-    print("=== GAME LOOP: unknown scenario " .. tostring(gameLoopScenario) .. " ===")
-    os.exit(1)
+    -- Other scenarios run their test entry; FTL controls run duration on device.
+    print("=== Running test entry: test_" .. testName .. " ===")
+    require("test_" .. testName)
+    return
 end
 
 -- Check for test entry: env var, flag file, or build-time override
