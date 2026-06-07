@@ -34,7 +34,13 @@ fi
 
 FAIL=0
 
-# Step 1: 重编 bgfx 库
+# Step 1: bgfx 库
+# 显式 bgfx/all → 强制全量重编（debug+release）；否则自动检测 bgfx 源码变更，
+# 只在源码比 .a 新时重编 osx-arm64 Release（Xcode 链接的就是它，经 symlink）。
+if [ "$BUILD_BGFX" != true ]; then
+    echo "=== 检测 bgfx 源码变更 ==="
+    bash "$CORONA_DIR/tests/ensure_bgfx_mac.sh" || { echo "✗ bgfx 自动重编失败"; exit 1; }
+fi
 if [ "$BUILD_BGFX" = true ]; then
     echo "=== 重编 bgfx 库 ==="
     cd "$BGFX_DIR"
