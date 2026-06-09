@@ -74,21 +74,21 @@ jobs:
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
-          make -C .build/projects/gmake-osx-arm64 config=debug -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-osx-arm64 config=release -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-osx-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-osx-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS device (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          make -C .build/projects/gmake-ios-arm64 config=debug   -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
-          make -C .build/projects/gmake-ios-arm64 config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
+          make -C .build/projects/gmake-ios-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
       - name: Build bgfx iOS simulator (Release)
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
         run: |
           SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          make -C .build/projects/gmake-ios-simulator config=release -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
+          make -C .build/projects/gmake-ios-simulator config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Build x86_64 simulator slice (for Intel Mac simulator support).
           # -msse4.2 mirrors bx osx-x64 toolchain config (genie ios-simulator default is arm64 + NEON, no -msse* flag); needed for bx simd128_sse.inl _mm_dp_ps / _mm_round_ps
           cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
@@ -99,7 +99,7 @@ jobs:
             {} \;
           # ARCH is $(empty) in genie makefile; clang defaults to host (arm64 on AS Mac).
           # Must pass ARCH explicitly for x86_64 cross-compile.
-          make -C .build/projects/gmake-ios-simulator-x86 config=release -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64 -msse4.2" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
+          make -C .build/projects/gmake-ios-simulator-x86 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64 -msse4.2" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
           # Merge into fat binary
           if [ -d .build/ios-simulator-x86/bin ]; then
             for arm_lib in .build/ios-simulator/bin/lib*.a; do
