@@ -72,6 +72,30 @@ BgfxProgramVersionForMaskCount( Program::Version version )
     return version == Program::kWireframe ? Program::kWireframe : Program::kMaskCount3;
 }
 
+// Bake per-vertex mask UVs (TexCoord2/3/4) into a transient vertex copy for
+// stored-on-GPU geometry that bypassed Renderer::BakeMaskUVsIntoVertices.
+// Such geometry takes the direct-bind branch in Rtt_Renderer (no per-frame
+// vertex copy/bake), so its mask-UV slots hold the uninitialized values from
+// mesh creation. Under an active mask the unified default FS samples the mask
+// at those UVs and the fragment collapses to zero alpha (Issue #62). The mask
+// matrices come from the draw's uniform snapshot; an absent matrix yields 0,
+// matching BakeMaskUVsIntoVertices for inactive mask levels.
+static void
+BakeStoredGeometryMaskUVs( Geometry::Vertex* tv, U32 vertexCount,
+    const Rtt::Real* m0, const Rtt::Real* m1, const Rtt::Real* m2 )
+{
+    for( U32 vi = 0; vi < vertexCount; ++vi )
+    {
+        Rtt::Real x = tv[vi].x, y = tv[vi].y;
+        tv[vi].maskU0 = m0 ? ( m0[0] * x + m0[3] * y + m0[6] ) : Rtt_REAL_0;
+        tv[vi].maskV0 = m0 ? ( m0[1] * x + m0[4] * y + m0[7] ) : Rtt_REAL_0;
+        tv[vi].maskU1 = m1 ? ( m1[0] * x + m1[3] * y + m1[6] ) : Rtt_REAL_0;
+        tv[vi].maskV1 = m1 ? ( m1[1] * x + m1[4] * y + m1[7] ) : Rtt_REAL_0;
+        tv[vi].maskU2 = m2 ? ( m2[0] * x + m2[3] * y + m2[6] ) : Rtt_REAL_0;
+        tv[vi].maskV2 = m2 ? ( m2[1] * x + m2[4] * y + m2[7] ) : Rtt_REAL_0;
+    }
+}
+
 // Flag: setPlatformData was called (e.g. after lock-screen), force bgfx::reset on next SetViewport
 static bool sPlatformDataChanged = false;
 
@@ -1099,7 +1123,37 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
             bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
         }
 
-        geo->SetVertexBuffer( cmd.offset, cmd.count );
+        const Rtt::Real* m0 = cmd.uniforms[Uniform::kMaskMatrix0].valid
+            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix0].data ) : NULL;
+        const Rtt::Real* m1 = cmd.uniforms[Uniform::kMaskMatrix1].valid
+            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix1].data ) : NULL;
+        const Rtt::Real* m2 = cmd.uniforms[Uniform::kMaskMatrix2].valid
+            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix2].data ) : NULL;
+
+        if( geo->StoredOnGPU() && ( m0 || m1 || m2 ) )
+        {
+            // Active mask + stored-on-GPU: transient copy needed to bake per-vertex
+            // mask UVs — the static bind path never runs BakeMaskUVsIntoVertices.
+            const Geometry::Vertex* vertexData = cmd.geometry->GetVertexData();
+            U32 vertexCount = cmd.geometry->GetVerticesUsed();
+            if( !vertexData || vertexCount == 0 )
+            {
+                return;
+            }
+            bgfx::TransientVertexBuffer tvb;
+            if( bgfx::getAvailTransientVertexBuffer( vertexCount, BgfxGeometry::GetVertexLayout() ) < vertexCount )
+            {
+                return;
+            }
+            bgfx::allocTransientVertexBuffer( &tvb, vertexCount, BgfxGeometry::GetVertexLayout() );
+            memcpy( tvb.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
+            BakeStoredGeometryMaskUVs( reinterpret_cast<Geometry::Vertex*>( tvb.data ), vertexCount, m0, m1, m2 );
+            bgfx::setVertexBuffer( 0, &tvb, cmd.offset, cmd.count );
+        }
+        else
+        {
+            geo->SetVertexBuffer( cmd.offset, cmd.count );
+        }
 
         // Set textures
         for( U32 i = 0; i < kMaxTextureUnits; i++ )
@@ -1226,6 +1280,29 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         }
         bgfx::allocTransientVertexBuffer( &tvb, vertexCount, BgfxGeometry::GetVertexLayout() );
         memcpy( tvb.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
+
+        // Stored-on-GPU geometry skips Renderer::BakeMaskUVsIntoVertices (the
+        // stored-on-GPU branch binds the buffer directly, without the per-frame
+        // vertex copy that bakes mask UVs). Issue #40 forces such geometry onto
+        // this transient path, so its per-vertex mask-UV slots (a_texcoord2/3/4)
+        // still hold the uninitialized values from mesh creation. Under an active
+        // mask the unified default FS samples the mask at those UVs and the
+        // primitive collapses to zero alpha. Bake only when a mask is active;
+        // without an active mask the FS never samples the slots so baking is
+        // unnecessary work.
+        if( geo->StoredOnGPU() )
+        {
+            const Rtt::Real* m0 = cmd.uniforms[Uniform::kMaskMatrix0].valid
+                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix0].data ) : NULL;
+            const Rtt::Real* m1 = cmd.uniforms[Uniform::kMaskMatrix1].valid
+                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix1].data ) : NULL;
+            const Rtt::Real* m2 = cmd.uniforms[Uniform::kMaskMatrix2].valid
+                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix2].data ) : NULL;
+            if( m0 || m1 || m2 )
+            {
+                BakeStoredGeometryMaskUVs( reinterpret_cast<Geometry::Vertex*>( tvb.data ), vertexCount, m0, m1, m2 );
+            }
+        }
 
         bgfx::setVertexBuffer( 0, &tvb );
         bgfx::setIndexBuffer( &tib );
