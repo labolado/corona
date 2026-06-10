@@ -80,6 +80,10 @@ else
 fi
 
 # ============================================================
+# Step 0: 確保 Android bgfx .a 與 submodule 一致
+# ============================================================
+bash "$SCRIPT_DIR/ensure_bgfx_android.sh" || { echo "❌ ensure_bgfx_android failed"; exit 1; }
+
 # Step 1: 编译 Corona AAR (包含 bgfx)
 # ============================================================
 AAR_OUTPUT="$CORONA_DIR/platform/android/sdk/build/outputs/aar/Corona-release.aar"

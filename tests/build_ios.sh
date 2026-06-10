@@ -59,6 +59,9 @@ cd "$CORONA_DIR"
 BRANCH=$(git branch --show-current)
 log "  分支: $BRANCH"
 
+# 確保 iOS bgfx .a 與 submodule 一致
+bash "$SCRIPT_DIR/ensure_bgfx_ios.sh" || { echo "❌ ensure_bgfx_ios failed"; exit 1; }
+
 # 检查有没有正在编译的 xcodebuild
 if pgrep -f "xcodebuild.*ratatouille" > /dev/null; then
     fail "有其他 xcodebuild 正在运行，等它完成"
