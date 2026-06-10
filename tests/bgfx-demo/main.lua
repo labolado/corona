@@ -21,7 +21,7 @@
 --        launchArgs.url (AppDelegate SetLaunchArgs). The bare global gameLoopScenario
 --        is only set for the -com.google.games.test.loops arg / warm openURL paths,
 --        which FTL cold launch does NOT hit — so launchArgs.url is the real source.
-local FTL_SCENARIO_TESTS = { [1] = "benchmark_all", [2] = "bench", [3] = "all_scenes", [4] = "shapes" }
+local FTL_SCENARIO_TESTS = { [1] = "benchmark_all", [2] = "bench", [3] = "all_scenes", [4] = "shapes", [5] = "perf" }
 local launchArgs = system.getInfo("launchArgs")
 local gameLoopScenario = _G.gameLoopScenario
 if not gameLoopScenario and launchArgs and launchArgs.url then

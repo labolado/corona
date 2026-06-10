@@ -10,6 +10,12 @@ settings = {
             CFBundleIdentifier = "com.labolado.solargl",
             UIStatusBarHidden = true,
             UILaunchStoryboardName = "LaunchScreen",
+            CFBundleURLTypes = {
+                {
+                    CFBundleURLName = "com.labolado.bgfxdemo",
+                    CFBundleURLSchemes = { "firebase-game-loop" },
+                },
+            },
         },
     },
     android = {

@@ -30,7 +30,8 @@ public class GameLoopActivity extends CoronaActivity {
 	//   2 = bench (performance benchmark, 5 stress levels, ~8 min)
 	//   3 = all_scenes (walk all nav scenes, measure FPS per scene)
 	//   4 = shapes (vector graphics benchmark: rects/circles/roundedRects)
-	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes" };
+	//   5 = perf (7-scene throughput benchmark, ~3 min)
+	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes", "perf" };
 
 	private Handler fFinishHandler;
 	private Runnable fFinishRunnable;
@@ -62,6 +63,8 @@ public class GameLoopActivity extends CoronaActivity {
 					durationMs = 180_000L; // all_scenes: 11 scenes × ~8s + transitions ≈ 2 min
 				} else if (scenarioNumber == 4) {
 					durationMs = 180_000L; // shapes: 5 levels × ~20s + warmup ≈ 2 min
+				} else if (scenarioNumber == 5) {
+					durationMs = 300_000L; // perf: 7 scenes × ~30s ≈ 3.5 min
 				}
 			}
 
