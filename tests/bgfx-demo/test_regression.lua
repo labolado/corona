@@ -164,6 +164,9 @@ local function finishTests()
 
     statusText.text = string.format("Done: %d pass, %d fail", pass, fail)
     statusText:setFillColor(fail == 0 and 0 or 1, fail == 0 and 1 or 0, 0)
+    local exitCode = (fail == 0) and 0 or 1
+    print("[REGRESSION] exiting with code " .. exitCode)
+    timer.performWithDelay(500, function() _origOsExit(exitCode) end)
 end
 
 -- Remove leaked stage children only when previous test was type=test
