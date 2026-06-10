@@ -200,11 +200,28 @@ jobs:
         run: |
           test -f "platform/mac/build/${{ matrix.config }}/Corona Simulator.app/Contents/MacOS/Corona Simulator"
           echo "${{ matrix.config }} binary verified"
+      - name: Create DMG
+        run: |
+          APP="platform/mac/build/${{ matrix.config }}/Corona Simulator.app"
+          DMG="platform/mac/build/${{ matrix.config }}/Corona-Simulator-${{ matrix.config }}.dmg"
+          TMP_VOL="/tmp/dmg-staging-${{ matrix.config }}"
+          mkdir -p "$TMP_VOL"
+          cp -r "$APP" "$TMP_VOL/"
+          # Add Applications shortcut for drag-install UX
+          ln -s /Applications "$TMP_VOL/Applications"
+          hdiutil create -volname "Corona Simulator" \
+            -srcfolder "$TMP_VOL" \
+            -ov -format UDZO \
+            "$DMG"
+          rm -rf "$TMP_VOL"
+          echo "DMG: $(ls -lh "$DMG")"
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: macOS-${{ matrix.config }}
-          path: platform/mac/build/${{ matrix.config }}/Corona Simulator.app
+          path: |
+            platform/mac/build/${{ matrix.config }}/Corona Simulator.app
+            platform/mac/build/${{ matrix.config }}/Corona-Simulator-${{ matrix.config }}.dmg
 
   iOS-templates:
     name: iOS Template Build (${{ matrix.target }})
