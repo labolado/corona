@@ -71,6 +71,8 @@ local function gotoNextScene()
         end
         out = out .. string.format("%-12s %8.1f\n", "AVERAGE", total / #results)
         print(out)
+        print("[PASS] all_scenes complete")
+        timer.performWithDelay(500, function() os.exit(0) end)
         return
     end
     local info = scenes[currentIdx]
