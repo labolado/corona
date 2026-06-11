@@ -3,7 +3,7 @@
 
     Usage: SOLAR2D_TEST=perf SOLAR2D_BACKEND=bgfx ./Corona\ Simulator ...
 
-    7 scenarios:
+    10 scenarios:
       A: Sprite Rain                - same-texture sprites, random pos/size/rotation
       B: Mixed                      - different textures + text + rounded rects + physics
       C: Effects                    - fill.effect + mask + snapshot
@@ -11,6 +11,9 @@
       E: Startup Time               - object creation timing (ms)
       F: Memory                     - memory usage before/peak/after GC + texture
       G: Create/Destroy Throughput  - object creation/destruction speed
+      H: Text Rain                  - many display.newText objects, font rendering stress
+      I: Vector Graphics            - rects/circles/roundedRects with strokes (no textures)
+      J: Alpha Groups               - nested groups with alpha, compositing overhead
 
     Output format (grep-friendly):
       === PERF RESULTS ===
@@ -125,7 +128,7 @@ end
 ------------------------------------------------------------------------
 local isAndroid = system.getInfo("platform") == "android"
 local LEVELS_A = isAndroid
-    and { 100, 500, 1000, 2000, 5000 }
+    and { 100, 500, 1000, 2000, 5000, 10000 }
     or  { 100, 500, 1000, 2000, 5000, 10000, 20000 }
 local currentALevel = 0
 
@@ -171,8 +174,8 @@ end
 -- Scene B: Mixed (different textures + text + rounded rects + physics)
 ------------------------------------------------------------------------
 local LEVELS_B = isAndroid
-    and { 100, 500, 1000, 2000 }
-    or  { 100, 500, 1000, 2000, 3000 }
+    and { 100, 500, 1000, 2000, 3000 }
+    or  { 100, 500, 1000, 2000, 3000, 5000 }
 local currentBLevel = 0
 local textureFiles = {
     "grass1.png",
@@ -257,8 +260,8 @@ end
 -- Scene C: Effects (effect + mask + snapshot)
 ------------------------------------------------------------------------
 local LEVELS_C = isAndroid
-    and { 50, 200, 500, 1000 }
-    or  { 50, 200, 500, 1000, 3000 }
+    and { 50, 200, 500, 1000, 2000 }
+    or  { 50, 200, 500, 1000, 2000, 3000 }
 local currentCLevel = 0
 local effects = {
     "filter.blur",
@@ -334,7 +337,7 @@ end
 -- Scene D: Physics + Render
 ------------------------------------------------------------------------
 local LEVELS_D = isAndroid
-    and { 100, 300, 500, 800, 1000 }
+    and { 100, 300, 500, 800, 1000, 1500 }
     or  { 100, 300, 500, 800, 1000, 1500, 3000 }
 
 local function setupSceneD(count)
@@ -502,6 +505,161 @@ local function setupSceneG(count)
 end
 
 ------------------------------------------------------------------------
+-- Scene H: Text Rain (font rendering stress)
+------------------------------------------------------------------------
+local LEVELS_H = isAndroid
+    and { 50, 100, 200, 500, 1000 }
+    or  { 50, 100, 200, 500, 1000, 2000 }
+
+local textSamples = {
+    "Hello", "World", "FPS", "bgfx", "Solar2D",
+    "Render", "Test", "OK", "123", "ABC",
+}
+
+local function setupSceneH(count)
+    cleanup()
+    sceneGroup = display.newGroup()
+    for i = 1, count do
+        local txt = textSamples[((i - 1) % #textSamples) + 1] .. tostring(i % 99)
+        local sz = (8 + math.random(8)) * S
+        local obj = display.newText({
+            parent = sceneGroup,
+            text = txt,
+            x = math.random(30, W - 30),
+            y = math.random(60, H - 20),
+            font = native.systemFont,
+            fontSize = sz,
+        })
+        obj:setFillColor(math.random()*0.6+0.4, math.random()*0.6+0.4, math.random()*0.6+0.4)
+        obj.vx = (math.random() - 0.5) * 3 * S
+        obj.vy = (math.random() - 0.5) * 3 * S
+        obj.rotSpeed = (math.random() - 0.5) * 4
+        table.insert(objects, obj)
+    end
+    uiGroup:toFront()
+end
+
+local function animateSceneH()
+    for i = 1, #objects do
+        local obj = objects[i]
+        obj.x = obj.x + obj.vx
+        obj.y = obj.y + obj.vy
+        obj.rotation = obj.rotation + obj.rotSpeed
+        if obj.x < 0 or obj.x > W then obj.vx = -obj.vx end
+        if obj.y < 50 or obj.y > H then obj.vy = -obj.vy end
+    end
+end
+
+------------------------------------------------------------------------
+-- Scene I: Vector Graphics (shapes + strokes, no textures)
+------------------------------------------------------------------------
+local LEVELS_I = isAndroid
+    and { 100, 500, 1000, 2000, 5000 }
+    or  { 100, 500, 1000, 2000, 5000, 10000 }
+
+local function setupSceneI(count)
+    cleanup()
+    sceneGroup = display.newGroup()
+    local third = math.floor(count / 3)
+    -- Rects with stroke
+    for i = 1, third do
+        local w = (10 + math.random(30)) * S
+        local h = (10 + math.random(30)) * S
+        local obj = display.newRect(sceneGroup,
+            math.random(20, W - 20), math.random(60, H - 20), w, h)
+        obj:setFillColor(math.random()*0.7+0.3, math.random()*0.5, math.random()*0.5, 0.8)
+        obj.strokeWidth = 1 + math.random(2)
+        obj:setStrokeColor(1, 1, 1, 0.5)
+        obj.vx = (math.random() - 0.5) * 3 * S
+        obj.vy = (math.random() - 0.5) * 3 * S
+        table.insert(objects, obj)
+    end
+    -- Circles with stroke
+    for i = 1, third do
+        local r = (5 + math.random(15)) * S
+        local obj = display.newCircle(sceneGroup,
+            math.random(20, W - 20), math.random(60, H - 20), r)
+        obj:setFillColor(math.random()*0.5, math.random()*0.7+0.3, math.random()*0.5, 0.8)
+        obj.strokeWidth = 1 + math.random(2)
+        obj:setStrokeColor(0.8, 0.8, 1, 0.6)
+        obj.vx = (math.random() - 0.5) * 3 * S
+        obj.vy = (math.random() - 0.5) * 3 * S
+        table.insert(objects, obj)
+    end
+    -- Rounded rects
+    local remaining = count - third * 2
+    for i = 1, remaining do
+        local w = (15 + math.random(25)) * S
+        local h = (15 + math.random(25)) * S
+        local obj = display.newRoundedRect(sceneGroup,
+            math.random(20, W - 20), math.random(60, H - 20), w, h, 4)
+        obj:setFillColor(math.random()*0.5, math.random()*0.5, math.random()*0.7+0.3, 0.8)
+        obj.strokeWidth = 1
+        obj:setStrokeColor(1, 1, 0.5, 0.5)
+        obj.vx = (math.random() - 0.5) * 3 * S
+        obj.vy = (math.random() - 0.5) * 3 * S
+        table.insert(objects, obj)
+    end
+    uiGroup:toFront()
+end
+
+local function animateSceneI()
+    for i = 1, #objects do
+        local obj = objects[i]
+        obj.x = obj.x + obj.vx
+        obj.y = obj.y + obj.vy
+        if obj.x < 0 or obj.x > W then obj.vx = -obj.vx end
+        if obj.y < 50 or obj.y > H then obj.vy = -obj.vy end
+    end
+end
+
+------------------------------------------------------------------------
+-- Scene J: Alpha Group Compositing (nested groups with alpha)
+------------------------------------------------------------------------
+local LEVELS_J = isAndroid
+    and { 20, 50, 100, 200 }
+    or  { 20, 50, 100, 200, 400 }
+
+local function setupSceneJ(count)
+    cleanup()
+    sceneGroup = display.newGroup()
+    -- Each "object" is a group containing 5 children; group has alpha
+    for i = 1, count do
+        local g = display.newGroup()
+        g.x = math.random(30, W - 30)
+        g.y = math.random(60, H - 30)
+        g.alpha = 0.5 + math.random() * 0.5
+        -- 3 rects + 1 image + 1 text inside each group
+        local r1 = display.newRect(g, -10*S, -10*S, 20*S, 20*S)
+        r1:setFillColor(math.random(), math.random(), math.random())
+        local r2 = display.newCircle(g, 8*S, 5*S, 8*S)
+        r2:setFillColor(math.random(), math.random(), math.random())
+        local img = display.newImageRect(g, "test_star_alpha.png", 16*S, 16*S)
+        img.x = -5*S; img.y = 8*S
+        local lbl = display.newText({ parent=g, text="G"..i, x=0, y=-14*S,
+            font=native.systemFont, fontSize=8*S })
+        lbl:setFillColor(1,1,1)
+        sceneGroup:insert(g)
+        g.vx = (math.random() - 0.5) * 2 * S
+        g.vy = (math.random() - 0.5) * 2 * S
+        g.rotSpeed = (math.random() - 0.5) * 3
+        table.insert(objects, g)
+    end
+    uiGroup:toFront()
+end
+
+local function animateSceneJ()
+    for i = 1, #objects do
+        local g = objects[i]
+        g.x = g.x + g.vx
+        g.y = g.y + g.vy
+        g.rotation = g.rotation + g.rotSpeed
+        if g.x < 20 or g.x > W - 20 then g.vx = -g.vx end
+        if g.y < 60 or g.y > H - 20 then g.vy = -g.vy end
+    end
+end
+
+------------------------------------------------------------------------
 -- Benchmark engine
 ------------------------------------------------------------------------
 local scenarios = {
@@ -561,6 +719,30 @@ local scenarios = {
         isCustom = true,
         current = 0,
     },
+    {
+        name = "H",
+        label = "Text Rain",
+        levels = LEVELS_H,
+        setup = setupSceneH,
+        animate = animateSceneH,
+        current = 0,
+    },
+    {
+        name = "I",
+        label = "Vector Graphics",
+        levels = LEVELS_I,
+        setup = setupSceneI,
+        animate = animateSceneI,
+        current = 0,
+    },
+    {
+        name = "J",
+        label = "Alpha Groups",
+        levels = LEVELS_J,
+        setup = setupSceneJ,
+        animate = animateSceneJ,
+        current = 0,
+    },
 }
 
 local function startNextLevel()
@@ -607,6 +789,30 @@ local function startNextScenario()
             end
         end
         print("=== END RESULTS ===")
+
+        -- Write to game_loop_results/ for FTL iOS artifact capture
+        pcall(function()
+            local baseDir = system.pathForFile("", system.DocumentsDirectory)
+            local glDir = baseDir .. "/game_loop_results"
+            local ok, lfs = pcall(require, "lfs")
+            if ok and lfs then lfs.mkdir(glDir) end
+            local f = io.open(glDir .. "/results.txt", "w")
+            if f then
+                for _, sc in ipairs(scenarios) do
+                    f:write(string.format("Scene %s: %s\n", sc.name, sc.label))
+                    local sr = results[sc.label] or {}
+                    for _, r in ipairs(sr) do
+                        if r.customText then
+                            f:write("  " .. r.customText .. "\n")
+                        else
+                            f:write(string.format("  %d: avg=%.1f min=%.1f\n", r.count, r.avg, r.min))
+                        end
+                    end
+                end
+                f:close()
+                print("[Perf] Wrote game_loop_results/results.txt")
+            end
+        end)
 
         -- Upload results to local server (for WiFi devices where syslog is unavailable)
         local reportLines = {}

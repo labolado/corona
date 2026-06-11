@@ -64,7 +64,7 @@ public class GameLoopActivity extends CoronaActivity {
 				} else if (scenarioNumber == 4) {
 					durationMs = 180_000L; // shapes: 5 levels × ~20s + warmup ≈ 2 min
 				} else if (scenarioNumber == 5) {
-					durationMs = 300_000L; // perf: 7 scenes × ~30s ≈ 3.5 min
+					durationMs = 660_000L; // perf: 10 scenes × ~4 levels × ~7s ≈ 11 min
 				}
 			}
 
