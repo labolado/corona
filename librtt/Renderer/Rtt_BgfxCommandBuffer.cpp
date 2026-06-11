@@ -140,6 +140,7 @@ void BgfxCommandBuffer::SetCachedResetFlags(uint32_t flags)
 BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
 :   CommandBuffer( allocator ),
     fCurrentView( 0 ),
+    fMaxFboViewId( 0 ),
     fCurrentGeometry( NULL ),
     fCurrentProgram( NULL ),
     fCurrentVersion( Program::kMaskCount0 ),
@@ -227,6 +228,7 @@ BgfxCommandBuffer::InitializeFBO()
     // bgfx renders views in ascending ID order by default
     fDefaultView = 200;
     fCurrentView = fDefaultView;
+    fMaxFboViewId = 0;
 
     // CRITICAL: Solar2D uses painter's algorithm (draw order = layer order).
     // Without Sequential mode, bgfx may reorder draws by state for performance,
@@ -752,6 +754,10 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
         if( bgfxFbo )
         {
             fCurrentView = bgfxFbo->GetViewId();
+            if( fCurrentView > fMaxFboViewId )
+            {
+                fMaxFboViewId = fCurrentView;
+            }
             bgfx::setViewFrameBuffer( fCurrentView, bgfxFbo->GetHandle() );
             bgfx::setViewMode( fCurrentView, bgfx::ViewMode::Sequential );
             if( cmd.fbo->GetMustClear() )
@@ -1733,12 +1739,14 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
     
-    // CRITICAL: Reset ALL views' framebuffer bindings every frame.
+    // CRITICAL: Reset framebuffer bindings for every FBO view ever used.
     // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
     // from previous scenes cause rendering failures after scene transitions.
-    for( bgfx::ViewId v = 0, numViews = (bgfx::ViewId)bgfx::getCaps()->limits.maxViews; v < numViews; ++v )
+    // fMaxFboViewId is monotonic, so scenes using fewer FBOs still clear
+    // bindings left by scenes that used more.
+    for( uint32_t v = 0; v <= fMaxFboViewId; ++v )
     {
-        bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
+        bgfx::setViewFrameBuffer( (bgfx::ViewId)v, BGFX_INVALID_HANDLE );
     }
 
     // bgfx::reset() invalidates view state and must not happen after offscreen
