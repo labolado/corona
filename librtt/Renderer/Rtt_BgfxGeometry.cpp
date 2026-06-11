@@ -70,6 +70,7 @@ BgfxGeometry::BgfxGeometry()
 	fIsTransient( false ),
 	fHasTransientVB( false ),
 	fHasTransientIB( false ),
+	fPendingGeometry( nullptr ),
 	fVertexCount( 0 ),
 	fIndexCount( 0 ),
 	fInstancesAllocated( 0 ),
@@ -97,6 +98,7 @@ BgfxGeometry::ResetForReuse()
 	fIsTransient = false;
 	fHasTransientVB = false;
 	fHasTransientIB = false;
+	fPendingGeometry = nullptr;
 	fVertexCount = 0;
 	fIndexCount = 0;
 	fInstancesAllocated = 0;
@@ -241,8 +243,9 @@ BgfxGeometry::Create( CPUResource* resource )
 		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (transient): Create" );
 		// Use transient buffers for pool geometries - no persistent GPU allocation needed
 		fIsTransient = true;
-		fVertexCount = geometry->GetVerticesAllocated();
-		UpdateTransient( geometry );
+		fPendingGeometry = geometry;  // defer alloc to SetVertexBuffer
+		fHasTransientVB = false;
+		fHasTransientIB = false;
 	}
 
 	fIndexCount = geometry->GetIndicesAllocated();
@@ -408,7 +411,9 @@ BgfxGeometry::Update( CPUResource* resource )
 
 	if( fIsTransient )
 	{
-		UpdateTransient( geometry );
+		fPendingGeometry = geometry;  // defer alloc to SetVertexBuffer
+		fHasTransientVB = false;
+		fHasTransientIB = false;
 	}
 	else if( fIsDynamic )
 	{
@@ -477,6 +482,7 @@ BgfxGeometry::Destroy()
 		// Transient buffers have no persistent handles to destroy
 		fHasTransientVB = false;
 		fHasTransientIB = false;
+		fPendingGeometry = nullptr;
 	}
 	else if( fIsDynamic )
 	{
@@ -504,6 +510,11 @@ BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 {
 	if( fIsTransient )
 	{
+		if( fPendingGeometry )
+		{
+			UpdateTransient( fPendingGeometry );
+			fPendingGeometry = nullptr;
+		}
 		if( fHasTransientVB )
 		{
 			bgfx::setVertexBuffer( 0, &fTransientVB, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );

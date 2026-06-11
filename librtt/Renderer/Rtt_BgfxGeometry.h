@@ -104,6 +104,7 @@ class BgfxGeometry : public GPUResource
         bool fIsTransient;
         bool fHasTransientVB;
         bool fHasTransientIB = false;
+        Geometry* fPendingGeometry;  // lazy transient: defer alloc to SetVertexBuffer
 
         // State
         U32 fVertexCount;
