@@ -125,10 +125,13 @@ else
         [ "${FORCE_BUILD:-}" = "1" ] && fail "FORCE_BUILD=1 但 bgfx .a 未重编，请先 make android-arm64-release"
     fi
 
-    # FORCE_BUILD=1 时必须 clean，否则 CMake 可能跳过 C++ 重编
+    # FORCE_BUILD=1 时必须彻底清缓存：gradle clean + rm .cxx（CMake native缓存）
+    # 教训(2026-06-11)：:Corona:clean 不清 .cxx，CMake 会复用 stale .o，导致 libcorona.so 不变
     GRADLE_LOG="/tmp/corona-android-gradle-$$.log"
     if [ "${FORCE_BUILD:-}" = "1" ]; then
-        log "  FORCE_BUILD: 执行 clean + assembleRelease"
+        log "  FORCE_BUILD: 清除 .cxx CMake 缓存 + clean + assembleRelease"
+        rm -rf "$CORONA_DIR/platform/android/sdk/.cxx" \
+               "$CORONA_DIR/platform/android/.cxx" 2>/dev/null || true
         ./gradlew :Corona:clean :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
     else
         ./gradlew :Corona:assembleRelease --no-daemon 2>&1 | tee "$GRADLE_LOG" | tail -20
