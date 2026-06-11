@@ -571,26 +571,26 @@ BgfxCommandBuffer::ToBgfxPrimitiveType( Geometry::PrimitiveType type ) const
 void
 BgfxCommandBuffer::SnapshotUniforms( DeferredCmd& cmd )
 {
-    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
     {
-        const UniformUpdate& update = fUniformUpdates[i];
-        if( update.uniform && update.uniform->GetData() )
+        int builtInCount = 0;
+        int builtInOffset = (int)fBuiltInUniformSideTable.size();
+        for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
         {
-            U32 size = update.uniform->GetSizeInBytes();
-            if( size > 64 ) size = 64;  // Safety clamp
-            cmd.uniforms[i].valid = true;
-            cmd.uniforms[i].size = size;
-            memcpy( cmd.uniforms[i].data, update.uniform->GetData(), size );
-            if( size < 16 )
+            const UniformUpdate& update = fUniformUpdates[i];
+            if( update.uniform && update.uniform->GetData() )
             {
-                memset( cmd.uniforms[i].data + size, 0, 16 - size );
+                U32 size = update.uniform->GetSizeInBytes();
+                if( size > 64 ) size = 64;
+                DeferredCmd::BuiltInUniformEntry entry = {};
+                entry.index = (U16)i;
+                entry.size  = (U16)size;
+                memcpy( entry.data, update.uniform->GetData(), size );
+                fBuiltInUniformSideTable.push_back( entry );
+                ++builtInCount;
             }
         }
-        else
-        {
-            cmd.uniforms[i].valid = false;
-            cmd.uniforms[i].size = 0;
-        }
+        cmd.builtInUniformOffset = ( builtInCount > 0 ) ? builtInOffset : -1;
+        cmd.builtInUniformCount  = builtInCount;
     }
 
     // Snapshot pending named uniforms into side table
@@ -958,11 +958,12 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         if ( prog )
         {
             prog->Bind( cmd.programVersion );
-            for ( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+            if( cmd.builtInUniformCount > 0 && cmd.builtInUniformOffset >= 0 )
             {
-                if ( cmd.uniforms[i].valid )
+                for( int i = 0; i < cmd.builtInUniformCount; ++i )
                 {
-                    prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+                    const DeferredCmd::BuiltInUniformEntry& e = fBuiltInUniformSideTable[cmd.builtInUniformOffset + i];
+                    prog->SetUniform( static_cast<Uniform::Name>( e.index ), e.data );
                 }
             }
         }
@@ -1049,13 +1050,25 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     }
 
     // Apply uniforms from snapshot
-    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    if( cmd.builtInUniformCount > 0 && cmd.builtInUniformOffset >= 0 )
     {
-        if( cmd.uniforms[i].valid )
+        for( int i = 0; i < cmd.builtInUniformCount; ++i )
         {
-            prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+            const DeferredCmd::BuiltInUniformEntry& e = fBuiltInUniformSideTable[cmd.builtInUniformOffset + i];
+            prog->SetUniform( static_cast<Uniform::Name>( e.index ), e.data );
         }
     }
+
+    // Helper: find a built-in uniform data pointer by Uniform::Name index
+    auto findBuiltInDraw = [&]( int idx ) -> const Rtt::Real* {
+        if( cmd.builtInUniformOffset < 0 ) return nullptr;
+        for( int j = 0; j < cmd.builtInUniformCount; ++j )
+        {
+            if( fBuiltInUniformSideTable[cmd.builtInUniformOffset + j].index == (U16)idx )
+                return reinterpret_cast<const Rtt::Real*>( fBuiltInUniformSideTable[cmd.builtInUniformOffset + j].data );
+        }
+        return nullptr;
+    };
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
@@ -1129,12 +1142,9 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
             bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
         }
 
-        const Rtt::Real* m0 = cmd.uniforms[Uniform::kMaskMatrix0].valid
-            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix0].data ) : NULL;
-        const Rtt::Real* m1 = cmd.uniforms[Uniform::kMaskMatrix1].valid
-            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix1].data ) : NULL;
-        const Rtt::Real* m2 = cmd.uniforms[Uniform::kMaskMatrix2].valid
-            ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix2].data ) : NULL;
+        const Rtt::Real* m0 = findBuiltInDraw( Uniform::kMaskMatrix0 );
+        const Rtt::Real* m1 = findBuiltInDraw( Uniform::kMaskMatrix1 );
+        const Rtt::Real* m2 = findBuiltInDraw( Uniform::kMaskMatrix2 );
 
         if( geo->StoredOnGPU() && ( m0 || m1 || m2 ) )
         {
@@ -1227,13 +1237,25 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
     }
 
     // Apply uniforms from snapshot
-    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    if( cmd.builtInUniformCount > 0 && cmd.builtInUniformOffset >= 0 )
     {
-        if( cmd.uniforms[i].valid )
+        for( int i = 0; i < cmd.builtInUniformCount; ++i )
         {
-            prog->SetUniform( static_cast<Uniform::Name>( i ), cmd.uniforms[i].data );
+            const DeferredCmd::BuiltInUniformEntry& e = fBuiltInUniformSideTable[cmd.builtInUniformOffset + i];
+            prog->SetUniform( static_cast<Uniform::Name>( e.index ), e.data );
         }
     }
+
+    // Helper: find a built-in uniform data pointer by Uniform::Name index
+    auto findBuiltInIdx = [&]( int idx ) -> const Rtt::Real* {
+        if( cmd.builtInUniformOffset < 0 ) return nullptr;
+        for( int j = 0; j < cmd.builtInUniformCount; ++j )
+        {
+            if( fBuiltInUniformSideTable[cmd.builtInUniformOffset + j].index == (U16)idx )
+                return reinterpret_cast<const Rtt::Real*>( fBuiltInUniformSideTable[cmd.builtInUniformOffset + j].data );
+        }
+        return nullptr;
+    };
 
     // Set texture flags (alpha texture swizzle)
     SetTexFlagsUniform( prog, cmd );
@@ -1298,12 +1320,9 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         // unnecessary work.
         if( geo->StoredOnGPU() )
         {
-            const Rtt::Real* m0 = cmd.uniforms[Uniform::kMaskMatrix0].valid
-                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix0].data ) : NULL;
-            const Rtt::Real* m1 = cmd.uniforms[Uniform::kMaskMatrix1].valid
-                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix1].data ) : NULL;
-            const Rtt::Real* m2 = cmd.uniforms[Uniform::kMaskMatrix2].valid
-                ? reinterpret_cast<const Rtt::Real*>( cmd.uniforms[Uniform::kMaskMatrix2].data ) : NULL;
+            const Rtt::Real* m0 = findBuiltInIdx( Uniform::kMaskMatrix0 );
+            const Rtt::Real* m1 = findBuiltInIdx( Uniform::kMaskMatrix1 );
+            const Rtt::Real* m2 = findBuiltInIdx( Uniform::kMaskMatrix2 );
             if( m0 || m1 || m2 )
             {
                 BakeStoredGeometryMaskUVs( reinterpret_cast<Geometry::Vertex*>( tvb.data ), vertexCount, m0, m1, m2 );
@@ -1666,11 +1685,12 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     if( !bgfx::isValid( programHandle ) ) return 0;
 
     // Apply uniforms from first command (same for all batchable draws)
-    for( U32 i = 0; i < Uniform::kNumBuiltInVariables; ++i )
+    if( first.builtInUniformCount > 0 && first.builtInUniformOffset >= 0 )
     {
-        if( first.uniforms[i].valid )
+        for( int i = 0; i < first.builtInUniformCount; ++i )
         {
-            prog->SetUniform( static_cast<Uniform::Name>( i ), first.uniforms[i].data );
+            const DeferredCmd::BuiltInUniformEntry& e = fBuiltInUniformSideTable[first.builtInUniformOffset + i];
+            prog->SetUniform( static_cast<Uniform::Name>( e.index ), e.data );
         }
     }
 
@@ -1903,6 +1923,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
     fNamedUniformSideTable.clear();
+    fBuiltInUniformSideTable.clear();
 
     // Reset instance data for next frame
     fInstanceCount = 0;
