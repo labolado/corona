@@ -250,6 +250,7 @@ class BgfxCommandBuffer : public CommandBuffer
         bgfx::ViewId fDefaultView;
         bgfx::ViewId fCurrentView;
         bgfx::ViewId fMaxFboViewId;
+        bool fSkipCurrentFbo;
 
         // Cached params
         S32 fCachedQuery[kNumQueryableParams];

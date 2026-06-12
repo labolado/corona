@@ -39,6 +39,7 @@ class BgfxFrameBufferObject : public GPUResource
 		bgfx::FrameBufferHandle GetHandle() const { return fHandle; }
 		bgfx::TextureHandle GetTextureHandle() const { return fTextureHandle; }
 		bgfx::ViewId GetViewId() const { return fViewId; }
+		bool IsActive() const { return fViewId != 0 && bgfx::isValid( fHandle ); }
 
 		static bool HasFramebufferBlit( bool* canScale );
 		static void Blit( 
@@ -70,8 +71,10 @@ class BgfxFrameBufferObject : public GPUResource
 		static unsigned int sDestroyCount;
 		static unsigned int sCreateFailCount;
 		static unsigned int sExhaustCount;
-		static bool sLoggedViewIdExhausted;
+		static unsigned int sDegradedCount;
+		static bool sLoggedDegraded;
 		static bool IsDiagEnabled();
+		static void RecordDegradedFbo( const char* reason );
 };
 
 // ----------------------------------------------------------------------------

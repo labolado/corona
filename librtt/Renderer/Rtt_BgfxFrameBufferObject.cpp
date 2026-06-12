@@ -49,7 +49,8 @@ unsigned int BgfxFrameBufferObject::sCreateCount = 0;
 unsigned int BgfxFrameBufferObject::sDestroyCount = 0;
 unsigned int BgfxFrameBufferObject::sCreateFailCount = 0;
 unsigned int BgfxFrameBufferObject::sExhaustCount = 0;
-bool BgfxFrameBufferObject::sLoggedViewIdExhausted = false;
+unsigned int BgfxFrameBufferObject::sDegradedCount = 0;
+bool BgfxFrameBufferObject::sLoggedDegraded = false;
 
 bool
 BgfxFrameBufferObject::IsDiagEnabled()
@@ -72,12 +73,24 @@ BgfxFrameBufferObject::AllocateViewId()
 	}
 
 	++sExhaustCount;
-	if( ! sLoggedViewIdExhausted )
+	return 0;
+}
+
+void
+BgfxFrameBufferObject::RecordDegradedFbo( const char* reason )
+{
+	++sDegradedCount;
+	if( ! sLoggedDegraded )
 	{
-		Rtt_LogException( "bgfx: Out of FBO view IDs; reusing view %u as a non-zero fallback.\n", kMaxViewId );
-		sLoggedViewIdExhausted = true;
+		Rtt_LogException( "WARNING: bgfx FBO capacity reached; skipping additional offscreen passes (reason=%s, creates=%u, active=%u, peak=%u, createFailures=%u, viewExhausts=%u).\n",
+			reason ? reason : "unknown",
+			sCreateCount,
+			sLiveCount,
+			sPeakLiveCount,
+			sCreateFailCount,
+			sExhaustCount );
+		sLoggedDegraded = true;
 	}
-	return kMaxViewId;
 }
 
 void
@@ -105,7 +118,8 @@ BgfxFrameBufferObject::ResetViewIdAllocator()
 	sDestroyCount = 0;
 	sCreateFailCount = 0;
 	sExhaustCount = 0;
-	sLoggedViewIdExhausted = false;
+	sDegradedCount = 0;
+	sLoggedDegraded = false;
 }
 
 BgfxFrameBufferObject::BgfxFrameBufferObject()
@@ -142,10 +156,22 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 	// Allocate a view ID for this FBO
 	fViewId = AllocateViewId();
 	++sCreateCount;
-	++sLiveCount;
-	if( sLiveCount > sPeakLiveCount )
+	if( fViewId == 0 )
 	{
-		sPeakLiveCount = sLiveCount;
+		RecordDegradedFbo( "view IDs exhausted" );
+		if( IsDiagEnabled() )
+		{
+			Rtt_LogException( "BGFX_FBO_DIAG create count=%u live=%u peak=%u valid=0 texture=%u view=0 next=%u failures=%u exhausts=%u degraded=%u\n",
+				sCreateCount,
+				sLiveCount,
+				sPeakLiveCount,
+				fTextureHandle.idx,
+				sNextViewId,
+				sCreateFailCount,
+				sExhaustCount,
+				sDegradedCount );
+		}
+		return;
 	}
 
 	// Create framebuffer from texture handle
@@ -155,11 +181,18 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 	if( !bgfx::isValid( fHandle ) )
 	{
 		++sCreateFailCount;
-		Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
-			fTextureHandle.idx, fViewId );
+		RecordDegradedFbo( "framebuffer creation failed" );
+		ReleaseViewId( fViewId );
+		fViewId = 0;
 	}
 	else
 	{
+		++sLiveCount;
+		if( sLiveCount > sPeakLiveCount )
+		{
+			sPeakLiveCount = sLiveCount;
+		}
+
 		// Clear FBO to transparent immediately after creation.
 		// Metal FBO textures default to alpha=1.0; without this,
 		// dropshadow blur/shadow FBOs sample solid alpha and
@@ -178,7 +211,7 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 
 	if( IsDiagEnabled() )
 	{
-		Rtt_LogException( "BGFX_FBO_DIAG create count=%u live=%u peak=%u valid=%u texture=%u view=%u next=%u failures=%u exhausts=%u\n",
+		Rtt_LogException( "BGFX_FBO_DIAG create count=%u live=%u peak=%u valid=%u texture=%u view=%u next=%u failures=%u exhausts=%u degraded=%u\n",
 			sCreateCount,
 			sLiveCount,
 			sPeakLiveCount,
@@ -187,7 +220,8 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 			fViewId,
 			sNextViewId,
 			sCreateFailCount,
-			sExhaustCount );
+			sExhaustCount,
+			sDegradedCount );
 	}
 }
 
@@ -211,19 +245,8 @@ BgfxFrameBufferObject::Update( CPUResource* resource )
 	// If texture handle changed, recreate framebuffer
 	if( newTextureHandle.idx != fTextureHandle.idx )
 	{
-		if( bgfx::isValid( fHandle ) )
-		{
-			bgfx::destroy( fHandle );
-		}
-
-		fTextureHandle = newTextureHandle;
-		fHandle = bgfx::createFrameBuffer( 1, &fTextureHandle, false );
-
-		if( !bgfx::isValid( fHandle ) )
-		{
-			Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED during FBO update (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
-				fTextureHandle.idx, fViewId );
-		}
+		Destroy();
+		Create( resource );
 	}
 }
 
@@ -237,7 +260,7 @@ BgfxFrameBufferObject::Destroy()
 	// to a destroyed framebuffer handle.
 	if( fViewId != 0 )
 	{
-		if( sLiveCount > 0 )
+		if( bgfx::isValid( fHandle ) && sLiveCount > 0 )
 		{
 			--sLiveCount;
 		}
@@ -245,14 +268,15 @@ BgfxFrameBufferObject::Destroy()
 		bgfx::setViewFrameBuffer( fViewId, BGFX_INVALID_HANDLE );
 		if( IsDiagEnabled() )
 		{
-			Rtt_LogException( "BGFX_FBO_DIAG destroy count=%u live=%u peak=%u view=%u next=%u failures=%u exhausts=%u\n",
+			Rtt_LogException( "BGFX_FBO_DIAG destroy count=%u live=%u peak=%u view=%u next=%u failures=%u exhausts=%u degraded=%u\n",
 				sDestroyCount,
 				sLiveCount,
 				sPeakLiveCount,
 				fViewId,
 				sNextViewId,
 				sCreateFailCount,
-				sExhaustCount );
+				sExhaustCount,
+				sDegradedCount );
 		}
 		ReleaseViewId( fViewId );
 		fViewId = 0;
@@ -275,7 +299,7 @@ BgfxFrameBufferObject::Bind( bool asDrawBuffer )
 {
 	// In bgfx, we use setViewFrameBuffer to bind a framebuffer to a view
 	// The view ID is determined by the FBO
-	if( bgfx::isValid( fHandle ) )
+	if( IsActive() )
 	{
 		bgfx::setViewFrameBuffer( fViewId, fHandle );
 	}

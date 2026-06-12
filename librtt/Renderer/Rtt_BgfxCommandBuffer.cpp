@@ -158,6 +158,7 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fClearDepth( 1.0f ),
     fClearStencil( 0 ),
     fDefaultView( 0 ),
+    fSkipCurrentFbo( false ),
     fCustomCommands( allocator ),
     fInstanceCount( 0 ),
     fInstanceData( NULL ),
@@ -229,6 +230,7 @@ BgfxCommandBuffer::InitializeFBO()
     fDefaultView = 200;
     fCurrentView = fDefaultView;
     fMaxFboViewId = 0;
+    fSkipCurrentFbo = false;
 
     // CRITICAL: Solar2D uses painter's algorithm (draw order = layer order).
     // Without Sequential mode, bgfx may reorder draws by state for performance,
@@ -747,11 +749,12 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
 void
 BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 {
+    fSkipCurrentFbo = false;
     if( cmd.fbo && CPUResource::IsAlive(cmd.fbo) )
     {
         void* gpuRes = cmd.fbo->GetGPUResource();
         BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
-        if( bgfxFbo )
+        if( bgfxFbo && bgfxFbo->IsActive() )
         {
             fCurrentView = bgfxFbo->GetViewId();
             if( fCurrentView > fMaxFboViewId )
@@ -777,6 +780,11 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
                 bgfx::setViewClear( fCurrentView, BGFX_CLEAR_NONE );
             }
         }
+        else
+        {
+            fCurrentView = fDefaultView;
+            fSkipCurrentFbo = true;
+        }
     }
     else
     {
@@ -787,6 +795,11 @@ BgfxCommandBuffer::ExecuteBindFBO( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
 {
+    if( fSkipCurrentFbo )
+    {
+        return;
+    }
+
     if( fCurrentView == fDefaultView
         && ( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged ) )
     {
@@ -822,6 +835,11 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
 {
+    if( fSkipCurrentFbo )
+    {
+        return;
+    }
+
     uint32_t rgba = ( static_cast<uint32_t>( cmd.clearR * 255.0f ) << 24 ) |
                     ( static_cast<uint32_t>( cmd.clearG * 255.0f ) << 16 ) |
                     ( static_cast<uint32_t>( cmd.clearB * 255.0f ) << 8 ) |
@@ -942,6 +960,11 @@ BgfxCommandBuffer::ClearUniformCache()
 void
 BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 {
+    if( fSkipCurrentFbo )
+    {
+        return;
+    }
+
     // (diagnostic removed - texture binding verified correct)
 
     // GPU instancing path (BatchObject)
@@ -1189,6 +1212,11 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 {
+    if( fSkipCurrentFbo )
+    {
+        return;
+    }
+
     if ( !cmd.geometry || !CPUResource::IsAlive(cmd.geometry) )
     {
         return;
@@ -1341,6 +1369,11 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
 void
 BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
 {
+    if( fSkipCurrentFbo )
+    {
+        return;
+    }
+
     // Get the destination texture from the capture FBO
     BgfxFrameBufferObject* dstFbo = NULL;
     bgfx::TextureHandle dstTexHandle = BGFX_INVALID_HANDLE;
@@ -1350,7 +1383,7 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
     {
         void* gpuRes = cmd.captureFbo->GetGPUResource();
         dstFbo = static_cast<BgfxFrameBufferObject*>( gpuRes );
-        if( dstFbo )
+        if( dstFbo && dstFbo->IsActive() )
         {
             dstTexHandle = dstFbo->GetTextureHandle();
             blitView = dstFbo->GetViewId();
@@ -1497,6 +1530,7 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
 size_t
 BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 {
+    if( fSkipCurrentFbo ) return 0;
     if( !sBatchingEnabled ) return 0;
 
     const DeferredCmd& first = fDeferredCmds[startIdx];
@@ -1850,6 +1884,11 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             case DeferredCmd::kDraw:
             case DeferredCmd::kDrawIndexed:
             {
+                if( fSkipCurrentFbo )
+                {
+                    break;
+                }
+
                 sBatchStats.totalDrawCmds++;
                 if( cmd.type == DeferredCmd::kDraw )
                     sBatchStats.drawCount++;

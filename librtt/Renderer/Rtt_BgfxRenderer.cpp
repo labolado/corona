@@ -839,7 +839,7 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
 
     // Get the FBO's texture handle
     BgfxFrameBufferObject* bgfxFbo = static_cast<BgfxFrameBufferObject*>( fbo->GetGPUResource() );
-    if( !bgfxFbo )
+    if( !bgfxFbo || !bgfxFbo->IsActive() )
     {
         return;
     }
