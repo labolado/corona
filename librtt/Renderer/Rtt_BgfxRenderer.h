@@ -72,6 +72,7 @@ protected:
 
     // Pool BgfxGeometry instances instead of delete on every destroy
     virtual void ReleaseGPUResource( GPUResource* resource );
+    virtual void OnReleaseGPUResources() override;
 
 private:
     void InitCaps();

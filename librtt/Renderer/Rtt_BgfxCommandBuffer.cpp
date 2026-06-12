@@ -1996,13 +1996,13 @@ BgfxCommandBuffer::WriteNamedUniform( const char * uniformName, const void * dat
 bgfx::ViewId
 BgfxCommandBuffer::AllocateViewId()
 {
-    if( sNextViewId < 255 )
+    if( sNextViewId <= 255 )
     {
         return sNextViewId++;
     }
 
     Rtt_LogException( "bgfx: Out of view IDs!\n" );
-    return 0;
+    return 255;
 }
 
 // ----------------------------------------------------------------------------

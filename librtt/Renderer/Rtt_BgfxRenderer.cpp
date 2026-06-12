@@ -1050,6 +1050,12 @@ BgfxRenderer::ReleaseGPUResource( GPUResource* resource )
     }
 }
 
+void
+BgfxRenderer::OnReleaseGPUResources()
+{
+    BgfxFrameBufferObject::ResetViewIdAllocator();
+}
+
 GPUResource*
 BgfxRenderer::Create(const CPUResource* resource)
 {

@@ -323,6 +323,10 @@ class Renderer
         // Subclasses may override to pool and reuse instances.
         virtual void ReleaseGPUResource( GPUResource* resource );
 
+        // Called after ReleaseGPUResources() has destroyed all known GPU
+        // resources, allowing backend-specific static allocators to reset.
+        virtual void OnReleaseGPUResources() {}
+
         // Derived classes must use this function to provide platform specific
         // and rendering API specific GPUResources.
         virtual GPUResource* Create( const CPUResource* resource ) = 0;

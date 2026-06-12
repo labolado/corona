@@ -20,6 +20,8 @@
 
 #include "Rtt_Profiling.h"
 
+#include <stdlib.h>
+
 // ----------------------------------------------------------------------------
 
 #define ENABLE_DEBUG_PRINT	0
@@ -39,25 +41,71 @@ namespace Rtt
 
 // Static members
 bgfx::ViewId BgfxFrameBufferObject::sNextViewId = 1; // Start at 1, reserve 0 for default
+bgfx::ViewId BgfxFrameBufferObject::sFreeViewIds[BgfxFrameBufferObject::kMaxFreeViewIds] = {};
+unsigned int BgfxFrameBufferObject::sFreeViewIdCount = 0;
+unsigned int BgfxFrameBufferObject::sLiveCount = 0;
+unsigned int BgfxFrameBufferObject::sPeakLiveCount = 0;
+unsigned int BgfxFrameBufferObject::sCreateCount = 0;
+unsigned int BgfxFrameBufferObject::sDestroyCount = 0;
+unsigned int BgfxFrameBufferObject::sCreateFailCount = 0;
+unsigned int BgfxFrameBufferObject::sExhaustCount = 0;
+bool BgfxFrameBufferObject::sLoggedViewIdExhausted = false;
+
+bool
+BgfxFrameBufferObject::IsDiagEnabled()
+{
+	const char* value = getenv( "BGFX_FBO_DIAG" );
+	return value && value[0] && value[0] != '0';
+}
 
 bgfx::ViewId
 BgfxFrameBufferObject::AllocateViewId()
 {
-	// Allocate next available view ID (bgfx supports 0-255)
-	// RISK: sNextViewId never resets on resume. After ReleaseGPUResources() + FBO
-	// recreation, old view IDs are leaked. Wraparound at 255 prevents crash, but
-	// after many resume cycles, IDs may collide with deferred command state.
-	// Fix if needed: reset sNextViewId in ReleaseGPUResources().
-	bgfx::ViewId id = sNextViewId;
-	if( sNextViewId < 255 )
+	if( sFreeViewIdCount > 0 )
 	{
-		sNextViewId++;
+		return sFreeViewIds[--sFreeViewIdCount];
 	}
-	else
+
+	if( sNextViewId <= kMaxViewId )
 	{
-		sNextViewId = 1;
+		return sNextViewId++;
 	}
-	return id;
+
+	++sExhaustCount;
+	if( ! sLoggedViewIdExhausted )
+	{
+		Rtt_LogException( "bgfx: Out of FBO view IDs; reusing view %u as a non-zero fallback.\n", kMaxViewId );
+		sLoggedViewIdExhausted = true;
+	}
+	return kMaxViewId;
+}
+
+void
+BgfxFrameBufferObject::ReleaseViewId( bgfx::ViewId viewId )
+{
+	if( viewId < kFirstViewId || viewId > kMaxViewId )
+	{
+		return;
+	}
+
+	if( sFreeViewIdCount < kMaxFreeViewIds )
+	{
+		sFreeViewIds[sFreeViewIdCount++] = viewId;
+	}
+}
+
+void
+BgfxFrameBufferObject::ResetViewIdAllocator()
+{
+	sNextViewId = kFirstViewId;
+	sFreeViewIdCount = 0;
+	sLiveCount = 0;
+	sPeakLiveCount = 0;
+	sCreateCount = 0;
+	sDestroyCount = 0;
+	sCreateFailCount = 0;
+	sExhaustCount = 0;
+	sLoggedViewIdExhausted = false;
 }
 
 BgfxFrameBufferObject::BgfxFrameBufferObject()
@@ -93,6 +141,12 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 
 	// Allocate a view ID for this FBO
 	fViewId = AllocateViewId();
+	++sCreateCount;
+	++sLiveCount;
+	if( sLiveCount > sPeakLiveCount )
+	{
+		sPeakLiveCount = sLiveCount;
+	}
 
 	// Create framebuffer from texture handle
 	// destroyTextures = false - texture is managed by BgfxTexture
@@ -100,6 +154,7 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 
 	if( !bgfx::isValid( fHandle ) )
 	{
+		++sCreateFailCount;
 		Rtt_LogException( "ERROR: BgfxFrameBufferObject create FAILED (textureHandle.idx=%u, viewId=%u). Offscreen rendering will be black.\n",
 			fTextureHandle.idx, fViewId );
 	}
@@ -120,6 +175,20 @@ BgfxFrameBufferObject::Create( CPUResource* resource )
 				__FUNCTION__,
 				fHandle.idx,
 				fViewId );
+
+	if( IsDiagEnabled() )
+	{
+		Rtt_LogException( "BGFX_FBO_DIAG create count=%u live=%u peak=%u valid=%u texture=%u view=%u next=%u failures=%u exhausts=%u\n",
+			sCreateCount,
+			sLiveCount,
+			sPeakLiveCount,
+			bgfx::isValid( fHandle ) ? 1 : 0,
+			fTextureHandle.idx,
+			fViewId,
+			sNextViewId,
+			sCreateFailCount,
+			sExhaustCount );
+	}
 }
 
 void
@@ -168,7 +237,24 @@ BgfxFrameBufferObject::Destroy()
 	// to a destroyed framebuffer handle.
 	if( fViewId != 0 )
 	{
+		if( sLiveCount > 0 )
+		{
+			--sLiveCount;
+		}
+		++sDestroyCount;
 		bgfx::setViewFrameBuffer( fViewId, BGFX_INVALID_HANDLE );
+		if( IsDiagEnabled() )
+		{
+			Rtt_LogException( "BGFX_FBO_DIAG destroy count=%u live=%u peak=%u view=%u next=%u failures=%u exhausts=%u\n",
+				sDestroyCount,
+				sLiveCount,
+				sPeakLiveCount,
+				fViewId,
+				sNextViewId,
+				sCreateFailCount,
+				sExhaustCount );
+		}
+		ReleaseViewId( fViewId );
 		fViewId = 0;
 	}
 

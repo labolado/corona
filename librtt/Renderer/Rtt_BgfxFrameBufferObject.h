@@ -52,6 +52,7 @@ class BgfxFrameBufferObject : public GPUResource
 			U16 width,
 			U16 height
 		);
+		static void ResetViewIdAllocator();
 
 	private:
 		bgfx::FrameBufferHandle fHandle;
@@ -59,6 +60,18 @@ class BgfxFrameBufferObject : public GPUResource
 		bgfx::ViewId fViewId;
 		static bgfx::ViewId sNextViewId;
 		static bgfx::ViewId AllocateViewId();
+		static void ReleaseViewId( bgfx::ViewId viewId );
+		enum { kFirstViewId = 1, kMaxViewId = 255, kMaxFreeViewIds = kMaxViewId - kFirstViewId + 1 };
+		static bgfx::ViewId sFreeViewIds[kMaxFreeViewIds];
+		static unsigned int sFreeViewIdCount;
+		static unsigned int sLiveCount;
+		static unsigned int sPeakLiveCount;
+		static unsigned int sCreateCount;
+		static unsigned int sDestroyCount;
+		static unsigned int sCreateFailCount;
+		static unsigned int sExhaustCount;
+		static bool sLoggedViewIdExhausted;
+		static bool IsDiagEnabled();
 };
 
 // ----------------------------------------------------------------------------

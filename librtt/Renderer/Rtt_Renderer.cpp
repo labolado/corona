@@ -1300,6 +1300,8 @@ Renderer::ReleaseGPUResources()
 
     // Destroy all orphaned GPU resources that have been queued for deletion.
     DestroyQueuedGPUResources();
+
+    OnReleaseGPUResources();
 }
 
 void
