@@ -243,9 +243,17 @@ BgfxGeometry::Create( CPUResource* resource )
 		SUMMED_TIMING( bgfxgc, "Bgfx Geometry GPU Resource (transient): Create" );
 		// Use transient buffers for pool geometries - no persistent GPU allocation needed
 		fIsTransient = true;
-		fPendingGeometry = geometry;  // defer alloc to SetVertexBuffer
-		fHasTransientVB = false;
-		fHasTransientIB = false;
+		if( bgfx::getCaps()->rendererType == bgfx::RendererType::Vulkan )
+		{
+			fVertexCount = geometry->GetVerticesAllocated();
+			UpdateTransient( geometry );  // Vulkan: eager alloc (baseline behavior)
+		}
+		else
+		{
+			fPendingGeometry = geometry;  // GLES: lazy alloc to SetVertexBuffer
+			fHasTransientVB = false;
+			fHasTransientIB = false;
+		}
 	}
 
 	fIndexCount = geometry->GetIndicesAllocated();
@@ -411,9 +419,16 @@ BgfxGeometry::Update( CPUResource* resource )
 
 	if( fIsTransient )
 	{
-		fPendingGeometry = geometry;  // defer alloc to SetVertexBuffer
-		fHasTransientVB = false;
-		fHasTransientIB = false;
+		if( bgfx::getCaps()->rendererType == bgfx::RendererType::Vulkan )
+		{
+			UpdateTransient( geometry );  // Vulkan: eager alloc
+		}
+		else
+		{
+			fPendingGeometry = geometry;  // GLES: lazy alloc
+			fHasTransientVB = false;
+			fHasTransientIB = false;
+		}
 	}
 	else if( fIsDynamic )
 	{
