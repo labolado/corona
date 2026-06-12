@@ -1744,9 +1744,18 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // from previous scenes cause rendering failures after scene transitions.
     // fMaxFboViewId is monotonic, so scenes using fewer FBOs still clear
     // bindings left by scenes that used more.
-    for( uint32_t v = 0; v <= fMaxFboViewId; ++v )
+    // Vulkan: bisect shows high-water-mark reset causes regression on Adreno 730; use full reset
+    // GLES: high-water-mark is safe and faster
+    if( bgfx::getCaps()->rendererType == bgfx::RendererType::Vulkan )
     {
-        bgfx::setViewFrameBuffer( (bgfx::ViewId)v, BGFX_INVALID_HANDLE );
+        bgfx::ViewId numViews = (bgfx::ViewId)bgfx::getCaps()->limits.maxViews;
+        for( bgfx::ViewId v = 0; v < numViews; ++v )
+            bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
+    }
+    else
+    {
+        for( uint32_t v = 0; v <= fMaxFboViewId; ++v )
+            bgfx::setViewFrameBuffer( (bgfx::ViewId)v, BGFX_INVALID_HANDLE );
     }
 
     // bgfx::reset() invalidates view state and must not happen after offscreen
