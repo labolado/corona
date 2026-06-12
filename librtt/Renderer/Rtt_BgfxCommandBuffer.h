@@ -75,15 +75,14 @@ struct DeferredCmd
     float captureRawXMin, captureRawYMin, captureRawXMax, captureRawYMax;
     U32 captureTexW, captureTexH;
 
-    // Built-in uniform side-table entry (mirrors named uniform pattern)
-    struct BuiltInUniformEntry
+    // Uniform snapshots (copied values, not pointers)
+    struct UniformSnapshot
     {
-        U16 index;   // Uniform::Name enum value
-        U16 size;    // byte size of data
-        U8 data[68]; // Max: Mat4 = 16 floats = 64 bytes (+ 4 pad to align)
+        bool valid;
+        U32 size;
+        U8 data[64]; // Max: Mat4 = 16 floats = 64 bytes
     };
-    int builtInUniformOffset; // index into BgfxCommandBuffer::fBuiltInUniformSideTable, -1 if none
-    int builtInUniformCount;  // number of valid built-in uniforms in side table
+    UniformSnapshot uniforms[Uniform::kNumBuiltInVariables];
 
     // Named uniform snapshots (for custom effects via WriteNamedUniform)
     // Stored in a side table (BgfxCommandBuffer::fNamedUniformSideTable) to keep
@@ -292,9 +291,6 @@ class BgfxCommandBuffer : public CommandBuffer
 
         // Side table for named uniform data (indexed by DeferredCmd::namedUniformOffset)
         std::vector<DeferredCmd::NamedUniformSnapshot> fNamedUniformSideTable;
-
-        // Side table for built-in uniform data (indexed by DeferredCmd::builtInUniformOffset)
-        std::vector<DeferredCmd::BuiltInUniformEntry> fBuiltInUniformSideTable;
 
         // Named uniform handle cache (avoids create/destroy per draw in ApplyNamedUniforms)
         static std::unordered_map<std::string, bgfx::UniformHandle> sUniformHandleCache;
