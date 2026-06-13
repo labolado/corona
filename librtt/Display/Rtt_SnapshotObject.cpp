@@ -35,6 +35,8 @@
 
 #include "Display/Rtt_ClosedPath.h"
 
+#include <stdlib.h>
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -44,6 +46,18 @@ namespace Rtt
 
 // static const char kGroupString[] = "group";
 static const char kCanvasString[] = "canvas";
+
+static bool
+IsSnapshotRerenderDiagEnabled()
+{
+	static int sEnabled = -1;
+	if ( sEnabled < 0 )
+	{
+		const char *value = getenv( "E1A_SNAPSHOT_RERENDER_DIAG" );
+		sEnabled = value && value[0] && value[0] != '0';
+	}
+	return sEnabled != 0;
+}
 
 SnapshotObject::RenderFlag
 SnapshotObject::RenderFlagForString( const char *str )
@@ -422,6 +436,10 @@ SnapshotObject::Draw( Renderer& renderer ) const
 	{
 		SUMMED_TIMING( srg, "Snapshot: Render Group" );
 
+		if ( IsSnapshotRerenderDiagEnabled() )
+		{
+			Rtt_LogException( "[E1A_SNAPSHOT_RERENDER] kind=group snapshot=%p\n", this );
+		}
 		DrawGroup( renderer, GetGroup(), & fClearColor );
 	}
 
@@ -429,6 +447,10 @@ SnapshotObject::Draw( Renderer& renderer ) const
 	{
 		SUMMED_TIMING( srg, "Snapshot: Render Canvas" );
 
+		if ( IsSnapshotRerenderDiagEnabled() )
+		{
+			Rtt_LogException( "[E1A_SNAPSHOT_RERENDER] kind=canvas snapshot=%p\n", this );
+		}
 		DrawGroup( renderer, GetCanvas(), NULL );
 
 		// Append/release children of other fCanvas into fGroup
