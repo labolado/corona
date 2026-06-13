@@ -221,6 +221,7 @@ class Renderer
 
 		// bgfx mode: these statics are set by BgfxCommandBuffer::Initialize()
 		static bool sIsBgfxRenderer;
+		static U32 sBgfxContextGeneration;
 		static U32 sBgfxMaxTextureSize;
 		static bool sBgfxSupportsHighPrecision;
 		static const char* sBgfxVendorString;

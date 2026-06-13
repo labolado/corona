@@ -201,6 +201,7 @@ namespace Rtt
 
 // bgfx mode statics for GetMaxTextureSize()
 bool Renderer::sIsBgfxRenderer = false;
+U32 Renderer::sBgfxContextGeneration = 0;
 U32 Renderer::sBgfxMaxTextureSize = 0;
 bool Renderer::sBgfxSupportsHighPrecision = false;
 const char* Renderer::sBgfxVendorString = "";

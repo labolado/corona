@@ -130,7 +130,7 @@ SnapshotObject::SnapshotObject(
 	fOrphanage( * display.Orphanage() ),
 	fDirtyFlags( kDefaultFlag ),
 	fCanvasMode( kDefaultMode ),
-	fLastRenderGeneration( 0 )
+	fLastBgfxContextGeneration( 0 )
 {
 	// At the Lua level, prevent certain operations on fGroup and fCanvas. In particular:
 	// * they cannot be an argument to newParent:insert()
@@ -229,21 +229,13 @@ SnapshotObject::Initialize( lua_State *L, Display& display, Real contentW, Real 
 bool
 SnapshotObject::UpdateTransform( const Matrix& parentToDstSpace )
 {
-	// If the scene's render generation has changed since we last rendered,
-	// force re-render to FBO. This handles scene transitions where a snapshot
-	// may have rendered in a transition frame and cleared its dirty flags,
-	// but needs to re-render when the full scene is drawn in a subsequent frame.
-	const StageObject *stage = GetStage();
-	if ( stage )
+	if ( Renderer::sIsBgfxRenderer )
 	{
-		U32 currentGeneration = stage->GetScene().GetRenderGeneration();
-		if ( fLastRenderGeneration != currentGeneration )
+		U32 contextGeneration = Renderer::sBgfxContextGeneration;
+		if ( fLastBgfxContextGeneration != contextGeneration )
 		{
-			if ( ! IsDirty() )
-			{
-				fDirtyFlags |= kGroupFlag;
-			}
-			fLastRenderGeneration = currentGeneration;
+			fLastBgfxContextGeneration = contextGeneration;
+			const_cast< SnapshotObject * >( this )->SetDirty( kDefaultFlag );
 		}
 	}
 
@@ -564,4 +556,3 @@ SnapshotObject::SetTextureWrapY( RenderTypes::TextureWrap newValue )
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

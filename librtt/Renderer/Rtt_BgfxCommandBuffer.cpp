@@ -118,6 +118,7 @@ void BgfxCommandBuffer::FlushPlatformDataChange()
         Rtt_LogException("FlushPlatformDataChange: forcing bgfx::reset(%d,%d) + frame() BEFORE resource creation",
             sLastBackbufferWidth, sLastBackbufferHeight);
         bgfx::reset(sLastBackbufferWidth, sLastBackbufferHeight, sResetFlags);
+        ++Renderer::sBgfxContextGeneration;
         sPlatformDataChanged = false;
         // Submit an empty frame so bgfx fully processes the context change
         // before any new programs/textures are created
@@ -810,6 +811,7 @@ BgfxCommandBuffer::ExecuteSetViewport( const DeferredCmd& cmd )
         // that rely on view state set only once in Initialize().
         // Potential fix: re-apply setViewClear + setViewMode after reset().
         bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
+        ++Renderer::sBgfxContextGeneration;
         sLastBackbufferWidth = cmd.vpW;
         sLastBackbufferHeight = cmd.vpH;
         sPlatformDataChanged = false;
@@ -1808,6 +1810,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             if( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged )
             {
                 bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
+                ++Renderer::sBgfxContextGeneration;
                 sLastBackbufferWidth = cmd.vpW;
                 sLastBackbufferHeight = cmd.vpH;
                 sPlatformDataChanged = false;

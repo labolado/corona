@@ -75,7 +75,6 @@ class Scene
 	public:
 		bool IsValid() const;
 		void Invalidate();
-		U32 GetRenderGeneration() const { return fRenderGeneration; }
 		void Clear( Renderer& renderer );
 		void Render( Renderer& renderer, PlatformSurface& rTarget, ProfilingEntryRAII* profiling = NULL );
 		void Render( Renderer& renderer, PlatformSurface& rTarget, DisplayObject& object );
@@ -105,7 +104,6 @@ class Scene
 		LightPtrArray< LuaUserdataProxy > fProxyOrphanage;
 		bool fIsValid;
 		U8 fCounter; // DO NOT change type --- must be U8
-		U32 fRenderGeneration;
 
 		// IMPORTANT: The purpose of this set is to iterate over all active
 		// MUpdatable. This class DOESN'T own these MUpdatable.
