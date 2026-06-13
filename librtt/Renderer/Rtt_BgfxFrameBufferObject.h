@@ -62,7 +62,7 @@ class BgfxFrameBufferObject : public GPUResource
 		static bgfx::ViewId sNextViewId;
 		static bgfx::ViewId AllocateViewId();
 		static void ReleaseViewId( bgfx::ViewId viewId );
-		enum { kFirstViewId = 1, kMaxViewId = 255, kMaxFreeViewIds = kMaxViewId - kFirstViewId + 1 };
+		enum { kFirstViewId = 1, kDefaultViewId = 200, kMaxViewId = 255, kMaxFreeViewIds = kMaxViewId - kFirstViewId + 1 };
 		static bgfx::ViewId sFreeViewIds[kMaxFreeViewIds];
 		static unsigned int sFreeViewIdCount;
 		static unsigned int sLiveCount;

@@ -62,11 +62,20 @@ BgfxFrameBufferObject::IsDiagEnabled()
 bgfx::ViewId
 BgfxFrameBufferObject::AllocateViewId()
 {
-	if( sFreeViewIdCount > 0 )
+	while( sFreeViewIdCount > 0 )
 	{
-		return sFreeViewIds[--sFreeViewIdCount];
+		bgfx::ViewId viewId = sFreeViewIds[--sFreeViewIdCount];
+		if( viewId != kDefaultViewId )
+		{
+			return viewId;
+		}
 	}
 
+	// bgfx renderer uses view 200 for the main screen; offscreen FBOs must not hijack it.
+	if( sNextViewId == kDefaultViewId )
+	{
+		++sNextViewId;
+	}
 	if( sNextViewId <= kMaxViewId )
 	{
 		return sNextViewId++;
@@ -96,7 +105,7 @@ BgfxFrameBufferObject::RecordDegradedFbo( const char* reason )
 void
 BgfxFrameBufferObject::ReleaseViewId( bgfx::ViewId viewId )
 {
-	if( viewId < kFirstViewId || viewId > kMaxViewId )
+	if( viewId < kFirstViewId || viewId > kMaxViewId || viewId == kDefaultViewId )
 	{
 		return;
 	}
