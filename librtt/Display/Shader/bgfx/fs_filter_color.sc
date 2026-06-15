@@ -60,7 +60,20 @@ void main()
         texColor = vec4(0.0, 0.0, 0.0, texColor.r);
     }
 
-    vec4 result = texColor * v_ColorScale;
+    // sRGB-correct alpha blending (#30): decode the perceptual fill/vertex color
+    // to linear when enabled, so tints round-trip and blends are gamma-correct.
+    // v_ColorScale arrives premultiplied (rgb *= a), so un-premultiply before the
+    // sRGB decode and re-premultiply after; alpha itself stays linear.
+    vec4 colorScale = v_ColorScale;
+    if (u_TexFlags.z > 0.5 && colorScale.a > 0.0)
+    {
+        vec3 unpremult = colorScale.rgb / colorScale.a;
+        unpremult = mix(unpremult / 12.92,
+                        pow((unpremult + 0.055) / 1.055, vec3(2.4)),
+                        step(vec3(0.04045), unpremult));
+        colorScale.rgb = unpremult * colorScale.a;
+    }
+    vec4 result = texColor * colorScale;
 
     if (u_TexFlags.y > 0.5)
         result *= texture2D(u_MaskSampler0, v_MaskUV0).r;
