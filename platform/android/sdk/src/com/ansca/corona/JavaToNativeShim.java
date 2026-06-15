@@ -126,7 +126,11 @@ public class JavaToNativeShim {
 	// Note: Loading a library will NOT automatically load its dependencies. We must do that explicitly here.
     static {
 		System.loadLibrary("lua");
-		System.loadLibrary("jnlua5.1");
+		// Route jnlua5.1 through the shared guarded loader: JNLua's own
+		// DefaultLoader also loads it, and class-load ordering between the two
+		// is not guaranteed. The guard skips whichever call is second, removing
+		// the Bionic "recursive attempt to load library" warning (#50).
+		com.naef.jnlua.NativeSupport.loadLibraryOnce("jnlua5.1");
 		System.loadLibrary("openal");
 		// Certain products include this library(Enterprise, SDK) while other products don't(Cards) so it might not exist
 		try {
