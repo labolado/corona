@@ -24,6 +24,7 @@
 #endif
 
 #include <bgfx_shader.sh>
+#include "srgb_colorscale.sh"
 
 uniform mat4 u_ViewProjectionMatrix;
 
@@ -55,7 +56,7 @@ void main()
     v_TexCoord = vec3(a_texcoord0.xy, 0.0);
 
     // Pass through color scale
-    v_ColorScale = a_color0;
+    v_ColorScale = SRGB_DECODE_COLORSCALE(a_color0);
 
     // Pass through user data, pack q-coordinate into .w for perspective-correct UV.
     v_UserData = vec4(a_texcoord1.xyz, a_texcoord0.z);

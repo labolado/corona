@@ -14,6 +14,7 @@ $output v_TexCoord, v_ColorScale, v_UserData, v_feathering_edges, v_MaskUV0, v_M
 // Filter: iris - Custom Vertex Shader
 
 #include <bgfx_shader.sh>
+#include "srgb_colorscale.sh"
 
 uniform mat4 u_ViewProjectionMatrix;
 uniform mat3 u_MaskMatrix0;
@@ -42,7 +43,7 @@ uniform vec4 u_UserData3;
 void main()
 {
     v_TexCoord = vec3(a_texcoord0.xy, 0.0);
-    v_ColorScale = a_color0;
+    v_ColorScale = SRGB_DECODE_COLORSCALE(a_color0);
     v_UserData = a_texcoord1;
 
     vec2 center = u_UserData0.xy;
