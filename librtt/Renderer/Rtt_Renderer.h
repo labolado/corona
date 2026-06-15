@@ -82,6 +82,13 @@ class Renderer
         // mapping matches GL convention, fixing directional shader operations (shadow offsets).
         static bool s_fboOriginIsTopLeft;
 
+        // Static flag: true when the project opted in to sRGB-correct alpha blending
+        // (config.lua "application.sRGBAlphaBlending = true", #30). Default false keeps
+        // the legacy linear-on-sRGB blend so existing projects look unchanged. Set once
+        // at Display::Initialize before the renderer initializes; read by the texture,
+        // command-buffer and shader paths to pick sRGB texture/backbuffer formats.
+        static bool sSRGBAlphaBlending;
+
         virtual ~Renderer();
 
         // Called once at the start of the application. This function may only

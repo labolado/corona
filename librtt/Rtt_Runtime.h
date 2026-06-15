@@ -334,6 +334,9 @@ class Runtime : public MCallback,
 
 		const char * GetBackend() const { return fBackend; }
 
+		// Opt-in sRGB-correct alpha blending (#30), read from config.lua. Default false.
+		bool IsSRGBAlphaBlendingEnabled() const { return fSRGBAlphaBlending; }
+
 	public:
 		// MCallback
 		virtual void operator()();
@@ -384,7 +387,8 @@ class Runtime : public MCallback,
 		PhysicsWorld *fPhysicsWorld;
 		const char * fBackend;
 		void * fBackendState;
-	
+		bool fSRGBAlphaBlending;
+
 #ifdef Rtt_USE_ALMIXER
 		PlatformOpenALPlayer* fOpenALPlayer;
 #endif

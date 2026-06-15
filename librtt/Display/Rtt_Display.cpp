@@ -270,6 +270,11 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 	{
 		Rtt_Allocator *allocator = GetRuntime().GetAllocator();
 
+		// Push the opt-in sRGB-correct alpha blending flag (#30) to the renderer
+		// subsystem before any renderer is created/initialized, so the texture,
+		// command-buffer and shader paths see it. Default false => unchanged look.
+		Renderer::sSRGBAlphaBlending = GetRuntime().IsSRGBAlphaBlendingEnabled();
+
 #if defined( Rtt_WIN_ENV )
 		if (strcmp( backend, "glBackend" ) == 0)
 		{
