@@ -104,6 +104,7 @@ class Scene
 		LightPtrArray< LuaUserdataProxy > fProxyOrphanage;
 		bool fIsValid;
 		U8 fCounter; // DO NOT change type --- must be U8
+		U8 fSwapWarmup; // bgfx: extra renders to fill all swap-chain buffers (#65)
 
 		// IMPORTANT: The purpose of this set is to iterate over all active
 		// MUpdatable. This class DOESN'T own these MUpdatable.

@@ -57,6 +57,7 @@ Scene::Scene( Rtt_Allocator* pAllocator, Display& owner)
     fProxyOrphanage( owner.GetAllocator() ),
     fIsValid( false ),
     fCounter( 0 ),
+    fSwapWarmup( 3 ),
     fActiveUpdatable()
 {
     fOffscreenStage->SetRenderedOffScreen( true );
@@ -178,6 +179,15 @@ void
 Scene::Invalidate()
 {
     fIsValid = false;
+
+    // bgfx presents through a multi-buffered swap chain (Metal/Vulkan triple
+    // buffer). A single submitted frame fills only one back buffer; if the scene
+    // goes idle immediately after (static one-shot content — snapshots, a single
+    // custom-filter UI screen), the rendered content is never presented and the
+    // screen stays on its init clear color (gray). Re-arm a short warmup so the
+    // content is rendered into every swap-chain buffer before the scene idles.
+    // GL is unaffected (consumed only on the bgfx path in Render). (#65)
+    fSwapWarmup = 3;
 }
 
 void
@@ -286,7 +296,18 @@ Scene::Render( Renderer& renderer, PlatformSurface& rTarget, ProfilingEntryRAII*
         // So only set valid when frame is *in*dependent of time.
         if ( ! renderer.IsFrameTimeDependent() )
         {
-            fIsValid = true;
+            // bgfx: keep the scene invalid for a few extra frames so the rendered
+            // content propagates to every swap-chain buffer before going idle.
+            // Without this, a static one-shot scene presents once and the screen
+            // stays on the init clear color (gray). GL presents immediately. (#65)
+            if ( renderer.IsBgfx() && fSwapWarmup > 0 )
+            {
+                --fSwapWarmup;
+            }
+            else
+            {
+                fIsValid = true;
+            }
         }
         
 		ADD_ENTRY( "Scene: Issue Draw Commands" );
