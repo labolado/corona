@@ -550,8 +550,19 @@ static std::string ReplaceVaryingNames(const std::string& src, const VaryingMapp
         }
         else
         {
-            // Scalar varying: direct name replacement
-            const std::string& slotName = info.slot;
+            // Scalar varying: replace with the slot swizzled to the declared width.
+            // The packed slot (v_CustomN) is always declared vec4. A bare
+            // "v_CustomN = <vec2/vec3/float expr>" assignment — or a narrower-width
+            // read — is a width mismatch that fails shaderc/HLSL compilation, which
+            // silently falls back to the default VS so the varying carries 0 (the
+            // user's vertex→fragment varying never reaches the fragment shader).
+            // Swizzling the slot to the varying's width keeps both the write
+            // (".xy = expr") and the read (".xy.x") contexts valid. (#59)
+            std::string slotName = info.slot;
+            if (info.type == "vec2")       slotName += ".xy";
+            else if (info.type == "vec3")  slotName += ".xyz";
+            else if (info.type == "float") slotName += ".x";
+            // vec4 (and any other type): use the full slot, no swizzle.
             size_t pos = 0;
             while ((pos = result.find(varName, pos)) != std::string::npos)
             {
