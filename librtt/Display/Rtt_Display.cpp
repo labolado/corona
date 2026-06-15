@@ -274,6 +274,14 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 		// subsystem before any renderer is created/initialized, so the texture,
 		// command-buffer and shader paths see it. Default false => unchanged look.
 		Renderer::sSRGBAlphaBlending = GetRuntime().IsSRGBAlphaBlendingEnabled();
+		// Test override (A/B without rebuilding): SOLAR2D_SRGB=1 forces it on.
+		{
+			const char* srgbEnv = getenv( "SOLAR2D_SRGB" );
+			if ( srgbEnv )
+			{
+				Renderer::sSRGBAlphaBlending = ( atoi( srgbEnv ) != 0 );
+			}
+		}
 
 #if defined( Rtt_WIN_ENV )
 		if (strcmp( backend, "glBackend" ) == 0)

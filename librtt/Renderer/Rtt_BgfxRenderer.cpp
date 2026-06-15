@@ -610,6 +610,18 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
         else if (strcmp(rendererEnv, "gl") == 0) init.type = bgfx::RendererType::OpenGL;
     }
 
+    // sRGB-correct alpha blending (#30): request an sRGB backbuffer so the GPU
+    // decodes to linear, blends, and re-encodes. Opt-in (default off). On drivers
+    // that ignore it the look is unchanged; the GLES EGL-colorspace gap is handled
+    // separately (Phase 3). Added before caching so the two bgfx::reset replay
+    // sites (SetViewport pre-scan and post-FBO) carry the bit too.
+    if (Renderer::sSRGBAlphaBlending)
+    {
+        init.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
+    }
+    Rtt_LogException("BgfxRenderer: sRGB-correct alpha blending (#30) = %s (reset=0x%08X)",
+        Renderer::sSRGBAlphaBlending ? "ON" : "off", (unsigned)init.resolution.reset);
+
     // Cache reset flags for SetViewport to reuse (prevents losing FLIP_AFTER_RENDER on resize)
     BgfxCommandBuffer::SetCachedResetFlags(init.resolution.reset);
 
