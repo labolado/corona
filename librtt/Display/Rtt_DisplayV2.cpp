@@ -664,6 +664,13 @@ DisplayV2::Capture( DisplayObject* object,
 
 	Rtt_DELETE( fbo );
 
+	// Capture issues several bgfx::frame() calls (offscreen render + skip-present
+	// flush) that rotate the swap chain without presenting real screen content.
+	// Re-invalidate AFTER all of them so the screen gets a fresh swap-chain
+	// warmup (Scene::fSwapWarmup) of presented frames; otherwise a static scene
+	// left idle after colorSample/capture stays on the gray init clear. (#60/#65)
+	scene.Invalidate();
+
 	return paint;
 }
 
