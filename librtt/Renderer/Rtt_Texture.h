@@ -102,11 +102,17 @@ class Texture : public CPUResource
 		bool IsTarget() const { return fIsTarget; }
 		void SetCanvasFlipY( bool newValue ){ fCanvasFlipY = newValue; }
 		bool IsCanvasFlipY() const { return fCanvasFlipY; }
+		// sRGB-correct alpha blending (#30) opt-out: force this texture to be sampled
+		// as linear even if its format is true-color (e.g. normal maps / data packed
+		// in RGBA). No effect unless sRGBAlphaBlending is enabled. Default false.
+		void SetForceLinearColorSpace( bool newValue ){ fForceLinearColorSpace = newValue; }
+		bool GetForceLinearColorSpace() const { return fForceLinearColorSpace; }
 
 	private:
 		bool fIsRetina;
 		bool fIsTarget;
 		bool fCanvasFlipY;
+		bool fForceLinearColorSpace;
 };
 
 // ----------------------------------------------------------------------------

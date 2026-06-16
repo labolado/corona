@@ -163,7 +163,8 @@ BgfxTexture::Create( CPUResource* resource )
 	// decodes to linear on sample (and encodes on store for color render targets).
 	// Masks/data textures stay linear. Applied after fSamplerFlags caching so it
 	// only affects texture creation below, not per-draw sampler overrides.
-	if( Renderer::sSRGBAlphaBlending && IsSRGBColorFormat( texture->GetFormat() ) )
+	if( Renderer::sSRGBAlphaBlending && IsSRGBColorFormat( texture->GetFormat() )
+		&& !texture->GetForceLinearColorSpace() )
 	{
 		flags |= BGFX_TEXTURE_SRGB;
 	}

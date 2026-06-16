@@ -22,7 +22,8 @@ Texture::Texture( Rtt_Allocator* allocator )
 :	Super( allocator ),
 	fIsRetina( false ),
 	fIsTarget( false ),
-	fCanvasFlipY( false )
+	fCanvasFlipY( false ),
+	fForceLinearColorSpace( false )
 {
 }
 

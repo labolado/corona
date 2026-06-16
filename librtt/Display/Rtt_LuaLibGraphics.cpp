@@ -1448,6 +1448,13 @@ SharedPtr<TextureResource> CreateResourceBitmapFromTable(Rtt::TextureFactory &fa
     bool isMask = lua_isboolean( L, -1 ) && lua_toboolean( L, -1 );
     lua_pop( L, 1 );
 
+    // sRGB-correct alpha blending (#30) opt-out: colorSpace="linear" forces this
+    // texture to be sampled as linear data (normal maps / data packed in RGBA),
+    // bypassing the format-based sRGB decode. No effect unless sRGBAlphaBlending is on.
+    lua_getfield( L, index, "colorSpace" );
+    bool forceLinear = lua_isstring( L, -1 ) && ( strcmp( lua_tostring( L, -1 ), "linear" ) == 0 );
+    lua_pop( L, 1 );
+
     lua_getfield( L, index, "filename" );
     const char *filename = luaL_checkstring( L, -1);
     if( filename )
@@ -1455,6 +1462,13 @@ SharedPtr<TextureResource> CreateResourceBitmapFromTable(Rtt::TextureFactory &fa
         SharedPtr<TextureResource> texSource = factory.FindOrCreate(filename, baseDir, flags, isMask);
         if( texSource.NotNull() )
         {
+            if( forceLinear )
+            {
+                // Set before the GPU resource is created (lazy), so BgfxTexture::Create
+                // reads it. Treated as a property of the image content; on a cache hit
+                // for the same file the first request's setting persists.
+                texSource->GetTexture().SetForceLinearColorSpace( true );
+            }
             factory.Retain(texSource);
             ret = texSource;
         }
