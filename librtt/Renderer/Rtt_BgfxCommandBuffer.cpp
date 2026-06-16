@@ -868,6 +868,9 @@ BgfxCommandBuffer::SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd
     }
     // Pass mask count so shader knows how many mask samplers to apply.
     texFlags[1] = static_cast<float>( cmd.maskCount );
+    // sRGB-correct alpha blending (#30): gate the shader-side fill/vertex color
+    // sRGB->linear decode. Off (default) => unchanged behavior.
+    texFlags[2] = Renderer::sSRGBAlphaBlending ? 1.0f : 0.0f;
     bgfx::UniformHandle texFlagsHandle = prog->GetTexFlagsHandle();
     if( bgfx::isValid( texFlagsHandle ) )
     {

@@ -183,6 +183,7 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 		fBackend("glBackend"),
 #endif
 	fBackendState(nullptr),
+	fSRGBAlphaBlending(false),
 #ifdef Rtt_USE_ALMIXER
 	fOpenALPlayer(NULL),
 #endif
@@ -891,6 +892,13 @@ Runtime::PushConfig( lua_State *L, bool shouldRestrictLibs )
 			{
 				SetProperty( kShowRuntimeErrors, true );
 			}
+			lua_pop( L, 1 );
+
+			// Opt-in to sRGB-correct alpha blending (#30). Default off so existing
+			// projects keep their current look. Read here while "application" is on
+			// the stack; pushed to the renderer at Display::Initialize.
+			lua_getfield( L, -1, "sRGBAlphaBlending" );
+			fSRGBAlphaBlending = lua_toboolean( L, -1 ) ? true : false;
 			lua_pop( L, 1 );
 
 			lua_getfield( L, -1, "content" ); // application.content

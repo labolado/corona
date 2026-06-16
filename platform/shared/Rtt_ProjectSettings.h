@@ -361,6 +361,14 @@ class ProjectSettings
 		 */
 		const std::string & Backend() const;
 
+		/**
+		 * Whether the project opted in to sRGB-correct alpha blending via
+		 * config.lua "application.sRGBAlphaBlending = true". Default false
+		 * (legacy linear-on-sRGB blending) to keep existing projects unchanged.
+		 * @return true if opted in, false otherwise.
+		 */
+		bool IsSRGBAlphaBlendingEnabled() const;
+
 	protected:
 		/**
 		 * Called after the LoadFromDirectory() method has successfully loaded information from the
@@ -504,6 +512,9 @@ class ProjectSettings
 
 		/** One of the following: "gl", "wantVulkan", "requireVulkan".*/
 		std::string fBackend;
+
+		/** Set true if config.lua opted in to sRGB-correct alpha blending. Default false.*/
+		bool fSRGBAlphaBlending;
 };
 
 } // namespace Rtt

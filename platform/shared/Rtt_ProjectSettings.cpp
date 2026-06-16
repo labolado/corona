@@ -360,6 +360,15 @@ bool ProjectSettings::LoadFromDirectory(const char* directoryPath)
 		}
 		lua_pop(luaStatePointer, 1);
 
+		// Opt-in to sRGB-correct alpha blending (#30). Default off so existing
+		// projects keep their current (linear-on-sRGB) look unchanged.
+		lua_getfield(luaStatePointer, -1, "sRGBAlphaBlending");
+		if (lua_type(luaStatePointer, -1) == LUA_TBOOLEAN)
+		{
+			fSRGBAlphaBlending = lua_toboolean(luaStatePointer, -1) ? true : false;
+		}
+		lua_pop(luaStatePointer, 1);
+
 		// Fetch the project's content scaling settings.
 		lua_getfield(luaStatePointer, -1, "content");
 		if (lua_istable(luaStatePointer, -1))
@@ -531,6 +540,7 @@ void ProjectSettings::ResetConfigLuaSettings()
 	fContentWidth = 0;
 	fContentHeight = 0;
 	fImageSuffixScaleSet.clear();
+	fSRGBAlphaBlending = false;
 }
 
 bool ProjectSettings::HasBuildSettings() const
@@ -768,6 +778,11 @@ bool ProjectSettings::IsWindowTransparent() const
 const std::string & ProjectSettings::Backend() const
 {
 	return fBackend;
+}
+
+bool ProjectSettings::IsSRGBAlphaBlendingEnabled() const
+{
+	return fSRGBAlphaBlending;
 }
 
 void ProjectSettings::OnLoadedFrom(lua_State* luaStatePointer)

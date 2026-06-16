@@ -15,6 +15,7 @@
 
 #include "Renderer/Rtt_BgfxTexture.h"
 
+#include "Renderer/Rtt_Renderer.h"
 #include "Renderer/Rtt_Texture.h"
 #include "Core/Rtt_Assert.h"
 
@@ -68,6 +69,29 @@ BgfxTexture::ConvertFormat( Texture::Format format )
 		default:
 			Rtt_ASSERT_NOT_REACHED();
 			return bgfx::TextureFormat::RGBA8;
+	}
+}
+
+// sRGB-correct alpha blending (#30): true-color formats hold perceptually-encoded
+// color and must decode sRGB->linear on sample; alpha/luminance are masks/data and
+// stay linear. Classified from the ORIGINAL Solar2D format (before the CPU RGBA8
+// expansion of alpha/luminance textures), so the mask signal is preserved.
+static bool
+IsSRGBColorFormat( Texture::Format format )
+{
+	switch( format )
+	{
+		case Texture::kRGB:
+		case Texture::kRGBA:
+		case Texture::kBGRA:
+		case Texture::kARGB:
+		case Texture::kABGR:
+			return true;
+		case Texture::kAlpha:
+		case Texture::kLuminance:
+		case Texture::kLuminanceAlpha:
+		default:
+			return false;
 	}
 }
 
@@ -134,6 +158,16 @@ BgfxTexture::Create( CPUResource* resource )
 
 	// Cache sampler flags for use during setTexture calls
 	fSamplerFlags = static_cast<uint32_t>( flags & 0xFFFFFFFF );
+
+	// sRGB-correct alpha blending (#30): mark true-color textures sRGB so the GPU
+	// decodes to linear on sample (and encodes on store for color render targets).
+	// Masks/data textures stay linear. Applied after fSamplerFlags caching so it
+	// only affects texture creation below, not per-draw sampler overrides.
+	if( Renderer::sSRGBAlphaBlending && IsSRGBColorFormat( texture->GetFormat() )
+		&& !texture->GetForceLinearColorSpace() )
+	{
+		flags |= BGFX_TEXTURE_SRGB;
+	}
 
 	// Convert texture format
 	bgfx::TextureFormat::Enum format = ConvertFormat( texture->GetFormat() );

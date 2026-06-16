@@ -224,6 +224,9 @@ struct StateBlockInfo {
 // Static: set during renderer initialization based on backend caps
 bool Renderer::s_fboOriginIsTopLeft = false;
 
+// Static: opt-in sRGB-correct alpha blending (#30). Default off; set at Display::Initialize.
+bool Renderer::sSRGBAlphaBlending = false;
+
 struct CustomGraphicsInfo
 {
     CustomGraphicsInfo( Rtt_Allocator* allocator )

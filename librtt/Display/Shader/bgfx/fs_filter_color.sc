@@ -60,6 +60,9 @@ void main()
         texColor = vec4(0.0, 0.0, 0.0, texColor.r);
     }
 
+    // sRGB-correct alpha blending (#30): v_ColorScale is decoded sRGB->linear
+    // once in the vertex stage (see srgb_colorscale.sh), so the fragment shader
+    // just multiplies as usual.
     vec4 result = texColor * v_ColorScale;
 
     if (u_TexFlags.y > 0.5)
