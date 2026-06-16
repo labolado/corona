@@ -362,9 +362,11 @@ Display::Initialize( lua_State *L, int configIndex, DeviceOrientation::Type orie
 			}
 			else
 			{
-				Rtt_LogException("Display::Initialize: Cannot create bgfx renderer - invalid native window handle or dimensions");
-				// Fallback to GL renderer
-				fRenderer = Rtt_NEW( allocator, GLRenderer( allocator ) );
+				// Fail loudly instead of silently limping along on the legacy GL
+				// renderer: an invalid window handle means bgfx never started, and a
+				// silent GL fallback would hide that failure. Leave fRenderer NULL so
+				// the guard below reports it and aborts Initialize.
+				Rtt_LogException("Display::Initialize: bgfx renderer not created - invalid native window handle or dimensions");
 			}
 		}
 		else

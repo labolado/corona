@@ -72,6 +72,16 @@ BgfxGeometryPool::Recycle( BgfxGeometry* geo )
             BgfxGeometry** newList = (BgfxGeometry**)Rtt_MALLOC(
                 fAllocator, sizeof(BgfxGeometry*) * newCapacity );
 
+            if( !newList )
+            {
+                // Out of memory growing the free-list: do not memcpy into NULL
+                // (that would corrupt/crash). Drop this geometry from pooling and
+                // keep the existing free-list intact.
+                Rtt_LogException( "WARNING: BgfxGeometryPool: out of memory growing free-list to %u; geometry not pooled.\n", newCapacity );
+                Rtt_DELETE( geo );
+                return;
+            }
+
             if( fFreeList )
             {
                 memcpy( newList, fFreeList, sizeof(BgfxGeometry*) * fFreeCount );
