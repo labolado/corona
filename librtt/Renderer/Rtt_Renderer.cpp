@@ -30,6 +30,9 @@
 #include "Display/Rtt_ObjectHandle.h"
 #include "Display/Rtt_ShaderData.h"
 #include "Display/Rtt_ShaderResource.h"
+// NOTE: do NOT include Rtt_SDFRenderer.h here — it pulls <bgfx/bgfx.h>, which is
+// not on this shared TU's include path. InsertSDFDraw only forwards a reference,
+// so the forward declaration of SDFIssueData (in Rtt_Renderer.h) suffices.
 
 #include "Rtt_GPUStream.h"
 #include "Corona/CoronaGraphics.h"
@@ -1835,6 +1838,21 @@ Renderer::BindUniform( Uniform* uniform, U32 unit )
 
     fBackCommandBuffer->BindUniform( uniform, unit );
     INCREMENT( fStatistics.fUniformBindCount );
+}
+
+void
+Renderer::InsertSDFDraw( const SDFIssueData & data )
+{
+    // Flush any pending batched geometry first so z-order is preserved relative
+    // to the SDF quad, then record the SDF draw.
+    CheckAndInsertDrawCommand();
+    fBackCommandBuffer->DrawSDF( data );
+
+    INCREMENT( fStatistics.fDrawCallCount );
+    if( fStatisticsEnabled )
+    {
+        fStatistics.fTriangleCount += 2; // SDF quad = 2 triangles
+    }
 }
 
 void

@@ -30,6 +30,7 @@
 #include "Display/Rtt_ShaderData.h"
 #include "Display/Rtt_ShaderResource.h"
 #include "Display/Rtt_InstancedBatchRenderer.h"
+#include "Display/Rtt_SDFRenderer.h"
 #include "Core/Rtt_Config.h"
 #include "Core/Rtt_Allocator.h"
 #include "Core/Rtt_Assert.h"
@@ -1931,6 +1932,11 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             case DeferredCmd::kCaptureRect:
                 ExecuteCaptureRect( cmd );
                 break;
+            case DeferredCmd::kDrawSDF:
+                ExecuteDrawSDF( cmd );
+                sBatchStats.totalDrawCmds++;
+                sBatchStats.actualSubmits++;
+                break;
         }
     }
 
@@ -1983,6 +1989,70 @@ BgfxCommandBuffer::GetCachedParam( CommandBuffer::QueryableParams param )
 }
 
 void
+BgfxCommandBuffer::ExecuteDrawSDF( const DeferredCmd& cmd )
+{
+    if ( fSkipCurrentFbo ) return;
+
+    SDFRenderer& sdf = SDFRenderer::Instance();
+    if ( !sdf.IsAvailable() ) return;
+
+    bgfx::ProgramHandle program = sdf.GetProgram(
+        static_cast<SDFRenderer::ShapeType>( cmd.sdfShapeType ) );
+    if ( !bgfx::isValid( program ) ) return;
+
+    const bgfx::VertexLayout& layout = BgfxGeometry::GetVertexLayout();
+
+    if ( bgfx::getAvailTransientVertexBuffer( 4, layout ) < 4 ) return;
+    bgfx::TransientVertexBuffer tvb;
+    bgfx::allocTransientVertexBuffer( &tvb, 4, layout );
+
+    // Expand packed (x,y,z,u,v) to full Geometry::Vertex layout
+    Geometry::Vertex* dst = reinterpret_cast<Geometry::Vertex*>( tvb.data );
+    memset( dst, 0, 4 * sizeof( Geometry::Vertex ) );
+    for ( int i = 0; i < 4; ++i )
+    {
+        dst[i].x  = cmd.sdfVerts[i][0];
+        dst[i].y  = cmd.sdfVerts[i][1];
+        dst[i].z  = cmd.sdfVerts[i][2];
+        dst[i].u  = cmd.sdfVerts[i][3];
+        dst[i].v  = cmd.sdfVerts[i][4];
+        dst[i].rs = dst[i].gs = dst[i].bs = dst[i].as = 255;
+    }
+
+    if ( bgfx::getAvailTransientIndexBuffer( 6 ) < 6 ) return;
+    bgfx::TransientIndexBuffer tib;
+    bgfx::allocTransientIndexBuffer( &tib, 6 );
+    uint16_t* idx = reinterpret_cast<uint16_t*>( tib.data );
+    idx[0] = 0; idx[1] = 1; idx[2] = 2;
+    idx[3] = 0; idx[4] = 2; idx[5] = 3;
+
+    // Pass VP matrix as the "model" matrix so u_modelViewProj = VP (bgfx view/proj stay identity)
+    if ( cmd.uniforms[Uniform::kViewProjectionMatrix].valid )
+    {
+        bgfx::setTransform( cmd.uniforms[Uniform::kViewProjectionMatrix].data );
+    }
+
+    sdf.SetShapeUniforms(
+        static_cast<SDFRenderer::ShapeType>( cmd.sdfShapeType ),
+        cmd.sdfParams[0], cmd.sdfParams[1],
+        cmd.sdfParams[2], cmd.sdfParams[3] );
+
+    sdf.SetColorUniforms(
+        cmd.sdfFillColor[0],   cmd.sdfFillColor[1],
+        cmd.sdfFillColor[2],   cmd.sdfFillColor[3],
+        cmd.sdfStrokeColor[0], cmd.sdfStrokeColor[1],
+        cmd.sdfStrokeColor[2], cmd.sdfStrokeColor[3] );
+
+    bgfx::setState( cmd.bgfxState );
+    if ( cmd.scissorEnabled )
+        bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
+
+    bgfx::setVertexBuffer( 0, &tvb );
+    bgfx::setIndexBuffer( &tib );
+    bgfx::submit( fCurrentView, program );
+}
+
+void
 BgfxCommandBuffer::AddCommand( const CoronaCommand* command )
 {
     fCustomCommands.Append( command );
@@ -1994,6 +2064,35 @@ BgfxCommandBuffer::IssueCommand( U16 id, const void * data, U32 size )
     Rtt_UNUSED( id );
     Rtt_UNUSED( data );
     Rtt_UNUSED( size );
+}
+
+void
+BgfxCommandBuffer::DrawSDF( const SDFIssueData & data )
+{
+    uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
+    if ( fBlendEnabled )   state |= fBlendState;
+    if ( fBlendEquation )  state |= fBlendEquation;
+    if ( fMsaaEnabled )    state |= BGFX_STATE_MSAA;
+
+    DeferredCmd cmd = {};
+    cmd.type             = DeferredCmd::kDrawSDF;
+    cmd.bgfxState        = state;
+    cmd.scissorEnabled   = fScissorEnabled;
+    cmd.scissorX         = fScissorRect.x;
+    cmd.scissorY         = fScissorRect.y;
+    cmd.scissorW         = fScissorRect.w;
+    cmd.scissorH         = fScissorRect.h;
+    cmd.namedUniformCount  = 0;
+    cmd.namedUniformOffset = -1;
+
+    memcpy( cmd.sdfVerts,       data.verts,       sizeof( cmd.sdfVerts ) );
+    memcpy( cmd.sdfParams,      data.params,      sizeof( cmd.sdfParams ) );
+    memcpy( cmd.sdfFillColor,   data.fillColor,   sizeof( cmd.sdfFillColor ) );
+    memcpy( cmd.sdfStrokeColor, data.strokeColor, sizeof( cmd.sdfStrokeColor ) );
+    cmd.sdfShapeType = data.shapeType;
+
+    SnapshotUniforms( cmd );
+    fDeferredCmds.push_back( cmd );
 }
 
 bool

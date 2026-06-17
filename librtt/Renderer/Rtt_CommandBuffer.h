@@ -31,6 +31,7 @@ class Uniform;
 class ShaderResource;
 class FormatExtensionList;
 struct TimeTransform;
+struct SDFIssueData;
 
 // ----------------------------------------------------------------------------
 
@@ -109,6 +110,9 @@ class CommandBuffer
 
         virtual void AddCommand( const CoronaCommand * command ) = 0;
         virtual void IssueCommand( U16 id, const void * data, U32 size ) = 0;
+
+        // Record an SDF quad draw (bgfx-only; default no-op for GL backend).
+        virtual void DrawSDF( const SDFIssueData & data ) {}
 
         virtual const unsigned char * GetBaseAddress() const = 0;
     

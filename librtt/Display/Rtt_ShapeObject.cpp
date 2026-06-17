@@ -18,6 +18,8 @@
 #include "Display/Rtt_Paint.h"
 #if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 #include "Display/Rtt_SDFRenderer.h"
+#include "Display/Rtt_TesselatorRoundedRect.h"
+#include "Rtt_Matrix.h"
 #endif
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderFactory.h"
@@ -204,7 +206,7 @@ ShapeObject::Draw( Renderer& renderer ) const
 #if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 		SDFRenderer& sdf = SDFRenderer::Instance();
 
-		// SDF rendering path: use SDF shader for simple shapes
+		// SDF rendering path: replace tessellated mesh with a quad + SDF shader
 		if ( sdf.IsAvailable() && IsSDFEligible() )
 		{
 			fPath->UpdateResources( renderer );
@@ -213,15 +215,13 @@ ShapeObject::Draw( Renderer& renderer ) const
 			{
 				SDFRenderer::ShapeType sdfType = GetSDFShapeType();
 
-				// Get shape dimensions from path bounds
 				Rect bounds;
 				fPath->GetSelfBounds( bounds );
-				Real width = bounds.Width();
+				Real width  = bounds.Width();
 				Real height = bounds.Height();
 
-				// Get corner radius for rounded rect
 				Real cornerRadius = Rtt_REAL_0;
-				Real strokeWidth = (Real)GetStrokeWidth();
+				Real strokeWidth  = (Real)GetStrokeWidth();
 
 				ShapePath *shapePath = static_cast< ShapePath* >( fPath );
 				const TesselatorShape *tesselator = shapePath->GetTesselator();
@@ -229,38 +229,59 @@ ShapeObject::Draw( Renderer& renderer ) const
 
 				if ( tessType == Tesselator::kType_RoundedRect )
 				{
-					cornerRadius = Rtt_REAL_0; // Will be set properly when integrated
+					const TesselatorRoundedRect *rrTess =
+						static_cast< const TesselatorRoundedRect* >( tesselator );
+					cornerRadius = rrTess->GetRadius();
 				}
 
-				// Set SDF uniforms
-				sdf.SetShapeUniforms( sdfType, width, height, cornerRadius, strokeWidth );
-
-				// Set polygon-specific uniforms
-				if ( sdfType == SDFRenderer::kPolygon )
+				// Extract fill color from geometry vertex (set by UpdateColor)
+				float fillR = 1, fillG = 1, fillB = 1, fillA = 1;
+				if ( fFillData.fGeometry )
 				{
-					TesselatorPolygon *poly = static_cast< TesselatorPolygon* >(
-						const_cast< TesselatorShape* >( tesselator ) );
-					ArrayVertex2& contour = poly->GetContour();
-					int numVerts = contour.Length();
-
-					// Normalize contour vertices to [-1,1] within bounding box
-					Real halfW = width * Rtt_REAL_HALF;
-					Real halfH = height * Rtt_REAL_HALF;
-					Real normVerts[32]; // max 16 verts * 2 components
-					for ( int i = 0; i < numVerts; ++i )
+					const Geometry::Vertex* verts = fFillData.fGeometry->GetVertexData();
+					U32 count = fFillData.fGeometry->GetVerticesUsed();
+					if ( verts && count > 0 )
 					{
-						Vertex2 v = contour[i];
-						normVerts[i * 2] = v.x / halfW;
-						normVerts[i * 2 + 1] = v.y / halfH;
+						fillR = verts[0].rs / 255.0f;
+						fillG = verts[0].gs / 255.0f;
+						fillB = verts[0].bs / 255.0f;
+						fillA = verts[0].as / 255.0f;
 					}
-					sdf.SetPolygonUniforms( normVerts, numVerts );
 				}
 
-				sdf.SetColorUniforms(
-					Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1, Rtt_REAL_1,
-					Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0, Rtt_REAL_0 );
+				// Transform local bounding box corners to content/world space
+				const Matrix& xform = GetSrcToDstMatrix();
+				Vertex2 corners[4] = {
+					{ bounds.xMin, bounds.yMin }, // BL
+					{ bounds.xMax, bounds.yMin }, // BR
+					{ bounds.xMax, bounds.yMax }, // TR
+					{ bounds.xMin, bounds.yMax }, // TL
+				};
+				xform.Apply( corners, 4 );
 
-				fFillShader->Draw( renderer, fFillData );
+				// Build issue data
+				SDFIssueData issueData = {};
+				const float uvs[4][2] = { {0,0},{1,0},{1,1},{0,1} };
+				for ( int i = 0; i < 4; ++i )
+				{
+					issueData.verts[i][0] = corners[i].x;
+					issueData.verts[i][1] = corners[i].y;
+					issueData.verts[i][2] = 0.0f;
+					issueData.verts[i][3] = uvs[i][0];
+					issueData.verts[i][4] = uvs[i][1];
+				}
+				issueData.params[0]    = (float)width;
+				issueData.params[1]    = (float)height;
+				issueData.params[2]    = (float)cornerRadius;
+				issueData.params[3]    = (float)strokeWidth;
+				issueData.fillColor[0] = fillR;
+				issueData.fillColor[1] = fillG;
+				issueData.fillColor[2] = fillB;
+				issueData.fillColor[3] = fillA;
+				// strokeColor stays zero (transparent)
+				issueData.shapeType = (S32)sdfType;
+
+				renderer.InsertSDFDraw( issueData );
 			}
 
 			if ( fPath->IsStrokeVisible() && fStrokeShader )
@@ -379,6 +400,16 @@ ShapeObject::IsSDFEligible() const
 		return false;
 	}
 
+	// SDF only renders a solid color fill. Exclude textured fills — bitmap (images),
+	// image sheets, gradients, multitexture, camera. Critically, TextObject derives
+	// from RectObject→ShapeObject with a Rect tesselator + kBitmap (font atlas) fill;
+	// without this guard the SDF path paints the glyph quad as a solid white rect.
+	const Paint *fill = fPath->GetFill();
+	if ( !fill || !fill->IsType( Paint::kColor ) )
+	{
+		return false;
+	}
+
 	const TesselatorShape *tesselator = shapePath->GetTesselator();
 	if ( !tesselator )
 	{
@@ -392,11 +423,11 @@ ShapeObject::IsSDFEligible() const
 		case Tesselator::kType_Rect:
 		case Tesselator::kType_RoundedRect:
 			return true;
+		// NOTE: Polygon SDF is intentionally NOT eligible yet. The SDF quad draw
+		// path (SDFIssueData / ExecuteDrawSDF) does not carry per-polygon contour
+		// vertices, so polygons must fall through to the tessellated mesh path.
+		// TODO(#064): add polygon contour to SDFIssueData + u_polyVerts in ExecuteDrawSDF.
 		case Tesselator::kType_Polygon:
-		{
-			const TesselatorPolygon *poly = static_cast< const TesselatorPolygon* >( tesselator );
-			return const_cast< TesselatorPolygon* >( poly )->GetContour().Length() <= SDFRenderer::kMaxPolygonVerts;
-		}
 		default:
 			return false;
 	}

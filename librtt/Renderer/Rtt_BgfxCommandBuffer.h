@@ -42,7 +42,7 @@ class FrameBufferObject;
 // Deferred command: captures all state needed for replay in Execute()
 struct DeferredCmd
 {
-    enum Type { kBindFBO, kSetViewport, kClear, kDraw, kDrawIndexed, kCaptureRect };
+    enum Type { kBindFBO, kSetViewport, kClear, kDraw, kDrawIndexed, kCaptureRect, kDrawSDF };
     Type type;
 
     // kBindFBO
@@ -100,6 +100,13 @@ struct DeferredCmd
     // Instance draw data (opaque, cast to InstanceDrawData* by bgfx backend)
     void* instanceDraw;
 
+    // kDrawSDF — SDF quad draw (world-space quad + shape params)
+    float sdfVerts[4][5];    // (x,y,z,u,v) for BL,BR,TR,TL in content/world space
+    float sdfParams[4];      // (width, height, cornerRadius, strokeWidth)
+    float sdfFillColor[4];   // fill RGBA
+    float sdfStrokeColor[4]; // stroke RGBA
+    S32 sdfShapeType;        // SDFRenderer::ShapeType
+
     // No constructor — use zero initialization: DeferredCmd cmd = {};
     // All pointer fields become NULL, all numeric fields become 0, all bools become false.
     // clearDepth defaults to 0 (set explicitly in Clear()).
@@ -151,6 +158,7 @@ class BgfxCommandBuffer : public CommandBuffer
 
         virtual void AddCommand( const CoronaCommand * command );
         virtual void IssueCommand( U16 id, const void * data, U32 size );
+        virtual void DrawSDF( const SDFIssueData & data );
 
         virtual const unsigned char * GetBaseAddress() const { return NULL; }
 
@@ -184,6 +192,7 @@ class BgfxCommandBuffer : public CommandBuffer
         void ExecuteDraw( const DeferredCmd& cmd );
         void ExecuteDrawIndexed( const DeferredCmd& cmd );
         void ExecuteCaptureRect( const DeferredCmd& cmd );
+        void ExecuteDrawSDF( const DeferredCmd& cmd );
         void SetTexFlagsUniform( BgfxProgram* prog, const DeferredCmd& cmd );
         void ApplyNamedUniforms( const DeferredCmd& cmd );
 

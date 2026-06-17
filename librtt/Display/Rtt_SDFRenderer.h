@@ -26,6 +26,21 @@ namespace Rtt
 
 // ----------------------------------------------------------------------------
 
+// Data passed via Renderer::IssueCustomCommand to record an SDF quad draw.
+// Stored on the call stack; copied into DeferredCmd by BgfxCommandBuffer::IssueCommand.
+// Defined unconditionally — BgfxCommandBuffer.cpp compiles on platforms where
+// Rtt_SDF_AVAILABLE is not defined (e.g. Windows desktop).
+struct SDFIssueData
+{
+    float verts[4][5]; // (x,y,z,u,v) for BL,BR,TR,TL in content/world space
+    float params[4];   // (width, height, cornerRadius, strokeWidth)
+    float fillColor[4];
+    float strokeColor[4];
+    S32 shapeType; // SDFRenderer::ShapeType
+};
+
+static const U16 kSDFDrawCommandId = 0x5DF1;
+
 #if defined( Rtt_SDF_AVAILABLE )
 
 // SDFRenderer manages SDF (Signed Distance Field) shader programs and uniforms

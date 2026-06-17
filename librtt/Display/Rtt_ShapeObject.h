@@ -97,8 +97,11 @@ class ShapeObject : public DisplayObject
 		RenderTypes::BlendType GetBlend() const;
 
 #if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
+	protected:
+		// Virtual so subclasses with texture-based fills (e.g. TextObject's font
+		// atlas) can opt out of the analytic SDF path.
+		virtual bool IsSDFEligible() const;
 	private:
-		bool IsSDFEligible() const;
 		SDFRenderer::ShapeType GetSDFShapeType() const;
 #endif
 

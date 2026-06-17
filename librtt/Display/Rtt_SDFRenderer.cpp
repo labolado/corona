@@ -69,8 +69,8 @@ SDFRenderer::Initialize()
 
 	// Create uniform handles for SDF parameters
 	fParamsUniform = bgfx::createUniform( "u_sdfParams", bgfx::UniformType::Vec4 );
-	fFillColorUniform = bgfx::createUniform( "u_sdfFillColor", bgfx::UniformType::Vec4 );
-	fStrokeColorUniform = bgfx::createUniform( "u_sdfStrokeColor", bgfx::UniformType::Vec4 );
+	fFillColorUniform = bgfx::createUniform( "u_fillColor", bgfx::UniformType::Vec4 );
+	fStrokeColorUniform = bgfx::createUniform( "u_strokeColor", bgfx::UniformType::Vec4 );
 	fLineParamsUniform = bgfx::createUniform( "u_lineParams", bgfx::UniformType::Vec4 );
 	fPolyParamsUniform = bgfx::createUniform( "u_polyParams", bgfx::UniformType::Vec4 );
 	fPolyVertsUniform = bgfx::createUniform( "u_polyVerts", bgfx::UniformType::Vec4, 8 );

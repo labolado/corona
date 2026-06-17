@@ -41,6 +41,7 @@ class BufferBitmap;
 class ShaderData;
 struct CustomGraphicsInfo;
 struct TimeTransform;
+struct SDFIssueData;
 
 // ----------------------------------------------------------------------------
 
@@ -185,6 +186,9 @@ class Renderer
 		// Generate the minimum set of commands needed to ensure that the given
 		// RenderData is properly drawn on the next call to Render().
 		void Insert( const RenderData* data, const ShaderData * shaderData = NULL );
+
+		// Record an SDF quad draw for the given shape (bgfx-only; no-op on GL).
+		void InsertSDFDraw( const SDFIssueData & data );
 
         // Render all data added since the last call to swap(). It is both safe
         // and expected that Render() is called while another thread is adding

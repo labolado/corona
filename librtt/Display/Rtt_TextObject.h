@@ -87,6 +87,13 @@ class TextObject : public RectObject
 		virtual void Prepare( const Display& display );
 		virtual void Draw( Renderer& renderer ) const;
 
+#if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
+	protected:
+		// Text glyphs come from a font-atlas texture, not a solid color fill, so
+		// the analytic SDF rect path would paint the glyph quad as a solid block.
+		virtual bool IsSDFEligible() const { return false; }
+#endif
+
 	public:
 		virtual const LuaProxyVTable& ProxyVTable() const;
 
