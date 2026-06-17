@@ -336,6 +336,13 @@ ShaderFactory::NewProgram(
 			header = header + std::string("#define TEX_COORD_Z 1\n");
 		}
 
+#if defined( Rtt_OPENGLES )
+        // Adreno 730 API 33 (GLES 3.x) still requires explicit extension enable for fwidth/dFdx/dFdy
+        header += "#ifdef GL_OES_standard_derivatives\n"
+                  "#extension GL_OES_standard_derivatives : enable\n"
+                  "#endif\n";
+#endif
+
 #if defined( Rtt_EMSCRIPTEN_ENV )
         header = header +  "#define Rtt_WEBGL_ENV\n";
 #endif
