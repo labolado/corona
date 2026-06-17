@@ -1548,6 +1548,10 @@ std::string BgfxShaderCompiler::TransformScToESSL(const std::string& scSource, c
 
     // Start with #version so bgfx passes source directly to glShaderSource
     result += "#version 300 es\n";
+    // Adreno 730 API 33 requires explicit extension enable for fwidth/dFdx/dFdy
+    result += "#ifdef GL_OES_standard_derivatives\n";
+    result += "#extension GL_OES_standard_derivatives : enable\n";
+    result += "#endif\n";
     result += "precision highp float;\n";
     result += "precision mediump int;\n";
     result += "\n";
