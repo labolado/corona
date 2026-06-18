@@ -91,6 +91,7 @@ local scenes = {
     {name="physics_uaf",     type="composer", duration=2500},
     {name="capture_color",   type="composer", duration=2000},
     {name="custom_shader",   type="composer", duration=2000},
+    {name="define_effect_nodot", type="test", duration=2000},
     {name="batching",        type="composer", duration=2000},
     {name="texture_byteorder",type="composer", duration=2000},
     {name="effect_chain",    type="composer", duration=2000},

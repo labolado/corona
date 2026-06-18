@@ -1024,10 +1024,13 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 
 							resource = NewShaderResource( category, name, kernelVert, kernelFrag, localStubsIndex );
 
-							// Custom effects in bgfx mode: compile GLSL→Metal at runtime
+							// Lua-backed effects in bgfx mode need backend binaries at runtime.
+							// This covers graphics.defineEffect() registrations and built-in Lua
+							// kernels without precompiled shaders; graph/precompiled-only effects
+							// do not have a fragment kernel here.
 #if !defined( Rtt_EMSCRIPTEN_ENV ) && !defined( Rtt_TVOS_ENV ) && !defined( Rtt_WIN_DESKTOP_ENV )
 							if (resource.NotNull() && strcmp( fBackend, "bgfxBackend" ) == 0
-								&& name && strchr( name, '.' ) != NULL)
+								&& kernelFrag != NULL)
 							{
 								const char* categoryStr = ShaderTypes::StringForCategory( category );
 								{

@@ -707,10 +707,20 @@ bool BgfxProgram::LoadShaderBinary(Program::Version version, const char* type, c
         if (shaderRes && shaderRes->GetCategory() != ShaderTypes::kCategoryDefault
             && !shaderRes->GetName().empty())
         {
-            Rtt_LogException("WARNING: using default %s shader for custom effect '%s' (category '%s') — "
-                "no compiled binary found; the effect will NOT render correctly.\n",
-                type, shaderRes->GetName().c_str(),
-                ShaderTypes::StringForCategory(shaderRes->GetCategory()));
+            const char* categoryStr = ShaderTypes::StringForCategory(shaderRes->GetCategory());
+            if (strcmp(type, "vs") == 0)
+            {
+                Rtt_LogException("LoadShaderBinary: using default vertex shader for effect '%s' "
+                    "(category '%s'); no custom vertex shader binary was found.\n",
+                    shaderRes->GetName().c_str(), categoryStr);
+            }
+            else
+            {
+                Rtt_LogException("WARNING: using default fragment shader for effect '%s' "
+                    "(category '%s') — no compiled fragment binary found; the custom fragment "
+                    "shader will NOT run.\n",
+                    shaderRes->GetName().c_str(), categoryStr);
+            }
         }
 
         if (strcmp(type, "vs") == 0)
