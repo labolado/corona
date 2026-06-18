@@ -435,6 +435,11 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
 
 static Solar2dBgfxCallback s_bgfxCallback;
 
+// Tracks whether the bgfx singleton context (s_ctx) is actually alive.
+// s_bgfxInitCount only increments and cannot tell a live context from a dead
+// one after shutdown(); this flag is the trustworthy liveness signal.
+static bool s_bgfxContextAlive = false;
+
 namespace Rtt
 {
 
@@ -683,13 +688,13 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     }
 
     fBgfxInitialized = bgfx::init(init);
-    // Guard the stale-session retry on s_bgfxInitCount: we only know a real bgfx
+    // Guard the stale-session retry on s_bgfxContextAlive: we only know a real bgfx
     // singleton context exists if a previous init() succeeded. On first-launch
     // failures (driver rejects the renderer, e.g. Pixel 8 / Mali-G715 / Vulkan
     // 1.3.269 — see issue #51), s_ctx is null/partial and bgfx::shutdown()
     // dereferences it → SIGSEGV in bgfx::Context::shutdown(). Skipping shutdown
     // here lets the Vulkan→GLES fallback below handle the recovery cleanly.
-    if (!fBgfxInitialized && s_bgfxInitCount > 0)
+    if (!fBgfxInitialized && s_bgfxContextAlive)
     {
         // bgfx singleton still alive from previous session (e.g. welcome→project).
         // shutdown() + reinit crashes on Metal; treat existing context as valid.
@@ -699,6 +704,7 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     if (fBgfxInitialized)
     {
         ++s_bgfxInitCount;
+        s_bgfxContextAlive = true;
     }
 #if defined(Rtt_ANDROID_ENV)
     // Vulkan fallback: if Vulkan init failed, try GLES.
@@ -707,12 +713,18 @@ BgfxRenderer::InitializeBgfx(void* nativeWindowHandle, U32 width, U32 height)
     if (!fBgfxInitialized && init.type == bgfx::RendererType::Vulkan)
     {
         Rtt_LogException("BgfxRenderer: Vulkan init failed, falling back to OpenGLES");
-        if (s_bgfxInitCount > 0)
+        if (s_bgfxContextAlive)
         {
             bgfx::shutdown();
+            s_bgfxContextAlive = false;
         }
         init.type = bgfx::RendererType::OpenGLES;
         fBgfxInitialized = bgfx::init(init);
+        if (fBgfxInitialized)
+        {
+            ++s_bgfxInitCount;
+            s_bgfxContextAlive = true;
+        }
     }
 #endif
 
@@ -774,6 +786,7 @@ BgfxRenderer::ShutdownBgfx()
 
         bgfx::shutdown();
         fBgfxInitialized = false;
+        s_bgfxContextAlive = false;
     }
 }
 

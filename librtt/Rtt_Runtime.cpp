@@ -160,6 +160,7 @@ static const char kFusePublisherId[] = "com.coronalabs";
 
 // ----------------------------------------------------------------------------
 
+
 Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 	: fAllocator(platform.GetAllocator()),
 	fPlatform(platform),
@@ -1329,7 +1330,12 @@ Runtime::LoadApplication( const LoadParameters& parameters )
 		// but it should be safe to do.
 		RuntimeGuard guard( * this );
 
-		fDisplay->Initialize( L, configIndex, orientation, fBackend, fBackendState );
+		if ( ! fDisplay->Initialize( L, configIndex, orientation, fBackend, fBackendState ) )
+		{
+			Rtt_LogException( "Runtime: display/renderer initialization failed, aborting launch" );
+			result = Runtime::kGeneralFail;
+			goto exit_gracefully;
+		}
 
 		if ( fDelegate )
 		{
@@ -2192,4 +2198,3 @@ RuntimeGuard::~RuntimeGuard()
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-
