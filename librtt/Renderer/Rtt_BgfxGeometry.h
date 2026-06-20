@@ -20,6 +20,8 @@
 namespace Rtt
 {
 
+class FormatExtensionList;
+
 // ----------------------------------------------------------------------------
 
 class BgfxGeometry : public GPUResource
@@ -70,6 +72,21 @@ class BgfxGeometry : public GPUResource
 
     private:
         static void InitializeVertexLayout();
+
+        // Vertex format-extension (vertexExtension) support. When a geometry
+        // carries vertex-rate extension data, it must be uploaded with a
+        // per-geometry layout that appends the extension attributes after the
+        // base 68-byte vertex. Geometries without an extension take the shared
+        // static layout and the base vertex data unchanged (zero overhead).
+        bool GeometryHasVertexExtension( Geometry* geometry ) const;
+        const bgfx::VertexLayout& ResolveLayout( Geometry* geometry );
+        static void BuildExtendedLayout( const FormatExtensionList* list, bgfx::VertexLayout& outLayout );
+        // Returns the upload source pointer and sets the per-vertex stride and
+        // total byte size. For extension geometries this splices the base
+        // vertices into the extended buffer and reports the padded stride.
+        const Geometry::Vertex* PrepareVertexUpload( Geometry* geometry, U32 vertexCount,
+                                                     U32& outStrideBytes, U32& outTotalBytes );
+
         void CreateStatic( Geometry* geometry );
         void CreateDynamic( Geometry* geometry );
         void UpdateStatic( Geometry* geometry );
@@ -84,6 +101,12 @@ class BgfxGeometry : public GPUResource
         static bgfx::VertexLayout sVertexLayout;
         static bool sLayoutInitialized;
         static U32 sFrameCount;
+
+        // Per-geometry extended layout, built lazily when this geometry carries
+        // vertex-rate format-extension data. Unused (fHasExtLayout false) for
+        // the common no-extension case.
+        bgfx::VertexLayout fExtLayout;
+        bool fHasExtLayout;
 
         // Auto-promotion threshold: frames of stability before dynamic to static
         static const U32 kPromotionThreshold = 120;

@@ -16,6 +16,9 @@
 #include "Renderer/Rtt_BgfxGeometry.h"
 
 #include "Renderer/Rtt_Geometry_Renderer.h"
+#include "Renderer/Rtt_FormatExtensionList.h"
+#include "Renderer/Rtt_BgfxVertexExtension.h"
+#include "Corona/CoronaGraphics.h"
 #include <stdio.h>
 #include "Core/Rtt_Assert.h"
 #include "Rtt_Profiling.h"
@@ -77,7 +80,8 @@ BgfxGeometry::BgfxGeometry()
 	fIsDynamic( false ),
 	fHasIndexBuffer( false ),
 	fWasStoredOnGPU( false ),
-	fLastUpdateFrame( 0 )
+	fLastUpdateFrame( 0 ),
+	fHasExtLayout( false )
 {
 	InitializeVertexLayout();
 }
@@ -106,6 +110,7 @@ BgfxGeometry::ResetForReuse()
 	fHasIndexBuffer = false;
 	fWasStoredOnGPU = false;
 	fLastUpdateFrame = 0;
+	fHasExtLayout = false;
 	fHandle = NULL;
 	// fTransientVB / fTransientIB / fInstanceDataBuffer are stack structs;
 	// their contents are irrelevant when the above flags are false.
@@ -132,6 +137,142 @@ BgfxGeometry::InstanceIDSuffix()
 	return "";
 }
 
+// bgfx attribute slots that carry vertex format-extension attributes, in the
+// SAME order as kBgfxExtensionAttribNames (Rtt_BgfxVertexExtension.h). The
+// generated vertex shader references the names; the layout here binds the
+// matching enum — both must stay aligned.
+static bgfx::Attrib::Enum
+ExtensionSlotAttrib( U32 index )
+{
+	static const bgfx::Attrib::Enum kSlots[] =
+	{
+		bgfx::Attrib::TexCoord5,
+		bgfx::Attrib::TexCoord6,
+		bgfx::Attrib::TexCoord7,
+		bgfx::Attrib::Normal,
+		bgfx::Attrib::Tangent,
+		bgfx::Attrib::Bitangent,
+		bgfx::Attrib::Color1,
+		bgfx::Attrib::Color2,
+		bgfx::Attrib::Color3,
+	};
+	static_assert( sizeof( kSlots ) / sizeof( kSlots[0] ) == kBgfxExtensionAttribSlotCount,
+		"extension slot enum table must match kBgfxExtensionAttribNames" );
+	return kSlots[ index ];
+}
+
+bool
+BgfxGeometry::GeometryHasVertexExtension( Geometry* geometry ) const
+{
+	const FormatExtensionList* list = geometry->GetExtensionList();
+	return NULL != list && list->HasVertexRateData();
+}
+
+void
+BgfxGeometry::BuildExtendedLayout( const FormatExtensionList* list, bgfx::VertexLayout& outLayout )
+{
+	// Base 68-byte layout, byte-identical to sVertexLayout.
+	outLayout
+		.begin()
+		.add( bgfx::Attrib::Position,  3, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true )
+		.add( bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::TexCoord2, 2, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::TexCoord3, 2, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::TexCoord4, 2, bgfx::AttribType::Float );
+
+	const U32 kBaseStride = (U32) sizeof( Geometry::Vertex ); // 68
+	U32 runningOffset = kBaseStride;
+
+	// Extension attributes live in the region after the base vertex, at
+	// byte offset (kBaseStride + attribute.offset) — matches GL's
+	// BindExtensionAttribute (offsetExtra = sizeof(Vertex)).
+	list->SortNames();
+	const U32 count = list->GetAttributeCount();
+	for ( U32 i = 0; i < count && i < kBgfxExtensionAttribSlotCount; ++i )
+	{
+		S32 attrIdx = -1;
+		list->FindNameByAttribute( i, &attrIdx );
+		const FormatExtensionList::Attribute& attr =
+			list->GetAttributes()[ attrIdx >= 0 ? (U32) attrIdx : i ];
+
+		const U32 targetOffset = kBaseStride + attr.offset;
+		if ( targetOffset > runningOffset )
+		{
+			outLayout.skip( (uint8_t)( targetOffset - runningOffset ) );
+			runningOffset = targetOffset;
+		}
+
+		// Use the attribute's real type/normalized (a "byte" type stays
+		// Uint8; do not infer normalization from the bgfx slot).
+		const bgfx::AttribType::Enum type =
+			( kAttributeType_Byte == attr.type )
+				? bgfx::AttribType::Uint8
+				: bgfx::AttribType::Float;
+
+		outLayout.add( ExtensionSlotAttrib( i ), attr.components, type, 0 != attr.normalized );
+		runningOffset += attr.GetSize();
+	}
+
+	// Pad the stride to the full extended vertex size so the layout steps
+	// over the whole (base + extension) unit, matching GetWritableExtendedVertexData.
+	const U32 fullStride = (U32) FormatExtensionList::GetVertexSize( list );
+	if ( fullStride > runningOffset )
+	{
+		outLayout.skip( (uint8_t)( fullStride - runningOffset ) );
+	}
+	outLayout.end();
+}
+
+const bgfx::VertexLayout&
+BgfxGeometry::ResolveLayout( Geometry* geometry )
+{
+	if ( GeometryHasVertexExtension( geometry ) )
+	{
+		if ( !fHasExtLayout )
+		{
+			BuildExtendedLayout( geometry->GetExtensionList(), fExtLayout );
+			fHasExtLayout = true;
+		}
+		return fExtLayout;
+	}
+	return sVertexLayout;
+}
+
+const Geometry::Vertex*
+BgfxGeometry::PrepareVertexUpload( Geometry* geometry, U32 vertexCount,
+                                   U32& outStrideBytes, U32& outTotalBytes )
+{
+	if ( GeometryHasVertexExtension( geometry ) )
+	{
+		const FormatExtensionList* list = geometry->GetExtensionList();
+		const Geometry::Vertex* base = geometry->GetVertexData();
+		Geometry::Vertex* extended = geometry->GetWritableExtendedVertexData();
+
+		if ( NULL != base && NULL != extended )
+		{
+			// Splice base vertices into slot 0 of each extended unit; the
+			// extension values already occupy the trailing slots (mirrors
+			// GLGeometry::SpliceVertexRateData).
+			const U32 total = 1 + list->ExtraVertexCount();
+			for ( U32 i = 0, j = 0; j < vertexCount; i += total, ++j )
+			{
+				extended[ i ] = base[ j ];
+			}
+
+			outStrideBytes = (U32) FormatExtensionList::GetVertexSize( list );
+			outTotalBytes = vertexCount * outStrideBytes;
+			return extended;
+		}
+		// Fall through to base data if the extended buffer is unavailable.
+	}
+
+	outStrideBytes = (U32) sizeof( Geometry::Vertex );
+	outTotalBytes = vertexCount * outStrideBytes;
+	return geometry->GetVertexData();
+}
+
 void
 BgfxGeometry::CreateStatic( Geometry* geometry )
 {
@@ -144,15 +285,16 @@ BgfxGeometry::CreateStatic( Geometry* geometry )
 	}
 
 	const U32 vertexCount = geometry->GetVerticesAllocated();
-	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
+	U32 strideBytes = 0, vertexDataSize = 0;
+	const Geometry::Vertex* uploadData = PrepareVertexUpload( geometry, vertexCount, strideBytes, vertexDataSize );
 
 	// Create static vertex buffer
-	const bgfx::Memory* vertexMem = bgfx::copy( vertexData, static_cast<uint32_t>( vertexDataSize ) );
-	fVertexBufferHandle = bgfx::createVertexBuffer( vertexMem, sVertexLayout );
+	const bgfx::Memory* vertexMem = bgfx::copy( uploadData, static_cast<uint32_t>( vertexDataSize ) );
+	fVertexBufferHandle = bgfx::createVertexBuffer( vertexMem, ResolveLayout( geometry ) );
 
 	if( !bgfx::isValid( fVertexBufferHandle ) )
 	{
-		Rtt_LogException( "ERROR: BgfxGeometry createVertexBuffer FAILED (vertexCount=%u size=%zu). Geometry data will not render.\n",
+		Rtt_LogException( "ERROR: BgfxGeometry createVertexBuffer FAILED (vertexCount=%u size=%u). Geometry data will not render.\n",
 			vertexCount, vertexDataSize );
 	}
 
@@ -188,7 +330,7 @@ BgfxGeometry::CreateDynamic( Geometry* geometry )
 	// Create dynamic vertex buffer with resize capability
 	fDynamicVertexBufferHandle = bgfx::createDynamicVertexBuffer(
 		vertexCount,
-		sVertexLayout,
+		ResolveLayout( geometry ),
 		BGFX_BUFFER_ALLOW_RESIZE
 	);
 
@@ -278,8 +420,9 @@ BgfxGeometry::UpdateStatic( Geometry* geometry )
 
 	// Upload current data to the new dynamic buffer
 	const U32 vertexCount = geometry->GetVerticesAllocated();
-	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
-	const bgfx::Memory* mem = bgfx::copy( vertexData, static_cast<uint32_t>( vertexDataSize ) );
+	U32 strideBytes = 0, vertexDataSize = 0;
+	const Geometry::Vertex* uploadData = PrepareVertexUpload( geometry, vertexCount, strideBytes, vertexDataSize );
+	const bgfx::Memory* mem = bgfx::copy( uploadData, static_cast<uint32_t>( vertexDataSize ) );
 	bgfx::update( fDynamicVertexBufferHandle, 0, mem );
 
 	// Update index data if present
@@ -307,7 +450,6 @@ BgfxGeometry::UpdateDynamic( Geometry* geometry )
 	}
 
 	const U32 vertexCount = geometry->GetVerticesAllocated();
-	const size_t vertexDataSize = vertexCount * sizeof( Geometry::Vertex );
 
 	// Check if we need to resize
 	if( vertexCount > fVertexCount )
@@ -318,8 +460,10 @@ BgfxGeometry::UpdateDynamic( Geometry* geometry )
 		CreateDynamic( geometry );
 	}
 
-	// Update vertex data
-	const bgfx::Memory* mem = bgfx::copy( vertexData, static_cast<uint32_t>( vertexDataSize ) );
+	// Update vertex data (extended + spliced when the geometry has an extension)
+	U32 strideBytes = 0, vertexDataSize = 0;
+	const Geometry::Vertex* uploadData = PrepareVertexUpload( geometry, vertexCount, strideBytes, vertexDataSize );
+	const bgfx::Memory* mem = bgfx::copy( uploadData, static_cast<uint32_t>( vertexDataSize ) );
 	bgfx::update( fDynamicVertexBufferHandle, 0, mem );
 
 	// Update index data if present
@@ -351,15 +495,20 @@ BgfxGeometry::UpdateTransient( Geometry* geometry )
 		return;
 	}
 
+	// Extended + spliced data when the geometry carries a vertexExtension.
+	U32 strideBytes = 0, vertexDataSize = 0;
+	const Geometry::Vertex* uploadData = PrepareVertexUpload( geometry, vertexCount, strideBytes, vertexDataSize );
+	const bgfx::VertexLayout& layout = ResolveLayout( geometry );
+
 	// Check transient buffer availability
-	if( bgfx::getAvailTransientVertexBuffer( vertexCount, sVertexLayout ) < vertexCount )
+	if( bgfx::getAvailTransientVertexBuffer( vertexCount, layout ) < vertexCount )
 	{
 		fHasTransientVB = false;
 		return;
 	}
 
-	bgfx::allocTransientVertexBuffer( &fTransientVB, vertexCount, sVertexLayout );
-	memcpy( fTransientVB.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
+	bgfx::allocTransientVertexBuffer( &fTransientVB, vertexCount, layout );
+	memcpy( fTransientVB.data, uploadData, vertexDataSize );
 	fVertexCount = vertexCount;
 	fHasTransientVB = true;
 
