@@ -1860,6 +1860,21 @@ Renderer::CheckAndInsertDrawCommand()
 {
     if( fRenderDataCount != 0 )
     {
+        // bgfx-only: pooled/batched geometry has no extension list of its own,
+        // so hand the source geometry's vertex-format extension list to the next
+        // draw. This lets the bgfx backend bind the pool buffer with the matching
+        // extended layout (mirrors GL's ReconcileFormats path). storedOnGPU
+        // geometry carries its own list via CreateStatic, so only the off-GPU
+        // (pool) path needs this. No-op on GL/Vulkan.
+        if( IsBgfx() && fPrevious.fGeometry && !fPrevious.fGeometry->GetStoredOnGPU() )
+        {
+            const FormatExtensionList* el = fPrevious.fGeometry->GetExtensionList();
+            if( el && el->HasVertexRateData() )
+            {
+                fBackCommandBuffer->SetNextDrawVertexExtension( el );
+            }
+        }
+
         if( fPreviousPrimitiveType == Geometry::kIndexedTriangles )
         {
             fBackCommandBuffer->DrawIndexed( fIndexOffset, fIndexCount, fPreviousPrimitiveType );

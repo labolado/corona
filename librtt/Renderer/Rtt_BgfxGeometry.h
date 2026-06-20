@@ -51,6 +51,12 @@ class BgfxGeometry : public GPUResource
 
         void Bind();
         void SetVertexBuffer( U32 offset, U32 count );
+        // Pool/batched draw with a vertex-format extension: the pool geometry has
+        // no extension list of its own, so the source list is supplied per-draw.
+        // The pool buffer already holds interleaved (base+extension) units, so it
+        // is uploaded raw with the extended layout (no re-splice). offset/count
+        // are in base-vertex slots / real vertices respectively (see .cpp).
+        void SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList );
         void SetIndexBuffer( U32 offset, U32 count );
 
         // Instance data buffer support
@@ -79,6 +85,9 @@ class BgfxGeometry : public GPUResource
         // base 68-byte vertex. Geometries without an extension take the shared
         // static layout and the base vertex data unchanged (zero overhead).
         bool GeometryHasVertexExtension( Geometry* geometry ) const;
+        // Returns the geometry's own extension list, or — for pooled/batched draws
+        // whose pool geometry has no list — the per-draw override (fPoolExtList).
+        const FormatExtensionList* EffectiveExtList( Geometry* geometry ) const;
         const bgfx::VertexLayout& ResolveLayout( Geometry* geometry );
         static void BuildExtendedLayout( const FormatExtensionList* list, bgfx::VertexLayout& outLayout );
         // Returns the upload source pointer and sets the per-vertex stride and
@@ -107,6 +116,14 @@ class BgfxGeometry : public GPUResource
         // the common no-extension case.
         bgfx::VertexLayout fExtLayout;
         bool fHasExtLayout;
+
+        // Per-draw extension list for pooled/batched geometry (set by
+        // SetVertexBufferExt for the duration of one upload, then cleared). The
+        // pool geometry has no list of its own; this routes the source list into
+        // ResolveLayout/PrepareVertexUpload. The pool buffer is already
+        // interleaved, so the upload path takes it raw (no re-splice).
+        const FormatExtensionList* fPoolExtList;
+        bool fPoolExtInterleaved; // true: data already interleaved in main buffer
 
         // Auto-promotion threshold: frames of stability before dynamic to static
         static const U32 kPromotionThreshold = 120;

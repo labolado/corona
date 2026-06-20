@@ -58,6 +58,12 @@ struct DeferredCmd
 
     // kDraw / kDrawIndexed
     Geometry* geometry;
+    // Source geometry's full vertex-format extension list (vertex-rate). NULL
+    // for the common (no-extension) case. When set, the pooled/transient vertex
+    // buffer is bound with the matching extended layout instead of the fixed
+    // 68-byte layout. Valid for the lifetime of the frame (the owning source
+    // object stays alive until commands execute).
+    const FormatExtensionList* vertexExtList;
     Texture* textures[8];
     Program* program;
     Program::Version programVersion;
@@ -142,6 +148,7 @@ class BgfxCommandBuffer : public CommandBuffer
         virtual void BindProgram( Program* program, Program::Version version );
         virtual void BindInstancing( U32 count, Geometry::Vertex* instanceData );
         virtual void BindVertexFormat( FormatExtensionList* list, U16 fullCount, U16 vertexSize, U32 offset );
+        virtual void SetNextDrawVertexExtension( const FormatExtensionList* extensionList );
         virtual void SetBlendEnabled( bool enabled );
         virtual void SetBlendFunction( const BlendMode& mode );
         virtual void SetBlendEquation( RenderTypes::BlendEquation mode );
@@ -237,6 +244,9 @@ class BgfxCommandBuffer : public CommandBuffer
         Program* fCurrentProgram;
         Program::Version fCurrentVersion;
         U8 fCurrentMaskCount;
+        // Pending source vertex-format extension list for the next recorded draw
+        // (set by SetNextDrawVertexExtension, consumed by Draw/DrawIndexed).
+        const FormatExtensionList* fNextDrawVertexExtList;
         Texture* fBoundTextures[kMaxTextureUnits];
 
         // Blend state

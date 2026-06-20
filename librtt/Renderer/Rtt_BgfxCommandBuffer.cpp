@@ -147,6 +147,7 @@ BgfxCommandBuffer::BgfxCommandBuffer( Rtt_Allocator* allocator )
     fCurrentProgram( NULL ),
     fCurrentVersion( Program::kMaskCount0 ),
     fCurrentMaskCount( 0 ),
+    fNextDrawVertexExtList( NULL ),
     fBlendEnabled( true ),
     fBlendState( BGFX_STATE_BLEND_FUNC_SEPARATE(
         BGFX_STATE_BLEND_SRC_ALPHA,
@@ -426,6 +427,12 @@ BgfxCommandBuffer::BindVertexFormat( FormatExtensionList* list, U16 fullCount, U
 }
 
 void
+BgfxCommandBuffer::SetNextDrawVertexExtension( const FormatExtensionList* extensionList )
+{
+    fNextDrawVertexExtList = extensionList;
+}
+
+void
 BgfxCommandBuffer::SetBlendEnabled( bool enabled )
 {
     fBlendEnabled = enabled;
@@ -664,6 +671,8 @@ BgfxCommandBuffer::Draw( U32 offset, U32 count, Geometry::PrimitiveType type )
     DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kDraw;
     cmd.geometry = fCurrentGeometry;
+    cmd.vertexExtList = fNextDrawVertexExtList;
+    fNextDrawVertexExtList = NULL; // consume — do not leak into the next draw
     cmd.program = fCurrentProgram;
     cmd.programVersion = fCurrentVersion;
     cmd.maskCount = fCurrentMaskCount;
@@ -721,6 +730,8 @@ BgfxCommandBuffer::DrawIndexed( U32 offset, U32 count, Geometry::PrimitiveType t
     DeferredCmd cmd = {};
     cmd.type = DeferredCmd::kDrawIndexed;
     cmd.geometry = fCurrentGeometry;
+    cmd.vertexExtList = fNextDrawVertexExtList;
+    fNextDrawVertexExtList = NULL; // consume — do not leak into the next draw
     cmd.program = fCurrentProgram;
     cmd.programVersion = fCurrentVersion;
     cmd.maskCount = fCurrentMaskCount;
@@ -1092,6 +1103,15 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
     // Apply named uniforms (custom effects)
     ApplyNamedUniforms( cmd );
 
+    // Pooled/batched geometry carrying a vertex-format extension: the pool
+    // buffer holds interleaved (base+extension) units, so it must be bound with
+    // the extended (factor*68-byte) layout and addressed in real-vertex units.
+    // cmd.offset is in base-vertex slots; convert it by the (1+extraCount) factor.
+    const FormatExtensionList* extList =
+        ( cmd.vertexExtList && cmd.vertexExtList->HasVertexRateData() ) ? cmd.vertexExtList : NULL;
+    const U32 extFactor = extList ? ( 1 + extList->ExtraVertexCount() ) : 1;
+    const U32 drawOffset = extList ? ( cmd.offset / extFactor ) : cmd.offset;
+
     // Handle TriangleFan conversion
     if( cmd.primitiveType == Geometry::kTriangleFan )
     {
@@ -1110,9 +1130,9 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
             uint16_t* indices = reinterpret_cast<uint16_t*>( tib.data );
             for( uint32_t i = 0; i < triCount; i++ )
             {
-                indices[i * 3 + 0] = static_cast<uint16_t>( cmd.offset );
-                indices[i * 3 + 1] = static_cast<uint16_t>( cmd.offset + i + 1 );
-                indices[i * 3 + 2] = static_cast<uint16_t>( cmd.offset + i + 2 );
+                indices[i * 3 + 0] = static_cast<uint16_t>( drawOffset );
+                indices[i * 3 + 1] = static_cast<uint16_t>( drawOffset + i + 1 );
+                indices[i * 3 + 2] = static_cast<uint16_t>( drawOffset + i + 2 );
             }
 
             bgfx::setState( cmd.bgfxState );
@@ -1122,7 +1142,14 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
                 bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
             }
 
-            geo->SetVertexBuffer( cmd.offset, cmd.count );
+            if( extList )
+            {
+                geo->SetVertexBufferExt( cmd.offset, cmd.count, extList );
+            }
+            else
+            {
+                geo->SetVertexBuffer( cmd.offset, cmd.count );
+            }
             bgfx::setIndexBuffer( &tib );
 
             // Set textures
@@ -1184,6 +1211,10 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
             memcpy( tvb.data, vertexData, vertexCount * sizeof( Geometry::Vertex ) );
             BakeStoredGeometryMaskUVs( reinterpret_cast<Geometry::Vertex*>( tvb.data ), vertexCount, m0, m1, m2 );
             bgfx::setVertexBuffer( 0, &tvb, cmd.offset, cmd.count );
+        }
+        else if( extList )
+        {
+            geo->SetVertexBufferExt( cmd.offset, cmd.count, extList );
         }
         else
         {

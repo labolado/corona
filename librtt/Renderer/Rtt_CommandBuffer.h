@@ -94,6 +94,11 @@ class CommandBuffer
         virtual void BindProgram( Program* program, Program::Version version ) = 0;
         virtual void BindInstancing( U32 count, Geometry::Vertex* instanceData ) = 0;
         virtual void BindVertexFormat( FormatExtensionList* extensionList, U16 fullCount, U16 vertexSize, U32 offset ) = 0;
+        // bgfx-only: records the source geometry's full vertex-format extension
+        // list so the next Draw/DrawIndexed can pick the matching (extended)
+        // vertex layout for pooled/batched geometry. No-op on other backends,
+        // which carry the format through BindVertexFormat instead.
+        virtual void SetNextDrawVertexExtension( const FormatExtensionList* extensionList ) {}
         virtual void SetBlendEnabled( bool enabled ) = 0;
         virtual void SetBlendFunction( const BlendMode& mode ) = 0;
         virtual void SetBlendEquation( RenderTypes::BlendEquation equation ) = 0;

@@ -81,7 +81,9 @@ BgfxGeometry::BgfxGeometry()
 	fHasIndexBuffer( false ),
 	fWasStoredOnGPU( false ),
 	fLastUpdateFrame( 0 ),
-	fHasExtLayout( false )
+	fHasExtLayout( false ),
+	fPoolExtList( NULL ),
+	fPoolExtInterleaved( false )
 {
 	InitializeVertexLayout();
 }
@@ -111,6 +113,8 @@ BgfxGeometry::ResetForReuse()
 	fWasStoredOnGPU = false;
 	fLastUpdateFrame = 0;
 	fHasExtLayout = false;
+	fPoolExtList = NULL;
+	fPoolExtInterleaved = false;
 	fHandle = NULL;
 	// fTransientVB / fTransientIB / fInstanceDataBuffer are stack structs;
 	// their contents are irrelevant when the above flags are false.
@@ -161,10 +165,22 @@ ExtensionSlotAttrib( U32 index )
 	return kSlots[ index ];
 }
 
+const FormatExtensionList*
+BgfxGeometry::EffectiveExtList( Geometry* geometry ) const
+{
+	const FormatExtensionList* list = geometry->GetExtensionList();
+	if ( NULL != list )
+	{
+		return list;
+	}
+	// Pool/batched geometry carries no list of its own; use the per-draw override.
+	return fPoolExtList;
+}
+
 bool
 BgfxGeometry::GeometryHasVertexExtension( Geometry* geometry ) const
 {
-	const FormatExtensionList* list = geometry->GetExtensionList();
+	const FormatExtensionList* list = EffectiveExtList( geometry );
 	return NULL != list && list->HasVertexRateData();
 }
 
@@ -230,9 +246,15 @@ BgfxGeometry::ResolveLayout( Geometry* geometry )
 {
 	if ( GeometryHasVertexExtension( geometry ) )
 	{
-		if ( !fHasExtLayout )
+		const FormatExtensionList* list = EffectiveExtList( geometry );
+
+		// For pooled geometry the override list can change between frames (the
+		// same pool object is reused), so always rebuild from the current list.
+		// For a geometry that owns its (stable) list, build once and cache.
+		const bool isPoolOverride = ( NULL == geometry->GetExtensionList() );
+		if ( isPoolOverride || !fHasExtLayout )
 		{
-			BuildExtendedLayout( geometry->GetExtensionList(), fExtLayout );
+			BuildExtendedLayout( list, fExtLayout );
 			fHasExtLayout = true;
 		}
 		return fExtLayout;
@@ -246,7 +268,18 @@ BgfxGeometry::PrepareVertexUpload( Geometry* geometry, U32 vertexCount,
 {
 	if ( GeometryHasVertexExtension( geometry ) )
 	{
-		const FormatExtensionList* list = geometry->GetExtensionList();
+		const FormatExtensionList* list = EffectiveExtList( geometry );
+
+		// Pool/batched path: the main buffer already holds interleaved
+		// (base+extension) units written by Renderer::CopyExtendedVertexData.
+		// Upload it raw with the extended stride — no re-splice.
+		if ( fPoolExtInterleaved )
+		{
+			outStrideBytes = (U32) FormatExtensionList::GetVertexSize( list );
+			outTotalBytes = vertexCount * outStrideBytes;
+			return geometry->GetVertexData();
+		}
+
 		const Geometry::Vertex* base = geometry->GetVertexData();
 		Geometry::Vertex* extended = geometry->GetWritableExtendedVertexData();
 
@@ -699,6 +732,94 @@ BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 			bgfx::setVertexBuffer( 0, fVertexBufferHandle, static_cast<uint32_t>( offset ), static_cast<uint32_t>( count ) );
 		}
 	}
+}
+
+void
+BgfxGeometry::SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList )
+{
+	// No (vertex-rate) extension, or no pending source data → fall back to the
+	// normal path (byte-identical to the non-extension behavior).
+	if ( NULL == poolExtList || !poolExtList->HasVertexRateData() )
+	{
+		SetVertexBuffer( offset, count );
+		return;
+	}
+
+	// Only the pool/transient path is reached for batched geometry. If this
+	// geometry isn't transient (shouldn't happen for pool geometry), fall back.
+	if ( !fIsTransient )
+	{
+		SetVertexBuffer( offset, count );
+		return;
+	}
+
+	Geometry* geometry = fPendingGeometry;
+	if ( NULL == geometry )
+	{
+		// Vulkan eager path already uploaded with the base layout; for safety
+		// fall back rather than risk a stride mismatch.
+		SetVertexBuffer( offset, count );
+		return;
+	}
+
+	const Geometry::Vertex* vertexData = geometry->GetVertexData();
+	if ( NULL == vertexData )
+	{
+		return;
+	}
+
+	const U32 factor = 1 + poolExtList->ExtraVertexCount(); // base + extension slots
+	const U32 strideBytes = (U32) FormatExtensionList::GetVertexSize( poolExtList ); // factor*68
+	const U32 slotCount = geometry->GetVerticesAllocated(); // capacity in 68-byte slots
+	const U32 realVertexCapacity = ( factor > 0 ) ? ( slotCount / factor ) : slotCount;
+	if ( 0 == realVertexCapacity )
+	{
+		return;
+	}
+
+	// Build the extended layout for this list (pool override always rebuilds).
+	fPoolExtList = poolExtList;
+	fPoolExtInterleaved = true;
+	const bgfx::VertexLayout& layout = ResolveLayout( geometry );
+
+	const U32 totalBytes = realVertexCapacity * strideBytes; // == slotCount * 68
+
+	bool ok = false;
+	if ( bgfx::getAvailTransientVertexBuffer( realVertexCapacity, layout ) >= realVertexCapacity )
+	{
+		bgfx::allocTransientVertexBuffer( &fTransientVB, realVertexCapacity, layout );
+		memcpy( fTransientVB.data, vertexData, totalBytes );
+		fVertexCount = realVertexCapacity;
+		fHasTransientVB = true;
+		fPendingGeometry = nullptr; // consumed
+
+		// Index buffer (if any) for this pool geometry.
+		const Geometry::Index* indexData = geometry->GetIndexData();
+		U32 indexCount = geometry->GetIndicesUsed();
+		if ( indexData && indexCount > 0 && bgfx::getAvailTransientIndexBuffer( indexCount ) >= indexCount )
+		{
+			bgfx::allocTransientIndexBuffer( &fTransientIB, indexCount );
+			memcpy( fTransientIB.data, indexData, indexCount * sizeof( Geometry::Index ) );
+			fHasTransientIB = true;
+		}
+		else
+		{
+			fHasTransientIB = false;
+		}
+
+		// Convert the base-slot offset to a real-vertex offset for the extended
+		// (stride = factor*68) layout. count is already in real vertices.
+		const U32 realOffset = ( factor > 0 ) ? ( offset / factor ) : offset;
+		bgfx::setVertexBuffer( 0, &fTransientVB, static_cast<uint32_t>( realOffset ), static_cast<uint32_t>( count ) );
+		ok = true;
+	}
+
+	// Clear the per-draw override so a later reuse of this pool geometry without
+	// an extension takes the normal 68-byte path.
+	fPoolExtList = NULL;
+	fPoolExtInterleaved = false;
+
+	Rtt_UNUSED( ok );
 }
 
 void
