@@ -14,6 +14,8 @@
 #include "Renderer/Rtt_BgfxShaderCompiler.h"
 #include "Renderer/Rtt_BgfxProgram.h"
 #include "Renderer/Rtt_BgfxShaderCacheKey.h"
+#include "Renderer/Rtt_BgfxVertexExtension.h"
+#include "Renderer/Rtt_FormatExtensionList.h"
 #include "Core/Rtt_Assert.h"
 
 #include <cstdio>
@@ -1064,7 +1066,8 @@ std::string BgfxShaderCompiler::TransformFragmentKernel(const char* kernel,
 // ----------------------------------------------------------------------------
 
 std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
-                                                       const VaryingMapping& varyings)
+                                                       const VaryingMapping& varyings,
+                                                       const FormatExtensionList* extList)
 {
     if (!kernel || !*kernel) return "";
 
@@ -1205,9 +1208,47 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
         }
     }
 
+    // Vertex format-extension attributes (effect's vertexExtension). Route each
+    // extension attribute into a spare bgfx attribute slot (shared table in
+    // Rtt_BgfxVertexExtension.h, same order the geometry layout uses) and expose
+    // it to the kernel as Corona<Name> — mirrors GL GatherAttributeExtensions.
+    std::string extInputs, extDefines;
+    if (extList && extList->HasVertexRateData())
+    {
+        extList->SortNames();
+        const U32 count = extList->GetAttributeCount();
+        for (U32 i = 0; i < count && i < kBgfxExtensionAttribSlotCount; ++i)
+        {
+            S32 attrIdx = -1;
+            const char* name = extList->FindNameByAttribute(i, &attrIdx);
+            if (!name) continue;
+            const FormatExtensionList::Attribute& attr =
+                extList->GetAttributes()[attrIdx >= 0 ? (U32)attrIdx : i];
+            const char* slot = kBgfxExtensionAttribNames[i];
+
+            extInputs += ", ";
+            extInputs += slot;
+
+            const char* swizzle = (attr.components == 1) ? ".x"
+                                : (attr.components == 2) ? ".xy"
+                                : (attr.components == 3) ? ".xyz"
+                                : "";
+            char buf[160];
+            snprintf(buf, sizeof(buf), "#define Corona%c%s %s%s\n",
+                     (char)toupper((unsigned char)name[0]), name + 1, slot, swizzle);
+            extDefines += buf;
+        }
+        if (count > kBgfxExtensionAttribSlotCount)
+        {
+            Rtt_LogException("[bgfx vertex extension] effect declares %u extension attributes "
+                             "but only %u spare bgfx slots are available; extras ignored\n",
+                             (unsigned)count, (unsigned)kBgfxExtensionAttribSlotCount);
+        }
+    }
+
     // Build complete .sc source
     std::string result;
-    result += "$input a_position, a_texcoord0, a_color0, a_texcoord1\n";
+    result += "$input a_position, a_texcoord0, a_color0, a_texcoord1" + extInputs + "\n";
     result += outputLine + "\n";
     result += kBgfxShaderInline;
     result += "uniform mat4 u_ViewProjectionMatrix;\n";
@@ -1242,6 +1283,13 @@ std::string BgfxShaderCompiler::TransformVertexKernel(const char* kernel,
     result += "#define a_TexCoord a_texcoord0\n";
     result += "#define a_UserData a_texcoord1\n";
     result += "\n";
+
+    // Expose vertexExtension attributes to the kernel as Corona<Name>.
+    if (!extDefines.empty())
+    {
+        result += extDefines;
+        result += "\n";
+    }
 
     // User preamble (helper functions, uniforms — varying decls already removed)
     if (!preamble.empty())
@@ -2195,7 +2243,8 @@ static void InjectGlslNotCompatShared(std::string& src)
 
 bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* name,
                                               const char* kernelFrag, const char* kernelVert,
-                                              std::string& outError)
+                                              std::string& outError,
+                                              const FormatExtensionList* extList)
 {
     if (!kernelFrag || !*kernelFrag)
     {
@@ -2396,7 +2445,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
         // Handle vertex shader: custom VS if provided, or compile default VS for SPIR-V compatibility
         if (hasCustomVS)
         {
-            std::string vertSc = TransformVertexKernel(kernelVert, varyings);
+            std::string vertSc = TransformVertexKernel(kernelVert, varyings, extList);
             InjectGlslNotCompatShared(vertSc);
             if (!vertSc.empty())
             {
@@ -2540,7 +2589,7 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
     // Compile/construct custom vertex shader if provided
     if (kernelVert && *kernelVert)
     {
-        std::string vertSc = TransformVertexKernel(kernelVert, varyings);
+        std::string vertSc = TransformVertexKernel(kernelVert, varyings, extList);
         if (!vertSc.empty())
         {
             std::vector<uint8_t> vsBinary;

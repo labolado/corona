@@ -20,6 +20,8 @@
 namespace Rtt
 {
 
+class FormatExtensionList;
+
 // ----------------------------------------------------------------------------
 
 // Mapping from user varying name (e.g. "outlineColor") to bgfx slot info.
@@ -58,8 +60,12 @@ public:
                                                 const VaryingMapping& varyings = VaryingMapping());
 
     // Transform a Solar2D GLSL vertex kernel into bgfx .sc format.
+    // extList (optional): the effect's vertexExtension format list. When it has
+    // vertex-rate data, its attributes are declared as $input slots and exposed
+    // to the kernel as Corona<Name> macros (mirrors the GL path).
     static std::string TransformVertexKernel(const char* kernel,
-                                              const VaryingMapping& varyings = VaryingMapping());
+                                              const VaryingMapping& varyings = VaryingMapping(),
+                                              const FormatExtensionList* extList = NULL);
 
     // Compile a .sc source string to bgfx binary using the shaderc binary.
     // shaderType: 'f' for fragment, 'v' for vertex
@@ -73,7 +79,8 @@ public:
     // Returns true if at least the fragment shader compiled successfully.
     static bool CompileCustomEffect(const char* category, const char* name,
                                     const char* kernelFrag, const char* kernelVert,
-                                    std::string& outError);
+                                    std::string& outError,
+                                    const FormatExtensionList* extList = NULL);
 
     // Cache management
     static bool FindCachedShader(const char* key, const unsigned char*& outData, size_t& outSize);

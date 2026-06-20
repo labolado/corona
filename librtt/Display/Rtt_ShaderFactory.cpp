@@ -1034,9 +1034,16 @@ ShaderFactory::NewShaderBuiltin( ShaderTypes::Category category, const char *nam
 							{
 								const char* categoryStr = ShaderTypes::StringForCategory( category );
 								{
+									// Resolve the effect's vertexExtension now so the bgfx
+									// custom vertex shader can declare its attributes (the
+									// later InitializeBindings pass would be too late). Safe
+									// to bind twice; SetExtensionList just overwrites.
+									BindVertexExtension( L, tableIndex, resource );
+									const FormatExtensionList* extList = resource->GetExtensionList();
+
 									std::string compileError;
 									if (!BgfxShaderCompiler::CompileCustomEffect(
-										categoryStr, name, kernelFrag, kernelVert, compileError))
+										categoryStr, name, kernelFrag, kernelVert, compileError, extList))
 									{
 										CORONA_LOG_ERROR(
 											"Custom effect '%s' (category '%s') failed to compile for bgfx: %s",

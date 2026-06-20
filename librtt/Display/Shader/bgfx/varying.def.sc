@@ -30,3 +30,19 @@ vec4 a_texcoord1 : TEXCOORD1;
 vec2 a_texcoord2 : TEXCOORD2;
 vec2 a_texcoord3 : TEXCOORD3;
 vec2 a_texcoord4 : TEXCOORD4;
+
+// Vertex format-extension attribute slots (see Rtt_BgfxVertexExtension.h).
+// Spare bgfx attribute semantics that carry an effect's vertexExtension
+// attributes. Declared widest-width (vec4); the generated vertex shader reads
+// only the swizzle matching the effect attribute's component count, and the
+// per-geometry vertex layout supplies the matching component count. Effects
+// without a vertexExtension never reference these, so this is additive only.
+vec4 a_texcoord5 : TEXCOORD5;
+vec4 a_texcoord6 : TEXCOORD6;
+vec4 a_texcoord7 : TEXCOORD7;
+vec4 a_normal    : NORMAL;
+vec4 a_tangent   : TANGENT;
+vec4 a_bitangent : BITANGENT;
+vec4 a_color1    : COLOR1;
+vec4 a_color2    : COLOR2;
+vec4 a_color3    : COLOR3;
