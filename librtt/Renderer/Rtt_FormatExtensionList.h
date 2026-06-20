@@ -34,8 +34,12 @@ class FormatExtensionList {
         struct Attribute {
             U32 nameHash;
             U16 type;
-            U16 offset : 13;
-            U16 components : 2;
+            // offset:12 (max 4095, far exceeds any extended-vertex byte offset),
+            // components:3 (1..4 — Lua accepts componentCount up to 4; was :2 which
+            // wrapped a 4-component attribute to 0), normalized:1. Total 16 bits =
+            // one U16 unit, so the struct stays 8 bytes (no packing change).
+            U16 offset : 12;
+            U16 components : 3;
             U16 normalized : 1;
             
             U32 GetSize() const;
