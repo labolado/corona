@@ -1513,6 +1513,14 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     // No triangle fans (can't trivially concatenate without index conversion)
     if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
+    // No vertex-format extension draws. Pooled/batched geometry carrying a
+    // vertex-rate extension holds interleaved (base+extension) units at the
+    // extended stride (factor*68 bytes); the batch merge below copies/merges at
+    // the fixed 68-byte Geometry::Vertex stride, which would read the wrong
+    // bytes (garbled fill). Let these fall through to ExecuteDraw, which binds
+    // the matching extended layout via SetVertexBufferExt (#079).
+    if( a.vertexExtList || b.vertexExtList ) return false;
+
     // No triangle strips unless D1' index conversion is enabled.
     // When enabled, strip batches are reindexed to indexed triangles via
     // transient IBO in ExecuteBatchedDraws.
@@ -1578,6 +1586,11 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
     // Skip instanced and fan draws
     if( first.instanceDraw ) return 0;
     if( first.primitiveType == Geometry::kTriangleFan ) return 0;
+
+    // Skip vertex-format extension draws (interleaved extended stride; the merge
+    // copies at the fixed 68-byte stride and would garble the fill). These go
+    // through ExecuteDraw → SetVertexBufferExt with the matching layout (#079).
+    if( first.vertexExtList ) return 0;
 
     // Find the end of the batchable run
     size_t end = startIdx + 1;
