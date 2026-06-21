@@ -206,6 +206,9 @@ class BgfxCommandBuffer : public CommandBuffer
         // Draw call batching
         bool CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const;
         size_t ExecuteBatchedDraws( size_t startIdx );
+        // True when the draw carries vertex-rate format-extension data (per-draw
+        // pool override OR the geometry's own list); such draws cannot batch (#079).
+        static bool DrawHasVertexExtension( const DeferredCmd& cmd );
 
     public:
         // Batch statistics (reset each frame)

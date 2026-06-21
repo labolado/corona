@@ -306,6 +306,48 @@ BgfxGeometry::PrepareVertexUpload( Geometry* geometry, U32 vertexCount,
 	return geometry->GetVertexData();
 }
 
+const bgfx::VertexLayout&
+BgfxGeometry::ResolveLayoutExt( Geometry* geometry, const FormatExtensionList* list )
+{
+	// Always (re)build from the supplied list — the explicit list may differ
+	// from the geometry's own (pool override) and must win for this draw.
+	if ( NULL != list && list->HasVertexRateData() )
+	{
+		BuildExtendedLayout( list, fExtLayout );
+		fHasExtLayout = true;
+		return fExtLayout;
+	}
+	return sVertexLayout;
+}
+
+const Geometry::Vertex*
+BgfxGeometry::PrepareVertexUploadExt( Geometry* geometry, const FormatExtensionList* list,
+                                      U32 vertexCount, U32& outStrideBytes, U32& outTotalBytes )
+{
+	if ( NULL != list && list->HasVertexRateData() )
+	{
+		const Geometry::Vertex* base = geometry->GetVertexData();
+		Geometry::Vertex* extended = geometry->GetWritableExtendedVertexData();
+		if ( NULL != base && NULL != extended )
+		{
+			// Splice base vertices into slot 0 of each extended unit; the
+			// extension values already occupy the trailing slots (mirrors
+			// PrepareVertexUpload's non-pool path).
+			const U32 total = 1 + list->ExtraVertexCount();
+			for ( U32 i = 0, j = 0; j < vertexCount; i += total, ++j )
+			{
+				extended[ i ] = base[ j ];
+			}
+			outStrideBytes = (U32) FormatExtensionList::GetVertexSize( list );
+			outTotalBytes = vertexCount * outStrideBytes;
+			return extended;
+		}
+	}
+	outStrideBytes = (U32) sizeof( Geometry::Vertex );
+	outTotalBytes = vertexCount * outStrideBytes;
+	return geometry->GetVertexData();
+}
+
 void
 BgfxGeometry::CreateStatic( Geometry* geometry )
 {

@@ -1313,9 +1313,31 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );
     }
 
+    // Resolve the effective vertex-rate extension list for this indexed draw:
+    // either the per-draw pool override (cmd.vertexExtList) or the geometry's
+    // own list (stored-on-GPU indexed geometry carries it via CreateStatic).
+    // When present, the interleaved (base+extension) units must be bound with
+    // the extended (factor*68-byte) layout — the fixed 68-byte path would read
+    // the wrong bytes and garble the fill (#079).
+    const FormatExtensionList* idxExtList = NULL;
+    if( cmd.vertexExtList && cmd.vertexExtList->HasVertexRateData() )
+    {
+        idxExtList = cmd.vertexExtList;
+    }
+    else
+    {
+        const FormatExtensionList* ownList = cmd.geometry->GetExtensionList();
+        if( ownList && ownList->HasVertexRateData() )
+        {
+            idxExtList = ownList;
+        }
+    }
+
     if( !geo->IsTransient() && geo->HasStaticVB() && geo->HasStaticIB() )
     {
-        // storedOnGPU: use existing static buffers directly
+        // storedOnGPU: use existing static buffers directly. CreateStatic built
+        // the (extended) layout from the geometry's own extension list, so the
+        // static VB is already correct for extension geometry.
         geo->SetVertexBuffer( 0, cmd.geometry->GetVerticesUsed() );
         geo->SetIndexBuffer( 0, cmd.geometry->GetIndicesUsed() );
     }
@@ -1342,6 +1364,50 @@ BgfxCommandBuffer::ExecuteDrawIndexed( const DeferredCmd& cmd )
         if( !vertexData || vertexCount == 0 )
         {
             return;
+        }
+
+        // Vertex-rate extension geometry on the transient indexed path: bind the
+        // extended (factor*68) layout and upload the spliced extended data, so
+        // the GPU steps the interleaved units correctly (#079). The index buffer
+        // above is unchanged (indices address real vertices, which map 1:1).
+        if( idxExtList )
+        {
+            U32 strideBytes = 0, vertexDataSize = 0;
+            const Geometry::Vertex* uploadData =
+                geo->PrepareVertexUploadExt( cmd.geometry, idxExtList, vertexCount, strideBytes, vertexDataSize );
+            const bgfx::VertexLayout& extLayout = geo->ResolveLayoutExt( cmd.geometry, idxExtList );
+            if( uploadData && bgfx::getAvailTransientVertexBuffer( vertexCount, extLayout ) >= vertexCount )
+            {
+                bgfx::TransientVertexBuffer etvb;
+                bgfx::allocTransientVertexBuffer( &etvb, vertexCount, extLayout );
+                memcpy( etvb.data, uploadData, vertexDataSize );
+                bgfx::setVertexBuffer( 0, &etvb );
+                bgfx::setIndexBuffer( &tib );
+                // Set textures, then submit (skip the fixed-68B path below).
+                for( U32 i = 0; i < kMaxTextureUnits; i++ )
+                {
+                    if( cmd.textures[i] && CPUResource::IsAlive(cmd.textures[i]) )
+                    {
+                        BgfxTexture* tex = static_cast<BgfxTexture*>( cmd.textures[i]->GetGPUResource() );
+                        if( tex )
+                        {
+                            bgfx::TextureHandle texHandle = tex->GetHandle();
+                            if( bgfx::isValid( texHandle ) )
+                            {
+                                bgfx::UniformHandle sampler = prog->GetSamplerHandle( i );
+                                if( bgfx::isValid( sampler ) )
+                                {
+                                    bgfx::setTexture( i, sampler, texHandle, tex->GetSamplerFlags() );
+                                }
+                            }
+                        }
+                    }
+                }
+                bgfx::submit( fCurrentView, programHandle );
+                return;
+            }
+            // Insufficient transient space or no data → fall through to the
+            // fixed-68B path (degraded fill, but no garbage/crash).
         }
 
         bgfx::TransientVertexBuffer tvb;
@@ -1498,6 +1564,32 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
 // Draw Call Batching
 // ============================================================================
 
+// A draw carries vertex-rate format-extension data when either the per-draw
+// pool override (cmd.vertexExtList, set for off-GPU pooled geometry) or the
+// geometry's OWN extension list (stored-on-GPU indexed geometry, set via
+// CreateStatic) has vertex-rate attributes. Such draws use the extended
+// (factor*68-byte) interleaved stride and MUST NOT be merged at the fixed
+// 68-byte Geometry::Vertex stride (that reads the wrong bytes → garbled fill).
+// They fall through to ExecuteDraw / ExecuteDrawIndexed, which bind the
+// matching extended layout (#079).
+bool
+BgfxCommandBuffer::DrawHasVertexExtension( const DeferredCmd& cmd )
+{
+    if( cmd.vertexExtList && cmd.vertexExtList->HasVertexRateData() )
+    {
+        return true;
+    }
+    if( cmd.geometry )
+    {
+        const FormatExtensionList* own = cmd.geometry->GetExtensionList();
+        if( own && own->HasVertexRateData() )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool
 BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) const
 {
@@ -1513,13 +1605,14 @@ BgfxCommandBuffer::CanBatchDraws( const DeferredCmd& a, const DeferredCmd& b ) c
     // No triangle fans (can't trivially concatenate without index conversion)
     if( a.primitiveType == Geometry::kTriangleFan || b.primitiveType == Geometry::kTriangleFan ) return false;
 
-    // No vertex-format extension draws. Pooled/batched geometry carrying a
-    // vertex-rate extension holds interleaved (base+extension) units at the
-    // extended stride (factor*68 bytes); the batch merge below copies/merges at
-    // the fixed 68-byte Geometry::Vertex stride, which would read the wrong
-    // bytes (garbled fill). Let these fall through to ExecuteDraw, which binds
-    // the matching extended layout via SetVertexBufferExt (#079).
-    if( a.vertexExtList || b.vertexExtList ) return false;
+    // No vertex-format extension draws. Geometry carrying a vertex-rate
+    // extension (pool override OR its own list, e.g. stored-on-GPU indexed
+    // meshes) holds interleaved (base+extension) units at the extended stride
+    // (factor*68 bytes); the batch merge below copies/merges at the fixed
+    // 68-byte Geometry::Vertex stride, which would read the wrong bytes (garbled
+    // fill). Let these fall through to ExecuteDraw / ExecuteDrawIndexed, which
+    // bind the matching extended layout (#079).
+    if( DrawHasVertexExtension( a ) || DrawHasVertexExtension( b ) ) return false;
 
     // No triangle strips unless D1' index conversion is enabled.
     // When enabled, strip batches are reindexed to indexed triangles via
@@ -1589,8 +1682,10 @@ BgfxCommandBuffer::ExecuteBatchedDraws( size_t startIdx )
 
     // Skip vertex-format extension draws (interleaved extended stride; the merge
     // copies at the fixed 68-byte stride and would garble the fill). These go
-    // through ExecuteDraw → SetVertexBufferExt with the matching layout (#079).
-    if( first.vertexExtList ) return 0;
+    // through ExecuteDraw / ExecuteDrawIndexed with the matching layout (#079).
+    // Check the geometry's own list too (stored-on-GPU indexed meshes carry the
+    // extension there, not in vertexExtList).
+    if( DrawHasVertexExtension( first ) ) return 0;
 
     // Find the end of the batchable run
     size_t end = startIdx + 1;

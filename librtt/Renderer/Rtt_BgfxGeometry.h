@@ -59,6 +59,14 @@ class BgfxGeometry : public GPUResource
         void SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList );
         void SetIndexBuffer( U32 offset, U32 count );
 
+        // Indexed transient path (#079): build the extended layout / spliced
+        // upload data for a draw whose extension list is supplied explicitly
+        // (either the geometry's own list or a per-draw pool override). The
+        // caller owns the transient buffer allocation and submit.
+        const bgfx::VertexLayout& ResolveLayoutExt( Geometry* geometry, const FormatExtensionList* list );
+        const Geometry::Vertex* PrepareVertexUploadExt( Geometry* geometry, const FormatExtensionList* list,
+                                                        U32 vertexCount, U32& outStrideBytes, U32& outTotalBytes );
+
         // Instance data buffer support
         bgfx::InstanceDataBuffer* AcquireInstanceBuffer( U32 count );
         void SetInstanceDataBuffer( bgfx::InstanceDataBuffer* buffer, U32 count );
