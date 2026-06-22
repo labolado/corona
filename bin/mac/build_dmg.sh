@@ -120,7 +120,11 @@ if [ -f "$SHADERC_SRC" ]; then
     chmod +x "$APP_MACOS/shaderc"
     echo "Bundled shaderc for runtime Metal shader compilation"
 else
-    echo "WARNING: shaderc not found at $SHADERC_SRC — custom Metal shaders will not work in installed app"
+    # Without shaderc, installed-app custom effects fall back to GLES binary
+    # generation which Metal cannot compile, crashing graphics.defineEffect().
+    # Refuse to ship such a broken bundle.
+    echo "ERROR: shaderc not found at $SHADERC_SRC — refusing to build a DMG that would crash custom Metal shaders" >&2
+    exit 1
 fi
 if [ -f "$VARYING_SRC" ]; then
     cp -v "$VARYING_SRC" "$APP_MACOS/varying.def.sc"

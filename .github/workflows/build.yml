@@ -253,6 +253,11 @@ jobs:
           SHADERC="external/bgfx/tools/bin/darwin/shaderc"
           echo "Using prebuilt shaderc: $(file "$SHADERC")"
           bash tests/compile_shaders.sh --check
+      - name: Upload shaderc tool (for DMG bundling)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-tools
+          path: external/bgfx/tools/bin/darwin/shaderc
       - name: Publish prebuilt libs to labolado/bgfx
         if: steps.prebuilt.outputs.hit != 'true'
         env:
@@ -667,6 +672,13 @@ jobs:
         with:
           name: bgfx-libs
           path: external/bgfx/.build/projects/xcode15
+      - name: Download shaderc tool (for DMG bundling)
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-tools
+          path: external/bgfx/tools/bin/darwin
+      - name: Make shaderc executable
+        run: chmod +x external/bgfx/tools/bin/darwin/shaderc
       - run: ./tools/GHAction/daily_env.sh
       - name: Check for macOS min supported version
         run: exit $( echo  $(cat platform/mac/AppDelegate.mm |  perl -ne 'print for /kosVersionCurrent = @"([0-9.]+)"/') ' < '  $(/usr/bin/xcrun --sdk macosx --show-sdk-version)  | bc )
