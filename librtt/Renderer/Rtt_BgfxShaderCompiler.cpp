@@ -1361,10 +1361,15 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
         ofs << scSource;
     }
 
-    // Build shaderc command
-    std::string cmd = s_shadercPath;
-    cmd += " -f " + scPath;
-    cmd += " -o " + binPath;
+    // Build shaderc command. Every path is single-quoted because the installed
+    // macOS app bundle lives under ".../Corona Simulator.app/..." (contains a
+    // space); an unquoted path makes the shell split at the space and fail with
+    // "No such file or directory", so custom effects silently fall back to the
+    // default shader and render incorrectly.
+    auto shq = [](const std::string& s) { return "'" + s + "'"; };
+    std::string cmd = shq(s_shadercPath);
+    cmd += " -f " + shq(scPath);
+    cmd += " -o " + shq(binPath);
     cmd += " --type ";
     cmd += shaderType;
 #if defined(Rtt_ANDROID_ENV)
@@ -1389,13 +1394,13 @@ bool BgfxShaderCompiler::CompileShader(const std::string& scSource, char shaderT
     // Add include directories
     if (!s_bgfxIncludeDir.empty())
     {
-        cmd += " -i " + s_bgfxIncludeDir;
+        cmd += " -i " + shq(s_bgfxIncludeDir);
     }
 
     // Add varying.def.sc path
     if (!s_varyingDefPath.empty())
     {
-        cmd += " --varyingdef " + s_varyingDefPath;
+        cmd += " --varyingdef " + shq(s_varyingDefPath);
     }
 
     // Capture stderr for error messages
