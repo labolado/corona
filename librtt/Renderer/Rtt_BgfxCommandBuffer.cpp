@@ -1214,7 +1214,12 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
         }
         else if( extList )
         {
-            geo->SetVertexBufferExt( cmd.offset, cmd.count, extList );
+            // Per-draw vertex-extension override. Pass cmd.geometry explicitly so
+            // SetVertexBufferExt can still source the interleaved units when its
+            // lazy fPendingGeometry has already been consumed this frame (Metal/
+            // GLES) — otherwise it falls back to the 68-byte bind and reads the
+            // 136-byte units at the wrong stride, exploding the geometry (#079).
+            geo->SetVertexBufferExt( cmd.offset, cmd.count, extList, cmd.geometry );
         }
         else
         {

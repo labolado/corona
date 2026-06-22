@@ -56,7 +56,10 @@ class BgfxGeometry : public GPUResource
         // The pool buffer already holds interleaved (base+extension) units, so it
         // is uploaded raw with the extended layout (no re-splice). offset/count
         // are in base-vertex slots / real vertices respectively (see .cpp).
-        void SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList );
+        // srcGeometry: explicit data source used when the lazy fPendingGeometry is
+        // already NULL (Metal/GLES transient path consumes it on the first bind of
+        // the frame, leaving later extension binds with no source) — #079.
+        void SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList, Geometry* srcGeometry = NULL );
         void SetIndexBuffer( U32 offset, U32 count );
 
         // Indexed transient path (#079): build the extended layout / spliced

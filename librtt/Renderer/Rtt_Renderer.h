@@ -441,6 +441,10 @@ class Renderer
         U32 fCachedVertexExtra;
 		U32 fOffsetCorrection;
         Geometry::PrimitiveType fPreviousPrimitiveType;
+        // #079: extension list of the current pooled/batched draw, captured when
+        // geometry is added (fPrevious.fGeometry advances before the flush, so it
+        // can't be read at flush time). bgfx-only; NULL on GL/Vulkan paths.
+        const FormatExtensionList* fBatchVertexExtList;
         Geometry::Vertex* fCurrentVertex;
         Geometry* fCurrentGeometry;
         Geometry::Vertex* fCurrentInstancingVertex;

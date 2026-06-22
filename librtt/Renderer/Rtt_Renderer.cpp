@@ -309,6 +309,7 @@ Renderer::Renderer( Rtt_Allocator* allocator )
     fInsertionLimit( (std::numeric_limits<U32>::max)() ),
     fRenderDataCount( 0 ),
 	fVertexOffset( 0 ),
+	fBatchVertexExtList( NULL ),
 	fCurrentGeometry( NULL ),
     fTimeDependencyCount( 0 )
 {
@@ -367,6 +368,7 @@ Renderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTi
     fVertexOffset = 0;
     fVertexCount = 0;
     fVertexExtra = 0;
+    fBatchVertexExtList = NULL; // #079
     fIndexOffset = 0;
     fIndexCount = 0;
     fRenderDataCount = 0;
@@ -862,6 +864,23 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 
         bool enoughSpace = fCurrentGeometry && verticesRequired <=
          ( fCurrentGeometry->GetVerticesAllocated() - fCurrentGeometry->GetVerticesUsed() );
+
+        // #079 (bgfx): a pool geometry can only hold one vertex stride. Extension
+        // geometry is interleaved at (1+vertexExtra)*68 bytes/unit; non-extension
+        // geometry is flat 68 bytes. If the incoming object's extension factor
+        // differs from what the current pool geometry already accumulated
+        // (fVertexExtra still holds the previous object's value here, before it is
+        // overwritten below), reusing the same pool buffer would address the wrong
+        // bytes — the Draw offset (fVertexOffset) does not account for the mixed
+        // strides, so a marble batch reads the non-extension data sitting at the
+        // start of the buffer. Force a fresh pool geometry so each stride class
+        // starts at offset 0 with a consistent layout. GL is unaffected (it
+        // re-binds the format per draw via ReconcileFormats).
+        if( IsBgfx() && fCurrentGeometry && vertexExtra != fVertexExtra )
+        {
+            enoughSpace = false;
+        }
+
         if( !batch || !enoughSpace )
         {
             UpdateBatch( batch, enoughSpace, storedOnGPU, verticesRequired );
@@ -873,6 +892,13 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
         }
         
         fVertexExtra = vertexExtra;
+
+        // #079: remember this batch's vertex-format extension list. fPrevious.fGeometry
+        // was already advanced to the incoming geometry above (line ~850), so the flush
+        // in CheckAndInsertDrawCommand can no longer read the batch's own list from it.
+        // All geometries in a batch share the same format (formatsDirty breaks the batch
+        // otherwise), so capturing it here is authoritative for the whole batch.
+        fBatchVertexExtList = extensionList;
 
         // Copy the the incoming vertex data into the current Geometry
         // pool instance, even if the data will not be batched.
@@ -915,12 +941,20 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
                 {
                     totalVerts += 2;
                 }
+                // #079: for vertex-rate extension geometry the pool holds
+                // interleaved (base + fVertexExtra) Geometry::Vertex units, so the
+                // base vertex of unit i sits at index i*(1+fVertexExtra). Stride by
+                // that factor and patch only the base slots — a flat i++ stride
+                // would stomp the extension slots (wh/tiling/outline) that follow
+                // each base vertex, garbling the fill.
+                const U32 vstride = 1 + fVertexExtra;
                 for (U32 i = 0; i < totalVerts; i++)
                 {
-                    fCurrentVertex[i].ux = ux;
-                    fCurrentVertex[i].uy = uy;
-                    fCurrentVertex[i].uz = uz;
-                    fCurrentVertex[i].uw = uw;
+                    Geometry::Vertex& v = fCurrentVertex[i * vstride];
+                    v.ux = ux;
+                    v.uy = uy;
+                    v.uz = uz;
+                    v.uw = uw;
                 }
             }
         }
@@ -930,7 +964,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             Rtt_ASSERT( programList && programList->IsInstanced() );
 
             InsertInstancing( block, programList, extensionList );
-            
+
             mustReconcileFormats = true; // pointers out of date
         }
 
@@ -1866,13 +1900,16 @@ Renderer::CheckAndInsertDrawCommand()
         // extended layout (mirrors GL's ReconcileFormats path). storedOnGPU
         // geometry carries its own list via CreateStatic, so only the off-GPU
         // (pool) path needs this. No-op on GL/Vulkan.
-        if( IsBgfx() && fPrevious.fGeometry && !fPrevious.fGeometry->GetStoredOnGPU() )
+        // #079: use the batch's captured extension list, NOT fPrevious.fGeometry's.
+        // fPrevious.fGeometry is advanced to the *incoming* geometry before this flush
+        // runs, so when an extension batch is broken by a following non-extension draw,
+        // reading fPrevious.fGeometry here yields the wrong (or no) list — the merged
+        // draw then binds the fixed 68-byte layout over interleaved extended data and
+        // garbles the fill. fBatchVertexExtList was captured when the batch was filled.
+        if( IsBgfx() && fBatchVertexExtList && fBatchVertexExtList->HasVertexRateData()
+            && fPrevious.fGeometry && !fPrevious.fGeometry->GetStoredOnGPU() )
         {
-            const FormatExtensionList* el = fPrevious.fGeometry->GetExtensionList();
-            if( el && el->HasVertexRateData() )
-            {
-                fBackCommandBuffer->SetNextDrawVertexExtension( el );
-            }
+            fBackCommandBuffer->SetNextDrawVertexExtension( fBatchVertexExtList );
         }
 
         if( fPreviousPrimitiveType == Geometry::kIndexedTriangles )
@@ -1911,6 +1948,7 @@ Renderer::CheckAndInsertDrawCommand()
         }
 
         fRenderDataCount = 0;
+        fBatchVertexExtList = NULL; // #079: batch consumed; next batch recaptures it
     }
 }
 
@@ -2383,7 +2421,7 @@ Renderer::MergeVertexData( Geometry::Vertex** destination, const Geometry::Verte
     WriteGeometry( *destination, extensionSrc, sizeof(Geometry::Vertex) * extraCount, index, 1, GeometryWriter::kExtra );
 
     /* memcpy( *destination, &extensionSrc[index * extraCount], sizeof(Geometry::Vertex) * extraCount ); */
-    
+
     *destination += extraCount;
 }
 

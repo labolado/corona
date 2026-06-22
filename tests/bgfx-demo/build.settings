@@ -1,5 +1,11 @@
 -- build.settings - Solar2D GL Test Build Configuration
 settings = {
+    -- Disable the built-in Solar2D launch splash so the FTL game-loop video
+    -- captures the test scene immediately (the ~8s splash otherwise eats the
+    -- short Vulkan-device recording window before realrepro079 renders).
+    splashScreen = {
+        enable = false,
+    },
     orientation = {
         default = "portrait",
         supported = { "portrait" },

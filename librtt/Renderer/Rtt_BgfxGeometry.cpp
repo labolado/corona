@@ -777,7 +777,7 @@ BgfxGeometry::SetVertexBuffer( U32 offset, U32 count )
 }
 
 void
-BgfxGeometry::SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList )
+BgfxGeometry::SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionList* poolExtList, Geometry* srcGeometry )
 {
 	// No (vertex-rate) extension, or no pending source data → fall back to the
 	// normal path (byte-identical to the non-extension behavior).
@@ -795,7 +795,12 @@ BgfxGeometry::SetVertexBufferExt( U32 offset, U32 count, const FormatExtensionLi
 		return;
 	}
 
-	Geometry* geometry = fPendingGeometry;
+	// #079: on Metal/GLES the lazy fPendingGeometry is consumed by the first
+	// (base) bind of the frame, so a later extension bind of the same pool
+	// geometry finds it NULL. The caller supplies the pool geometry explicitly
+	// as srcGeometry so we can still upload the interleaved units with the
+	// extended layout instead of silently falling back to the 68-byte bind.
+	Geometry* geometry = fPendingGeometry ? fPendingGeometry : srcGeometry;
 	if ( NULL == geometry )
 	{
 		// Vulkan eager path already uploaded with the base layout; for safety

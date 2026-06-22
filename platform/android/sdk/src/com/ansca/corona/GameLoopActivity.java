@@ -32,7 +32,9 @@ public class GameLoopActivity extends CoronaActivity {
 	//   4 = shapes (vector graphics benchmark: rects/circles/roundedRects)
 	//   5 = perf (7-scene throughput benchmark, ~3 min)
 	//   6 = sdf_perf (SDF OFF vs ON head-to-head: FPS + draw calls + tris, ~30s)
-	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes", "perf", "sdf_perf" };
+	//   7 = realrepro079 (#079 extended-geometry shared-pool regression: static grid of marbles, auto backend → Vulkan)
+	//   8 = realrepro079 with SOLAR2D_VULKAN=0 (force GLES backend for cross-backend #079 coverage)
+	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes", "perf", "sdf_perf", "realrepro079", "realrepro079" };
 
 	private Handler fFinishHandler;
 	private Runnable fFinishRunnable;
@@ -53,6 +55,12 @@ public class GameLoopActivity extends CoronaActivity {
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 					try {
 						android.system.Os.setenv("SOLAR2D_TEST", testName, true);
+						// Scenario 8 forces the GLES backend so #079 is verified on both
+						// bgfx renderers (scenario 7 = auto/Vulkan, scenario 8 = GLES).
+						if (scenarioNumber == 8) {
+							android.system.Os.setenv("SOLAR2D_VULKAN", "0", true);
+							Log.i(TAG, "Setting SOLAR2D_VULKAN=0 (force GLES) for scenario 8");
+						}
 					} catch (Exception e) {
 						Log.w(TAG, "setenv failed: " + e.getMessage());
 					}
@@ -68,6 +76,8 @@ public class GameLoopActivity extends CoronaActivity {
 					durationMs = 660_000L; // perf: 10 scenes × ~4 levels × ~7s ≈ 11 min
 				} else if (scenarioNumber == 6) {
 					durationMs = 90_000L;  // sdf_perf: OFF(10s)+ON(10s)+overhead ≈ 1.5 min
+				} else if (scenarioNumber == 7 || scenarioNumber == 8) {
+					durationMs = 30_000L;  // realrepro079: static render, 30s to settle + record video
 				}
 			}
 
