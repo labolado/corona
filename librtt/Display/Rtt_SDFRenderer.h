@@ -37,6 +37,8 @@ struct SDFIssueData
     float fillColor[4];
     float strokeColor[4];
     S32 shapeType; // SDFRenderer::ShapeType
+    float polyVerts[32]; // up to 16 contour verts, x/y interleaved, normalized to [-1,1] (quad uv*2-1)
+    S32 numPolyVerts;    // 0 = not a polygon; otherwise contour vertex count (3..16)
 };
 
 static const U16 kSDFDrawCommandId = 0x5DF1;

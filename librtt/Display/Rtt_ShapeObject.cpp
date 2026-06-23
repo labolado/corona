@@ -281,6 +281,36 @@ ShapeObject::Draw( Renderer& renderer ) const
 				// strokeColor stays zero (transparent)
 				issueData.shapeType = (S32)sdfType;
 
+				if ( sdfType == SDFRenderer::kPolygon )
+				{
+					// Feed the contour to the polygon SDF shader. Vertices are
+					// normalized to [-1,1] to match the shader's uv*2-1 mapping
+					// (quad uv (0,0)=BL=bounds min, (1,1)=TR=bounds max).
+					const TesselatorPolygon *polyTess =
+						static_cast< const TesselatorPolygon* >( tesselator );
+					ArrayVertex2& contour =
+						const_cast< TesselatorPolygon* >( polyTess )->GetContour();
+					int n = contour.Length();
+					if ( n > SDFRenderer::kMaxPolygonVerts )
+					{
+						n = SDFRenderer::kMaxPolygonVerts;
+					}
+					Real bw = bounds.Width();
+					Real bh = bounds.Height();
+					for ( int i = 0; i < n; ++i )
+					{
+						float nx = ( bw != Rtt_REAL_0 )
+							? (float)( ( contour[i].x - bounds.xMin ) / bw ) * 2.0f - 1.0f
+							: 0.0f;
+						float ny = ( bh != Rtt_REAL_0 )
+							? (float)( ( contour[i].y - bounds.yMin ) / bh ) * 2.0f - 1.0f
+							: 0.0f;
+						issueData.polyVerts[i * 2]     = nx;
+						issueData.polyVerts[i * 2 + 1] = ny;
+					}
+					issueData.numPolyVerts = n;
+				}
+
 				renderer.InsertSDFDraw( issueData );
 			}
 
@@ -423,11 +453,16 @@ ShapeObject::IsSDFEligible() const
 		case Tesselator::kType_Rect:
 		case Tesselator::kType_RoundedRect:
 			return true;
-		// NOTE: Polygon SDF is intentionally NOT eligible yet. The SDF quad draw
-		// path (SDFIssueData / ExecuteDrawSDF) does not carry per-polygon contour
-		// vertices, so polygons must fall through to the tessellated mesh path.
-		// TODO(#064): add polygon contour to SDFIssueData + u_polyVerts in ExecuteDrawSDF.
 		case Tesselator::kType_Polygon:
+		{
+			// Polygon SDF (#68): eligible only when the contour fits the
+			// u_polyVerts capacity (3..kMaxPolygonVerts). Larger/degenerate
+			// polygons fall through to the tessellated mesh path.
+			const TesselatorPolygon *polyTess =
+				static_cast< const TesselatorPolygon* >( tesselator );
+			int n = const_cast< TesselatorPolygon* >( polyTess )->GetContour().Length();
+			return n >= 3 && n <= SDFRenderer::kMaxPolygonVerts;
+		}
 		default:
 			return false;
 	}

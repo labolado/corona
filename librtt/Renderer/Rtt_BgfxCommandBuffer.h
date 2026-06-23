@@ -112,6 +112,8 @@ struct DeferredCmd
     float sdfFillColor[4];   // fill RGBA
     float sdfStrokeColor[4]; // stroke RGBA
     S32 sdfShapeType;        // SDFRenderer::ShapeType
+    float sdfPolyVerts[32];  // kPolygon: up to 16 contour verts, x/y interleaved, normalized [-1,1]
+    S32 sdfNumPolyVerts;     // kPolygon: contour vertex count (3..16); 0 otherwise
 
     // No constructor — use zero initialization: DeferredCmd cmd = {};
     // All pointer fields become NULL, all numeric fields become 0, all bools become false.

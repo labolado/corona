@@ -2181,6 +2181,16 @@ BgfxCommandBuffer::ExecuteDrawSDF( const DeferredCmd& cmd )
         cmd.sdfParams[0], cmd.sdfParams[1],
         cmd.sdfParams[2], cmd.sdfParams[3] );
 
+    if ( cmd.sdfShapeType == (S32)SDFRenderer::kPolygon && cmd.sdfNumPolyVerts >= 3 )
+    {
+        int cnt = cmd.sdfNumPolyVerts;
+        if ( cnt > SDFRenderer::kMaxPolygonVerts ) cnt = SDFRenderer::kMaxPolygonVerts;
+        Real polyVerts[ SDFRenderer::kMaxPolygonVerts * 2 ];
+        for ( int i = 0; i < cnt * 2; ++i )
+            polyVerts[i] = (Real)cmd.sdfPolyVerts[i];
+        sdf.SetPolygonUniforms( polyVerts, cnt );
+    }
+
     sdf.SetColorUniforms(
         cmd.sdfFillColor[0],   cmd.sdfFillColor[1],
         cmd.sdfFillColor[2],   cmd.sdfFillColor[3],
@@ -2234,6 +2244,8 @@ BgfxCommandBuffer::DrawSDF( const SDFIssueData & data )
     memcpy( cmd.sdfFillColor,   data.fillColor,   sizeof( cmd.sdfFillColor ) );
     memcpy( cmd.sdfStrokeColor, data.strokeColor, sizeof( cmd.sdfStrokeColor ) );
     cmd.sdfShapeType = data.shapeType;
+    memcpy( cmd.sdfPolyVerts, data.polyVerts, sizeof( cmd.sdfPolyVerts ) );
+    cmd.sdfNumPolyVerts = data.numPolyVerts;
 
     SnapshotUniforms( cmd );
     fDeferredCmds.push_back( cmd );
