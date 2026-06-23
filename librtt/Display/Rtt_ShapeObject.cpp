@@ -440,6 +440,14 @@ ShapeObject::IsSDFEligible() const
 		return false;
 	}
 
+	// Custom fill effects (graphics.defineEffect or any built-in filter/generator)
+	// must render through fFillShader->Draw() so the custom GLSL runs. InsertSDFDraw
+	// only knows the built-in SDF parameters and silently ignores the custom shader.
+	if ( fFillShader && fFillShader->GetCategory() != ShaderTypes::kCategoryDefault )
+	{
+		return false;
+	}
+
 	const TesselatorShape *tesselator = shapePath->GetTesselator();
 	if ( !tesselator )
 	{
