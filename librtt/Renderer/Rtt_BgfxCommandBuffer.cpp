@@ -2098,11 +2098,41 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Advance static geometry cache frame counter for auto-promotion
     // BgfxGeometry::AdvanceFrame(); // TODO: re-enable when static geometry caching is merged
 
+    // Scene-transition flash fix (Metal only; Vulkan has swapchain hazards with skipPresent).
+    // When a scene switch causes draw count to drop sharply (old scene torn down, new scene
+    // not yet fully created), hold the last rendered frame so the partial-scene state is
+    // invisible. Threshold <= 5 catches the transition window; normal simple scenes have
+    // at least 10+ draws. Max 6 held frames (~100ms at 60fps) then we let it through.
+#if !defined( Rtt_ANDROID_ENV )
+    {
+        static int  sTransitionFrames = 0;
+        static uint32_t sPrevDrawCmds = 0;
+        uint32_t cur = sBatchStats.totalDrawCmds;
+        bool entryDrop = ( cur <= 5 && sPrevDrawCmds > 20 );
+        bool inTransition = ( sTransitionFrames > 0 && cur <= 5 );
+        if ( entryDrop || inTransition )
+        {
+            ++sTransitionFrames;
+            if ( sTransitionFrames <= 6 )
+                bgfx::setSkipPresent( true );
+        }
+        else
+        {
+            sTransitionFrames = 0;
+        }
+        sPrevDrawCmds = cur;
+    }
+#endif
+
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch(fDefaultView);
 
     // Submit frame to bgfx
     bgfx::frame();
+
+#if !defined( Rtt_ANDROID_ENV )
+    bgfx::setSkipPresent( false );
+#endif
 
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
