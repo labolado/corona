@@ -65,5 +65,9 @@ _ensure_platform() {
 _ensure_platform "ios-device"    "bgfx-ios-device.tar.gz"    \
     "$BGFX_DIR/.build/ios-arm64/bin"       "gmake-ios-arm64"
 
-_ensure_platform "ios-simulator" "bgfx-ios-simulator.tar.gz" \
-    "$BGFX_DIR/.build/ios-simulator/bin"   "gmake-ios-simulator"
+# Device-only builds (e.g. FTL / real-device IPA) do not need the simulator
+# slice; set SKIP_IOS_SIMULATOR=1 to skip it.
+if [ "${SKIP_IOS_SIMULATOR:-0}" != "1" ]; then
+    _ensure_platform "ios-simulator" "bgfx-ios-simulator.tar.gz" \
+        "$BGFX_DIR/.build/ios-simulator/bin"   "gmake-ios-simulator"
+fi
