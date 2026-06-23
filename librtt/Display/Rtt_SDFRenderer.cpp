@@ -193,6 +193,21 @@ SDFRenderer::Finalize()
 bool
 SDFRenderer::IsAvailable() const
 {
+	// Dev/test-only kill-switch: SOLAR2D_SDF=0 force-disables the SDF path for
+	// A-B isolation during development. This is NOT a shipping or low-end
+	// fallback mechanism — runtime SDF control for developers is the Lua API
+	// graphics.setSDF(true/false). Cached on first query.
+	static int sEnvOverride = -1;
+	if ( sEnvOverride < 0 )
+	{
+		const char* e = getenv( "SOLAR2D_SDF" );
+		sEnvOverride = ( e && e[0] == '0' ) ? 0 : 1;
+	}
+	if ( sEnvOverride == 0 )
+	{
+		return false;
+	}
+
 	if ( !fInitialized || !sEnabled )
 	{
 		return false;
