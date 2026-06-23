@@ -2410,7 +2410,19 @@ bool BgfxShaderCompiler::CompileCustomEffect(const char* category, const char* n
             "vec3 a_position  : POSITION;\n"
             "vec3 a_texcoord0 : TEXCOORD0;\n"
             "vec4 a_color0    : COLOR0;\n"
-            "vec4 a_texcoord1 : TEXCOORD1;\n";
+            "vec4 a_texcoord1 : TEXCOORD1;\n"
+            "vec2 a_texcoord2 : TEXCOORD2;\n"
+            "vec2 a_texcoord3 : TEXCOORD3;\n"
+            "vec2 a_texcoord4 : TEXCOORD4;\n"
+            "vec4 a_texcoord5 : TEXCOORD5;\n"
+            "vec4 a_texcoord6 : TEXCOORD6;\n"
+            "vec4 a_texcoord7 : TEXCOORD7;\n"
+            "vec4 a_normal    : NORMAL;\n"
+            "vec4 a_tangent   : TANGENT;\n"
+            "vec4 a_bitangent : BITANGENT;\n"
+            "vec4 a_color1    : COLOR1;\n"
+            "vec4 a_color2    : COLOR2;\n"
+            "vec4 a_color3    : COLOR3;\n";
 
         std::string varyingText;
         if (!s_varyingDefPath.empty())
