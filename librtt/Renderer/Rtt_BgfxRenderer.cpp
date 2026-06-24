@@ -315,7 +315,6 @@ namespace {
 #include <android/log.h>
 #endif
 
-#include <bgfx/platform.h>
 #include <bgfx/bgfx.h>
 
 #include "Rtt_BgfxContext.h"

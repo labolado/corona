@@ -13,7 +13,6 @@
 #include "Core/Rtt_Build.h"
 
 #include <bgfx/bgfx.h>
-#include <bgfx/platform.h>
 
 namespace Rtt
 {

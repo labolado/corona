@@ -1969,8 +1969,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         {
             if( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged )
             {
-                Rtt_LogException( "FLASH_RESET[%u]: reset %dx%d -> %dx%d\n", sFrameNum,
-                    sLastBackbufferWidth, sLastBackbufferHeight, cmd.vpW, cmd.vpH );
                 bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
                 ++Renderer::sBgfxContextGeneration;
                 sLastBackbufferWidth = cmd.vpW;
@@ -2105,42 +2103,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             sBatchStats.drawCount, sBatchStats.drawIndexedCount );
     }
 
-    // Ring buffer: keep last 60 frames of draw counts for retrospective analysis
-    {
-        static uint32_t sDrawRing[60] = {};
-        static uint32_t sRingPos = 0;
-        sDrawRing[sRingPos % 60] = sBatchStats.totalDrawCmds;
-        sRingPos++;
-
-        // Diagnostic: log every draw count change (any delta ≥ 1)
-        static uint32_t sLastDiagDraws = 0xFFFFFFFF;
-        static int sDiagLogFrames = 0;
-        uint32_t cur2 = sBatchStats.totalDrawCmds;
-        if ( cur2 != sLastDiagDraws ) {
-            if ( sDiagLogFrames == 0 ) sDiagLogFrames = 60;  // start window
-        }
-        if ( sDiagLogFrames > 0 ) {
-            Rtt_LogException( "FLASH_TR[%u]: draws=%u\n", sFrameNum, cur2 );
-            sLastDiagDraws = cur2;
-            --sDiagLogFrames;
-        }
-
-        // On any large drop: dump ring buffer (last 60 frames of draw counts)
-        static uint32_t sPrevForDump = 0;
-        uint32_t dropDump = (sPrevForDump > cur2) ? (sPrevForDump - cur2) : 0;
-        if ( dropDump > 20 )
-        {
-            char histBuf[320];
-            int off = 0;
-            for ( int i = 0; i < 60 && off < 300; i++ )
-            {
-                uint32_t idx = (sRingPos - 60 + i + 600) % 60;
-                off += snprintf( histBuf + off, (int)sizeof(histBuf) - off, "%u,", sDrawRing[idx] );
-            }
-            Rtt_LogException( "FLASH_HIST60[%u]: %s\n", sFrameNum, histBuf );
-        }
-        sPrevForDump = cur2;
-    }
 
     sFrameNum++;
 
