@@ -40,6 +40,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cstddef>
+#if !defined( Rtt_ANDROID_ENV )
+#include <unistd.h>
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -101,11 +104,16 @@ BakeStoredGeometryMaskUVs( Geometry::Vertex* tv, U32 vertexCount,
 static bool sPlatformDataChanged = false;
 
 // Cached reset flags from bgfx::init — reused in SetViewport to avoid losing FLIP_AFTER_RENDER etc.
-static uint32_t sResetFlags = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4;
+// FLIP_AFTER_RENDER: present frame N AFTER rendering N (not before), so setSkipPresent(true)
+// before bgfx::frame() correctly skips frame N's presentation without racing with frame N-1.
+static uint32_t sResetFlags = BGFX_RESET_VSYNC | BGFX_RESET_MSAA_X4 | BGFX_RESET_FLIP_AFTER_RENDER;
 
 // Last screen backbuffer size applied via bgfx::reset().
 static uint16_t sLastBackbufferWidth = 0;
 static uint16_t sLastBackbufferHeight = 0;
+
+// Frame counter (used for diagnostic logging)
+static uint32_t sFrameNum = 0;
 
 void BgfxCommandBuffer::NotifyPlatformDataChanged()
 {
@@ -858,6 +866,12 @@ BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
                     ( static_cast<uint32_t>( cmd.clearG * 255.0f ) << 16 ) |
                     ( static_cast<uint32_t>( cmd.clearB * 255.0f ) << 8 ) |
                     ( static_cast<uint32_t>( cmd.clearA * 255.0f ) );
+
+    static uint32_t sPrevClearRgba = 0xDEADBEEF;
+    if ( rgba != sPrevClearRgba ) {
+        Rtt_LogException( "FLASH_CLR[%u]: clear rgba=%08x (was %08x)\n", sFrameNum, rgba, sPrevClearRgba );
+        sPrevClearRgba = rgba;
+    }
 
     bgfx::setViewClear( fCurrentView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
@@ -1957,6 +1971,8 @@ BgfxCommandBuffer::Execute( bool measureGPU )
         {
             if( cmd.vpW != sLastBackbufferWidth || cmd.vpH != sLastBackbufferHeight || sPlatformDataChanged )
             {
+                Rtt_LogException( "FLASH_RESET[%u]: reset %dx%d -> %dx%d\n", sFrameNum,
+                    sLastBackbufferWidth, sLastBackbufferHeight, cmd.vpW, cmd.vpH );
                 bgfx::reset( cmd.vpW, cmd.vpH, sResetFlags );
                 ++Renderer::sBgfxContextGeneration;
                 sLastBackbufferWidth = cmd.vpW;
@@ -1977,8 +1993,6 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             break;
         }
     }
-
-    static uint32_t sFrameNum = 0;
 
     // Reset batch stats for this frame
     sBatchStats.totalDrawCmds = 0;
@@ -2093,46 +2107,157 @@ BgfxCommandBuffer::Execute( bool measureGPU )
             sBatchStats.drawCount, sBatchStats.drawIndexedCount );
     }
 
+    // Ring buffer: keep last 60 frames of draw counts for retrospective analysis
+    {
+        static uint32_t sDrawRing[60] = {};
+        static uint32_t sRingPos = 0;
+        sDrawRing[sRingPos % 60] = sBatchStats.totalDrawCmds;
+        sRingPos++;
+
+        // Diagnostic: log every draw count change (any delta ≥ 1)
+        static uint32_t sLastDiagDraws = 0xFFFFFFFF;
+        static int sDiagLogFrames = 0;
+        uint32_t cur2 = sBatchStats.totalDrawCmds;
+        if ( cur2 != sLastDiagDraws ) {
+            if ( sDiagLogFrames == 0 ) sDiagLogFrames = 60;  // start window
+        }
+        if ( sDiagLogFrames > 0 ) {
+            Rtt_LogException( "FLASH_TR[%u]: draws=%u\n", sFrameNum, cur2 );
+            sLastDiagDraws = cur2;
+            --sDiagLogFrames;
+        }
+
+        // On any large drop: dump ring buffer (last 60 frames of draw counts)
+        static uint32_t sPrevForDump = 0;
+        uint32_t dropDump = (sPrevForDump > cur2) ? (sPrevForDump - cur2) : 0;
+        if ( dropDump > 20 )
+        {
+            char histBuf[320];
+            int off = 0;
+            for ( int i = 0; i < 60 && off < 300; i++ )
+            {
+                uint32_t idx = (sRingPos - 60 + i + 600) % 60;
+                off += snprintf( histBuf + off, (int)sizeof(histBuf) - off, "%u,", sDrawRing[idx] );
+            }
+            Rtt_LogException( "FLASH_HIST60[%u]: %s\n", sFrameNum, histBuf );
+        }
+        sPrevForDump = cur2;
+    }
+
     sFrameNum++;
 
     // Advance static geometry cache frame counter for auto-promotion
     // BgfxGeometry::AdvanceFrame(); // TODO: re-enable when static geometry caching is merged
 
     // Scene-transition flash fix (Metal only; Vulkan has swapchain hazards with skipPresent).
-    // When a scene switch causes draw count to drop sharply (old scene torn down, new scene
-    // not yet fully created), hold the last rendered frame so the partial-scene state is
-    // invisible. Threshold <= 5 catches the transition window; normal simple scenes have
-    // at least 10+ draws. Max 6 held frames (~100ms at 60fps) then we let it through.
+    // Triggers:
+    //   1. Draw-count drop: near-zero dip, large (>20) sudden drop,
+    //      medium drop (>6 after 30+ stable frames, else >8),
+    //      gradual multi-step drop (2+ consecutive falling frames, cumulative >=8),
+    //      OR sustained below-baseline state (>12 below recent stable baseline).
+    //   2. De-occlusion: window was occluded (drawable=0x0) and now has a real drawable.
 #if !defined( Rtt_ANDROID_ENV )
     {
-        static int  sTransitionFrames = 0;
-        static uint32_t sPrevDrawCmds = 0;
-        uint32_t cur = sBatchStats.totalDrawCmds;
-        bool entryDrop = ( cur <= 5 && sPrevDrawCmds > 20 );
-        bool inTransition = ( sTransitionFrames > 0 && cur <= 5 );
-        if ( entryDrop || inTransition )
+        static int      sTransitionHold  = 0;
+        static uint32_t sPrevDrawCmds    = 0;
+        static bool     sPrevOccluded    = false;
+        static int      sConsecDrops     = 0;   // consecutive frames where cur < prev
+        static uint32_t sCumDrop         = 0;   // cumulative drop across consecutive falling frames
+        static uint32_t sStableFrames    = 0;   // consecutive frames with identical draw count
+        static uint32_t sBaseline        = 0;   // recently stable draw-count baseline
+        static int      sNewStable       = 0;   // frames stable at new below-baseline level
+        static bool     sWasLongStable   = false; // recently exited a 15+ frame stable period
+        static int      sLongStableTimer = 0;     // countdown: keep sWasLongStable true for N frames
+        uint32_t cur  = sBatchStats.totalDrawCmds;
+        uint32_t drop = (sPrevDrawCmds > cur) ? (sPrevDrawCmds - cur) : 0;
+        bool     curOccluded = bgfx::wasLastFrameOccluded();
+
+        // Consecutive-drop tracking
+        if ( cur < sPrevDrawCmds ) { sConsecDrops++; sCumDrop += drop; }
+        else                       { sConsecDrops = 0; sCumDrop = 0; }
+
+        // Stability + baseline tracking
+        // prevStable: stable count from BEFORE this frame's draw-count change
+        uint32_t prevStable = sStableFrames;
+        if ( cur == sPrevDrawCmds ) sStableFrames++;
+        else                        sStableFrames = 0;
+        if ( cur > sBaseline ) sBaseline = cur;                         // track peak upward immediately
+        if ( sStableFrames > 60 && cur > 15 ) sBaseline = cur;          // re-anchor after long stable period
+
+        uint32_t dropFromBase = ( sBaseline > cur && sBaseline > 15 ) ? (sBaseline - cur) : 0;
+
+        // Remember "was recently stable for 15+ frames" up to 15 frames after stability breaks.
+        // This keeps threshold=3 through leading small drops that reset prevStable.
+        if ( prevStable > 15 ) { sWasLongStable = true;  sLongStableTimer = 15; }
+        else if ( sLongStableTimer > 0 ) { sLongStableTimer--; }
+        else                             { sWasLongStable = false; }
+        uint32_t dropThreshold = sWasLongStable ? 3u : 8u;
+
+        // Track truly stable frames at new below-baseline level.
+        // Must use cur==prev (not just drop==0) so rising frames during load don't count.
+        if ( cur == sPrevDrawCmds && dropFromBase >= 6 ) sNewStable++;
+        else                                              sNewStable = 0;
+
+        // Triggers
+        if ( cur <= 5 && sPrevDrawCmds > 10 )
         {
-            ++sTransitionFrames;
-            if ( sTransitionFrames <= 6 )
-                bgfx::setSkipPresent( true );
+            sTransitionHold = 5;    // near-zero dip: old scene removed, new not ready
         }
-        else
+        else if ( drop > 20 && sTransitionHold < 5 )
         {
-            sTransitionFrames = 0;
+            sTransitionHold = 5;    // large sudden drop
         }
+        else if ( drop >= dropThreshold && sTransitionHold < 5 )
+        {
+            sTransitionHold = 5;    // medium drop (threshold adapts after stable period)
+        }
+        else if ( sConsecDrops >= 2 && sCumDrop >= 8 && sTransitionHold < 5 )
+        {
+            sTransitionHold = 5;    // gradual multi-step teardown
+        }
+        else if ( dropFromBase >= 6 && sNewStable < 10 && sTransitionHold == 0 )
+        {
+            sTransitionHold = 3;    // below baseline, not yet settled at new level
+        }
+        else if ( sPrevOccluded && !curOccluded && sTransitionHold < 5 )
+        {
+            sTransitionHold = 5;    // de-occlusion: native panel closed, window visible again
+        }
+
+        // Instead of skipping frames (setSkipPresent), use Metal retained-backing:
+        // clear without BGFX_CLEAR_COLOR → bgfx sets LoadActionLoad on the Metal render pass
+        // → previous frame pixels are the base instead of opaque black.
+        // This is equivalent to GL double-buffer retained backing and eliminates the black flash
+        // even when detection fires one frame late. False positives show a brief ghost (imperceptible).
+        bool protectingThisFrame = false;
+        if ( sTransitionHold > 0 )
+        {
+            if ( sPrevDrawCmds <= 1 && cur > 20 )
+            {
+                sTransitionHold = 0;   // true zero-draw recovery: release immediately
+            }
+            else
+            {
+                --sTransitionHold;
+                protectingThisFrame = true;
+            }
+        }
+
+        // Override view clear for this frame before bgfx::frame() processes it.
+        bgfx::setViewClear( fDefaultView,
+            protectingThisFrame
+                ? (BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL)
+                : (BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL),
+            0x00000000, fClearDepth, fClearStencil );
+
         sPrevDrawCmds = cur;
+        sPrevOccluded = curOccluded;
     }
 #endif
 
     // Ensure screen view is submitted even if no draw commands targeted it
-    bgfx::touch(fDefaultView);
-
-    // Submit frame to bgfx
+    bgfx::touch( fDefaultView );
     bgfx::frame();
-
-#if !defined( Rtt_ANDROID_ENV )
-    bgfx::setSkipPresent( false );
-#endif
 
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();
