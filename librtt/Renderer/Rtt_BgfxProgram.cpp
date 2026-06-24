@@ -330,11 +330,13 @@ void BgfxProgram::SetUniform(Uniform::Name name, const void* data)
         case Uniform::kTexelSize:
         case Uniform::kContentScale:
         case Uniform::kContentSize:
+            bgfx::setUniform(handle, data, numElements);
+            break;
+
         case Uniform::kUserData0:
         case Uniform::kUserData1:
         case Uniform::kUserData2:
         case Uniform::kUserData3:
-            // vec4 uniforms
             bgfx::setUniform(handle, data, numElements);
             break;
             
