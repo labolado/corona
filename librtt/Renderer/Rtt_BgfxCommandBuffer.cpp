@@ -1928,13 +1928,13 @@ Real
 BgfxCommandBuffer::Execute( bool measureGPU )
 {
     Rtt_UNUSED( measureGPU );
-
-    // NOTE: Per-frame Execute breadcrumb removed - fires 60x/sec, fills ring buffer
-    // in ~17 seconds. Frame execution is implicit if app is running.
+#ifdef TRACY_ENABLE
+    ZoneScopedN("Execute");
+#endif
 
     // Reset view to default before replaying commands
     fCurrentView = fDefaultView;
-    
+
     // CRITICAL: Reset framebuffer bindings for every FBO view ever used.
     // bgfx::setViewFrameBuffer is persistent across frames. Stale bindings
     // from previous scenes cause rendering failures after scene transitions.
@@ -1942,16 +1942,21 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // bindings left by scenes that used more.
     // Vulkan: bisect shows high-water-mark reset causes regression on Adreno 730; use full reset
     // GLES: high-water-mark is safe and faster
-    if( bgfx::getCaps()->rendererType == bgfx::RendererType::Vulkan )
     {
-        bgfx::ViewId numViews = (bgfx::ViewId)bgfx::getCaps()->limits.maxViews;
-        for( bgfx::ViewId v = 0; v < numViews; ++v )
-            bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
-    }
-    else
-    {
-        for( uint32_t v = 0; v <= fMaxFboViewId; ++v )
-            bgfx::setViewFrameBuffer( (bgfx::ViewId)v, BGFX_INVALID_HANDLE );
+#ifdef TRACY_ENABLE
+        ZoneScopedN("ViewReset");
+#endif
+        if( bgfx::getCaps()->rendererType == bgfx::RendererType::Vulkan )
+        {
+            bgfx::ViewId numViews = (bgfx::ViewId)bgfx::getCaps()->limits.maxViews;
+            for( bgfx::ViewId v = 0; v < numViews; ++v )
+                bgfx::setViewFrameBuffer( v, BGFX_INVALID_HANDLE );
+        }
+        else
+        {
+            for( uint32_t v = 0; v <= fMaxFboViewId; ++v )
+                bgfx::setViewFrameBuffer( (bgfx::ViewId)v, BGFX_INVALID_HANDLE );
+        }
     }
 
     // bgfx::reset() invalidates view state and must not happen after offscreen
@@ -2028,6 +2033,10 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     }
 
     // Replay all deferred commands - GPU resources are now available (Swap has run)
+    {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("DeferredReplay");
+#endif
     for( size_t i = 0; i < fDeferredCmds.size(); ++i )
     {
         const DeferredCmd& cmd = fDeferredCmds[i];
@@ -2093,6 +2102,7 @@ BgfxCommandBuffer::Execute( bool measureGPU )
                 break;
         }
     }
+    } // DeferredReplay
 
     // Log batch stats periodically (every 300 frames ~ 5 seconds at 60fps)
     if( sFrameNum % 300 == 0 && sBatchStats.totalDrawCmds > 0 )
@@ -2217,8 +2227,16 @@ BgfxCommandBuffer::Execute( bool measureGPU )
 
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch( fDefaultView );
+#ifdef TRACY_ENABLE
+    TracyPlot("DrawCmds",  (int64_t)sBatchStats.totalDrawCmds);
+    TracyPlot("Submits",   (int64_t)sBatchStats.actualSubmits);
+    TracyPlot("Batches",   (int64_t)sBatchStats.batchCount);
+    {
+        ZoneScopedN("bgfx::frame");
+#endif
     bgfx::frame();
 #ifdef TRACY_ENABLE
+    }
     FrameMark;
 #endif
 

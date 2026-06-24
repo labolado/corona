@@ -42,6 +42,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef TRACY_ENABLE
+#include "../../external/tracy/public/tracy/Tracy.hpp"
+#endif
+
 #define ENABLE_DEBUG_PRINT	0
 
 #include <limits>
@@ -359,6 +363,9 @@ Renderer::Initialize()
 void
 Renderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTimeTransform, Real contentScaleX, Real contentScaleY, bool )
 {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("BeginFrame");
+#endif
     fContentScaleX = contentScaleX;
     fContentScaleY = contentScaleY;
 
@@ -414,6 +421,9 @@ Renderer::BeginFrame( Real totalTime, Real deltaTime, const TimeTransform *defTi
 void
 Renderer::EndFrame()
 {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("EndFrame");
+#endif
     CheckAndInsertDrawCommand();
 
     // We usually want some default state when a frame starts, so
@@ -1240,6 +1250,9 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 void
 Renderer::Render()
 {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("Render");
+#endif
     Rtt_AbsoluteTime start = START_TIMING();
     fStatistics.fRenderTimeGPU = fFrontCommandBuffer->Execute( fStatisticsEnabled );
     fStatistics.fRenderTimeCPU = STOP_TIMING(start);
@@ -1248,6 +1261,9 @@ Renderer::Render()
 void
 Renderer::Swap()
 {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("Swap");
+#endif
 	ENABLE_SUMMED_TIMING( true );
 
     // On Android resume, bgfx::reset() must happen BEFORE creating new GPU resources.
@@ -1260,13 +1276,18 @@ Renderer::Swap()
 
     // Create GPUResources
     Rtt_AbsoluteTime start = START_TIMING();
-    for(S32 i = 0; i < fCreateQueue.Length(); ++i)
     {
-        CPUResource* data = fCreateQueue[i];
-        GPUResource* gpuResource = data->GetGPUResource();
-        gpuResource->Create( data );
+#ifdef TRACY_ENABLE
+        ZoneScopedN("ResourceCreate");
+#endif
+        for(S32 i = 0; i < fCreateQueue.Length(); ++i)
+        {
+            CPUResource* data = fCreateQueue[i];
+            GPUResource* gpuResource = data->GetGPUResource();
+            gpuResource->Create( data );
+        }
+        fCreateQueue.Remove(0, fCreateQueue.Length(), false);
     }
-    fCreateQueue.Remove(0, fCreateQueue.Length(), false);
     fStatistics.fResourceCreateTime = STOP_TIMING(start);
 
     // Update GPUResources
@@ -1276,19 +1297,29 @@ Renderer::Swap()
     // if texture corruption appears after resume, add the guard here too.
     start = START_TIMING();
     fStatistics.fGeometryCacheMisses = fUpdateQueue.Length();
-    for(S32 i = 0; i < fUpdateQueue.Length(); ++i)
     {
-        CPUResource* data = fUpdateQueue[i];
-        data->GetGPUResource()->Update( data );
+#ifdef TRACY_ENABLE
+        ZoneScopedN("ResourceUpdate");
+#endif
+        for(S32 i = 0; i < fUpdateQueue.Length(); ++i)
+        {
+            CPUResource* data = fUpdateQueue[i];
+            data->GetGPUResource()->Update( data );
+        }
+        fUpdateQueue.Remove(0, fUpdateQueue.Length(), false);
     }
-    fUpdateQueue.Remove(0, fUpdateQueue.Length(), false);
     fStatistics.fResourceUpdateTime = STOP_TIMING(start);
 
 	ENABLE_SUMMED_TIMING( false );
 
     // Destroy GPUResources
     start = START_TIMING();
-    DestroyQueuedGPUResources();
+    {
+#ifdef TRACY_ENABLE
+        ZoneScopedN("ResourceDestroy");
+#endif
+        DestroyQueuedGPUResources();
+    }
     fStatistics.fResourceDestroyTime = STOP_TIMING(start);
 
     CommandBuffer* temp = fFrontCommandBuffer;
