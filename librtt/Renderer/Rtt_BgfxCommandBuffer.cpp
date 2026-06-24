@@ -44,6 +44,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef TRACY_ENABLE
+#include "tracy/Tracy.hpp"
+#endif
+
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -2252,6 +2256,9 @@ BgfxCommandBuffer::Execute( bool measureGPU )
     // Ensure screen view is submitted even if no draw commands targeted it
     bgfx::touch( fDefaultView );
     bgfx::frame();
+#ifdef TRACY_ENABLE
+    FrameMark;
+#endif
 
     // Clear deferred commands and side tables for next frame
     fDeferredCmds.clear();

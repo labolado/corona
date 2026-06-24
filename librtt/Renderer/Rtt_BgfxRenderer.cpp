@@ -30,6 +30,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#ifdef TRACY_ENABLE
+#include "tracy/TracyC.h"
+#include <vector>
+#endif
+
 #if defined(Rtt_ANDROID_ENV)
 #include <dlfcn.h>
 
@@ -393,9 +398,40 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
         __android_log_print(ANDROID_LOG_INFO, "bgfx", "[%s:%d] %s", _filePath, _line, buf);
 #endif
     }
-    virtual void profilerBegin(const char*, uint32_t, const char*, uint16_t) override {}
-    virtual void profilerBeginLiteral(const char*, uint32_t, const char*, uint16_t) override {}
-    virtual void profilerEnd() override {}
+    virtual void profilerBegin(const char* name, uint32_t color, const char* file, uint16_t line) override {
+#ifdef TRACY_ENABLE
+        const size_t nameLen = strlen(name);
+        const size_t fileLen = strlen(file);
+        uint64_t srcloc = ___tracy_alloc_srcloc_name(
+            line, file, fileLen, name, nameLen, name, nameLen, color);
+        TracyCZoneCtx ctx = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+        s_profilerStack.push_back(ctx);
+#endif
+    }
+    virtual void profilerBeginLiteral(const char* name, uint32_t color, const char* file, uint16_t line) override {
+#ifdef TRACY_ENABLE
+        // Literal name: same path, the pointer is stable (string literal in .rodata)
+        const size_t nameLen = strlen(name);
+        const size_t fileLen = strlen(file);
+        uint64_t srcloc = ___tracy_alloc_srcloc_name(
+            line, file, fileLen, name, nameLen, name, nameLen, color);
+        TracyCZoneCtx ctx = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+        s_profilerStack.push_back(ctx);
+#endif
+    }
+    virtual void profilerEnd() override {
+#ifdef TRACY_ENABLE
+        if (!s_profilerStack.empty()) {
+            ___tracy_emit_zone_end(s_profilerStack.back());
+            s_profilerStack.pop_back();
+        }
+#endif
+    }
+#ifdef TRACY_ENABLE
+    // bgfx calls profilerBegin/End from its render thread (single thread),
+    // so a thread_local stack avoids any cross-thread hazards.
+    static thread_local std::vector<TracyCZoneCtx> s_profilerStack;
+#endif
     virtual uint32_t cacheReadSize(uint64_t _id) override
     {
         if (s_pipelineCacheDir.empty()) return 0;
@@ -434,6 +470,10 @@ struct Solar2dBgfxCallback : public bgfx::CallbackI
 };
 
 static Solar2dBgfxCallback s_bgfxCallback;
+
+#ifdef TRACY_ENABLE
+thread_local std::vector<TracyCZoneCtx> Solar2dBgfxCallback::s_profilerStack;
+#endif
 
 // Tracks whether the bgfx singleton context (s_ctx) is actually alive.
 // s_bgfxInitCount only increments and cannot tell a live context from a dead
@@ -1121,5 +1161,10 @@ BgfxRenderer::Create(const CPUResource* resource)
 
 // ----------------------------------------------------------------------------
 
+// Tracy profiler client — included here so no Xcode project changes are needed.
+// Only active when TRACY_ENABLE is defined (e.g. in a profiling build scheme).
+#ifdef TRACY_ENABLE
+#include "../../external/tracy/public/TracyClient.cpp"
+#endif
 
 #endif // !Rtt_EMSCRIPTEN_ENV && !Rtt_TVOS_ENV
