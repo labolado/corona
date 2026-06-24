@@ -867,12 +867,6 @@ BgfxCommandBuffer::ExecuteClear( const DeferredCmd& cmd )
                     ( static_cast<uint32_t>( cmd.clearB * 255.0f ) << 8 ) |
                     ( static_cast<uint32_t>( cmd.clearA * 255.0f ) );
 
-    static uint32_t sPrevClearRgba = 0xDEADBEEF;
-    if ( rgba != sPrevClearRgba ) {
-        Rtt_LogException( "FLASH_CLR[%u]: clear rgba=%08x (was %08x)\n", sFrameNum, rgba, sPrevClearRgba );
-        sPrevClearRgba = rgba;
-    }
-
     bgfx::setViewClear( fCurrentView,
         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
         rgba, cmd.clearDepth, cmd.clearStencil );
