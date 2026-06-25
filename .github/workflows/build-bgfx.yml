@@ -9,6 +9,7 @@ on:
     branches:
       - bgfx-solar2d
   workflow_dispatch:
+  workflow_call:
 
 env:
   WORKSPACE: ${{ github.workspace }}
@@ -75,7 +76,7 @@ jobs:
         working-directory: ./external/bgfx
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-osx-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-osx-arm64 config=release bgfx bx bimg bimg_decode shaderc -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS device (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
@@ -149,6 +150,51 @@ jobs:
         with:
           name: bgfx-libs-android-arm64
           path: external/bgfx/.build/android-arm64/bin/lib*.a
+      - name: Install and upload shaderc tool
+        if: steps.prebuilt.outputs.hit != 'true'
+        run: |
+          SHADERC_BIN="external/bgfx/.build/osx-arm64/bin/shadercRelease"
+          SHADERC_DEST="external/bgfx/tools/bin/darwin/shaderc"
+          mkdir -p "$(dirname "$SHADERC_DEST")"
+          cp "$SHADERC_BIN" "$SHADERC_DEST"
+          chmod +x "$SHADERC_DEST"
+          echo "shaderc: $(file "$SHADERC_DEST")"
+      - name: Install prebuilt shaderc (cache hit)
+        if: steps.prebuilt.outputs.hit == 'true'
+        run: chmod +x external/bgfx/tools/bin/darwin/shaderc
+      - name: Upload shaderc tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgfx-tools
+          path: external/bgfx/tools/bin/darwin/shaderc
+      - name: Verify shader binary sync
+        run: bash tests/compile_shaders.sh --check
+      - name: Publish prebuilt libs to labolado/bgfx
+        if: steps.prebuilt.outputs.hit != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LABOLADO_BGFX_RELEASE_TOKEN || github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if gh release view "$TAG" --repo labolado/bgfx &>/dev/null; then
+            echo "Release $TAG already exists, skipping publish"
+            exit 0
+          fi
+          find external/bgfx/.build/projects/xcode15 -name 'lib*.a' -exec strip -S {} \;
+          find external/bgfx/.build/ios-arm64/bin    -name 'lib*.a' -exec strip -S {} \;
+          find external/bgfx/.build/ios-simulator/bin -name 'lib*.a' -exec strip -S {} \;
+          NDK_STRIP=$(find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" -name "llvm-strip" -type f 2>/dev/null | head -1)
+          [ -n "$NDK_STRIP" ] && find external/bgfx/.build/android-arm64/bin -name 'lib*.a' -exec "$NDK_STRIP" -S {} \;
+          ( cd "external/bgfx/.build/projects/xcode15"   && tar -czf "$OLDPWD/bgfx-macos.tar.gz"         lib*.a )
+          ( cd "external/bgfx/.build/ios-arm64/bin"      && tar -czf "$OLDPWD/bgfx-ios-device.tar.gz"    lib*.a )
+          ( cd "external/bgfx/.build/ios-simulator/bin"  && tar -czf "$OLDPWD/bgfx-ios-simulator.tar.gz" lib*.a )
+          ( cd "external/bgfx/.build/android-arm64/bin"  && tar -czf "$OLDPWD/bgfx-android.tar.gz"       lib*.a )
+          tar -czf bgfx-tools.tar.gz -C external/bgfx/tools/bin/darwin shaderc
+          gh release create "$TAG" \
+            --repo labolado/bgfx \
+            --title "bgfx prebuilt $TAG" \
+            --notes "Auto-built from ${{ github.sha }}" \
+            bgfx-macos.tar.gz bgfx-ios-device.tar.gz bgfx-ios-simulator.tar.gz bgfx-android.tar.gz bgfx-tools.tar.gz
+          echo "Published: $TAG"
 
   macOS-build:
     name: macOS ${{ matrix.config }} Build

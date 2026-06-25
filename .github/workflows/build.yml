@@ -1,8 +1,13 @@
 name: Daily Build
 
 on:
-  push:
+  # Triggered automatically after bgfx Build Verification succeeds on branch pushes
+  workflow_run:
+    workflows: ["bgfx Build Verification"]
+    types: [completed]
     branches: [bgfx-solar2d, 'feature/**']
+  # Tag releases: bgfx-solar2d must be pushed first so prebuilt exists in labolado/bgfx
+  push:
     tags: ['*']
   pull_request:
     branches: [bgfx-solar2d]
@@ -26,16 +31,18 @@ env:
 jobs:
   source-code:
     name: Check out and process source code
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Check shader source consistency (fast, no shaderc needed)
         run: |
           # Verify .sc source files are present and .h headers exist
-          # Full binary sync check runs in build-bgfx-libs after shaderc is built
+          # Full binary sync check runs in build-bgfx.yml after shaderc is built
           [ -f librtt/Renderer/Rtt_BgfxShaderData_metal.h ] || { echo "::error::Rtt_BgfxShaderData_metal.h missing"; exit 1; }
           [ -f librtt/Renderer/Rtt_BgfxShaderData_essl.h ] || { echo "::error::Rtt_BgfxShaderData_essl.h missing"; exit 1; }
           [ -f librtt/Renderer/Rtt_BgfxShaderData_effects_metal.h ] || { echo "::error::Rtt_BgfxShaderData_effects_metal.h missing"; exit 1; }
@@ -50,255 +57,109 @@ jobs:
           name: SourceCode
           path: ./output
 
-  build-bgfx-libs:
-    name: Build bgfx static libraries
-    runs-on: macos-15
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+  get-bgfx-libs:
+    name: Get bgfx static libraries
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download bgfx macOS libs (from build-bgfx run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: bgfx-stage/macos
+      - name: Download bgfx iOS device libs (from build-bgfx run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-device
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: bgfx-stage/ios-device
+      - name: Download bgfx iOS simulator libs (from build-bgfx run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-ios-simulator
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: bgfx-stage/ios-simulator
+      - name: Download bgfx Android libs (from build-bgfx run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-libs-android-arm64
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: bgfx-stage/android
+      - name: Download shaderc tool (from build-bgfx run)
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: bgfx-tools
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: bgfx-stage/tools
+      - name: Checkout (for prebuilt tag computation)
+        if: github.event_name != 'workflow_run'
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Setup sccache
-        uses: mozilla/sccache-action@v0.0.5
-        with:
-          version: "v0.8.0"
-      - name: Compute prebuilt release tag
-        id: tag
+          ref: ${{ github.sha }}
+      - name: Download from labolado/bgfx prebuilt release (tag push / manual)
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
           BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
           BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
           TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Prebuilt tag: $TAG"
-      - name: Try download prebuilt libs
-        id: prebuilt
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Downloading prebuilt: $TAG"
           DL=$(mktemp -d)
-          if gh release download "$TAG" --repo labolado/bgfx --dir "$DL" 2>/dev/null; then
-            echo "Prebuilt found: $TAG"
-            # Extract to correct paths
-            mkdir -p external/bgfx/.build/projects/xcode15
-            tar -xzf "$DL/bgfx-macos.tar.gz"         -C external/bgfx/.build/projects/xcode15
-            mkdir -p external/bgfx/.build/ios-arm64/bin
-            tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C external/bgfx/.build/ios-arm64/bin
-            mkdir -p external/bgfx/.build/ios-simulator/bin
-            tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C external/bgfx/.build/ios-simulator/bin
-            mkdir -p external/bgfx/.build/android-arm64/bin
-            tar -xzf "$DL/bgfx-android.tar.gz"       -C external/bgfx/.build/android-arm64/bin
-            # Extract shaderc
-            mkdir -p external/bgfx/tools/bin/darwin
-            tar -xzf "$DL/bgfx-tools.tar.gz" -C external/bgfx/tools/bin/darwin
-            chmod +x external/bgfx/tools/bin/darwin/shaderc
-            echo "hit=true" >> $GITHUB_OUTPUT
-          else
-            echo "Prebuilt not found, will build from source"
-            echo "hit=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Generate bgfx projects (macOS arm64 + x64 + iOS + Android)
-        if: steps.prebuilt.outputs.hit != 'true'
-        working-directory: ./external/bgfx
-        run: |
-          make .build/projects/gmake-osx-arm64
-          make .build/projects/gmake-osx-x64
-          make .build/projects/gmake-ios-arm64
-          make .build/projects/gmake-ios-simulator
-          export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
-          make .build/projects/gmake-android-arm64
-      - name: Patch osx-x64 target triple for Xcode 26.3
-        if: steps.prebuilt.outputs.hit != 'true'
-        run: |
-          # genie on Xcode 26.3 hardcodes -target x86_64-apple-macos10.13.6 in makefiles,
-          # which overrides -mmacosx-version-min=10.15 from CFLAGS. Patch to 10.15.
-          find external/bgfx/.build/projects/gmake-osx-x64 -name "*.make" -exec \
-            sed -i '' 's/x86_64-apple-macos10\.13\.6/x86_64-apple-macos10.15/g' {} \;
-      - name: Build bgfx macOS arm64 (Debug + Release)
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          CC: sccache clang
-          CXX: sccache clang++
-        working-directory: ./external/bgfx
-        run: |
-          make -C .build/projects/gmake-osx-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
-          make -C .build/projects/gmake-osx-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
-      - name: Build bgfx macOS x64 (Debug + Release)
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          CC: sccache clang
-          CXX: sccache clang++
-        working-directory: ./external/bgfx
-        run: |
-          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-mmacosx-version-min=10.15" CXXFLAGS="-mmacosx-version-min=10.15"
-          MACOSX_DEPLOYMENT_TARGET=10.15 make -C .build/projects/gmake-osx-x64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64" CFLAGS="-mmacosx-version-min=10.15" CXXFLAGS="-mmacosx-version-min=10.15"
-      - name: Build bgfx iOS device (Debug + Release)
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          CC: sccache clang
-          CXX: sccache clang++
-        working-directory: ./external/bgfx
-        run: |
-          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          make -C .build/projects/gmake-ios-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
-          make -C .build/projects/gmake-ios-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT" CXXFLAGS="-isysroot $SDKROOT"
-      - name: Build bgfx iOS simulator (Release)
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          CC: sccache clang
-          CXX: sccache clang++
-        working-directory: ./external/bgfx
-        run: |
-          SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          make -C .build/projects/gmake-ios-simulator config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
-          # Build x86_64 simulator slice (for Intel Mac simulator support)
-          # Copy project and patch arch + output paths for x86_64
-          cp -r .build/projects/gmake-ios-simulator .build/projects/gmake-ios-simulator-x86
-          # -msse4.2 mirrors bx osx-x64 toolchain config (genie ios-simulator default is arm64 + NEON, no -msse* flag); needed for bx simd128_sse.inl _mm_dp_ps / _mm_round_ps
-          find .build/projects/gmake-ios-simulator-x86 -name "*.make" -exec \
-            sed -i '' \
-              -e 's/-arch arm64/-arch x86_64 -msse4.2/g' \
-              -e 's|../../ios-simulator/|../../ios-simulator-x86/|g' \
-            {} \;
-          make -C .build/projects/gmake-ios-simulator-x86 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu) ARCH="-arch x86_64 -msse4.2" CFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios" CXXFLAGS="-isysroot $SDKROOT -I../../../../bx/include/compat/ios"
-          # Merge into fat binary
-          if [ -d .build/ios-simulator-x86/bin ]; then
-            for arm_lib in .build/ios-simulator/bin/lib*.a; do
-              name=$(basename "$arm_lib")
-              x86_lib=".build/ios-simulator-x86/bin/$name"
-              if [ -f "$x86_lib" ]; then
-                lipo -create "$arm_lib" "$x86_lib" -output "$arm_lib"
-                echo "Created fat binary: $name"
-              fi
-            done
-          fi
-          # Sanity: libbgfxRelease.a must contain both arm64 and x86_64 architectures
-          ARCHS=$(lipo -info .build/ios-simulator/bin/libbgfxRelease.a | sed -E 's/.*architectures? in the .*: //')
-          echo "iOS simulator libbgfxRelease.a archs: $ARCHS"
-          if ! echo "$ARCHS" | grep -q arm64 || ! echo "$ARCHS" | grep -q x86_64; then
-            echo "ERROR: iOS simulator libbgfxRelease.a missing required architectures (need arm64+x86_64, got: $ARCHS)" >&2
+          if ! gh release download "$TAG" --repo labolado/bgfx --dir "$DL"; then
+            echo "::error::Prebuilt bgfx not found for $TAG."
+            echo "::error::Push to bgfx-solar2d branch first — build-bgfx.yml will build and publish bgfx libs automatically."
             exit 1
           fi
-      - name: Create universal macOS libs (arm64 + x64)
-        if: steps.prebuilt.outputs.hit != 'true'
-        run: |
-          mkdir -p external/bgfx/.build/projects/xcode15
-          for arm_lib in external/bgfx/.build/osx-arm64/bin/lib*.a; do
-            name=$(basename "$arm_lib")
-            x64_lib="external/bgfx/.build/osx-x64/bin/$name"
-            if [ -f "$x64_lib" ]; then
-              lipo -create "$arm_lib" "$x64_lib" -output "external/bgfx/.build/projects/xcode15/$name"
-            else
-              cp "$arm_lib" "external/bgfx/.build/projects/xcode15/$name"
-            fi
-          done
-          lipo -info external/bgfx/.build/projects/xcode15/libbgfxRelease.a
+          mkdir -p bgfx-stage/macos bgfx-stage/ios-device bgfx-stage/ios-simulator bgfx-stage/android bgfx-stage/tools
+          tar -xzf "$DL/bgfx-macos.tar.gz"         -C bgfx-stage/macos
+          tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C bgfx-stage/ios-device
+          tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C bgfx-stage/ios-simulator
+          tar -xzf "$DL/bgfx-android.tar.gz"        -C bgfx-stage/android
+          tar -xzf "$DL/bgfx-tools.tar.gz"          -C bgfx-stage/tools
       - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs
-          path: external/bgfx/.build/projects/xcode15/lib*.a
-      - name: Build bgfx Android arm64 (Release)
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-          CC: sccache clang
-          CXX: sccache clang++
-        working-directory: ./external/bgfx
-        run: |
-          export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
-          make -C .build/projects/gmake-android-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
+          path: bgfx-stage/macos/lib*.a
       - name: Upload bgfx iOS device libs
         uses: actions/upload-artifact@v4
         with:
-          name: bgfx-libs-ios
-          path: external/bgfx/.build/ios-arm64/bin/lib*.a
+          name: bgfx-libs-ios-device
+          path: bgfx-stage/ios-device/lib*.a
       - name: Upload bgfx iOS simulator libs
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-libs-ios-simulator
-          path: external/bgfx/.build/ios-simulator/bin/lib*.a
-      - name: Upload bgfx Android libs
+          path: bgfx-stage/ios-simulator/lib*.a
+      - name: Upload bgfx Android arm64 libs
         uses: actions/upload-artifact@v4
         with:
-          name: bgfx-libs-android
-          path: external/bgfx/.build/android-arm64/bin/lib*.a
-      - name: Install shaderc (from source build) and verify shader binary sync
-        if: steps.prebuilt.outputs.hit != 'true'
-        run: |
-          # shaderc is built as part of gmake-osx-arm64 release
-          SHADERC_BIN="external/bgfx/.build/osx-arm64/bin/shadercRelease"
-          SHADERC_DEST="external/bgfx/tools/bin/darwin/shaderc"
-          if [ -f "$SHADERC_BIN" ]; then
-            mkdir -p "$(dirname "$SHADERC_DEST")"
-            cp "$SHADERC_BIN" "$SHADERC_DEST"
-            chmod +x "$SHADERC_DEST"
-            echo "shaderc installed: $(file "$SHADERC_DEST")"
-            bash tests/compile_shaders.sh --check
-          else
-            echo "::warning::shaderc binary not found at $SHADERC_BIN, listing available binaries:"
-            ls external/bgfx/.build/osx-arm64/bin/ 2>/dev/null || echo "(dir not found)"
-            echo "::error::shader binary sync check skipped — shaderc not built"
-            exit 1
-          fi
-      - name: Verify shader binary sync (prebuilt shaderc)
-        if: steps.prebuilt.outputs.hit == 'true'
-        run: |
-          SHADERC="external/bgfx/tools/bin/darwin/shaderc"
-          echo "Using prebuilt shaderc: $(file "$SHADERC")"
-          bash tests/compile_shaders.sh --check
-      - name: Upload shaderc tool (for DMG bundling)
+          name: bgfx-libs-android-arm64
+          path: bgfx-stage/android/lib*.a
+      - name: Upload shaderc tool
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-tools
-          path: external/bgfx/tools/bin/darwin/shaderc
-      - name: Publish prebuilt libs to labolado/bgfx
-        if: steps.prebuilt.outputs.hit != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.LABOLADO_BGFX_RELEASE_TOKEN || github.token }}
-        run: |
-          TAG="${{ steps.tag.outputs.tag }}"
-          if gh release view "$TAG" --repo labolado/bgfx &>/dev/null; then
-            echo "Release $TAG already exists (created by parallel run), skipping publish"
-            exit 0
-          fi
-          echo "Publishing prebuilt release: $TAG"
-          # Strip debug symbols to reduce archive size (safe for linking)
-          find external/bgfx/.build/projects/xcode15 -name 'lib*.a' -exec strip -S {} \;
-          find external/bgfx/.build/ios-arm64/bin    -name 'lib*.a' -exec strip -S {} \;
-          find external/bgfx/.build/ios-simulator/bin -name 'lib*.a' -exec strip -S {} \;
-          NDK_STRIP=""
-          [ -n "$ANDROID_NDK_HOME" ] && NDK_STRIP=$(find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" -name "llvm-strip" -type f 2>/dev/null | head -1)
-          if [ -n "$NDK_STRIP" ]; then
-            find external/bgfx/.build/android-arm64/bin -name 'lib*.a' -exec "$NDK_STRIP" -S {} \;
-          else
-            echo "::warning::llvm-strip not found, android libs not stripped (non-fatal)"
-          fi
-          ( cd "external/bgfx/.build/projects/xcode15"   && tar -czf "$OLDPWD/bgfx-macos.tar.gz"         lib*.a )
-          ( cd "external/bgfx/.build/ios-arm64/bin"      && tar -czf "$OLDPWD/bgfx-ios-device.tar.gz"    lib*.a )
-          ( cd "external/bgfx/.build/ios-simulator/bin"  && tar -czf "$OLDPWD/bgfx-ios-simulator.tar.gz" lib*.a )
-          ( cd "external/bgfx/.build/android-arm64/bin"  && tar -czf "$OLDPWD/bgfx-android.tar.gz"       lib*.a )
-          tar -czf bgfx-tools.tar.gz         -C external/bgfx/tools/bin/darwin shaderc
-          gh release create "$TAG" \
-            --repo labolado/bgfx \
-            --title "bgfx prebuilt $TAG" \
-            --notes "Auto-built by CI from ${{ github.sha }}" \
-            bgfx-macos.tar.gz bgfx-ios-device.tar.gz bgfx-ios-simulator.tar.gz bgfx-android.tar.gz bgfx-tools.tar.gz
-          echo "Published: $TAG"
-      - name: sccache stats
-        if: always()
-        run: sccache --show-stats
+          path: bgfx-stage/tools/shaderc
 
   native:
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
     runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
@@ -317,12 +178,12 @@ jobs:
       - name: Download bgfx iOS libs
         uses: actions/download-artifact@v4
         with:
-          name: bgfx-libs-ios
+          name: bgfx-libs-ios-device
           path: external/bgfx/.build/ios-arm64/bin
       - name: Download bgfx Android libs
         uses: actions/download-artifact@v4
         with:
-          name: bgfx-libs-android
+          name: bgfx-libs-android-arm64
           path: external/bgfx/.build/android-arm64/bin
       - run: ./tools/GHAction/daily_env.sh
       - name: Compute Gradle cache key
@@ -370,7 +231,7 @@ jobs:
           - tvos
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
     runs-on: ${{ matrix.runner }}
     env:
       DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
@@ -393,7 +254,7 @@ jobs:
       - name: Download bgfx iOS device libs
         uses: actions/download-artifact@v4
         with:
-          name: bgfx-libs-ios
+          name: bgfx-libs-ios-device
           path: external/bgfx/.build/ios-arm64/bin
       - name: Download bgfx iOS simulator libs
         uses: actions/download-artifact@v4
@@ -429,7 +290,7 @@ jobs:
           - tvos
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
     runs-on: ${{ matrix.runner }}
     env:
       DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
@@ -452,7 +313,7 @@ jobs:
       - name: Download bgfx iOS device libs
         uses: actions/download-artifact@v4
         with:
-          name: bgfx-libs-ios
+          name: bgfx-libs-ios-device
           path: external/bgfx/.build/ios-arm64/bin
       - name: Download bgfx iOS simulator libs
         uses: actions/download-artifact@v4
@@ -574,7 +435,7 @@ jobs:
   CoronaCards-iOS:
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
     runs-on: macos-15
     continue-on-error: true
     env:
@@ -610,7 +471,7 @@ jobs:
   CoronaCards-iOS-angle:
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
     runs-on: macos-15
     continue-on-error: true
     env:
@@ -649,7 +510,7 @@ jobs:
   macOS-Simulator:
     needs:
       - source-code
-      - build-bgfx-libs
+      - get-bgfx-libs
       - collect-ios-templates
       - native
       - webtemplate
