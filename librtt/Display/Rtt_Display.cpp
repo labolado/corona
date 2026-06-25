@@ -48,6 +48,9 @@
 // TODO: Remove dependency on Runtime's MCachedResourceLibrary interface
 #include "Rtt_Runtime.h"
 
+#ifdef TRACY_ENABLE
+#include "../../external/tracy/public/tracy/Tracy.hpp"
+#endif
 #define ENABLE_DEBUG_PRINT    0
 
 
@@ -659,13 +662,22 @@ Display::Restart( int newWidth, int newHeight )
 void
 Display::Update()
 {
+#ifdef TRACY_ENABLE
+    ZoneScopedN("LuaTick");
+#endif
     PROFILING_BEGIN( *GetProfilingState(), up, Update );
 
     up.Add( "Display::Update Begin" );
-    
+
     Runtime& runtime = fOwner;
     lua_State *L = fOwner.VMContext().L();
-    fSpritePlayer->Run( L, Rtt_AbsoluteToMilliseconds(runtime.GetElapsedTime()) );
+
+    {
+#ifdef TRACY_ENABLE
+        ZoneScopedN("SpritePlayer");
+#endif
+        fSpritePlayer->Run( L, Rtt_AbsoluteToMilliseconds(runtime.GetElapsedTime()) );
+    }
 
 	up.Add( "Run sprite player" );
 
@@ -680,15 +692,24 @@ Display::Update()
 
 	up.Add( "Prepare for frame event" );
 
-    const FrameEvent& fe = FrameEvent::Constant();
-    fe.Dispatch( L, runtime );
-    
+    {
+#ifdef TRACY_ENABLE
+        ZoneScopedN("enterFrame");
+#endif
+        const FrameEvent& fe = FrameEvent::Constant();
+        fe.Dispatch( L, runtime );
+    }
+
     up.Add( "FrameEvent" );
-    
-    const RenderEvent& re = RenderEvent::Constant();
-    re.Dispatch( L, runtime );
-    
-    up.Add( "LateUpdate" );
+
+    {
+#ifdef TRACY_ENABLE
+        ZoneScopedN("LateUpdate");
+        TracyPlot("LuaMemKB", (int64_t)(lua_gc(L, LUA_GCCOUNT, 0)));
+#endif
+        const RenderEvent& re = RenderEvent::Constant();
+        re.Dispatch( L, runtime );
+    }
 
 	Profiling::ResetSums();
 

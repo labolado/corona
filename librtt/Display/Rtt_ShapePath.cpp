@@ -155,7 +155,6 @@ ShapePath::CalculateUV( ArrayVertex2& texVertices, Paint *paint, bool canTransfo
     fTesselator->GenerateFillTexture( texVertices, t );
     paint->ApplyPaintUVTransformations( texVertices );
 
-    // UV diagnostic: dump first few UV values when texture transform is non-identity
 }
 
 void
