@@ -65,12 +65,13 @@ jobs:
             echo "Prebuilt not found, will build from source"
             echo "hit=false" >> $GITHUB_OUTPUT
           fi
-      - name: Generate bgfx projects (macOS arm64 + iOS device + iOS simulator + Android arm64)
+      - name: Generate bgfx projects (macOS arm64 + x64 + iOS device + iOS simulator + Android arm64)
         if: steps.prebuilt.outputs.hit != 'true' || hashFiles('external/bgfx/.build/android-arm64/bin/libbgfxRelease.a') == ''
         working-directory: ./external/bgfx
         run: |
           if [ "${{ steps.prebuilt.outputs.hit }}" != "true" ]; then
             make .build/projects/gmake-osx-arm64
+            make .build/projects/gmake-osx-x64
             make .build/projects/gmake-ios-arm64
             make .build/projects/gmake-ios-simulator
           fi
@@ -82,6 +83,12 @@ jobs:
         run: |
           make -C .build/projects/gmake-osx-arm64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
           make -C .build/projects/gmake-osx-arm64 config=release bgfx bx bimg bimg_decode shaderc -j$(sysctl -n hw.ncpu)
+      - name: Build bgfx macOS x64 (Debug + Release)
+        if: steps.prebuilt.outputs.hit != 'true'
+        working-directory: ./external/bgfx
+        run: |
+          make -C .build/projects/gmake-osx-x64 config=debug   bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
+          make -C .build/projects/gmake-osx-x64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
       - name: Build bgfx iOS device (Debug + Release)
         if: steps.prebuilt.outputs.hit != 'true'
         working-directory: ./external/bgfx
@@ -130,11 +137,21 @@ jobs:
         run: |
           export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
           make -C .build/projects/gmake-android-arm64 config=release bgfx bx bimg bimg_decode -j$(sysctl -n hw.ncpu)
-      - name: Stage macOS libs in xcode15 dir
+      - name: Stage macOS libs in xcode15 dir (universal arm64+x86_64)
         if: steps.prebuilt.outputs.hit != 'true'
         run: |
           mkdir -p external/bgfx/.build/projects/xcode15
-          cp external/bgfx/.build/osx-arm64/bin/lib*.a external/bgfx/.build/projects/xcode15/
+          for arm_lib in external/bgfx/.build/osx-arm64/bin/lib*.a; do
+            name=$(basename "$arm_lib")
+            x86_lib="external/bgfx/.build/osx-x64/bin/$name"
+            out="external/bgfx/.build/projects/xcode15/$name"
+            if [ -f "$x86_lib" ]; then
+              lipo -create "$arm_lib" "$x86_lib" -output "$out"
+            else
+              cp "$arm_lib" "$out"
+            fi
+          done
+          lipo -info external/bgfx/.build/projects/xcode15/libbgfxRelease.a | head -3
       - name: Upload bgfx macOS libs
         uses: actions/upload-artifact@v4
         with:
