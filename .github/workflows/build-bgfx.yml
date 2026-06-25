@@ -55,6 +55,11 @@ jobs:
             else
               echo "::warning::bgfx-android.tar.gz missing in release $TAG — Android arm64 will be built from source"
             fi
+            if [ -f "$DL/bgfx-tools.tar.gz" ]; then
+              mkdir -p external/bgfx/tools/bin/darwin
+              tar -xzf "$DL/bgfx-tools.tar.gz" -C external/bgfx/tools/bin/darwin
+              chmod +x external/bgfx/tools/bin/darwin/shaderc
+            fi
             echo "hit=true" >> $GITHUB_OUTPUT
           else
             echo "Prebuilt not found, will build from source"
@@ -159,15 +164,16 @@ jobs:
           cp "$SHADERC_BIN" "$SHADERC_DEST"
           chmod +x "$SHADERC_DEST"
           echo "shaderc: $(file "$SHADERC_DEST")"
-      - name: Install prebuilt shaderc (cache hit)
-        if: steps.prebuilt.outputs.hit == 'true'
-        run: chmod +x external/bgfx/tools/bin/darwin/shaderc
+      - name: Install prebuilt shaderc (cache hit, old release without bgfx-tools.tar.gz)
+        if: steps.prebuilt.outputs.hit == 'true' && hashFiles('external/bgfx/tools/bin/darwin/shaderc') == ''
+        run: echo "::warning::shaderc not in prebuilt release — shader sync check will be skipped"
       - name: Upload shaderc tool
         uses: actions/upload-artifact@v4
         with:
           name: bgfx-tools
           path: external/bgfx/tools/bin/darwin/shaderc
       - name: Verify shader binary sync
+        if: hashFiles('external/bgfx/tools/bin/darwin/shaderc') != ''
         run: bash tests/compile_shaders.sh --check
       - name: Publish prebuilt libs to labolado/bgfx
         if: steps.prebuilt.outputs.hit != 'true'
@@ -198,6 +204,7 @@ jobs:
 
   macOS-build:
     name: macOS ${{ matrix.config }} Build
+    if: github.event_name != 'workflow_call'
     needs: build-bgfx-libs
     runs-on: macos-26
     strategy:
@@ -271,6 +278,7 @@ jobs:
 
   iOS-templates:
     name: iOS Template Build (${{ matrix.target }})
+    if: github.event_name != 'workflow_call'
     needs: build-bgfx-libs
     runs-on: macos-26
     strategy:
@@ -311,6 +319,7 @@ jobs:
 
   Android-NDK:
     name: Android NDK Compile Check
+    if: github.event_name != 'workflow_call'
     needs: build-bgfx-libs
     runs-on: macos-26
     steps:

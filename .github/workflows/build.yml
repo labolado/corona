@@ -1,13 +1,8 @@
 name: Daily Build
 
 on:
-  # Triggered automatically after bgfx Build Verification succeeds on branch pushes
-  workflow_run:
-    workflows: ["bgfx Build Verification"]
-    types: [completed]
-    branches: [bgfx-solar2d, 'feature/**']
-  # Tag releases: bgfx-solar2d must be pushed first so prebuilt exists in labolado/bgfx
   push:
+    branches: [bgfx-solar2d, 'feature/**']
     tags: ['*']
   pull_request:
     branches: [bgfx-solar2d]
@@ -31,14 +26,12 @@ env:
 jobs:
   source-code:
     name: Check out and process source code
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Check shader source consistency (fast, no shaderc needed)
         run: |
           # Verify .sc source files are present and .h headers exist
@@ -57,109 +50,15 @@ jobs:
           name: SourceCode
           path: ./output
 
-  get-bgfx-libs:
-    name: Get bgfx static libraries
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download bgfx macOS libs (from build-bgfx run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-libs
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: bgfx-stage/macos
-      - name: Download bgfx iOS device libs (from build-bgfx run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-libs-ios-device
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: bgfx-stage/ios-device
-      - name: Download bgfx iOS simulator libs (from build-bgfx run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-libs-ios-simulator
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: bgfx-stage/ios-simulator
-      - name: Download bgfx Android libs (from build-bgfx run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-libs-android-arm64
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: bgfx-stage/android
-      - name: Download shaderc tool (from build-bgfx run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: bgfx-tools
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: bgfx-stage/tools
-      - name: Checkout (for prebuilt tag computation)
-        if: github.event_name != 'workflow_run'
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          ref: ${{ github.sha }}
-      - name: Download from labolado/bgfx prebuilt release (tag push / manual)
-        if: github.event_name != 'workflow_run'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          BGFX_SHA=$(git -C external/bgfx  rev-parse --short=8 HEAD)
-          BX_SHA=$(git   -C external/bx    rev-parse --short=8 HEAD)
-          BIMG_SHA=$(git -C external/bimg  rev-parse --short=8 HEAD)
-          TAG="solar2d-${BGFX_SHA}-${BX_SHA}-${BIMG_SHA}"
-          echo "Downloading prebuilt: $TAG"
-          DL=$(mktemp -d)
-          if ! gh release download "$TAG" --repo labolado/bgfx --dir "$DL"; then
-            echo "::error::Prebuilt bgfx not found for $TAG."
-            echo "::error::Push to bgfx-solar2d branch first — build-bgfx.yml will build and publish bgfx libs automatically."
-            exit 1
-          fi
-          mkdir -p bgfx-stage/macos bgfx-stage/ios-device bgfx-stage/ios-simulator bgfx-stage/android bgfx-stage/tools
-          tar -xzf "$DL/bgfx-macos.tar.gz"         -C bgfx-stage/macos
-          tar -xzf "$DL/bgfx-ios-device.tar.gz"    -C bgfx-stage/ios-device
-          tar -xzf "$DL/bgfx-ios-simulator.tar.gz" -C bgfx-stage/ios-simulator
-          tar -xzf "$DL/bgfx-android.tar.gz"        -C bgfx-stage/android
-          tar -xzf "$DL/bgfx-tools.tar.gz"          -C bgfx-stage/tools
-      - name: Upload bgfx macOS libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: bgfx-libs
-          path: bgfx-stage/macos/lib*.a
-      - name: Upload bgfx iOS device libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: bgfx-libs-ios-device
-          path: bgfx-stage/ios-device/lib*.a
-      - name: Upload bgfx iOS simulator libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: bgfx-libs-ios-simulator
-          path: bgfx-stage/ios-simulator/lib*.a
-      - name: Upload bgfx Android arm64 libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: bgfx-libs-android-arm64
-          path: bgfx-stage/android/lib*.a
-      - name: Upload shaderc tool
-        uses: actions/upload-artifact@v4
-        with:
-          name: bgfx-tools
-          path: bgfx-stage/tools/shaderc
+  bgfx:
+    name: bgfx Build Verification
+    uses: ./.github/workflows/build-bgfx.yml
+    secrets: inherit
 
   native:
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
     runs-on: macos-26
     steps:
       - run: CDR="$(basename "$(pwd)")" ; cd .. ; rm -rf "$CDR" ; mkdir -p "$CDR" ; cd "$CDR"
@@ -231,7 +130,7 @@ jobs:
           - tvos
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
     runs-on: ${{ matrix.runner }}
     env:
       DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
@@ -290,7 +189,7 @@ jobs:
           - tvos
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
     runs-on: ${{ matrix.runner }}
     env:
       DEVELOPER_DIR: /Applications/${{ matrix.xcode }}.app/Contents/Developer
@@ -435,7 +334,7 @@ jobs:
   CoronaCards-iOS:
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
     runs-on: macos-15
     continue-on-error: true
     env:
@@ -471,7 +370,7 @@ jobs:
   CoronaCards-iOS-angle:
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
     runs-on: macos-15
     continue-on-error: true
     env:
@@ -510,7 +409,7 @@ jobs:
   macOS-Simulator:
     needs:
       - source-code
-      - get-bgfx-libs
+      - bgfx
       - collect-ios-templates
       - native
       - webtemplate
