@@ -129,7 +129,7 @@ void main()
 
     float d = sdPoly(p, shapeId, n);
     float aa = max(fwidth(d), 0.0001);
-    float alpha = smoothstep(aa, -aa, d);
+    float alpha = smoothstep(-aa, aa, d);
     vec4 color = v_color * alpha;
 
     if (color.a < 0.001)

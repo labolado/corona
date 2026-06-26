@@ -32,5 +32,20 @@ end
 local hud = display.newText("SDF Instanced: " .. group:numShapes() .. " shapes / 1 draw", W * 0.5, 20, native.systemFont, 14)
 hud:setFillColor(1, 1, 1)
 
--- Auto-exit after 8s for FTL
-timer.performWithDelay(8000, function() os.exit(0) end)
+-- Auto-exit after 8s only for FTL
+if os.getenv("FTL_MODE") or _G.gameLoopScenario then
+    timer.performWithDelay(8000, function() os.exit(0) end)
+end
+
+-- FPS counter
+local frameCount, lastTime = 0, system.getTimer()
+Runtime:addEventListener("enterFrame", function()
+    frameCount = frameCount + 1
+    local now = system.getTimer()
+    local elapsed = now - lastTime
+    if elapsed >= 1000 then
+        local fps = math.floor(frameCount / (elapsed / 1000) + 0.5)
+        hud.text = string.format("Instanced: %d shapes / 1 draw | FPS: %d", group:numShapes(), fps)
+        frameCount = 0; lastTime = now
+    end
+end)

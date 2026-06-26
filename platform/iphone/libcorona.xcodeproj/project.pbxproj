@@ -1295,8 +1295,8 @@
 		0797EB6C181F0F6900FA57B5 /* Rtt_PlatformVideoProvider.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_PlatformVideoProvider.cpp; sourceTree = "<group>"; };
 		0797EB6D181F0F6900FA57B5 /* Rtt_PlatformVideoProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_PlatformVideoProvider.h; sourceTree = "<group>"; };
 		07EB77C5178DD3450089B3C5 /* Rtt_SurfaceInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_SurfaceInfo.h; sourceTree = "<group>"; };
-		118219EF6BEFC519278A83A9 /* Rtt_SDFGroupObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFGroupObject.cpp; path = librtt/Display/Rtt_SDFGroupObject.cpp; sourceTree = "<group>"; };
-		18D00060C60A65BAB823E851 /* Rtt_SDFInstanceRenderer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFInstanceRenderer.cpp; path = librtt/Display/Rtt_SDFInstanceRenderer.cpp; sourceTree = "<group>"; };
+		118219EF6BEFC519278A83A9 /* Rtt_SDFGroupObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFGroupObject.cpp; path = Display/Rtt_SDFGroupObject.cpp; sourceTree = "<group>"; };
+		18D00060C60A65BAB823E851 /* Rtt_SDFInstanceRenderer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFInstanceRenderer.cpp; path = Display/Rtt_SDFInstanceRenderer.cpp; sourceTree = "<group>"; };
 		2F4341869067FEAB71ED4168 /* Rtt_BgfxMetalReadback.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_BgfxMetalReadback.mm; path = ../../librtt/Renderer/Rtt_BgfxMetalReadback.mm; sourceTree = SOURCE_ROOT; };
 		32AC44D28D1BCC2AD471E65E /* Rtt_BgfxRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxRenderer.cpp; path = ../../librtt/Renderer/Rtt_BgfxRenderer.cpp; sourceTree = SOURCE_ROOT; };
 		5009C11F186239480075E34C /* Rtt_PhysicsTypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_PhysicsTypes.h; sourceTree = "<group>"; };
@@ -1756,7 +1756,7 @@
 		F8B68E4716F8EFB100CF1EC4 /* shell.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = shell.lua; sourceTree = "<group>"; };
 		FAKE0001198091050005948F /* b2FakeJoint.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = b2FakeJoint.cpp; sourceTree = "<group>"; };
 		FAKE0002198091050005948F /* b2FakeJoint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = b2FakeJoint.h; sourceTree = "<group>"; };
-		FC15891684CB8F2AEB655473 /* Rtt_LuaLibSDFInstance.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibSDFInstance.cpp; path = librtt/Display/Rtt_LuaLibSDFInstance.cpp; sourceTree = "<group>"; };
+		FC15891684CB8F2AEB655473 /* Rtt_LuaLibSDFInstance.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibSDFInstance.cpp; path = Display/Rtt_LuaLibSDFInstance.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

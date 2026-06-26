@@ -47,6 +47,14 @@
 		078DA95B176FD45500A5193E /* Rtt_AppleTextAlignment.mm in Sources */ = {isa = PBXBuildFile; fileRef = 078DA955176FD1EE00A5193E /* Rtt_AppleTextAlignment.mm */; };
 		0795D2481886008F00B3F4B7 /* Rtt_IPhoneVideoObject.mm in Sources */ = {isa = PBXBuildFile; fileRef = A46936E6169DED9200723568 /* Rtt_IPhoneVideoObject.mm */; };
 		0795D25A18861C6600B3F4B7 /* Rtt_IPhoneDisplayObject.mm in Sources */ = {isa = PBXBuildFile; fileRef = A46936C8169DED9200723568 /* Rtt_IPhoneDisplayObject.mm */; };
+		12AF5C9FEFFD07014E2FC488 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8511B1020EC4AD688D9A875C /* PhotosUI.framework */; };
+		19E2659C5FF0CD427DFE00E2 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
+		4A96E49D91D6C04922951B6F /* Rtt_LuaLibSDFInstance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F336399F95A7FE1248DBEB0B /* Rtt_LuaLibSDFInstance.cpp */; };
+		524925C6F55153FEBAD8A18A /* Rtt_SDFGroupObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FCABCA79D1F9943E02D0D33 /* Rtt_SDFGroupObject.cpp */; };
+		626BB2248FDBB056CAE15F2A /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
+		68E76CDD10564DC416A61F09 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
+		745544A9B9EB2347190C91EC /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
+		8F8BC9367EF77F7EDCE83A6F /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
 		A40D2F5D1887699100B4A354 /* CoronaViewPluginContext.h in Headers */ = {isa = PBXBuildFile; fileRef = A40D2F5B1887699100B4A354 /* CoronaViewPluginContext.h */; };
 		A40D2F5E1887699100B4A354 /* CoronaViewPluginContext.mm in Sources */ = {isa = PBXBuildFile; fileRef = A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */; };
 		A40D2F6818876D5200B4A354 /* CoronaViewPluginContext.mm in Sources */ = {isa = PBXBuildFile; fileRef = A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */; };
@@ -82,14 +90,6 @@
 		A44D4401164B201300CFE7B3 /* liblua.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4355164B1D5200CFE7B3 /* liblua.a */; };
 		A44D4402164B201300CFE7B3 /* libluafilesystem.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4357164B1D5200CFE7B3 /* libluafilesystem.a */; };
 		A44D4404164B201300CFE7B3 /* librtt.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4353164B1D5200CFE7B3 /* librtt.a */; };
-		8F8BC9367EF77F7EDCE83A6F /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
-		68E76CDD10564DC416A61F09 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA3B0444965C886A79DE927 /* libbgfxRelease.a */; };
-		19E2659C5FF0CD427DFE00E2 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
-		626BB2248FDBB056CAE15F2A /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
-		EFE3527B5A9DEB2C32292285 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
-		FF5560F274916307CB6AE6D5 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
-		EEA3511263ACEFFCA2EE7D56 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
-		745544A9B9EB2347190C91EC /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
 		A4543E80151AA23A00486F8A /* CoronaApplicationMain.h in Headers */ = {isa = PBXBuildFile; fileRef = A4543E7C151AA23A00486F8A /* CoronaApplicationMain.h */; };
 		A4543E81151AA23A00486F8A /* CoronaApplicationMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4543E7D151AA23A00486F8A /* CoronaApplicationMain.mm */; };
 		A4543E82151AA23A00486F8A /* CoronaDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = A4543E7E151AA23A00486F8A /* CoronaDelegate.h */; };
@@ -270,12 +270,15 @@
 		C26005721D62A63400C542D0 /* _CoronaSplashScreen.png in Resources */ = {isa = PBXBuildFile; fileRef = C26005711D62A63400C542D0 /* _CoronaSplashScreen.png */; };
 		C2A6E5311AB0BEE500509FB2 /* widget_theme_ios7@4x.png in Resources */ = {isa = PBXBuildFile; fileRef = C2A6E5301AB0BEE500509FB2 /* widget_theme_ios7@4x.png */; };
 		C2F911791CDC15F4004A5564 /* libluasocket.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A44D4359164B1D5200CFE7B3 /* libluasocket.a */; };
+		DB2C6942CC8FF02BBE27CFF4 /* Rtt_SDFInstanceRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1718BB76A54D0C344BBB6AB /* Rtt_SDFInstanceRenderer.cpp */; };
 		DB56B4A0284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B49E284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm */; };
 		DB56B4A1284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B49E284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm */; };
 		DB56B4A2284BEB6400EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B49F284BEB6400EC8B14 /* Rtt_AppleKeyServices.h */; };
 		DB56B4A3284BEB6400EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B49F284BEB6400EC8B14 /* Rtt_AppleKeyServices.h */; };
 		DB87234028CD7F0E00E1866A /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B49E284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm */; };
 		DB87237E28CD7F2900E1866A /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B49F284BEB6400EC8B14 /* Rtt_AppleKeyServices.h */; };
+		EEA3511263ACEFFCA2EE7D56 /* libbimgRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */; };
+		EFE3527B5A9DEB2C32292285 /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */; };
 		F50E7EB224FA923B009F165B /* _CoronaSplashScreen.png in Resources */ = {isa = PBXBuildFile; fileRef = C26005711D62A63400C542D0 /* _CoronaSplashScreen.png */; };
 		F50E7EB324FA923B009F165B /* CoronaResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = A48B825C16D594AA00CA01A1 /* CoronaResources.bundle */; };
 		F50E7EB424FA923B009F165B /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 28AD733E0D9D9553002E5188 /* MainWindow.xib */; };
@@ -514,7 +517,7 @@
 		F81D63B21A609F8B00C7ADAA /* CoronaAppDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = F81D63B01A609F8B00C7ADAA /* CoronaAppDelegate.h */; };
 		F81D63B31A609F8B00C7ADAA /* CoronaAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = F81D63B11A609F8B00C7ADAA /* CoronaAppDelegate.mm */; };
 		F87434AD180629540024ECFD /* Rtt_IPhoneVideoProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = F87434AB180629540024ECFD /* Rtt_IPhoneVideoProvider.mm */; };
-		12AF5C9FEFFD07014E2FC488 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8511B1020EC4AD688D9A875C /* PhotosUI.framework */; };
+		FF5560F274916307CB6AE6D5 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -1486,10 +1489,6 @@
 		00E867DC1366435F00AAFA26 /* Rtt_AppleReachability.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleReachability.h; sourceTree = "<group>"; };
 		00F2E30812B2E3C8000C2022 /* rttplayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rttplayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E30A12B2E3C8000C2022 /* librtt.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = librtt.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		6CA3B0444965C886A79DE927 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbgfxRelease.a; sourceTree = "<absolute>"; };
-		365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbxRelease.a; sourceTree = "<absolute>"; };
-		C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimgRelease.a; sourceTree = "<absolute>"; };
-		1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = /Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimg_decodeRelease.a; sourceTree = "<absolute>"; };
 		00F2E30D12B2E3C8000C2022 /* liblua.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liblua.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E31012B2E3C8000C2022 /* libluasocket.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libluasocket.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F2E31312B2E3C8000C2022 /* libbox2d.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libbox2d.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1504,8 +1503,13 @@
 		078DA955176FD1EE00A5193E /* Rtt_AppleTextAlignment.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Rtt_AppleTextAlignment.mm; sourceTree = "<group>"; };
 		0795D1E3188494C400B3F4B7 /* IPhoneExports.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IPhoneExports.h; path = libtemplate/IPhoneExports.h; sourceTree = "<group>"; };
 		07BB15CC17614EBE00F55D34 /* Rtt_AppleTextAlignment.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleTextAlignment.h; sourceTree = "<group>"; };
+		1F5284BB74678DA3FDCD9E9A /* libbimg_decodeRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimg_decodeRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimg_decodeRelease.a"; sourceTree = "<absolute>"; };
 		28AD733E0D9D9553002E5188 /* MainWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainWindow.xib; sourceTree = "<group>"; };
 		32CA4F630368D1EE00C91783 /* Rtt_Player.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_Player.pch; sourceTree = "<group>"; };
+		365B1A0FEDB7EA08494EBF52 /* libbxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbxRelease.a"; sourceTree = "<absolute>"; };
+		6CA3B0444965C886A79DE927 /* libbgfxRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbgfxRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbgfxRelease.a"; sourceTree = "<absolute>"; };
+		8511B1020EC4AD688D9A875C /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
+		8FCABCA79D1F9943E02D0D33 /* Rtt_SDFGroupObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFGroupObject.cpp; path = Rtt_SDFGroupObject.cpp; sourceTree = "<group>"; };
 		A40D2F5B1887699100B4A354 /* CoronaViewPluginContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CoronaViewPluginContext.h; path = platform/iphone/CoronaViewPluginContext.h; sourceTree = "<group>"; };
 		A40D2F5C1887699100B4A354 /* CoronaViewPluginContext.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CoronaViewPluginContext.mm; path = platform/iphone/CoronaViewPluginContext.mm; sourceTree = "<group>"; };
 		A40D2F721889151E00B4A354 /* CoronaCardsTest-Ad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CoronaCardsTest-Ad.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1693,8 +1697,11 @@
 		C23D8DF21954F30200D6555E /* widget_theme_onOff_mask_android_holo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = widget_theme_onOff_mask_android_holo.png; path = ../../subrepos/widget/widget_theme_onOff_mask_android_holo.png; sourceTree = "<group>"; };
 		C26005711D62A63400C542D0 /* _CoronaSplashScreen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = _CoronaSplashScreen.png; sourceTree = "<group>"; };
 		C2A6E5301AB0BEE500509FB2 /* widget_theme_ios7@4x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "widget_theme_ios7@4x.png"; path = "../../subrepos/widget/widget_theme_ios7@4x.png"; sourceTree = "<group>"; };
+		C680F1F4BA068EEB37A4A17F /* libbimgRelease.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbimgRelease.a; path = "/Users/yee/data/dev/app/labo/corona/external/bgfx/.build/ios-arm64/bin/libbimgRelease.a"; sourceTree = "<absolute>"; };
 		DB56B49E284BEB6400EC8B14 /* Rtt_AppleKeyServices.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Rtt_AppleKeyServices.mm; sourceTree = "<group>"; };
 		DB56B49F284BEB6400EC8B14 /* Rtt_AppleKeyServices.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleKeyServices.h; sourceTree = "<group>"; };
+		E1718BB76A54D0C344BBB6AB /* Rtt_SDFInstanceRenderer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFInstanceRenderer.cpp; path = Rtt_SDFInstanceRenderer.cpp; sourceTree = "<group>"; };
+		F336399F95A7FE1248DBEB0B /* Rtt_LuaLibSDFInstance.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibSDFInstance.cpp; path = Rtt_LuaLibSDFInstance.cpp; sourceTree = "<group>"; };
 		F50E7EC424FA923B009F165B /* template-angle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "template-angle.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F564C3681BE430F900C241E6 /* Rtt_AppleInputDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_AppleInputDevice.h; sourceTree = "<group>"; };
 		F564C3691BE430F900C241E6 /* Rtt_AppleInputDevice.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Rtt_AppleInputDevice.mm; sourceTree = "<group>"; };
@@ -1725,7 +1732,6 @@
 		F81D63B11A609F8B00C7ADAA /* CoronaAppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CoronaAppDelegate.mm; path = platform/iphone/CoronaAppDelegate.mm; sourceTree = "<group>"; };
 		F87434AA180629540024ECFD /* Rtt_IPhoneVideoProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_IPhoneVideoProvider.h; path = platform/iphone/Rtt_IPhoneVideoProvider.h; sourceTree = "<group>"; };
 		F87434AB180629540024ECFD /* Rtt_IPhoneVideoProvider.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Rtt_IPhoneVideoProvider.mm; path = platform/iphone/Rtt_IPhoneVideoProvider.mm; sourceTree = "<group>"; };
-		8511B1020EC4AD688D9A875C /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2087,7 +2093,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		29B97314FDCFA39411CA2CEA /* CustomTemplate */ = {
+		29B97314FDCFA39411CA2CEA = {
 			isa = PBXGroup;
 			children = (
 				F5C36A3E24FA938100775C6E /* OpenGLES.xcodeproj */,
@@ -2106,6 +2112,7 @@
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				F576AD9B2A99C73600B85312 /* CoronaCardsTest copy-Info.plist */,
+				7E871977930730FD86B05116 /* librtt */,
 			);
 			name = CustomTemplate;
 			sourceTree = "<group>";
@@ -2130,6 +2137,25 @@
 				A4EF76F61A352B43002D3BEF /* CoronaCards.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3E7EF0A5F749F1E0D4B787FA /* Display */ = {
+			isa = PBXGroup;
+			children = (
+				E1718BB76A54D0C344BBB6AB /* Rtt_SDFInstanceRenderer.cpp */,
+				8FCABCA79D1F9943E02D0D33 /* Rtt_SDFGroupObject.cpp */,
+				F336399F95A7FE1248DBEB0B /* Rtt_LuaLibSDFInstance.cpp */,
+			);
+			name = Display;
+			path = ../../librtt/Display;
+			sourceTree = SOURCE_ROOT;
+		};
+		7E871977930730FD86B05116 /* librtt */ = {
+			isa = PBXGroup;
+			children = (
+				3E7EF0A5F749F1E0D4B787FA /* Display */,
+			);
+			name = librtt;
 			sourceTree = "<group>";
 		};
 		A40D2F761889151E00B4A354 /* Test-Ad */ = {
@@ -3162,7 +3188,8 @@
 				en,
 				Base,
 			);
-			mainGroup = 29B97314FDCFA39411CA2CEA /* CustomTemplate */;
+			mainGroup = 29B97314FDCFA39411CA2CEA;
+			productRefGroup = 19C28FACFE9D520D11CA2CBB /* Products */;
 			projectDirPath = "";
 			projectReferences = (
 				{
@@ -4353,6 +4380,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				A4F2ADF816E0AF5F00814C7B /* main.mm in Sources */,
+				DB2C6942CC8FF02BBE27CFF4 /* Rtt_SDFInstanceRenderer.cpp in Sources */,
+				524925C6F55153FEBAD8A18A /* Rtt_SDFGroupObject.cpp in Sources */,
+				4A96E49D91D6C04922951B6F /* Rtt_LuaLibSDFInstance.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5621,6 +5651,8 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BGFX_IOS_PLATFORM = "ios-arm64";
+				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
@@ -5636,7 +5668,7 @@
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-								GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
@@ -5672,10 +5704,8 @@
 					../../external/bgfx/include,
 					../../external/bx/include,
 					../../external/bimg/include,
-					"../../external/bx/include/compat/ios",
+					../../external/bx/include/compat/ios,
 				);
-				BGFX_IOS_PLATFORM = "ios-arm64";
-				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				ONLY_ACTIVE_ARCH = YES;
 				"OTHER_CFLAGS[arch=arm64]" = "-fexceptions";
@@ -5696,6 +5726,8 @@
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				BGFX_IOS_PLATFORM = "ios-arm64";
+				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BOOL_CONVERSION = YES;
@@ -5710,7 +5742,7 @@
 				DEPLOYMENT_POSTPROCESSING = YES;
 				ENABLE_BITCODE = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-								GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_ENABLE_PASCAL_STRINGS = NO;
@@ -5746,10 +5778,8 @@
 					../../external/bgfx/include,
 					../../external/bx/include,
 					../../external/bimg/include,
-					"../../external/bx/include/compat/ios",
+					../../external/bx/include/compat/ios,
 				);
-				BGFX_IOS_PLATFORM = "ios-arm64";
-				"BGFX_IOS_PLATFORM[sdk=iphonesimulator*]" = "ios-simulator";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(S2D_MIN_VER_IOS:default=11.0)";
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
 				"OTHER_CFLAGS[arch=arm64]" = (
@@ -6087,9 +6117,7 @@
 				DSTROOT = /tmp/libplayer.dst;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)\nRtt_MetalANGLE",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)\nRtt_MetalANGLE";
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
@@ -6109,9 +6137,7 @@
 				COPY_PHASE_STRIP = YES;
 				DSTROOT = /tmp/libplayer.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)\nRtt_MetalANGLE",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)\nRtt_MetalANGLE";
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
