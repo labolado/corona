@@ -35,7 +35,8 @@ public class GameLoopActivity extends CoronaActivity {
 	//   7 = realrepro079 (#079 extended-geometry shared-pool regression: static grid of marbles, auto backend → Vulkan)
 	//   8 = realrepro079 with SOLAR2D_VULKAN=0 (force GLES backend for cross-backend #079 coverage)
 	//   9 = sdf_ftl (SDF quality-tier stress test: HIGH/MID/LOW 25s each, 200 shapes, auto FPS logging)
-	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes", "perf", "sdf_perf", "realrepro079", "realrepro079", "sdf_ftl" };
+	//  10 = sdf_instanced (SDF GPU instancing: 200 shapes in 1 draw call via display.newSDFGroup)
+	private static final String[] SCENARIO_TEST_NAMES = { null, null, "bench", "all_scenes", "shapes", "perf", "sdf_perf", "realrepro079", "realrepro079", "sdf_ftl", "sdf_instanced" };
 
 	private Handler fFinishHandler;
 	private Runnable fFinishRunnable;
@@ -81,6 +82,8 @@ public class GameLoopActivity extends CoronaActivity {
 					durationMs = 30_000L;  // realrepro079: static render, 30s to settle + record video
 				} else if (scenarioNumber == 9) {
 					durationMs = 120_000L; // sdf_ftl: 3 tiers × 25s + warmup + overhead ≈ 2 min
+				} else if (scenarioNumber == 10) {
+					durationMs = 30_000L;  // sdf_instanced: static render, 30s baseline
 				}
 			}
 
