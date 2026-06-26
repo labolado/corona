@@ -10,6 +10,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Display/Rtt_LuaLibDisplay.h"
+#include "Display/Rtt_LuaLibSDFInstance.h"
 
 #include "Display/Rtt_BitmapPaint.h"
 #include "Display/Rtt_CameraPaint.h"
@@ -246,6 +247,7 @@ DisplayLibrary::Open( lua_State *L )
         { "newSnapshot", newSnapshot },
         { "newSprite", newSprite },
         { "newMesh", newMesh },
+	{ "newSDFGroup", SDFInstance_newSDFGroup },
         { "getDefault", getDefault },
         { "setDefault", setDefault },
         { "getCurrentStage", getCurrentStage },

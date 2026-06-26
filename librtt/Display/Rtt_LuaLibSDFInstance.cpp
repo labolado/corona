@@ -258,15 +258,9 @@ LuaLibSDFInstance::Initialize( lua_State* )
 }
 
 void
-LuaLibSDFInstance::RegisterDisplayFunctions( lua_State* L )
+LuaLibSDFInstance::RegisterDisplayFunctions( lua_State* )
 {
-	lua_getglobal( L, "display" );
-	if ( lua_istable( L, -1 ) )
-	{
-		lua_pushcfunction( L, SDFInstance_newSDFGroup );
-		lua_setfield( L, -2, "newSDFGroup" );
-	}
-	lua_pop( L, 1 );
+	// Registered via kVTable in Rtt_LuaLibDisplay.cpp
 }
 
 int
