@@ -499,6 +499,9 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_TextureAtlas_Lua.cpp
 		${CORONA_ROOT}/librtt/Display/Rtt_InstancedBatchRenderer.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_SDFInstanceRenderer.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_SDFGroupObject.cpp
+		${CORONA_ROOT}/librtt/Display/Rtt_LuaLibSDFInstance.cpp
 		# *_Lua.cpp files merged into Rtt_LuaProxyVTable.cpp by upstream
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisCollection.cpp
 		${CORONA_ROOT}/librtt/Input/Rtt_InputAxisDescriptor.cpp
