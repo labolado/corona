@@ -355,6 +355,7 @@
 		4B1A83A22B184FF46E34A111 /* Rtt_BgfxCommandBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528343230F76F366718A66F4 /* Rtt_BgfxCommandBuffer.cpp */; };
 		4C111FCB1B2A41B200DF8BE8 /* Rtt_KeyName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4C111FC91B2A41B200DF8BE8 /* Rtt_KeyName.cpp */; };
 		4D158B9EBBF63E00FA44B951 /* Rtt_BgfxExports.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B3338F29E6009DB5EBB0E0D /* Rtt_BgfxExports.cpp */; };
+		4DD26ADA88C450CACDE79DDF /* Rtt_SDFInstanceRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE89CFC31E9B68DC94A6F1 /* Rtt_SDFInstanceRenderer.cpp */; };
 		5019605B186145FC0092E97E /* b2Separator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50196059186145FC0092E97E /* b2Separator.cpp */; };
 		5019605C186145FC0092E97E /* b2Separator.h in Headers */ = {isa = PBXBuildFile; fileRef = 5019605A186145FC0092E97E /* b2Separator.h */; };
 		50196065186146100092E97E /* SmoothPolygon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50196063186146100092E97E /* SmoothPolygon.cpp */; };
@@ -484,9 +485,11 @@
 		50E7D551198090430005948F /* b2Rope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50E7D4DF198090430005948F /* b2Rope.cpp */; };
 		50FB089217B1E22E005ED7B7 /* kernel_filter_scatter_gl.lua in Sources */ = {isa = PBXBuildFile; fileRef = 50FB088917B1E1CE005ED7B7 /* kernel_filter_scatter_gl.lua */; };
 		516619F068DCD00EE039E495 /* Rtt_BgfxTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FBFF7CD396417845B64CDC0 /* Rtt_BgfxTexture.cpp */; };
+		545320EC6E341662D98126A4 /* Rtt_SDFInstanceRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE89CFC31E9B68DC94A6F1 /* Rtt_SDFInstanceRenderer.cpp */; };
 		5C532566ECBFF606DDAF230F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B5C34561E307CC8B13FF96D9 /* Metal.framework */; };
 		5C5D28EA09B34088BC2C2D6A /* Rtt_BgfxGeometryPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87C4AD304E8F42F0AC448CA9 /* Rtt_BgfxGeometryPool.cpp */; };
 		6249922BC099C1D94B8DD529 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
+		66214F66B04F50BA9241EDE6 /* Rtt_SDFGroupObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0802754CAD95D6117ECB4106 /* Rtt_SDFGroupObject.cpp */; };
 		6B4AAC87E853A5793AD55E9A /* libbimg_decodeRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 81D7C01BD247D477ED064E86 /* libbimg_decodeRelease.a */; };
 		6E150280FB9B098BEEB065E1 /* Rtt_BgfxRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0BDE67AFB44AAA2A5DB54A /* Rtt_BgfxRenderer.cpp */; };
 		70A3C9F252A24877FE2D4A2A /* Rtt_TextureAtlas_Lua.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */; };
@@ -1644,6 +1647,7 @@
 		C2FCD3E41B38D06000EF7B02 /* AppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A4B00FA014565609008FB6E6 /* AppBuildController.mm */; };
 		C2FCD3E61B38D0BD00EF7B02 /* WebAppBuildController.mm in Sources */ = {isa = PBXBuildFile; fileRef = A425454E18DB9EF400EE06A8 /* WebAppBuildController.mm */; };
 		C721E5759D342A03E7A8B430 /* Rtt_BgfxGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACAC0E38564E3414FAD97D4C /* Rtt_BgfxGeometry.cpp */; };
+		CEC17106A1E6C5AB2151FA70 /* Rtt_SDFGroupObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0802754CAD95D6117ECB4106 /* Rtt_SDFGroupObject.cpp */; };
 		D0A0B0C0D0E05DF000000003 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
 		D0A0B0C0D0E05DF000000004 /* Rtt_SDFRenderer.h in Headers */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000002 /* Rtt_SDFRenderer.h */; };
 		D0A0B0C0D0E05DF000000005 /* Rtt_SDFRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A0B0C0D0E05DF000000001 /* Rtt_SDFRenderer.cpp */; };
@@ -1653,6 +1657,7 @@
 		D4D0777BBFAEC2E74A5B3031 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
 		D4FB584AE38B7B4C1E73EB69 /* Rtt_BgfxMetalScale.mm in Sources */ = {isa = PBXBuildFile; fileRef = F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */; };
 		D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
+		DB52D2B2C26916FBB5A2548F /* Rtt_LuaLibSDFInstance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */; };
 		DB56B4CA284C2E7D00EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B4C8284C2E7C00EC8B14 /* Rtt_AppleKeyServices.h */; };
 		DB56B4CB284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */; };
 		DB56B4CC284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */; };
@@ -1665,6 +1670,7 @@
 		E3E0370A3E9F9055888AB456 /* Rtt_BgfxMetalReadback.mm in Sources */ = {isa = PBXBuildFile; fileRef = BB0B7D1E9E7551BDC195D331 /* Rtt_BgfxMetalReadback.mm */; };
 		E707EA34B233C77BB9023074 /* libbgfxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 62F53053CDC9ACE4FAD588E4 /* libbgfxRelease.a */; };
 		EC3BBE729205476ED2BB0B20 /* libbxRelease.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6BDF997774391BA9C031D638 /* libbxRelease.a */; };
+		F0023743F8A75240B5EAEDCE /* Rtt_LuaLibSDFInstance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */; };
 		F500FB401FED5CE20050B28B /* webtemplate.zip in Resources */ = {isa = PBXBuildFile; fileRef = F500FB3F1FED5CE20050B28B /* webtemplate.zip */; };
 		F50F51B81B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F50F51B61B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp */; };
 		F50F51B91B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F50F51B61B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp */; };
@@ -2828,6 +2834,7 @@
 		0799601417EBC78000A632B9 /* Rtt_MacViewCallback.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Rtt_MacViewCallback.mm; sourceTree = "<group>"; };
 		0799601D17F0FFF100A632B9 /* Rtt_SimulatorRecents.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_SimulatorRecents.h; path = ../../modules/simulator/Rtt_SimulatorRecents.h; sourceTree = "<group>"; };
 		07EB77BA178DD3200089B3C5 /* Rtt_SurfaceInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_SurfaceInfo.h; sourceTree = "<group>"; };
+		0802754CAD95D6117ECB4106 /* Rtt_SDFGroupObject.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFGroupObject.cpp; path = librtt/Display/Rtt_SDFGroupObject.cpp; sourceTree = "<group>"; };
 		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = ../../../System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		1806E595B7CF5C51593DF089 /* Rtt_BgfxFrameBufferObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxFrameBufferObject.h; path = ../../librtt/Renderer/Rtt_BgfxFrameBufferObject.h; sourceTree = "<group>"; };
@@ -2837,6 +2844,7 @@
 		1F34F5412111661E006EE117 /* LinuxAppBuildController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = LinuxAppBuildController.mm; sourceTree = "<group>"; };
 		1F34F5422111661E006EE117 /* LinuxAppBuildController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LinuxAppBuildController.h; sourceTree = "<group>"; };
 		1F46A96521136B51009CC875 /* linuxPackageApp.lua */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = linuxPackageApp.lua; path = ../platform/resources/linuxPackageApp.lua; sourceTree = "<group>"; };
+		25AE89CFC31E9B68DC94A6F1 /* Rtt_SDFInstanceRenderer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_SDFInstanceRenderer.cpp; path = librtt/Display/Rtt_SDFInstanceRenderer.cpp; sourceTree = "<group>"; };
 		2CE5493E64A5E80C34AE74DD /* Rtt_BgfxTexture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxTexture.h; path = ../../librtt/Renderer/Rtt_BgfxTexture.h; sourceTree = "<group>"; };
 		2FA27604F6700C377CBD04D6 /* Rtt_BgfxExports.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_BgfxExports.h; path = ../../librtt/Renderer/Rtt_BgfxExports.h; sourceTree = "<group>"; };
 		323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureAtlas.cpp; path = Display/Rtt_TextureAtlas.cpp; sourceTree = "<group>"; };
@@ -3459,6 +3467,7 @@
 		EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_BgfxFrameBufferObject.cpp; path = ../../librtt/Renderer/Rtt_BgfxFrameBufferObject.cpp; sourceTree = "<group>"; };
 		F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = Rtt_BgfxMetalScale.mm; sourceTree = "<group>"; };
 		F3DA624CFE341B5429521C87 /* Rtt_TextureAtlas_Lua.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureAtlas_Lua.h; path = Display/Rtt_TextureAtlas_Lua.h; sourceTree = "<group>"; };
+		F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibSDFInstance.cpp; path = librtt/Display/Rtt_LuaLibSDFInstance.cpp; sourceTree = "<group>"; };
 		F500FB3F1FED5CE20050B28B /* webtemplate.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; name = webtemplate.zip; path = ../resources/webtemplate.zip; sourceTree = "<group>"; };
 		F50F51B61B700C04006FEF92 /* Rtt_TextureResourceBitmap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TextureResourceBitmap.cpp; path = Display/Rtt_TextureResourceBitmap.cpp; sourceTree = "<group>"; };
 		F50F51B71B700C04006FEF92 /* Rtt_TextureResourceBitmap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TextureResourceBitmap.h; path = Display/Rtt_TextureResourceBitmap.h; sourceTree = "<group>"; };
@@ -5120,6 +5129,9 @@
 				323B99442BDD71891970081F /* Rtt_TextureAtlas.cpp */,
 				F3DA624CFE341B5429521C87 /* Rtt_TextureAtlas_Lua.h */,
 				E10A1672E5358B7B8424353F /* Rtt_TextureAtlas_Lua.cpp */,
+				25AE89CFC31E9B68DC94A6F1 /* Rtt_SDFInstanceRenderer.cpp */,
+				0802754CAD95D6117ECB4106 /* Rtt_SDFGroupObject.cpp */,
+				F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */,
 			);
 			name = Display;
 			sourceTree = "<group>";
@@ -7713,6 +7725,9 @@
 				C2D3DA591B179C2400137331 /* Rtt_ProjectSettings.cpp in Sources */,
 				C2D3DA5D1B179C2400137331 /* Rtt_ReadOnlyProjectSettings.cpp in Sources */,
 				217E2F6AB3CC8666D5EB2A27 /* Rtt_BgfxMetalScale.mm in Sources */,
+				545320EC6E341662D98126A4 /* Rtt_SDFInstanceRenderer.cpp in Sources */,
+				CEC17106A1E6C5AB2151FA70 /* Rtt_SDFGroupObject.cpp in Sources */,
+				DB52D2B2C26916FBB5A2548F /* Rtt_LuaLibSDFInstance.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8085,6 +8100,9 @@
 				05B0A1C1D2F3E4A5B6C7D8E9 /* Rtt_BatchObject.cpp in Sources */,
 				05B0A1C2D2F3E4A5B6C7D8EA /* Rtt_BatchObject_Lua.cpp in Sources */,
 				9E274D72B1C36E72DD5DCD00 /* Rtt_BgfxMetalScale.mm in Sources */,
+				4DD26ADA88C450CACDE79DDF /* Rtt_SDFInstanceRenderer.cpp in Sources */,
+				66214F66B04F50BA9241EDE6 /* Rtt_SDFGroupObject.cpp in Sources */,
+				F0023743F8A75240B5EAEDCE /* Rtt_LuaLibSDFInstance.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
