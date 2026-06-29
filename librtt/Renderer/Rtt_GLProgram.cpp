@@ -546,11 +546,31 @@ GLProgram::UpdateShaderSource( Program* program, Program::Version version, Versi
         hints[4] = "fragmentSource";
         params.type = "fragment";
         params.hints = hints;
+
+#if defined( Rtt_OPENGLES )
+        // dFdx / dFdy / fwidth are core in ES3 GLSL but require this extension in ES2
+        // GLSL (Solar2d's ES shaders are implicit #version 100). Inject for the fragment
+        // shader only -- the directive is fragment-relevant and must precede any code;
+        // the ES2 header (shader_source[0]) carries no #version, so prepending is valid.
+        // "enable" (not "require") keeps shaders that never call a derivative compiling
+        // on the rare device lacking the extension.
+        std::string fragHeader( "#extension GL_OES_standard_derivatives : enable\n" );
+        fragHeader += shader_source[0];
+
+        const char * savedHeader = shader_source[0];
+        shader_source[0] = fragHeader.c_str();
+#endif
+
         params.sources = shader_source;
         params.nsources = sizeof(shader_source) / sizeof(shader_source[0]);
-        
+
         SetShaderSource( data.fFragmentShader, params, shellTransform, spaceData, shellTransformKey );
+
+#if defined( Rtt_OPENGLES )
+        shader_source[0] = savedHeader;
+#endif
     }
+
 #endif
 }
 
