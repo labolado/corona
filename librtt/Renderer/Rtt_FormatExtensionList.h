@@ -34,10 +34,10 @@ class FormatExtensionList {
         struct Attribute {
             U32 nameHash;
             U16 type;
-            U16 offset : 13;
-            U16 components : 2;
+            U16 offset : 12;     // up to 4095 bytes; far beyond any vertex extension's needs
+            U16 components : 3;  // must hold 1..4 -- a 2-bit field overflowed 4 to 0 (bad GLSL type, 0 stride)
             U16 normalized : 1;
-            
+
             U32 GetSize() const;
             bool IsFloat() const;
         };
