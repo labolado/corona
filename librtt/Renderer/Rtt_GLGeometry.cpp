@@ -362,6 +362,40 @@ GLGeometry::SupportsInstancing()
         #endif
         }
     #endif
+
+    #if defined( Rtt_EGL )
+        // ES 3.0+ folds instancing into core: glDraw*Instanced / glVertexAttribDivisor
+        // become unsuffixed core entry points and are no longer advertised as extensions
+        // (GL_EXTENSIONS contains no *_instanced_arrays). Modern drivers also commonly hand
+        // back a backward-compatible ES3 context even when EGL_CONTEXT_CLIENT_VERSION is 2
+        // (e.g. Adreno 540 reports "OpenGL ES 3.2" for an ES2 request). When none of the
+        // extension probes above matched, fall back to the core entry points based on the
+        // GL_VERSION string.
+        //
+        // EGL-only on purpose: here GL_GET_PROC resolves via eglGetProcAddress, so the
+        // unsuffixed ES3 core functions can be obtained at runtime even though they are not
+        // declared in the GLES2 headers. On non-EGL ES targets (iOS/tvOS) GL_GET_PROC does
+        // compile-time symbol pasting, so an unsuffixed glDrawArraysInstanced would fail to
+        // compile -- and those targets don't need this path anyway (they match
+        // GL_EXT_instanced_arrays above).
+        if (!GL_HAS_SUPPORT())
+        {
+            const char * version = (const char *)glGetString( GL_VERSION );
+            const char * es = version ? strstr( version, "OpenGL ES " ) : NULL;
+
+            // "OpenGL ES <major>.<minor> ..." -- test the major version digit.
+            if (es && es[ sizeof( "OpenGL ES " ) - 1 ] >= '3')
+            {
+                DrawArrays = GL_GET_PROC( DrawArraysInstanced, );
+                DrawElements = GL_GET_PROC( DrawElementsInstanced, );
+                AttribDivisor = GL_GET_PROC( VertexAttribDivisor, );
+
+                // Leave Suffix NULL: gl_InstanceID requires ES3 GLSL, but Solar2d's default
+                // shaders are ES2 GLSL. Expose only the divisor ("z") path, matching iOS
+                // (instancingSupport -> { multiInstance, hasInstanceID = false }).
+            }
+        }
+    #endif
     #endif // !defined( Rtt_NXS_ENV )
 
         if (GL_HAS_SUPPORT())
