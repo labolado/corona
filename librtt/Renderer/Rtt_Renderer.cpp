@@ -747,8 +747,42 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
             }
         }
     }
+    // Tally real primitive counts per geometry, from the geometry's own vertex /
+    // index count. This deliberately avoids the batched fVertexCount, which for
+    // triangle strips includes the degenerate connector vertices inserted between
+    // strips (and which differs between the batched and storedOnGPU/extended
+    // paths). Counting per geometry keeps the triangle count accurate and
+    // path-independent. The wireframe case (geometry rewritten into lines) is
+    // still tallied in CheckAndInsertDrawCommand().
+    if( fStatisticsEnabled && !fWireframeEnabled )
+    {
+        const U32 verticesUsed = geometry->GetVerticesUsed();
+
+        switch( geometry->GetPrimitiveType() )
+        {
+            case Geometry::kTriangleStrip:
+            case Geometry::kTriangleFan:
+                if( verticesUsed >= 2 ) { fStatistics.fTriangleCount += verticesUsed - 2; }
+                break;
+            case Geometry::kIndexedTriangles:
+                fStatistics.fTriangleCount += geometry->GetIndicesUsed() / 3;
+                break;
+            case Geometry::kTriangles:
+                fStatistics.fTriangleCount += verticesUsed / 3;
+                break;
+            case Geometry::kLines:
+                fStatistics.fLineCount += verticesUsed / 2;
+                break;
+            case Geometry::kLineLoop:
+                fStatistics.fLineCount += verticesUsed;
+                break;
+            default:
+                break;
+        }
+    }
+
     fRenderDataCount++;
-    
+
     // Blend mode
     if( data->fBlendMode != fPrevious.fBlendMode )
     {
@@ -1568,20 +1602,14 @@ Renderer::CheckAndInsertDrawCommand()
         }
         INCREMENT( fStatistics.fDrawCallCount );
 
-        if( fStatisticsEnabled )
+        // Non-wireframe primitive counts are tallied per-geometry in Insert()
+        // (using each geometry's real vertex count rather than the batched
+        // fVertexCount, which includes degenerate strip connectors). Here we only
+        // handle wireframe mode, where the geometry was rewritten into lines.
+        if( fStatisticsEnabled && fWireframeEnabled )
         {
             switch( fPreviousPrimitiveType )
             {
-                case Geometry::kTriangleStrip:
-                case Geometry::kTriangleFan:
-                    fStatistics.fTriangleCount += fVertexCount - ( 2 + fDegenerateVertexCount );
-                    break;
-                case Geometry::kTriangles:
-                    fStatistics.fTriangleCount += fVertexCount / 3;
-                    break;
-                case Geometry::kIndexedTriangles:
-                    fStatistics.fTriangleCount += fIndexCount / 3;
-                    break;
                 case Geometry::kLines:
                     fStatistics.fLineCount += fVertexCount / 2;
                     break;
@@ -1589,7 +1617,7 @@ Renderer::CheckAndInsertDrawCommand()
                     fStatistics.fLineCount += fVertexCount;
                     break;
                 default:
-                    Rtt_ASSERT_NOT_REACHED();
+                    break;
             };
         }
 
