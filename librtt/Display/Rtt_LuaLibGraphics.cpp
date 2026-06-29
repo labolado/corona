@@ -98,6 +98,8 @@ class GraphicsLibrary
 		static int releaseTextures( lua_State *L );
         static int undefineEffect( lua_State *L );
         static int getFontMetrics( lua_State *L );
+        static int defineGlobalUniform( lua_State *L );
+        static int setGlobalUniform( lua_State *L );
 
     private:
         Display& fDisplay;
@@ -145,6 +147,8 @@ GraphicsLibrary::Open( lua_State *L )
 		{ "releaseTextures", releaseTextures },
         { "undefineEffect", undefineEffect },
         { "getFontMetrics", getFontMetrics },
+        { "defineGlobalUniform", defineGlobalUniform },
+        { "setGlobalUniform", setGlobalUniform },
 
         { NULL, NULL }
     };
@@ -899,6 +903,363 @@ GraphicsLibrary::defineVertexExtension( lua_State *L )
     }
 
     lua_pushboolean( L, ok ); // params, ok
+
+    return 1;
+}
+
+// ----------------------------------------------------------------------------
+//
+// Global (shared) uniforms.
+//
+// A "global uniform" is a value that every object using a participating effect
+// sees identically, uploaded at most once per frame -- as opposed to per-object
+// uniform userdata (which breaks batching) or per-vertex extension attributes
+// (which force a write on every vertex of every object). It is the right home
+// for a value that is the same across all objects yet changes each frame, e.g.
+// an inverse world scale, a global time, or a shared light direction.
+//
+// Mechanism (built on the public CoronaGraphics primitives):
+//   * one shared command whose reader calls CoronaCommandBufferWriteNamedUniform()
+//     to push a value into the currently bound shader's named uniform;
+//   * one shared effect data type, "globalUniforms", whose `before` draw bookend
+//     writes every registered uniform's state block;
+//   * one state block per uniform: the renderer dirty-tracks it by value
+//     (memcmp), so writing the same value across N objects only triggers a single
+//     upload and a single batch boundary -- batching is otherwise preserved.
+//
+// An effect opts in by declaring the uniform in its shader source and setting
+// `dataType = "globalUniforms"` in graphics.defineEffect{}.
+//
+// Lifetime: commands / state blocks live with the Renderer and the data type
+// with the ShaderFactory's Lua state; all are torn down when the Runtime is
+// rebuilt (e.g. a simulator relaunch). A Lua-registry sentinel detects that the
+// Lua state is fresh and clears the stale C-side registry, so project code that
+// re-runs graphics.defineGlobalUniform() at startup transparently rebuilds it.
+//
+// ----------------------------------------------------------------------------
+
+namespace // global uniforms support
+{
+    struct GlobalUniformPayload
+    {
+        const char * name; // points into GlobalUniformEntry::fName (heap-stable)
+        unsigned int size; // bytes = components * sizeof( float )
+        float values[4];
+    };
+
+    struct GlobalUniformEntry
+    {
+        std::string fName;
+        int fComponents;
+        unsigned long fBlockID;
+        GlobalUniformPayload fPayload; // current working value (setter <-> bookend)
+    };
+
+    struct GlobalUniformRegistry
+    {
+        unsigned long fCommandID;
+        bool fDataTypeRegistered;
+        std::vector< GlobalUniformEntry * > fEntries;
+
+        GlobalUniformEntry * Find( const char * name )
+        {
+            for ( size_t i = 0; i < fEntries.size(); ++i )
+            {
+                if ( fEntries[i]->fName == name )
+                {
+                    return fEntries[i];
+                }
+            }
+
+            return NULL;
+        }
+    };
+
+    static GlobalUniformRegistry sGlobalUniforms;
+    static int sGlobalUniformsEpochCookie; // address used as a Lua registry key
+
+    // Command reader: push the payload's values into the bound shader's named
+    // uniform. A no-op (returns 0, ignored) if that shader lacks the uniform.
+    static void
+    GlobalUniform_Reader( const CoronaCommandBuffer * commandBuffer, const unsigned char * from, unsigned int size )
+    {
+        GlobalUniformPayload payload;
+
+        memcpy( &payload, from, sizeof( payload ) );
+
+        CoronaWriteUniformParams params = {};
+
+        params.u.data = payload.values;
+
+        CoronaCommandBufferWriteNamedUniform( commandBuffer, payload.name, &params, payload.size );
+    }
+
+    // State block dirty handler: stage the upload of the new value before a draw.
+    // A named uniform lives inside a specific shader program, and the value is
+    // re-applied before every draw, so there is nothing to "restore": the
+    // frame-end restore pass runs when no participating program is bound, where
+    // the write would simply fail (and noisily warn). Skip it.
+    static void
+    GlobalUniform_StateDirty( const CoronaCommandBuffer * commandBuffer, const CoronaRenderer * renderer, const void * newContents, const void * oldContents, unsigned int size, int restore, void * userData )
+    {
+        if ( restore )
+        {
+            return;
+        }
+
+        CoronaRendererIssueCommand( renderer, sGlobalUniforms.fCommandID, const_cast< void * >( newContents ), size );
+    }
+
+    // Effect `before` bookend: stage every registered uniform's current value.
+    // Writes are value-deduplicated by the renderer, so unchanged uniforms cost
+    // nothing and do not break batching.
+    static void
+    GlobalUniform_BeforeDraw( const CoronaShader * shader, void * userData, const CoronaRenderer * renderer, const CoronaRenderData * renderData )
+    {
+        for ( size_t i = 0; i < sGlobalUniforms.fEntries.size(); ++i )
+        {
+            GlobalUniformEntry * entry = sGlobalUniforms.fEntries[i];
+
+            CoronaRendererWriteStateBlock( renderer, entry->fBlockID, &entry->fPayload, sizeof( GlobalUniformPayload ) );
+        }
+    }
+
+    // Detect a fresh Lua state (Runtime rebuild) and drop the stale C-side
+    // registry so the first define of this epoch rebuilds everything.
+    static void
+    GlobalUniform_EnsureEpoch( lua_State * L )
+    {
+        lua_pushlightuserdata( L, &sGlobalUniformsEpochCookie ); // key
+        lua_rawget( L, LUA_REGISTRYINDEX ); // marker?
+
+        bool sameEpoch = !lua_isnil( L, -1 );
+
+        lua_pop( L, 1 ); //
+
+        if ( !sameEpoch )
+        {
+            for ( size_t i = 0; i < sGlobalUniforms.fEntries.size(); ++i )
+            {
+                delete sGlobalUniforms.fEntries[i];
+            }
+
+            sGlobalUniforms.fEntries.clear();
+            sGlobalUniforms.fCommandID = 0;
+            sGlobalUniforms.fDataTypeRegistered = false;
+
+            lua_pushlightuserdata( L, &sGlobalUniformsEpochCookie ); // key
+            lua_pushboolean( L, 1 ); // key, true
+            lua_rawset( L, LUA_REGISTRYINDEX ); // registry[key] = true
+        }
+    }
+
+    // Map a GLSL type name to its float-component count (1..4).
+    static int
+    GlobalUniform_ComponentsForType( const char * type )
+    {
+        if ( 0 == strcmp( type, "float" ) ) return 1;
+        if ( 0 == strcmp( type, "vec2" ) ) return 2;
+        if ( 0 == strcmp( type, "vec3" ) ) return 3;
+        if ( 0 == strcmp( type, "vec4" ) ) return 4;
+
+        return 0; // unsupported
+    }
+}
+
+// graphics.defineGlobalUniform( name [, { type = "float"|"vec2"|"vec3"|"vec4", default = number|{...} } ] )
+int
+GraphicsLibrary::defineGlobalUniform( lua_State *L )
+{
+    const char * name = lua_tostring( L, 1 );
+
+    if ( !name )
+    {
+        Rtt_TRACE_SIM( ( "WARNING: `graphics.defineGlobalUniform()` expects a uniform name string" ) );
+
+        lua_pushboolean( L, 0 );
+
+        return 1;
+    }
+
+    const char * type = "float";
+
+    if ( lua_istable( L, 2 ) )
+    {
+        lua_getfield( L, 2, "type" ); // ..., type?
+
+        if ( lua_isstring( L, -1 ) )
+        {
+            type = lua_tostring( L, -1 );
+        }
+
+        lua_pop( L, 1 ); // ...
+    }
+
+    int components = GlobalUniform_ComponentsForType( type );
+
+    if ( 0 == components )
+    {
+        Rtt_TRACE_SIM( ( "WARNING: `graphics.defineGlobalUniform()` got unsupported type `%s` (use float/vec2/vec3/vec4)", type ) );
+
+        lua_pushboolean( L, 0 );
+
+        return 1;
+    }
+
+    GlobalUniform_EnsureEpoch( L );
+
+    // Read the (optional) default value(s) into a payload.
+    GlobalUniformPayload defaults;
+
+    memset( &defaults, 0, sizeof( defaults ) );
+
+    defaults.size = (unsigned int)( components * sizeof( float ) );
+
+    if ( lua_istable( L, 2 ) )
+    {
+        lua_getfield( L, 2, "default" ); // ..., default?
+
+        if ( lua_isnumber( L, -1 ) )
+        {
+            defaults.values[0] = (float)lua_tonumber( L, -1 );
+        }
+
+        else if ( lua_istable( L, -1 ) )
+        {
+            for ( int i = 0; i < components; ++i )
+            {
+                lua_rawgeti( L, -1, i + 1 ); // ..., default, value?
+
+                defaults.values[i] = (float)lua_tonumber( L, -1 );
+
+                lua_pop( L, 1 ); // ..., default
+            }
+        }
+
+        lua_pop( L, 1 ); // ...
+    }
+
+    // Idempotent re-define within the same epoch: just refresh the default.
+    GlobalUniformEntry * existing = sGlobalUniforms.Find( name );
+
+    if ( existing )
+    {
+        if ( existing->fComponents != components )
+        {
+            Rtt_TRACE_SIM( ( "WARNING: `graphics.defineGlobalUniform()` redefines `%s` with a different type (ignored)", name ) );
+
+            lua_pushboolean( L, 0 );
+
+            return 1;
+        }
+
+        defaults.name = existing->fName.c_str();
+        memcpy( &existing->fPayload, &defaults, sizeof( defaults ) );
+
+        lua_pushboolean( L, 1 );
+
+        return 1;
+    }
+
+    // Lazily register the shared command and effect data type for this epoch.
+    if ( 0 == sGlobalUniforms.fCommandID )
+    {
+        CoronaCommand command = {};
+
+        command.reader = GlobalUniform_Reader;
+
+        CoronaRendererRegisterCommand( L, &command, &sGlobalUniforms.fCommandID );
+    }
+
+    if ( !sGlobalUniforms.fDataTypeRegistered )
+    {
+        CoronaEffectCallbacks callbacks = {};
+
+        callbacks.size = sizeof( CoronaEffectCallbacks );
+        callbacks.drawParams.before = GlobalUniform_BeforeDraw;
+
+        sGlobalUniforms.fDataTypeRegistered = 0 != CoronaShaderRegisterEffectDataType( L, "globalUniforms", &callbacks );
+    }
+
+    // Register a per-uniform state block and remember the new entry.
+    GlobalUniformEntry * entry = new GlobalUniformEntry;
+
+    entry->fName = name;
+    entry->fComponents = components;
+    entry->fBlockID = 0;
+
+    defaults.name = entry->fName.c_str();
+    memcpy( &entry->fPayload, &defaults, sizeof( defaults ) );
+
+    CoronaStateBlock block = {};
+
+    block.blockSize = sizeof( GlobalUniformPayload );
+
+    // Leave the default all-zeros (NULL). The working payload always carries a
+    // non-NULL `name` and non-zero `size`, so it never equals the default: the
+    // block thus reads as dirty on the first draw of every frame and the value
+    // is (re)uploaded once per frame. This is what initializes the GPU uniform
+    // on the very first frame too -- otherwise, when the value happened to match
+    // a non-zero default, no upload would occur and the uniform would be left at
+    // its initial 0, so the effect would only "kick in" a frame later.
+    block.defaultContents = NULL;
+    block.stateDirty = GlobalUniform_StateDirty;
+
+    int ok = CoronaRendererRegisterStateBlock( L, &block, &entry->fBlockID );
+
+    if ( ok )
+    {
+        sGlobalUniforms.fEntries.push_back( entry );
+    }
+
+    else
+    {
+        Rtt_TRACE_SIM( ( "WARNING: `graphics.defineGlobalUniform()` failed to register state block for `%s`", name ) );
+
+        delete entry;
+    }
+
+    lua_pushboolean( L, ok );
+
+    return 1;
+}
+
+// graphics.setGlobalUniform( name, v1 [, v2, v3, v4 ] )
+int
+GraphicsLibrary::setGlobalUniform( lua_State *L )
+{
+    const char * name = lua_tostring( L, 1 );
+
+    if ( !name )
+    {
+        Rtt_TRACE_SIM( ( "WARNING: `graphics.setGlobalUniform()` expects a uniform name string" ) );
+
+        lua_pushboolean( L, 0 );
+
+        return 1;
+    }
+
+    GlobalUniform_EnsureEpoch( L );
+
+    GlobalUniformEntry * entry = sGlobalUniforms.Find( name );
+
+    if ( !entry )
+    {
+        Rtt_TRACE_SIM( ( "WARNING: `graphics.setGlobalUniform( '%s', ... )` called before `graphics.defineGlobalUniform()`", name ) );
+
+        lua_pushboolean( L, 0 );
+
+        return 1;
+    }
+
+    for ( int i = 0; i < entry->fComponents; ++i )
+    {
+        entry->fPayload.values[i] = (float)luaL_optnumber( L, 2 + i, 0.0 );
+    }
+
+    CoronaRendererInvalidate( L ); // value changed -> request a redraw
+
+    lua_pushboolean( L, 1 );
 
     return 1;
 }
