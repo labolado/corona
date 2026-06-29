@@ -2068,7 +2068,12 @@ Renderer::MergeVertexData( Geometry::Vertex** destination, const Geometry::Verte
     
     ++*destination;
 
-    WriteGeometry( *destination, extensionSrc, sizeof(Geometry::Vertex) * extraCount, index, 1, GeometryWriter::kExtra );
+    // count must be extraCount, not 1: the default GeometryCopier copies count*sizeof(Vertex)
+    // bytes, so when the extension data spans more than one Vertex slot (extraCount >= 2, i.e.
+    // total extension bytes > sizeof(Vertex) == 44), passing 1 copies only the first 44 bytes
+    // and silently drops everything past it (e.g. the 4th component of a 3rd vec4 attribute,
+    // which then reads as the GLSL vec4 default 1.0).
+    WriteGeometry( *destination, extensionSrc, sizeof(Geometry::Vertex) * extraCount, index, extraCount, GeometryWriter::kExtra );
 
     /* memcpy( *destination, &extensionSrc[index * extraCount], sizeof(Geometry::Vertex) * extraCount ); */
     
