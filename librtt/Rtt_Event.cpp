@@ -34,8 +34,6 @@
 #include "Rtt_Runtime.h"
 #include "Display/Rtt_SpriteObject.h"
 
-#include "box2d/box2d.h"
-
 // ----------------------------------------------------------------------------
 
 namespace Rtt
@@ -1032,19 +1030,6 @@ BaseCollisionEvent::Dispatch( lua_State *L, Runtime& runtime ) const
 	}
 }
 
-bool
-BaseCollisionEvent::DispatchWithResult( lua_State *L, Runtime& runtime ) const
-{
-	Rtt_ASSERT( ! fOther ); // fOther is merely a cache for the Push()
-
-	fOther = & fObject2;
-	bool handled = fObject1.DispatchEvent( L, * this );
-
-	fOther = NULL; // Always reset fOther
-
-	return handled;
-}
-
 CollisionEvent::CollisionEvent( DisplayObject& object1, DisplayObject& object2, Real x, Real y, int fixtureIndex1, int fixtureIndex2, const char *phase )
 :	Super( object1, object2, x, y, fixtureIndex1, fixtureIndex2 ),
 	fPhase( phase )
@@ -1122,13 +1107,6 @@ PreCollisionEvent::Push( lua_State *L ) const
 {
 	if ( Rtt_VERIFY( Super::Push( L ) ) )
 	{
-		// UserdataWrapper *contactWrapper = Rtt_NEW(
-		// 	fRuntime.Allocator(),
-		// 	UserdataWrapper( fRuntime.VMContext().L(), fContact, PhysicsContact::kMetatableName ) );
-		// contactWrapper->Push();
-		// lua_setfield( L, -2, "contact" );
-		// fContact->wrapper = contactWrapper;
-
 		lua_pushnumber( L, fContact->separation );
 		lua_setfield( L, -2, "separation" );
 
@@ -3260,4 +3238,3 @@ FinalizeEvent::Name() const
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

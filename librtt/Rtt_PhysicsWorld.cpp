@@ -70,10 +70,11 @@ const S32 kPositionIterations = 3;
 // }
 
 // ----------------------------------------------------------------------------
-static bool PreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, void* context )
+static bool PreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, float separation,
+								  void* context )
 {
 	PhysicsContactListener* contactListener = (PhysicsContactListener*) context;
-	return contactListener->PreSolve( shapeIdA, shapeIdB, point, normal );
+	return contactListener->PreSolve( shapeIdA, shapeIdB, point, normal, separation );
 }
 
 // Core count used as the fallback when the big.LITTLE split can't be
@@ -309,6 +310,9 @@ PhysicsWorld::StartWorld( Runtime& runtime, bool noSleep )
 		worldDef.gravity = gravity;
 		worldDef.enableSleep = !noSleep;
 		b2WorldId worldId = b2CreateWorld( &worldDef );
+		b2World_EnableGlobalPreSolveEvents(
+			worldId,
+			IsProperty( kRuntimePreCollisionListenerExists ) );
 
 		fWorld = Rtt_NEW( Allocator(), b2LiquidWorld( worldId ) );
 
@@ -414,6 +418,16 @@ PhysicsWorld::SetProperty( Properties mask, bool value )
 {
 	const Properties p = fProperties;
 	fProperties = ( value ? p | mask : p & ~mask );
+}
+
+void
+PhysicsWorld::SetRuntimePreCollisionListenerExists( bool value )
+{
+	SetProperty( kRuntimePreCollisionListenerExists, value );
+	if ( fWorld )
+	{
+		b2World_EnableGlobalPreSolveEvents( fWorld->GetWorldId(), value );
+	}
 }
 
 void
@@ -733,4 +747,3 @@ int PhysicsWorld::GetNumHardwareThreads() const
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

@@ -14,7 +14,6 @@
 
 #include "box2d/box2d.h"
 #include "liquid_callbacks.h"
-#include <mutex>
 
 // ----------------------------------------------------------------------------
 
@@ -36,7 +35,7 @@ class PhysicsContactListener : public b2ContactListener
 		// Fixture <-> Fixture contact.
 		void BeginContact( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2ContactId contactId );
 		void EndContact( b2ShapeId shapeIdA, b2ShapeId shapeIdB );
-		bool PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal );
+		bool PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, float separation );
 		// virtual void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse);
 		void BeginContactHit( b2ContactHitEvent* hitEvent );
 
@@ -60,7 +59,6 @@ class PhysicsContactListener : public b2ContactListener
 		*/
 
 		Runtime& fRuntime;
-		std::mutex fDispatchEventMutex;
 };
 
 

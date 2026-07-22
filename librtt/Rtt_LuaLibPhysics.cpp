@@ -3339,6 +3339,27 @@ add_b2Body_to_DisplayObject( lua_State *L,
 //	* If no shape definition is supplied then the shape defaults to DisplayObject's bounding box.
 //	* If supplied, then the precedence order is: 'shape', 'box', 'radius'
 //
+static bool
+ObjectRespondsToEvent( lua_State *L, int objectIndex, const char *eventName )
+{
+	int top = lua_gettop( L );
+	bool result = false;
+
+	lua_getfield( L, objectIndex, "respondsToEvent" );
+	if ( lua_isfunction( L, -1 ) )
+	{
+		lua_pushvalue( L, objectIndex );
+		lua_pushstring( L, eventName );
+		if ( LuaContext::DoCall( L, 2, 1 ) == 0 )
+		{
+			result = lua_toboolean( L, -1 ) != 0;
+		}
+	}
+
+	lua_settop( L, top );
+	return result;
+}
+
 static int
 addBody( lua_State *L )
 {
@@ -3360,6 +3381,17 @@ addBody( lua_State *L )
 		Rtt_VERIFY( ! o->GetExtensions() ) )
 	{
 		result |= add_b2Body_to_DisplayObject( L, o, numArgs );
+		if ( result && ObjectRespondsToEvent( L, 1, "preCollision" ) )
+		{
+			b2BodyId bodyId = o->GetExtensions()->GetBody();
+			int shapeCount = b2Body_GetShapeCount( bodyId );
+			std::vector<b2ShapeId> shapeIds( shapeCount );
+			b2Body_GetShapes( bodyId, shapeIds.data(), shapeCount );
+			for ( int i = 0; i < shapeCount; ++i )
+			{
+				b2Shape_EnablePreSolveEvents( shapeIds[i], true );
+			}
+		}
 	}
 
 	Rtt_ASSERT( lua_gettop( L ) == numArgs );

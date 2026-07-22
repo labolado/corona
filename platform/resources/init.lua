@@ -375,6 +375,9 @@ function Runtime:addEventListener( eventName, listener )
 	local super = self._super
 	local noListeners = not self:respondsToEvent( eventName )
 	local wasAdded = super.addEventListener( self, eventName, listener )
+	if wasAdded and noListeners and eventName == "preCollision" then
+		system.setRuntimePreCollisionEnabled(true)
+	end
 
 	-- If a "key" event listener is installed on a simulated iOS/tvOS/WinPhone device,
 	-- warn it wont be effective on a real device
@@ -395,6 +398,9 @@ end
 
 function Runtime:didRemoveListener( eventName )
 	if ( not self:respondsToEvent( eventName ) ) then
+		if eventName == "preCollision" then
+			system.setRuntimePreCollisionEnabled(false)
+		end
 		if ( needsHardwareSupport[ eventName ] ) then
 			system.endListener( eventName )
 		end

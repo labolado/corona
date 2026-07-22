@@ -396,6 +396,10 @@ static int setBodyStateWithShapeIndex( lua_State* L, shapeSetStateFcn* setState 
 	if (o)
 	{
 		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( ! b2Body_IsValid( bodyId ) )
+		{
+			return 0;
+		}
 
 		bool state = lua_toboolean( L, 2 );
 		int count = b2Body_GetShapeCount( bodyId );

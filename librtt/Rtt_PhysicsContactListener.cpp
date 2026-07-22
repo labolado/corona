@@ -16,6 +16,7 @@
 #include "Display/Rtt_DisplayObject.h"
 #include "Rtt_Runtime.h"
 #include "Rtt_Event.h"
+#include "Rtt_LuaAux.h"
 #include "Rtt_LuaContext.h"
 #include "Rtt_PhysicsContact.h"
 #include "Rtt_PhysicsWorld.h"
@@ -281,7 +282,7 @@ void PhysicsContactListener::BeginContactHit( b2ContactHitEvent *hitEvent )
 }
 
 bool
-PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal )
+PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, float separation )
 {
 	const PhysicsWorld& physics = fRuntime.GetPhysicsWorld();
 
@@ -299,6 +300,12 @@ PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2
 
 	DisplayObject *object1 = static_cast< DisplayObject* >( b2Body_GetUserData(bodyA) );
 	DisplayObject *object2 = static_cast< DisplayObject* >( b2Body_GetUserData(bodyB) );
+	b2Vec2 position = point;
+	if ( ! physics.GetReportCollisionsInContentCoordinates() )
+	{
+		position = b2Body_GetLocalPoint( bodyA, point );
+	}
+	position *= physics.GetPixelsPerMeter();
 
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
@@ -361,14 +368,6 @@ PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2
 		 && object2 && ! object2->IsOrphan() )
 	{
 
-		float separation = 0.0f;
-		// for ( int i = 0; i < manifold->pointCount; ++i )
-		// {
-		// 	float s = manifold->points[i].separation;
-		// 	separation = separation < s ? separation : s;
-		// }
-		// contact->separation = separation;
-
 		bool isEnabled = true;
 		{
 			Box2dPreSolveTempContact contact;
@@ -376,10 +375,24 @@ PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2
 			contact.normalX = normal.x;
 			contact.normalY = normal.y;
 
-			PreCollisionEvent e( * object1, * object2, point.x, point.y, fixtureIndex1, fixtureIndex2, fRuntime, &contact );
+			UserdataWrapper *contactWrapper = PhysicsContact::CreateWrapper( fRuntime.VMContext().LuaState(), &contact );
+			lua_State* L = fRuntime.VMContext().L();
+			if ( contactWrapper )
 			{
-				std::lock_guard<std::mutex> lock(fDispatchEventMutex);
-				isEnabled = e.DispatchWithResult( fRuntime.VMContext().L(), fRuntime );
+				// Keep the userdata strongly reachable while the event propagates to
+				// object1, object2, and Runtime. The wrapper registry itself is weak.
+				contactWrapper->Push();
+			}
+
+			PreCollisionEvent e( * object1, * object2, position.x, position.y, fixtureIndex1, fixtureIndex2, fRuntime, &contact );
+			e.SetContact( contactWrapper );
+			fRuntime.DispatchEvent( e );
+			isEnabled = contact.isEnabled;
+
+			if ( contactWrapper )
+			{
+				lua_pop( L, 1 );
+				contactWrapper->Invalidate();
 			}
 		}
 		return isEnabled;

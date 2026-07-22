@@ -35,9 +35,15 @@ const char PhysicsContact::kMetatableName[] = "physics.contact"; // unique ident
 UserdataWrapper *
 PhysicsContact::CreateWrapper( const ResourceHandle< lua_State >& luaStateHandle, Box2dPreSolveTempContact *contact )
 {
+	lua_State* L = luaStateHandle.Dereference();
+	if ( ! L )
+	{
+		return NULL;
+	}
+
 	// Lua owns wrapper (which has a weak pointer to joint)
 	UserdataWrapper *result = Rtt_NEW(
-		runtime.Allocator(),
+		LuaContext::GetAllocator( L ),
 		UserdataWrapper( luaStateHandle, contact, PhysicsContact::kMetatableName ) );
 
 	return result;

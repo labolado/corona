@@ -584,7 +584,6 @@ class BaseCollisionEvent : public VirtualEvent
 	public:
 		virtual int Push( lua_State *L ) const;
 		virtual void Dispatch( lua_State *L, Runtime& runtime ) const;
-		virtual bool DispatchWithResult( lua_State *L, Runtime& runtime ) const;
 		
 	private:
 		DisplayObject& fObject1;

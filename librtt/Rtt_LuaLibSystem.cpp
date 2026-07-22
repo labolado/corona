@@ -1482,6 +1482,18 @@ LuaLibSystem::EndListener( lua_State *L )
     return 0;
 }
 
+static int
+SetRuntimePreCollisionEnabled( lua_State *L )
+{
+#ifdef Rtt_PHYSICS
+	Runtime *runtime = LuaContext::GetRuntime( L );
+	runtime->GetPhysicsWorld().SetRuntimePreCollisionListenerExists( lua_toboolean( L, 1 ) != 0 );
+#else
+	Rtt_UNUSED( L );
+#endif
+	return 0;
+}
+
 int
 LuaLibSystem::HasEventSource( lua_State *L )
 {
@@ -1584,6 +1596,7 @@ LuaLibSystem::Initialize( lua_State *L )
         { "pathForTable", LuaLibSystem::PathForTable }, // private
         { "beginListener", LuaLibSystem::BeginListener }, // private; use system.activate() publicly
         { "endListener", LuaLibSystem::EndListener }, // private; use system.activate() publicly
+        { "setRuntimePreCollisionEnabled", SetRuntimePreCollisionEnabled }, // private
         { "hasEventSource", LuaLibSystem::HasEventSource }, // private
         { "getInfo", getInfo },
         { "getTimer", getTimer },
@@ -1685,4 +1698,3 @@ LuaLibSystem::ValueForKey( lua_State *L, const MLuaProxyable&, const char key[],
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

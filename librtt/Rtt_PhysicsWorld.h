@@ -44,6 +44,7 @@ class PhysicsWorld
 			kPostCollisionListenerExists		= 0x08,
 			kParticleCollisionListenerExists	= 0x10,
 			kHitCollisionListenerExists	= 0x20,
+			kRuntimePreCollisionListenerExists = 0x40,
 		};
 
 		typedef U32 Properties;
@@ -79,6 +80,7 @@ class PhysicsWorld
 		bool IsProperty( Properties mask ) const { return (fProperties & mask) != 0; }
 		void ToggleProperty( Properties mask ) { fProperties ^= mask; }
 		void SetProperty( Properties mask, bool value );
+		void SetRuntimePreCollisionListenerExists( bool value );
 
 		// Default is 30 (content) pixels per meter so the range [3, 300] pixels
 		// maps to [0.1, 10] meters (the optimal length scale range for Box2D)
