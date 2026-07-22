@@ -108,6 +108,7 @@ struct StateBlockInfo {
     U32 fOffset;
     U32 fSize;
     bool fIgnoredByHash;
+    bool fNoCommit;
 };
 
 struct CustomGraphicsInfo
@@ -571,6 +572,23 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
     ArrayS32 dirtyIndices( fAllocator );
     U32 largestDirtySize = EnumerateDirtyBlocks( dirtyIndices );
 
+    // neverCommit blocks (global uniforms) should NOT break batching:
+    // their handler merely issues a WriteNamedUniform command which doesn't
+    // change any render state that batch comparison cares about.  Count only
+    // "regular" dirty blocks for the batch decision below.
+    S32 batchBreakingDirtyCount = 0;
+
+    if ( dirtyIndices.Length() > 0 )
+    {
+        for ( S32 i = 0, iMax = dirtyIndices.Length(); i < iMax; ++i )
+        {
+            if ( ! fCustomInfo->fStateBlocks[ dirtyIndices[i] ]->fNoCommit )
+            {
+                ++batchBreakingDirtyCount;
+            }
+        }
+    }
+
 	Geometry* geometry = data->fGeometry;
 	Rtt_ASSERT( geometry );
 	fDegenerateVertexCount = 0;
@@ -652,7 +670,7 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
                 || userUniformDirty3
                 || formatsDirty
 				|| fCaptureGroups.Length() > 0 
-                || dirtyIndices.Length() > 0 );
+                || batchBreakingDirtyCount > 0 );
 
         // Only triangle strips are batched. All other primitive types
         // force the previous batch to draw and a new one to be started.
@@ -1205,7 +1223,8 @@ Renderer::AddStateBlock( const CoronaStateBlock & block )
     info.fData = block.userData;
     info.fSize = block.blockSize;
     info.fIgnoredByHash = block.dontHash;
-    
+    // info.fNoCommit set via MarkBlockNoCommit() for internal use
+
     U32 fullSize = info.fOffset + info.fSize;
     
     fDefaultState.PadToSize( fullSize, 0 );
@@ -1222,6 +1241,15 @@ Renderer::AddStateBlock( const CoronaStateBlock & block )
     fCustomInfo->fStateBlocks.Append( Rtt_NEW( fAllocator, StateBlockInfo( info ) ) );
     
     return (U16)(length + 1);
+}
+
+void
+Renderer::MarkBlockNoCommit( U16 index )
+{
+    if ( index < (U16)fCustomInfo->fStateBlocks.Length() )
+    {
+        fCustomInfo->fStateBlocks[ index ]->fNoCommit = true;
+    }
 }
 
 bool
@@ -1685,8 +1713,12 @@ Renderer::UpdateDirtyBlocks( const ArrayS32& dirtyIndices, U32 largestDirtySize 
         
         memcpy( newContents.WriteAccess(), workingState + info->fOffset, info->fSize );
         memcpy( oldContents.WriteAccess(), currentState + info->fOffset, info->fSize );
-        memcpy( currentState + info->fOffset, newContents.ReadAccess(), info->fSize );
-        
+
+        if ( ! info->fNoCommit )
+        {
+            memcpy( currentState + info->fOffset, newContents.ReadAccess(), info->fSize );
+        }
+
         info->fChanged( commandBuffer, renderer, newContents.ReadAccess(), oldContents.ReadAccess(), info->fSize, false, info->fData );
     }
 }

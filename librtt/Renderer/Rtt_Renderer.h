@@ -249,6 +249,7 @@ class Renderer
     
         U16 AddStateBlock( const CoronaStateBlock & block );
         bool GetStateBlockInfo( U16 id, U8 *& start, U32 & size, bool mightDirty );
+        void MarkBlockNoCommit( U16 index ); // 0-based index into fStateBlocks
 
         U16 AddCustomCommand( const CoronaCommand & command );
 

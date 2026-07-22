@@ -34,7 +34,9 @@
 #include "Rtt_TextureFactory.h"
 #include "Rtt_LuaContext.h"
 #include "Rtt_LuaLibNative.h"
+#include "Rtt_Runtime.h"
 #include "Renderer/Rtt_FormatExtensionList.h"
+#include "Renderer/Rtt_Renderer.h"
 
 
 #include <float.h>
@@ -1209,6 +1211,11 @@ GraphicsLibrary::defineGlobalUniform( lua_State *L )
 
     if ( ok )
     {
+        // Internal: don't commit working→current after the dirty handler fires,
+        // so the same uniform uploads into every shader program that uses it,
+        // not just the first one that draws in the frame.
+        Rtt::LuaContext::GetRuntime( L )->GetDisplay().GetRenderer().MarkBlockNoCommit( entry->fBlockID - 1 );
+
         sGlobalUniforms.fEntries.push_back( entry );
     }
 
