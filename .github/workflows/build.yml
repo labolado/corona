@@ -386,6 +386,11 @@ jobs:
           fi
           DMG=$(ls ./output/Corona-*.dmg 2>/dev/null | head -1 || true)
           if [ -z "$DMG" ]; then echo "No DMG found in ./output"; exit 1; fi
+          # If DMG was built without signing (cert import failed), skip notarization
+          if ! codesign --verify --deep --strict "$DMG" 2>/dev/null; then
+            echo "DMG is not signed — skipping notarization (built without code signing)"
+            exit 0
+          fi
           echo "Notarizing $DMG"
           KEY_FILE=$(mktemp -t notary_key)
           chmod 600 "$KEY_FILE"
