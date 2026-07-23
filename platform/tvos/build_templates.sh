@@ -50,11 +50,13 @@ BUILD_DIR=${path}/build
 SDK_DEVICE=${PLATFORM_BASE}os
 SDK_SIMULATOR=${PLATFORM_BASE}simulator
 
+CODESIGN_FLAGS="CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO"
+
 # Clean
 # -----------------------------------------------------------------------------
 
 rm -rf "${BUILD_DIR}"
-xcodebuild SYMROOT="$path/build" -project "${path}"/ratatouille.xcodeproj -configuration Release clean 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
+xcodebuild SYMROOT="$path/build" -project "${path}"/ratatouille.xcodeproj -configuration Release clean $CODESIGN_FLAGS 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
 
 
 # Directories
@@ -80,7 +82,7 @@ export SUPPRESS_GUI=1
 
 # template device
 
-xcodebuild SYMROOT="$path/build" OTHER_CFLAGS="-fembed-bitcode" -project "${path}"/ratatouille.xcodeproj -target ${TEMPLATE_TARGET} -configuration Release -sdk ${SDK_DEVICE} 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
+xcodebuild SYMROOT="$path/build" OTHER_CFLAGS="-fembed-bitcode" -project "${path}"/ratatouille.xcodeproj -target ${TEMPLATE_TARGET} -configuration Release -sdk ${SDK_DEVICE} $CODESIGN_FLAGS 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
 checkError
 
 mv -v "${BUILD_DIR}/Release-${SDK_DEVICE}/template.app" "${BUILD_DIR}/template/${SDK_DEVICE}/${SDK_VERSION}/template.app"
@@ -91,7 +93,7 @@ checkError
 
 # template simulator
 
-xcodebuild SYMROOT="$path/build" -project "${path}"/ratatouille.xcodeproj -target ${TEMPLATE_TARGET} -configuration Release -sdk ${SDK_SIMULATOR} 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
+xcodebuild SYMROOT="$path/build" -project "${path}"/ratatouille.xcodeproj -target ${TEMPLATE_TARGET} -configuration Release -sdk ${SDK_SIMULATOR} $CODESIGN_FLAGS 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
 checkError
 
 mv -v "${BUILD_DIR}/Release-${SDK_SIMULATOR}/template.app" "${BUILD_DIR}/template/${SDK_SIMULATOR}/${SDK_VERSION}/template.app"
@@ -106,7 +108,7 @@ then
 	# CoronaCards.framework
 	# NOTE: No need to do clean, since we already did a clean build in the above xcodebuild 
 	# invocations. This xcodebuild will finish nearly instantaneously.
-	xcodebuild SYMROOT="$path/build" OTHER_CFLAGS="-fembed-bitcode" -project "${path}"/ratatouille.xcodeproj -target CoronaCards.framework -configuration Release 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
+	xcodebuild SYMROOT="$path/build" OTHER_CFLAGS="-fembed-bitcode" -project "${path}"/ratatouille.xcodeproj -target CoronaCards.framework -configuration Release $CODESIGN_FLAGS 2>&1 | tee -a "$FULL_LOG_FILE" | egrep -v "$XCODE_LOG_FILTERS"
 	checkError
 fi
 

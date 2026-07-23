@@ -57,7 +57,10 @@ then
 	# Get the base buildnum with a dash at the front of it suitable for concatenating with "${PRODUCT_DIR}"
 	# (the code that follows is ok with this not being set)
 	# shellcheck disable=2001
-	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/')
+	# When FULL_BUILD_NUM includes a non-numeric suffix (e.g. "2026.3734.laboladoDev"),
+	# strip it so the DMG volume name stays ≤ 27 chars for notarization.
+	# The DMG filename ($DMG_FILE) still uses the full $FULL_BUILD_NUM.
+	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/' -e 's/\.[^.]*$//')
 else
 	echo "Error: FULL_BUILD_NUM is a required parameter"
 	exit 1
@@ -247,18 +250,20 @@ ICON_Y=$APP_Y
 rm -f "$DMG_FILE"
 
 # If we have a build number and ImageMagick's convert command is available, brand the DMG background
+# convert is wrapped in a condition so missing fonts (macOS 15 runner, IMv7) don't break the DMG build
 if [ "$FULL_BUILD_NUM" != "" ] && [ -x "$(which magick)" ]
 then
-	FONT=/System/Library/Fonts/Monaco.ttf
 	TMPBACKGROUND=/tmp/CoronaBackground$$.png
-	magick sdk/dmg/CoronaBackground.png -pointsize 13 -stroke DarkGrey -fill DarkGrey -font "$FONT" -draw "text 39,387 '$FULL_BUILD_NUM'" "$TMPBACKGROUND"
-	BACKGROUND_PATH="$TMPBACKGROUND"
-
-	magick sdk/dmg/BG.png    -pointsize 13 -stroke DarkGrey -fill DarkGrey -font "$FONT" -draw "text 39,387 '$FULL_BUILD_NUM'" sdk/dmg/bgp.png
-	magick sdk/dmg/BG@2x.png -pointsize 26 -stroke DarkGrey -fill DarkGrey -font "$FONT" -draw "text 78,774 '$FULL_BUILD_NUM'" sdk/dmg/bgp@2x.png
-else
-	cp sdk/dmg/BG.png    sdk/dmg/bgp.png
-	cp sdk/dmg/BG@2x.png sdk/dmg/bgp@2x.png
+	if magick sdk/dmg/CoronaBackground.png -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" "$TMPBACKGROUND"
+	then
+		BACKGROUND_PATH="$TMPBACKGROUND"
+		magick sdk/dmg/BG.png    -pointsize 13 -stroke DarkGrey -fill DarkGrey -draw "text 39,387 '$FULL_BUILD_NUM'" sdk/dmg/bgp.png
+		magick sdk/dmg/BG@2x.png -pointsize 26 -stroke DarkGrey -fill DarkGrey -draw "text 78,774 '$FULL_BUILD_NUM'" sdk/dmg/bgp@2x.png
+	else
+		echo "WARNING: ImageMagick magick annotation failed (missing fonts), building DMG without build number on background"
+		cp sdk/dmg/BG.png    sdk/dmg/bgp.png
+		cp sdk/dmg/BG@2x.png sdk/dmg/bgp@2x.png
+	fi
 fi
 
 if [ -x "$(command -v appdmg)" ]
@@ -295,3 +300,4 @@ rm -rf "$TMPPATH"		# Remove tmp folder
 codesign --timestamp --deep --force --options runtime --strict --sign "Developer ID Application: Corona Labs Inc" "$DSTBASE/$DMG_FILE"
 mkdir -p "$SRCROOT/output"
 cp "$DSTBASE/$DMG_FILE" "$SRCROOT/output"
+

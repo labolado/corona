@@ -10,31 +10,30 @@ then
     security delete-keychain build.keychain || true
     security create-keychain -p 'Password123' build.keychain
     security default-keychain -s build.keychain
-    security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
-    security unlock-keychain -p 'Password123' build.keychain
-    security set-keychain-settings build.keychain
-    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
+    if security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
+    then
+        security unlock-keychain -p 'Password123' build.keychain
+        security set-keychain-settings build.keychain
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
 
-    mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-    for PLATFORM_DIR in iphone tvos
-    do
-        cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
-    done
+        mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+        for PLATFORM_DIR in iphone tvos
+        do
+            cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
+        done
+    else
+        echo "WARNING: Certificate import failed. Building without code signing."
+        security default-keychain -s login.keychain
+        security delete-keychain build.keychain &> /dev/null || true
+        CERT_PASSWORD=""
+    fi
 fi
 
 
 BUILD_NUMBER=${BUILD_NUMBER:-3575}
 YEAR=${YEAR:-2020}
-# DMG filename suffix must match the release job's rename target,
-# which uses the cosmetic ${BUILD} (full tag, e.g. "3729.bgfx.v2"),
-# not the numeric ${BUILD_NUMBER} (used only for version macros).
-BUILD=${BUILD:-$BUILD_NUMBER}
 
-NATIVE_FLAG=""
-if [ -f "${WORKSPACE}/Native/CoronaNative.tar.gz" ]; then
-    NATIVE_FLAG="-e ${WORKSPACE}/Native/CoronaNative.tar.gz"
-fi
-if ! bin/mac/build_dmg.sh -d -b "$YEAR.$BUILD" $NATIVE_FLAG "${WORKSPACE}" "${WORKSPACE}/docs"
+if ! bin/mac/build_dmg.sh -d -b "$YEAR.$BUILD_NUMBER" -e "${WORKSPACE}/Native/CoronaNative.tar.gz" "${WORKSPACE}" "${WORKSPACE}/docs"
 then
     BUILD_FAILED=YES
     echo "BUILD FAILED"
