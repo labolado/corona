@@ -23,6 +23,7 @@ then
         done
     else
         echo "WARNING: Certificate import failed. Building without code signing."
+        echo "DMG_SIGNED=false" >> $GITHUB_ENV
         security default-keychain -s login.keychain
         security delete-keychain build.keychain &> /dev/null || true
         CERT_PASSWORD=""
