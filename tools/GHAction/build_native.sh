@@ -9,17 +9,37 @@ then
     security delete-keychain build.keychain || true
     security create-keychain -p 'Password123' build.keychain
     security default-keychain -s build.keychain
-    security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
-    security unlock-keychain -p 'Password123' build.keychain
-    security set-keychain-settings build.keychain
-    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
+    if security import "$WORKSPACE/tools/GHAction/Certificates.p12" -A -P "$CERT_PASSWORD"
+    then
+        security unlock-keychain -p 'Password123' build.keychain
+        security set-keychain-settings build.keychain
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'Password123' build.keychain > /dev/null
 
-    mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-    for PLATFORM_DIR in iphone tvos
-    do
-        cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
-    done
+        mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+        for PLATFORM_DIR in iphone tvos
+        do
+            cp "$WORKSPACE/platform/$PLATFORM_DIR"/*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
+        done
+    else
+        echo "WARNING: Certificate import failed. Building without code signing."
+        security default-keychain -s login.keychain
+        security delete-keychain build.keychain &> /dev/null || true
+        CERT_PASSWORD=""
+    fi
 fi
+
+# Disable code signing unconditionally via xcconfig so xcodebuild calls
+# inside the enterprise build.sh don't fail even when the imported cert
+# doesn't contain an iOS Development identity (only macOS Developer ID).
+NOSIGN_XCCONFIG="/tmp/nosign_$$.xcconfig"
+cat > "$NOSIGN_XCCONFIG" << 'XCEOF'
+CODE_SIGN_IDENTITY =
+CODE_SIGNING_REQUIRED = NO
+CODE_SIGNING_ALLOWED = NO
+ARCHS = arm64 x86_64
+ONLY_ACTIVE_ARCH = NO
+XCEOF
+export XCODE_XCCONFIG_FILE="$NOSIGN_XCCONFIG"
 
 java -version
 echo $JAVA_HOME

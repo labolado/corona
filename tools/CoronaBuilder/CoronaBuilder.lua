@@ -59,6 +59,8 @@ function CoronaBuilderDetermineTargetSDKVersion( sdkname, platformName, currentS
 	end
 
 	local coronaVersion = false
+	local fallbackVersion = false  -- Same-major-version match when minor differs
+	local activeMajor = xcodeSDKVersion and xcodeSDKVersion:match("^(%d+)%.")
 	local failMessage = "cannot find a compatible CoronaSDK "..buildNum.." build target for "..sdkname.." SDK "..xcodeSDKVersion
 	for idx, sdkParams in ipairs(SDKs[platformName]) do
 		-- print(idx, json.prettify(sdkParams))
@@ -70,7 +72,16 @@ function CoronaBuilderDetermineTargetSDKVersion( sdkname, platformName, currentS
 		end
 		if sdkParams['xcodeVersion'] == xcodeSDKVersion then
 			coronaVersion = sdkParams['coronaVersion']
+		elseif activeMajor and sdkParams['xcodeVersion'] then
+			local sdkMajor = sdkParams['xcodeVersion']:match("^(%d+)%.")
+			if sdkMajor == activeMajor then
+				fallbackVersion = sdkParams['coronaVersion']
+			end
 		end
+	end
+	if not coronaVersion and fallbackVersion then
+		print("Note: no exact iphoneos SDK "..xcodeSDKVersion.." match, falling back to same-major-version template (coronaVersion="..fallbackVersion..")")
+		coronaVersion = fallbackVersion
 	end
 
 	if coronaVersion then
