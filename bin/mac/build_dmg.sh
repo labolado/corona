@@ -60,7 +60,7 @@ then
 	# strip it so the DMG volume name stays ≤ 27 chars for notarization.
 	# The DMG filename ($DMG_FILE) still uses the full $FULL_BUILD_NUM.
 	# shellcheck disable=2001
-	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/' -e 's/\.[^.]*$//')
+	BUILD_NUM=$(echo "$FULL_BUILD_NUM" | sed -e 's/[^.]*\.\(.*\)/-\1/')
 else
 	echo "Error: FULL_BUILD_NUM is a required parameter"
 	exit 1
