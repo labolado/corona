@@ -37,6 +37,18 @@ YEAR=${YEAR:-2020}
 # not the numeric ${BUILD_NUMBER} (used only for version macros).
 BUILD=${BUILD:-$BUILD_NUMBER}
 
+# Workaround: if BUILD was not propagated correctly from GITHUB_ENV (observed on
+# macOS-15 runners where multi-segment tags like "3731.b3.v1" sometimes lose
+# the suffix), re-read it directly from the env file.
+if [ -n "${GITHUB_ENV:-}" ] && [ -f "$GITHUB_ENV" ]; then
+    BUILD_FROM_FILE=$(grep '^BUILD=' "$GITHUB_ENV" 2>/dev/null | tail -1 | cut -d= -f2-)
+    if [ -n "$BUILD_FROM_FILE" ] && [ "$BUILD_FROM_FILE" != "$BUILD_NUMBER" ]; then
+        BUILD="$BUILD_FROM_FILE"
+    fi
+fi
+
+echo "DMG_BUILD: YEAR=$YEAR BUILD=$BUILD BUILD_NUMBER=$BUILD_NUMBER" >&2
+
 NATIVE_FLAG=""
 if [ -f "${WORKSPACE}/Native/CoronaNative.tar.gz" ]; then
     NATIVE_FLAG="-e ${WORKSPACE}/Native/CoronaNative.tar.gz"
