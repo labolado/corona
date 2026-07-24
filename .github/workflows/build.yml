@@ -745,7 +745,7 @@ jobs:
         run: |
           set -x
           mkdir artifacts
-          mv Simulator-macOS/Corona-${{ env.YEAR }}.${{ env.BUILD }}.dmg artifacts/Solar2D-macOS-${{ env.YEAR }}.${{ env.BUILD }}.dmg
+          MAC_DMG=$(ls Simulator-macOS/Corona-*.dmg 2>/dev/null | head -1 || true); if [ -n "$MAC_DMG" ]; then mv "$MAC_DMG" artifacts/Solar2D-macOS-${{ env.YEAR }}.${{ env.BUILD }}.dmg; else echo "WARNING: No macOS DMG found in Simulator-macOS/"; fi
           mv Simulator-Windows/Corona-${{ env.BUILD }}.msi artifacts/Solar2D-Windows-${{ env.YEAR }}.${{ env.BUILD }}.msi
           [ -f CoronaCards-iOS/CoronaCards.framework.zip ] && mv CoronaCards-iOS/CoronaCards.framework.zip artifacts/CoronaCards-iOS-${{ env.YEAR }}.${{ env.BUILD }}.zip || echo "CoronaCards-iOS artifact not available, skipping"
           [ -f CoronaCards-iOS-angle/CoronaCards-angle.zip ] && mv CoronaCards-iOS-angle/CoronaCards-angle.zip artifacts/CoronaCards-iOS-MetalANGLE-${{ env.YEAR }}.${{ env.BUILD }}.zip || echo "CoronaCards-iOS-angle artifact not available, skipping"
