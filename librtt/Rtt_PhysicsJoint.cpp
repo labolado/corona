@@ -743,6 +743,20 @@ PhysicsJoint::ValueForKey( lua_State *L )
 		{
 			lua_pushboolean( L, b2Joint_GetCollideConnected(baseJoint) );
 		}
+		else if ( 0 == strcmp( "constraintFrequency", key ) )
+		{
+			float hertz;
+			float dampingRatio;
+			b2Joint_GetConstraintTuning( baseJoint, &hertz, &dampingRatio );
+			lua_pushnumber( L, hertz );
+		}
+		else if ( 0 == strcmp( "constraintDampingRatio", key ) )
+		{
+			float hertz;
+			float dampingRatio;
+			b2Joint_GetConstraintTuning( baseJoint, &hertz, &dampingRatio );
+			lua_pushnumber( L, dampingRatio );
+		}
 		else if ( 0 == strcmp( "getLocalAnchorA", key ) && ShouldGetLocalAnchor( jointType ) )
 		{
 			// lua_pushlightuserdata( L, (void*)GetLocalAnchorACallback( jointType ) );
@@ -1198,6 +1212,10 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				{
 					lua_pushnumber( L, b2WeldJoint_GetAngularDampingRatio(baseJoint) );
 				}
+				else if ( 0 == strcmp( "blockSolve", key ) )
+				{
+					lua_pushboolean( L, b2WeldJoint_IsBlockSolveEnabled( baseJoint ) );
+				}
 				else
 				{
 					result = 0;
@@ -1252,6 +1270,31 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 		if ( 0 == strcmp( "reactionTorque", key ) )
 		{
 			// No-op for read-only property
+		}
+		else if ( 0 == strcmp( "constraintFrequency", key ) || 0 == strcmp( "constraintDampingRatio", key ) )
+		{
+			if ( lua_isnumber( L, 3 ) )
+			{
+				float hertz;
+				float dampingRatio;
+				b2Joint_GetConstraintTuning( baseJoint, &hertz, &dampingRatio );
+
+				float value = lua_tonumber( L, 3 );
+				if ( b2IsValidFloat( value ) && value >= 0.0f )
+				{
+					if ( 0 == strcmp( "constraintFrequency", key ) )
+					{
+						hertz = value;
+					}
+					else
+					{
+						dampingRatio = value;
+					}
+
+					b2Joint_SetConstraintTuning( baseJoint, hertz, dampingRatio );
+					b2Joint_WakeBodies( baseJoint );
+				}
+			}
 		}
 
 
@@ -1703,6 +1746,14 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 				if ( lua_isnumber( L, 3 ) )
 				{
 					b2WeldJoint_SetAngularDampingRatio( baseJoint, lua_tonumber( L, 3 ) );
+				}
+			}
+			else if ( 0 == strcmp( "blockSolve", key ) )
+			{
+				if ( lua_isboolean( L, 3 ) )
+				{
+					b2WeldJoint_EnableBlockSolve( baseJoint, lua_toboolean( L, 3 ) );
+					b2Joint_WakeBodies( baseJoint );
 				}
 			}
 		}

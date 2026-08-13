@@ -4450,6 +4450,34 @@ GetContactRecycleDistance( lua_State *L )
 	return 1;
 }
 
+// physics.setSpeculativeCornerPassThroughEnabled(enabled)
+// Allow exactly fitting polygons to pass speculative corner contacts.
+static int
+SetSpeculativeCornerPassThroughEnabled( lua_State *L )
+{
+	if ( ! lua_isboolean( L, 1 ) )
+	{
+		CoronaLuaError( L, "physics.setSpeculativeCornerPassThroughEnabled() requires 1 parameter (boolean)" );
+		return 0;
+	}
+
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setSpeculativeCornerPassThroughEnabled()" );
+	if ( result )
+	{
+		b2SetSpeculativeCornerPassThrough( lua_toboolean( L, 1 ) );
+	}
+
+	return 0;
+}
+
+// physics.getSpeculativeCornerPassThroughEnabled()
+static int
+GetSpeculativeCornerPassThroughEnabled( lua_State *L )
+{
+	lua_pushboolean( L, b2GetSpeculativeCornerPassThrough() );
+	return 1;
+}
+
 // physics.setRestitutionThreshold(value)
 // Adjust the restitution threshold. It is recommended not to make this value very small
 // because it will prevent bodies from sleeping. Usually in meters per second.
@@ -4641,6 +4669,8 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "setContactTuning", SetContactTuning },
 		{ "setContactRecycleDistance", SetContactRecycleDistance },
 		{ "getContactRecycleDistance", GetContactRecycleDistance },
+		{ "setSpeculativeCornerPassThroughEnabled", SetSpeculativeCornerPassThroughEnabled },
+		{ "getSpeculativeCornerPassThroughEnabled", GetSpeculativeCornerPassThroughEnabled },
 		{ "setMaximumLinearSpeed", SetMaximumLinearSpeed },
 		{ "getMaximumLinearSpeed", GetMaximumLinearSpeed },
 		{ "setRestitutionThreshold", SetRestitutionThreshold },
