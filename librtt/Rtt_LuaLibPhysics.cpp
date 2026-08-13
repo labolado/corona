@@ -3381,16 +3381,22 @@ addBody( lua_State *L )
 		Rtt_VERIFY( ! o->GetExtensions() ) )
 	{
 		result |= add_b2Body_to_DisplayObject( L, o, numArgs );
-		if ( result && ObjectRespondsToEvent( L, 1, "preCollision" ) )
+		if ( result )
 		{
 			b2BodyId bodyId = o->GetExtensions()->GetBody();
-			int shapeCount = b2Body_GetShapeCount( bodyId );
-			std::vector<b2ShapeId> shapeIds( shapeCount );
-			b2Body_GetShapes( bodyId, shapeIds.data(), shapeCount );
-			for ( int i = 0; i < shapeCount; ++i )
+			if ( ObjectRespondsToEvent( L, 1, "preCollision" ) )
 			{
-				b2Shape_EnablePreSolveEvents( shapeIds[i], true );
+				int shapeCount = b2Body_GetShapeCount( bodyId );
+				std::vector<b2ShapeId> shapeIds( shapeCount );
+				b2Body_GetShapes( bodyId, shapeIds.data(), shapeCount );
+				for ( int i = 0; i < shapeCount; ++i )
+				{
+					b2Shape_EnablePreSolveEvents( shapeIds[i], true );
+				}
 			}
+
+			PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+			physics.RegisterPhysicsBody( bodyId );
 		}
 	}
 
@@ -4478,6 +4484,36 @@ GetSpeculativeCornerPassThroughEnabled( lua_State *L )
 	return 1;
 }
 
+// physics.setCompoundInternalEdgeSuppressionEnabled(enabled)
+// Suppress polygon-circle contacts whose polygon normal belongs to a fully shared edge on a compound body.
+static int
+SetCompoundInternalEdgeSuppressionEnabled( lua_State *L )
+{
+	if ( ! lua_isboolean( L, 1 ) )
+	{
+		CoronaLuaError( L, "physics.setCompoundInternalEdgeSuppressionEnabled() requires 1 parameter (boolean)" );
+		return 0;
+	}
+
+	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setCompoundInternalEdgeSuppressionEnabled()" );
+	if ( result )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		physics.SetCompoundInternalEdgeSuppressionEnabled( lua_toboolean( L, 1 ) );
+	}
+
+	return 0;
+}
+
+// physics.getCompoundInternalEdgeSuppressionEnabled()
+static int
+GetCompoundInternalEdgeSuppressionEnabled( lua_State *L )
+{
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushboolean( L, physics.GetCompoundInternalEdgeSuppressionEnabled() );
+	return 1;
+}
+
 // physics.setRestitutionThreshold(value)
 // Adjust the restitution threshold. It is recommended not to make this value very small
 // because it will prevent bodies from sleeping. Usually in meters per second.
@@ -4671,6 +4707,8 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getContactRecycleDistance", GetContactRecycleDistance },
 		{ "setSpeculativeCornerPassThroughEnabled", SetSpeculativeCornerPassThroughEnabled },
 		{ "getSpeculativeCornerPassThroughEnabled", GetSpeculativeCornerPassThroughEnabled },
+		{ "setCompoundInternalEdgeSuppressionEnabled", SetCompoundInternalEdgeSuppressionEnabled },
+		{ "getCompoundInternalEdgeSuppressionEnabled", GetCompoundInternalEdgeSuppressionEnabled },
 		{ "setMaximumLinearSpeed", SetMaximumLinearSpeed },
 		{ "getMaximumLinearSpeed", GetMaximumLinearSpeed },
 		{ "setRestitutionThreshold", SetRestitutionThreshold },

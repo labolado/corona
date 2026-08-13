@@ -285,6 +285,10 @@ bool
 PhysicsContactListener::PreSolve( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, float separation )
 {
 	const PhysicsWorld& physics = fRuntime.GetPhysicsWorld();
+	if ( physics.ShouldSuppressCompoundInternalEdge( shapeIdA, shapeIdB, point, normal ) )
+	{
+		return false;
+	}
 
 	if ( ! physics.IsProperty( PhysicsWorld::kPreCollisionListenerExists ) )
 	{

@@ -15,6 +15,8 @@
 #include "box2d/box2d.h"
 #include "liquid_world.h"
 
+#include <vector>
+
 // class b2Body;
 // class b2DebugDraw;
 // class b2World;
@@ -81,6 +83,12 @@ class PhysicsWorld
 		void ToggleProperty( Properties mask ) { fProperties ^= mask; }
 		void SetProperty( Properties mask, bool value );
 		void SetRuntimePreCollisionListenerExists( bool value );
+		void RegisterPhysicsBody( b2BodyId bodyId );
+
+		void SetCompoundInternalEdgeSuppressionEnabled( bool enabled );
+		bool GetCompoundInternalEdgeSuppressionEnabled() const { return fCompoundInternalEdgeSuppressionEnabled; }
+		bool ShouldSuppressCompoundInternalEdge( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point,
+										 b2Vec2 normal ) const;
 
 		// Default is 30 (content) pixels per meter so the range [3, 300] pixels
 		// maps to [0.1, 10] meters (the optimal length scale range for Box2D)
@@ -111,6 +119,16 @@ class PhysicsWorld
 
 	private:
 		void StepEvents();
+		void BuildCompoundInternalEdges( b2BodyId bodyId );
+		void EnableCompoundInternalEdgePreSolve( b2ShapeId shapeId );
+
+		struct CompoundInternalEdge
+		{
+			b2ShapeId shapeId;
+			b2Vec2 point1;
+			b2Vec2 point2;
+			b2Vec2 normal;
+		};
 
 	public:
 		void SetReportCollisionsInContentCoordinates( bool enabled );
@@ -149,6 +167,10 @@ class PhysicsWorld
 		float fTimeRemainder;
 
 		S32 fNumSteps;
+		bool fCompoundInternalEdgeSuppressionEnabled;
+		std::vector<b2BodyId> fPhysicsBodies;
+		std::vector<b2ShapeId> fCompoundInternalEdgePreSolveShapes;
+		std::vector<CompoundInternalEdge> fCompoundInternalEdges;
 
 		//! false: Contact points are reported in local-space.
 		//! true: Contact points are reported in content-space.
