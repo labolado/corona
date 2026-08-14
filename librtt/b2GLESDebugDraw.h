@@ -65,6 +65,21 @@ class b2GLESDebugDraw
 		float GetMetersPerPixel();
 		float GetPixelsPerMeter();
 
+		// The transform of the display group chain shared by all bodies. Set by
+		// GetBodyTransformFcn, applied to every draw callback as
+		// p' = fParentOrigin + p * fParentScale (the physics world lives in the
+		// work-group's local space).
+		void SetParentScale( b2Vec2 scale ) { fParentScale = scale; }
+		b2Vec2 GetParentScale() const { return fParentScale; }
+
+		void SetParentOrigin( b2Vec2 origin ) { fParentOrigin = origin; }
+		b2Vec2 GetParentOrigin() const { return fParentOrigin; }
+
+		// Lets GetBodyTransformFcn reuse the cached parent transform for
+		// repeated calls on the same body (one call per shape).
+		void SetLastBodyUserData( const void *userData ) { fLastBodyUserData = userData; }
+		const void *GetLastBodyUserData() const { return fLastBodyUserData; }
+
 	protected:
 		void DrawShape( b2ShapeId fixture, const b2Transform& xf, Box2dDebugColor color);
 		void DrawJoint( b2JointId joint );
@@ -84,6 +99,8 @@ class b2GLESDebugDraw
 		void DrawParticlesOffset( const b2Vec2 *centers, float radius, const b2ParticleColor *colors, int count, const b2Vec2 *offset );
 
 		virtual void DrawSolidCircle(b2Transform transform, b2Vec2 center, float radius, Box2dDebugColor color);
+
+		virtual void DrawSolidCapsule(b2Vec2 p1, b2Vec2 p2, float radius, Box2dDebugColor color);
 
 		virtual void DrawSegment(const b2Vec2& p1, const b2Vec2& p2, Box2dDebugColor color);
 
@@ -121,6 +138,11 @@ class b2GLESDebugDraw
 
 		RenderData fData;
 		Shader *fShader;
+
+		b2Vec2 fParentScale;
+		b2Vec2 fParentOrigin;
+
+		const void *fLastBodyUserData;
 
 		b2DebugDraw fDebugDraw;
 };
