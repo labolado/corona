@@ -123,7 +123,12 @@ class b2GLESDebugDraw
 
 	private:
 
-		void _SetVerticesUsed( int vertexCount );
+		// Append vertices to the per-frame accumulation buffers. Triangles go
+		// to the fill batch (kTriangles), line segments to the line batch
+		// (kLines); both are flushed once per frame in End().
+		void _AppendFillFan( const b2Vec2 *vertices, int vertexCount, Box2dDebugColor color );
+		void _AppendLineLoop( const b2Vec2 *vertices, int vertexCount, Box2dDebugColor color );
+		void _AppendLineSegment( const b2Vec2 &p1, const b2Vec2 &p2, Box2dDebugColor color );
 
 		void _DrawPolygon( bool fill_body,
 							b2Transform transform,
@@ -136,7 +141,8 @@ class b2GLESDebugDraw
 		float fPixelsPerMeter;
 		float fMetersPerPixel;
 
-		RenderData fData;
+		RenderData fFillData;
+		RenderData fLineData;
 		Shader *fShader;
 
 		b2Vec2 fParentScale;

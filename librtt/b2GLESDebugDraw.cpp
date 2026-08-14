@@ -72,6 +72,39 @@ ApplyParentTransform( const b2GLESDebugDraw *debugDraw, b2Vec2 p )
 	return { origin.x + p.x * scale.x, origin.y + p.y * scale.y };
 }
 
+// Precomputed unit-circle directions (16 segments, i.e. a 2*PI/16 step).
+// Circles and capsule arcs index into this table instead of calling
+// cosf/sinf per vertex.
+static inline const b2Vec2 *
+UnitCircle()
+{
+	static b2Vec2 s[ 16 ];
+	static bool sInitialized = false;
+
+	if ( ! sInitialized )
+	{
+		for( int i = 0; i < 16; ++i )
+		{
+			float theta = ( 2.0f * B2_PI * (float)i ) / 16.0f;
+			s[ i ] = { cosf( theta ), sinf( theta ) };
+		}
+		sInitialized = true;
+	}
+
+	return s;
+}
+
+static inline void
+SetVertex( Geometry::Vertex &v, float x, float y, const Box2dDebugColor &color, float alpha )
+{
+	v.Zero();
+	v.SetPos( x, y );
+	v.rs = (U8)( color.r * 255.0f );
+	v.gs = (U8)( color.g * 255.0f );
+	v.bs = (U8)( color.b * 255.0f );
+	v.as = (U8)( alpha * 255.0f );
+}
+
 void DrawPolygonFcn(const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context)
 {
 	static_cast<b2GLESDebugDraw*>(context)->DrawPolygon( vertices, vertexCount, MakeRGBA(color) );
@@ -246,35 +279,51 @@ b2GLESDebugDraw::b2GLESDebugDraw( Display &display )
 :	fRenderer( NULL ),
 	fPixelsPerMeter( Rtt_REAL_1 ),
 	fMetersPerPixel( Rtt_REAL_1 ),
-	fData(),
+	fFillData(),
+	fLineData(),
 	fParentScale({ 1.0f, 1.0f }),
 	fParentOrigin({ 0.0f, 0.0f }),
 	fLastBodyUserData( NULL ),
 	fDebugDraw({})
 {
-	// Init fData.
+	// Init the two accumulation buffers: one for filled triangles, one for
+	// line segments. Both are flushed once per frame.
 	{
 		/**/ //BAD: THIS MEMORY IS LEAKED!!!!!!!!
-		fData.fGeometry = Rtt_NEW( display.GetAllocator(),
-									Rtt::Geometry( display.GetAllocator(),
-													Geometry::kTriangleFan,
-													0, // Vertex count.
-													0, // Index count.
-													false ) ); // Store on GPU.
+		fFillData.fGeometry = Rtt_NEW( display.GetAllocator(),
+										Rtt::Geometry( display.GetAllocator(),
+														Geometry::kTriangles,
+														256, // Vertex count.
+														0, // Index count.
+														false ) ); // Store on GPU.
+
+		fLineData.fGeometry = Rtt_NEW( display.GetAllocator(),
+										Rtt::Geometry( display.GetAllocator(),
+														Geometry::kLines,
+														512, // Vertex count.
+														0, // Index count.
+														false ) ); // Store on GPU.
 
 		ShaderFactory &factory = display.GetShaderFactory();
 		fShader = factory.FindOrLoad( ShaderTypes::kCategoryFilter, "color" );
-		fShader->Prepare( fData, 0, 0, ShaderResource::kDefault );
+		fShader->Prepare( fFillData, 0, 0, ShaderResource::kDefault );
+		fShader->Prepare( fLineData, 0, 0, ShaderResource::kDefault );
 
-		fData.fFillTexture0 = NULL;
-		fData.fFillTexture1 = NULL;
-		fData.fMaskTexture = NULL;
-		fData.fMaskUniform = NULL;
+		RenderData *datas[ 2 ] = { &fFillData, &fLineData };
+		for( int i = 0; i < 2; ++i )
+		{
+			RenderData &data = *datas[ i ];
 
-		fData.fUserUniform0 = NULL;
-		fData.fUserUniform1 = NULL;
-		fData.fUserUniform2 = NULL;
-		fData.fUserUniform3 = NULL;
+			data.fFillTexture0 = NULL;
+			data.fFillTexture1 = NULL;
+			data.fMaskTexture = NULL;
+			data.fMaskUniform = NULL;
+
+			data.fUserUniform0 = NULL;
+			data.fUserUniform1 = NULL;
+			data.fUserUniform2 = NULL;
+			data.fUserUniform3 = NULL;
+		}
 
 		b2AABB bounds = {{-FLT_MAX, -FLT_MAX}, {FLT_MAX, FLT_MAX}};
 		fDebugDraw = {};
@@ -307,8 +356,11 @@ b2GLESDebugDraw::b2GLESDebugDraw( Display &display )
 
 b2GLESDebugDraw::~b2GLESDebugDraw()
 {
-	Rtt_DELETE( fData.fGeometry );
-	fData.fGeometry = NULL;
+	Rtt_DELETE( fFillData.fGeometry );
+	fFillData.fGeometry = NULL;
+
+	Rtt_DELETE( fLineData.fGeometry );
+	fLineData.fGeometry = NULL;
 }
 
 static b2Transform
@@ -361,10 +413,27 @@ void b2GLESDebugDraw::Begin( const PhysicsWorld& physics, Renderer &renderer )
 	fParentScale = { 1.0f, 1.0f };
 	fParentOrigin = { 0.0f, 0.0f };
 	fLastBodyUserData = NULL;
+
+	// Reset the accumulation buffers. Their storage is reused across frames.
+	fFillData.fGeometry->SetVerticesUsed( 0 );
+	fLineData.fGeometry->SetVerticesUsed( 0 );
 }
 
 void b2GLESDebugDraw::End()
 {
+	// Flush the accumulation buffers: two draw calls for the whole frame.
+	if ( fFillData.fGeometry->GetVerticesUsed() > 0 )
+	{
+		fFillData.fGeometry->SetPrimitiveType( Geometry::kTriangles );
+		fRenderer->Insert( &fFillData );
+	}
+
+	if ( fLineData.fGeometry->GetVerticesUsed() > 0 )
+	{
+		fLineData.fGeometry->SetPrimitiveType( Geometry::kLines );
+		fRenderer->Insert( &fLineData );
+	}
+
 	fRenderer = NULL;
 	fPixelsPerMeter = Rtt_REAL_1;
 	fMetersPerPixel = Rtt_REAL_1;
@@ -626,14 +695,63 @@ void b2GLESDebugDraw::DrawParticleSystem( const b2ParticleSystem& system )
 	}
 }
 
-void b2GLESDebugDraw::_SetVerticesUsed( int vertexCount )
+void b2GLESDebugDraw::_AppendFillFan( const b2Vec2 *vertices, int vertexCount, Box2dDebugColor color )
 {
-	if( vertexCount > (int)fData.fGeometry->GetVerticesAllocated() )
+	// Expand the triangle fan into an explicit triangle list. vertices[0] is
+	// the fan's common vertex.
+	const int triangleCount = vertexCount - 2;
+	const int extra = 3 * triangleCount;
+
+	// Match the legacy look: the fill is the outline color darkened by half,
+	// at 0.5 alpha.
+	Box2dDebugColor fillColor = { 0.5f * color.r, 0.5f * color.g, 0.5f * color.b };
+
+	Geometry *geometry = fFillData.fGeometry;
+	U32 used = geometry->GetVerticesUsed();
+	if ( used + extra > geometry->GetVerticesAllocated() )
 	{
-		fData.fGeometry->Resize( vertexCount, false );
+		U32 newSize = Max<U32>( used + extra, 2 * geometry->GetVerticesAllocated() );
+		geometry->Resize( newSize, 0, true );
 	}
 
-	fData.fGeometry->SetVerticesUsed( vertexCount );
+	Geometry::Vertex *out = geometry->GetVertexData() + used;
+	for( int i = 1; i < vertexCount - 1; ++i )
+	{
+		Geometry::Vertex *tri = out + 3 * ( i - 1 );
+
+		SetVertex( tri[ 0 ], vertices[ 0 ].x * fPixelsPerMeter, vertices[ 0 ].y * fPixelsPerMeter, fillColor, 0.5f );
+		SetVertex( tri[ 1 ], vertices[ i ].x * fPixelsPerMeter, vertices[ i ].y * fPixelsPerMeter, fillColor, 0.5f );
+		SetVertex( tri[ 2 ], vertices[ i + 1 ].x * fPixelsPerMeter, vertices[ i + 1 ].y * fPixelsPerMeter, fillColor, 0.5f );
+	}
+
+	geometry->SetVerticesUsed( used + extra );
+}
+
+void b2GLESDebugDraw::_AppendLineSegment( const b2Vec2 &p1, const b2Vec2 &p2, Box2dDebugColor color )
+{
+	Geometry *geometry = fLineData.fGeometry;
+	U32 used = geometry->GetVerticesUsed();
+	if ( used + 2 > geometry->GetVerticesAllocated() )
+	{
+		U32 newSize = Max<U32>( used + 2, 2 * geometry->GetVerticesAllocated() );
+		geometry->Resize( newSize, 0, true );
+	}
+
+	Geometry::Vertex *out = geometry->GetVertexData() + used;
+	SetVertex( out[ 0 ], p1.x * fPixelsPerMeter, p1.y * fPixelsPerMeter, color, 1.0f );
+	SetVertex( out[ 1 ], p2.x * fPixelsPerMeter, p2.y * fPixelsPerMeter, color, 1.0f );
+
+	geometry->SetVerticesUsed( used + 2 );
+}
+
+void b2GLESDebugDraw::_AppendLineLoop( const b2Vec2 *vertices, int vertexCount, Box2dDebugColor color )
+{
+	_AppendLineSegment( vertices[ vertexCount - 1 ], vertices[ 0 ], color );
+
+	for( int i = 0; i < vertexCount - 1; ++i )
+	{
+		_AppendLineSegment( vertices[ i ], vertices[ i + 1 ], color );
+	}
 }
 
 void b2GLESDebugDraw::_DrawPolygon( bool fill_body,
@@ -642,55 +760,19 @@ void b2GLESDebugDraw::_DrawPolygon( bool fill_body,
 									int vertexCount,
 									Box2dDebugColor color )
 {
-	_SetVerticesUsed( vertexCount );
-
-	Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-	// Copy the vertices from Box2D to our own rendering format.
-	for( int i = 0;
-			i < vertexCount;
-			++i )
+	// Transform the vertices to world space, then accumulate them.
+	b2Vec2 transformed[ B2_MAX_POLYGON_VERTICES ];
+	for( int i = 0; i < vertexCount; ++i )
 	{
-		const b2Vec2 &input_vert = vertices[ i ];
-		b2Vec2 p = b2TransformPoint( transform, input_vert );
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ i ];
-
-		output_vert.Zero();
-		output_vert.SetPos( ( p.x * fPixelsPerMeter ),
-							( p.y * fPixelsPerMeter ) );
+		transformed[ i ] = b2TransformPoint( transform, vertices[ i ] );
 	}
 
-	// We're iterating multiple times over the input and output arrays.
-	// From a cache point of view, this is only ok with small arrays.
-	// With large arrays, it's more efficient to set all the fields of
-	// each entries in a single pass.
-
-	// Draw the body of the polygon.
 	if( fill_body )
 	{
-		// Set the color.
-		Rtt::Geometry::Vertex::SetColor( vertexCount,
-											output_vertices,
-											0.5*color.r,
-											0.5*color.g,
-											0.5*color.b,
-											0.5 );
-
-		fData.fGeometry->SetPrimitiveType( Geometry::kTriangleFan );
-		fRenderer->Insert( &fData );
+		_AppendFillFan( transformed, vertexCount, color );
 	}
 
-	// Set the color.
-	Rtt::Geometry::Vertex::SetColor( vertexCount,
-										output_vertices,
-										color.r,
-										color.g,
-										color.b,
-										1.f );
-
-	// Draw the outline of the polygon.
-	fData.fGeometry->SetPrimitiveType( Geometry::kLineLoop );
-	fRenderer->Insert( &fData );
+	_AppendLineLoop( transformed, vertexCount, color );
 }
 
 void b2GLESDebugDraw::DrawPolygon(const b2Vec2* vertices, int vertexCount, Box2dDebugColor color)
@@ -750,92 +832,34 @@ void b2GLESDebugDraw::DrawCircle( bool fill_body,
 	b2Vec2 circleOrigin( center + ( optionalOffset ? *optionalOffset : b2Vec2_zero ) );
 
 	const int kSegments = 16;
+	const b2Vec2 *unit = UnitCircle();
 
-	// Draw the body of the circle. The triangle fan needs the circle center as
-	// its common vertex, so the center precedes the arc vertices. The last arc
-	// vertex wraps around to the first one to close the fan.
+	// Arc points in world space.
+	b2Vec2 arc[ kSegments ];
+	for( int i = 0; i < kSegments; ++i )
+	{
+		arc[ i ] = { circleOrigin.x + unit[ i ].x * radius,
+					 circleOrigin.y + unit[ i ].y * radius };
+	}
+
+	// Draw the body of the circle. The fan needs the circle center as its
+	// common vertex; the closing arc vertex wraps back to the first one.
 	if( fill_body )
 	{
 		const int vertexCount = 2 + kSegments;
 
-		_SetVerticesUsed( vertexCount );
-
-		Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-		// Circle center.
+		b2Vec2 fan[ vertexCount ];
+		fan[ 0 ] = circleOrigin;
+		for( int i = 0; i <= kSegments; ++i )
 		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ 0 ];
-
-			output_vert.Zero();
-			output_vert.SetPos( circleOrigin.x * fPixelsPerMeter,
-								circleOrigin.y * fPixelsPerMeter );
+			fan[ 1 + i ] = arc[ i % kSegments ];
 		}
 
-		// Arc vertices.
-		float theta = 0.0f;
-		for( int i = 1;
-				i < vertexCount;
-				++i,
-				theta += ( ( 2.0f * B2_PI ) / (float)kSegments ) )
-		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ i ];
-
-			b2Vec2 pos = { cosf( theta ), sinf( theta ) };
-			pos *= radius;
-			pos += circleOrigin;
-			pos *= fPixelsPerMeter;
-
-			output_vert.Zero();
-			output_vert.SetPos( pos.x, pos.y );
-		}
-
-		Rtt::Geometry::Vertex::SetColor( vertexCount,
-											output_vertices,
-											0.5*color.r,
-											0.5*color.g,
-											0.5*color.b,
-											0.5 );
-
-		fData.fGeometry->SetPrimitiveType( Geometry::kTriangleFan );
-		fRenderer->Insert( &fData );
+		_AppendFillFan( fan, vertexCount, color );
 	}
 
-	// Draw the outline of the circle. The outline excludes the center, so the
-	// vertex buffer is rewritten after the body was submitted.
-	{
-		const int vertexCount = kSegments;
-
-		_SetVerticesUsed( vertexCount );
-
-		Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-		float theta = 0.0f;
-		for( int i = 0;
-				i < vertexCount;
-				++i,
-				theta += ( ( 2.0f * B2_PI ) / (float)kSegments ) )
-		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ i ];
-
-			b2Vec2 pos = { cosf( theta ), sinf( theta ) };
-			pos *= radius;
-			pos += circleOrigin;
-			pos *= fPixelsPerMeter;
-
-			output_vert.Zero();
-			output_vert.SetPos( pos.x, pos.y );
-		}
-
-		Rtt::Geometry::Vertex::SetColor( vertexCount,
-											output_vertices,
-											color.r,
-											color.g,
-											color.b,
-											1.f );
-
-		fData.fGeometry->SetPrimitiveType( Geometry::kLineLoop );
-		fRenderer->Insert( &fData );
-	}
+	// Draw the outline of the circle.
+	_AppendLineLoop( arc, kSegments, color );
 
 	if( optionalAxis )
 	{
@@ -864,6 +888,7 @@ void b2GLESDebugDraw::DrawSolidCapsule(b2Vec2 p1, b2Vec2 p2, float radius, Box2d
 {
 	b2Vec2 axis = b2Normalize( p2 - p1 );
 	float angle = b2Atan2( axis.y, axis.x );
+	b2Rot rot = b2MakeRot( angle );
 
 	const int kArcSegments = 8;
 	const int vertexCount = 2 + 2 * kArcSegments; // 4 corners + (kArcSegments - 1) arc points per cap.
@@ -873,149 +898,56 @@ void b2GLESDebugDraw::DrawSolidCapsule(b2Vec2 p1, b2Vec2 p2, float radius, Box2d
 	// angle - 90° side of p1, sweeps around the outside of the p1 cap to the
 	// angle + 90° side, follows that side to p2, sweeps around the outside of
 	// the p2 cap back to the angle - 90° side, and closes on the start.
+	// Unit-circle table indices: -90° = 12, +90° = 4 (16 segments, PI/8 steps).
+	const b2Vec2 *unit = UnitCircle();
+
 	b2Vec2 outline[ vertexCount ];
 	int index = 0;
 
-	b2Vec2 offset = { cosf( angle - B2_PI / 2.0f ), sinf( angle - B2_PI / 2.0f ) };
-	outline[ index++ ] = p1 + radius * offset;
+	outline[ index++ ] = p1 + radius * b2RotateVector( rot, unit[ 12 ] );
 
 	for( int i = 1; i < kArcSegments; ++i )
 	{
-		float theta = angle - B2_PI / 2.0f - ( B2_PI * (float)i ) / (float)kArcSegments;
-		b2Vec2 arcOffset = { cosf( theta ), sinf( theta ) };
-		outline[ index++ ] = p1 + radius * arcOffset;
+		outline[ index++ ] = p1 + radius * b2RotateVector( rot, unit[ ( 12 - i + 16 ) % 16 ] );
 	}
 
-	offset = { cosf( angle + B2_PI / 2.0f ), sinf( angle + B2_PI / 2.0f ) };
-	outline[ index++ ] = p1 + radius * offset;
-	outline[ index++ ] = p2 + radius * offset;
+	outline[ index++ ] = p1 + radius * b2RotateVector( rot, unit[ 4 ] );
+	outline[ index++ ] = p2 + radius * b2RotateVector( rot, unit[ 4 ] );
 
 	for( int i = 1; i < kArcSegments; ++i )
 	{
-		float theta = angle + B2_PI / 2.0f - ( B2_PI * (float)i ) / (float)kArcSegments;
-		b2Vec2 arcOffset = { cosf( theta ), sinf( theta ) };
-		outline[ index++ ] = p2 + radius * arcOffset;
+		outline[ index++ ] = p2 + radius * b2RotateVector( rot, unit[ ( 4 - i + 16 ) % 16 ] );
 	}
 
-	offset = { cosf( angle - B2_PI / 2.0f ), sinf( angle - B2_PI / 2.0f ) };
-	outline[ index++ ] = p2 + radius * offset;
+	outline[ index++ ] = p2 + radius * b2RotateVector( rot, unit[ 12 ] );
 
-	// Draw the body: one triangle fan whose common vertex is the capsule center.
-	// The closing vertex wraps back to the start of the outline.
+	// Draw the body: one triangle fan whose common vertex is the capsule
+	// center. The closing vertex wraps back to the start of the outline.
 	{
 		const int fillVertexCount = 1 + vertexCount + 1;
 
-		_SetVerticesUsed( fillVertexCount );
+		b2Vec2 fan[ fillVertexCount ];
 
-		Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-		// Capsule center (common vertex of the triangle fan).
-		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ 0 ];
-
-			b2Vec2 center = p1 + p2;
-			center *= 0.5f;
-
-			output_vert.Zero();
-			output_vert.SetPos( center.x * fPixelsPerMeter,
-								center.y * fPixelsPerMeter );
-		}
+		b2Vec2 center = p1 + p2;
+		center *= 0.5f;
+		fan[ 0 ] = center;
 
 		for( int i = 0; i < vertexCount; ++i )
 		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ 1 + i ];
-
-			output_vert.Zero();
-			output_vert.SetPos( outline[ i ].x * fPixelsPerMeter,
-								outline[ i ].y * fPixelsPerMeter );
+			fan[ 1 + i ] = outline[ i ];
 		}
+		fan[ 1 + vertexCount ] = outline[ 0 ];
 
-		// Closing vertex.
-		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ 1 + vertexCount ];
-
-			output_vert.Zero();
-			output_vert.SetPos( outline[ 0 ].x * fPixelsPerMeter,
-								outline[ 0 ].y * fPixelsPerMeter );
-		}
-
-		Rtt::Geometry::Vertex::SetColor( fillVertexCount,
-											output_vertices,
-											0.5*color.r,
-											0.5*color.g,
-											0.5*color.b,
-											0.5 );
-
-		fData.fGeometry->SetPrimitiveType( Geometry::kTriangleFan );
-		fRenderer->Insert( &fData );
+		_AppendFillFan( fan, fillVertexCount, color );
 	}
 
 	// Draw the outline as one continuous line.
-	{
-		_SetVerticesUsed( vertexCount );
-
-		Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-		for( int i = 0; i < vertexCount; ++i )
-		{
-			Rtt::Geometry::Vertex &output_vert = output_vertices[ i ];
-
-			output_vert.Zero();
-			output_vert.SetPos( outline[ i ].x * fPixelsPerMeter,
-								outline[ i ].y * fPixelsPerMeter );
-		}
-
-		Rtt::Geometry::Vertex::SetColor( vertexCount,
-											output_vertices,
-											color.r,
-											color.g,
-											color.b,
-											1.f );
-
-		fData.fGeometry->SetPrimitiveType( Geometry::kLineLoop );
-		fRenderer->Insert( &fData );
-	}
+	_AppendLineLoop( outline, vertexCount, color );
 }
 
 void b2GLESDebugDraw::DrawSegment(const b2Vec2& p1, const b2Vec2& p2, Box2dDebugColor color)
 {
-	const int vertexCount = 2;
-
-	_SetVerticesUsed( vertexCount );
-
-	Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-	// Start point.
-	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 0 ];
-
-		output_vert.Zero();
-
-		output_vert.SetPos( ( p1.x * fPixelsPerMeter ),
-							( p1.y * fPixelsPerMeter ) );
-	}
-
-	// End point.
-	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 1 ];
-
-		output_vert.Zero();
-
-		output_vert.SetPos( ( p2.x * fPixelsPerMeter ),
-							( p2.y * fPixelsPerMeter ) );
-	}
-
-	// Set the color.
-	Rtt::Geometry::Vertex::SetColor( vertexCount,
-										output_vertices,
-										color.r,
-										color.g,
-										color.b,
-										1.0f );
-
-	// Draw.
-	fData.fGeometry->SetPrimitiveType( Geometry::kLines );
-	fRenderer->Insert( &fData );
+	_AppendLineSegment( p1, p2, color );
 }
 
 void b2GLESDebugDraw::DrawTransform(const b2Transform& xf)
@@ -1050,63 +982,15 @@ void b2GLESDebugDraw::DrawString(int x, int y, const char *string, ...)
 
 void b2GLESDebugDraw::DrawAABB(b2AABB* aabb, Box2dDebugColor c)
 {
-	const int vertexCount = 4;
-
-	_SetVerticesUsed( vertexCount );
-
-	Rtt::Geometry::Vertex *output_vertices = fData.fGeometry->GetVertexData();
-
-	// Upper left.
+	b2Vec2 vertices[ 4 ] =
 	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 0 ];
+		{ aabb->lowerBound.x, aabb->lowerBound.y },
+		{ aabb->upperBound.x, aabb->lowerBound.y },
+		{ aabb->upperBound.x, aabb->upperBound.y },
+		{ aabb->lowerBound.x, aabb->upperBound.y },
+	};
 
-		output_vert.Zero();
-
-		output_vert.SetPos( ( aabb->lowerBound.x * fPixelsPerMeter ),
-							( aabb->lowerBound.y * fPixelsPerMeter ) );
-	}
-
-	// Upper right.
-	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 1 ];
-
-		output_vert.Zero();
-
-		output_vert.SetPos( ( aabb->upperBound.x * fPixelsPerMeter ),
-							( aabb->lowerBound.y * fPixelsPerMeter ) );
-	}
-
-	// Lower right.
-	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 2 ];
-
-		output_vert.Zero();
-
-		output_vert.SetPos( ( aabb->upperBound.x * fPixelsPerMeter ),
-							( aabb->upperBound.y * fPixelsPerMeter ) );
-	}
-
-	// Lower left.
-	{
-		Rtt::Geometry::Vertex &output_vert = output_vertices[ 3 ];
-
-		output_vert.Zero();
-
-		output_vert.SetPos( ( aabb->lowerBound.x * fPixelsPerMeter ),
-							( aabb->upperBound.y * fPixelsPerMeter ) );
-	}
-
-	// Set the color.
-	Rtt::Geometry::Vertex::SetColor( vertexCount,
-										output_vertices,
-										c.r,
-										c.g,
-										c.b,
-										1.0f );
-
-	// Draw.
-	fData.fGeometry->SetPrimitiveType( Geometry::kLineLoop );
-	fRenderer->Insert( &fData );
+	_AppendLineLoop( vertices, 4, c );
 }
 
 // ----------------------------------------------------------------------------
