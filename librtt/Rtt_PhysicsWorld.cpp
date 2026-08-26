@@ -400,6 +400,7 @@ PhysicsWorld::StopWorld()
 
 		b2DestroyWorld( fWorld->GetWorldId() );
 		fPhysicsBodies.clear();
+		fDeferredBodyDestructions.clear();
 		fCompoundInternalEdgePreSolveShapes.clear();
 		fCompoundInternalEdges.clear();
 
@@ -458,7 +459,136 @@ PhysicsWorld::RegisterPhysicsBody( b2BodyId bodyId )
 }
 
 void
-PhysicsWorld::EnableCompoundInternalEdgePreSolve( b2ShapeId shapeId )
+PhysicsWorld::RemoveCompoundInternalEdges( b2BodyId bodyId, bool disablePreSolveEvents )
+{
+	size_t writeIndex = 0;
+	for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
+	{
+		const CompoundInternalEdgePreSolveShape& entry = fCompoundInternalEdgePreSolveShapes[i];
+		if ( B2_ID_EQUALS( entry.bodyId, bodyId ) )
+		{
+			if ( disablePreSolveEvents && b2Shape_IsValid( entry.shapeId ) )
+			{
+				b2Shape_EnablePreSolveEvents( entry.shapeId, false );
+			}
+		}
+		else
+		{
+			fCompoundInternalEdgePreSolveShapes[writeIndex++] = entry;
+		}
+	}
+	fCompoundInternalEdgePreSolveShapes.resize( writeIndex );
+
+	writeIndex = 0;
+	for ( size_t i = 0; i < fCompoundInternalEdges.size(); ++i )
+	{
+		const CompoundInternalEdge& edge = fCompoundInternalEdges[i];
+		if ( B2_ID_EQUALS( edge.bodyId, bodyId ) == false )
+		{
+			fCompoundInternalEdges[writeIndex++] = edge;
+		}
+	}
+	fCompoundInternalEdges.resize( writeIndex );
+}
+
+void
+PhysicsWorld::UnregisterPhysicsBody( b2BodyId bodyId )
+{
+	size_t writeIndex = 0;
+	for ( size_t i = 0; i < fPhysicsBodies.size(); ++i )
+	{
+		if ( B2_ID_EQUALS( fPhysicsBodies[i], bodyId ) == false )
+		{
+			fPhysicsBodies[writeIndex++] = fPhysicsBodies[i];
+		}
+	}
+	fPhysicsBodies.resize( writeIndex );
+
+	RemoveCompoundInternalEdges( bodyId, true );
+}
+
+void
+PhysicsWorld::DestroyPhysicsBody( b2BodyId bodyId )
+{
+	if ( ! b2Body_IsValid( bodyId ) )
+	{
+		UnregisterPhysicsBody( bodyId );
+		return;
+	}
+
+	if ( fWorld && fWorld->IsLocked() )
+	{
+		// Box2D does not permit structural changes during callbacks. Clearing the
+		// userdata is safe and prevents later callbacks from reaching the removed
+		// DisplayObject until destruction is flushed after the step.
+		b2Body_SetUserData( bodyId, NULL );
+		for ( size_t i = 0; i < fDeferredBodyDestructions.size(); ++i )
+		{
+			if ( B2_ID_EQUALS( fDeferredBodyDestructions[i], bodyId ) )
+			{
+				return;
+			}
+		}
+		fDeferredBodyDestructions.push_back( bodyId );
+		return;
+	}
+
+	UnregisterPhysicsBody( bodyId );
+	b2DestroyBody( bodyId );
+}
+
+void
+PhysicsWorld::FlushDeferredBodyDestructions()
+{
+	for ( size_t i = 0; i < fDeferredBodyDestructions.size(); ++i )
+	{
+		b2BodyId bodyId = fDeferredBodyDestructions[i];
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			UnregisterPhysicsBody( bodyId );
+			b2DestroyBody( bodyId );
+		}
+		else
+		{
+			UnregisterPhysicsBody( bodyId );
+		}
+	}
+	fDeferredBodyDestructions.clear();
+}
+
+void
+PhysicsWorld::InvalidateCompoundInternalEdges( b2BodyId bodyId )
+{
+	RemoveCompoundInternalEdges( bodyId, true );
+}
+
+void
+PhysicsWorld::RefreshCompoundInternalEdges( b2BodyId bodyId )
+{
+	RemoveCompoundInternalEdges( bodyId, true );
+	if ( fCompoundInternalEdgeSuppressionEnabled && b2Body_IsValid( bodyId ) )
+	{
+		BuildCompoundInternalEdges( bodyId );
+	}
+}
+
+void
+PhysicsWorld::ReleaseCompoundInternalEdgePreSolveOwnership( b2ShapeId shapeId )
+{
+	size_t writeIndex = 0;
+	for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
+	{
+		const CompoundInternalEdgePreSolveShape& entry = fCompoundInternalEdgePreSolveShapes[i];
+		if ( B2_ID_EQUALS( entry.shapeId, shapeId ) == false )
+		{
+			fCompoundInternalEdgePreSolveShapes[writeIndex++] = entry;
+		}
+	}
+	fCompoundInternalEdgePreSolveShapes.resize( writeIndex );
+}
+
+void
+PhysicsWorld::EnableCompoundInternalEdgePreSolve( b2BodyId bodyId, b2ShapeId shapeId )
 {
 	if ( b2Shape_ArePreSolveEventsEnabled( shapeId ) )
 	{
@@ -466,7 +596,8 @@ PhysicsWorld::EnableCompoundInternalEdgePreSolve( b2ShapeId shapeId )
 	}
 
 	b2Shape_EnablePreSolveEvents( shapeId, true );
-	fCompoundInternalEdgePreSolveShapes.push_back( shapeId );
+	CompoundInternalEdgePreSolveShape entry = { bodyId, shapeId };
+	fCompoundInternalEdgePreSolveShapes.push_back( entry );
 }
 
 void
@@ -543,15 +674,15 @@ PhysicsWorld::BuildCompoundInternalEdges( b2BodyId bodyId )
 					}
 
 					CompoundInternalEdge edgeA = {
-						polygonShapeA.shapeId, pointA1, pointA2, polygonA.normals[edgeIndexA]
+						bodyId, polygonShapeA.shapeId, pointA1, pointA2, polygonA.normals[edgeIndexA]
 					};
 					CompoundInternalEdge edgeB = {
-						polygonShapeB.shapeId, pointB1, pointB2, polygonB.normals[edgeIndexB]
+						bodyId, polygonShapeB.shapeId, pointB1, pointB2, polygonB.normals[edgeIndexB]
 					};
 					fCompoundInternalEdges.push_back( edgeA );
 					fCompoundInternalEdges.push_back( edgeB );
-					EnableCompoundInternalEdgePreSolve( polygonShapeA.shapeId );
-					EnableCompoundInternalEdgePreSolve( polygonShapeB.shapeId );
+					EnableCompoundInternalEdgePreSolve( bodyId, polygonShapeA.shapeId );
+					EnableCompoundInternalEdgePreSolve( bodyId, polygonShapeB.shapeId );
 				}
 			}
 		}
@@ -589,7 +720,7 @@ PhysicsWorld::SetCompoundInternalEdgeSuppressionEnabled( bool enabled )
 	{
 		for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
 		{
-			b2ShapeId shapeId = fCompoundInternalEdgePreSolveShapes[i];
+			b2ShapeId shapeId = fCompoundInternalEdgePreSolveShapes[i].shapeId;
 			if ( b2Shape_IsValid( shapeId ) )
 			{
 				b2Shape_EnablePreSolveEvents( shapeId, false );
@@ -851,9 +982,11 @@ PhysicsWorld::StepWorld( double elapsedMS )
 				// We assume that any body with no UserData should be destroyed here, since the UserData initially stores the corresponding
 				// Corona display object on body construction, and is then set to NULL when the corresponding display object has been deleted.
 				// world.DestroyBody( body );
-				b2DestroyBody( event->bodyId );
+				DestroyPhysicsBody( event->bodyId );
 			}
 		}
+
+		FlushDeferredBodyDestructions();
 
 		/*
 		void *finalizedUserdata = UserdataWrapper::GetFinalizedValue();

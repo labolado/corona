@@ -78,6 +78,7 @@ class DisplayObjectExtensions : public LuaProxyVTable
 #ifdef Rtt_PHYSICS
 	public:
 		void SetBody( b2BodyId bodyId, b2WorldId worldId );
+		void ClearBody() { fBodyId = b2_nullBodyId; }
 		b2BodyId GetBody() const { return fBodyId; }
 #endif // Rtt_PHYSICS
 

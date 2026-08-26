@@ -84,6 +84,10 @@ class PhysicsWorld
 		void SetProperty( Properties mask, bool value );
 		void SetRuntimePreCollisionListenerExists( bool value );
 		void RegisterPhysicsBody( b2BodyId bodyId );
+		void DestroyPhysicsBody( b2BodyId bodyId );
+		void InvalidateCompoundInternalEdges( b2BodyId bodyId );
+		void RefreshCompoundInternalEdges( b2BodyId bodyId );
+		void ReleaseCompoundInternalEdgePreSolveOwnership( b2ShapeId shapeId );
 
 		void SetCompoundInternalEdgeSuppressionEnabled( bool enabled );
 		bool GetCompoundInternalEdgeSuppressionEnabled() const { return fCompoundInternalEdgeSuppressionEnabled; }
@@ -119,11 +123,21 @@ class PhysicsWorld
 
 	private:
 		void StepEvents();
+		void FlushDeferredBodyDestructions();
+		void UnregisterPhysicsBody( b2BodyId bodyId );
+		void RemoveCompoundInternalEdges( b2BodyId bodyId, bool disablePreSolveEvents );
 		void BuildCompoundInternalEdges( b2BodyId bodyId );
-		void EnableCompoundInternalEdgePreSolve( b2ShapeId shapeId );
+		void EnableCompoundInternalEdgePreSolve( b2BodyId bodyId, b2ShapeId shapeId );
+
+		struct CompoundInternalEdgePreSolveShape
+		{
+			b2BodyId bodyId;
+			b2ShapeId shapeId;
+		};
 
 		struct CompoundInternalEdge
 		{
+			b2BodyId bodyId;
 			b2ShapeId shapeId;
 			b2Vec2 point1;
 			b2Vec2 point2;
@@ -169,7 +183,8 @@ class PhysicsWorld
 		S32 fNumSteps;
 		bool fCompoundInternalEdgeSuppressionEnabled;
 		std::vector<b2BodyId> fPhysicsBodies;
-		std::vector<b2ShapeId> fCompoundInternalEdgePreSolveShapes;
+		std::vector<b2BodyId> fDeferredBodyDestructions;
+		std::vector<CompoundInternalEdgePreSolveShape> fCompoundInternalEdgePreSolveShapes;
 		std::vector<CompoundInternalEdge> fCompoundInternalEdges;
 
 		//! false: Contact points are reported in local-space.

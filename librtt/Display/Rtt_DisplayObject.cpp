@@ -1884,8 +1884,17 @@ DisplayObject::RemoveExtensions()
     {
         b2BodyId bodyId = fExtensions->GetBody();
         if ( b2Body_IsValid(bodyId) ) {
-            b2DestroyBody( bodyId );
-            fExtensions->SetBody( b2_nullBodyId, b2_nullWorldId);
+            StageObject *stage = GetStage();
+            if ( stage )
+            {
+                PhysicsWorld& physics = stage->GetDisplay().GetRuntime().GetPhysicsWorld();
+                physics.DestroyPhysicsBody( bodyId );
+            }
+            else
+            {
+                b2DestroyBody( bodyId );
+            }
+            fExtensions->ClearBody();
         }
         Rtt_DELETE( fExtensions );
         fExtensions = NULL;
@@ -1914,4 +1923,3 @@ DisplayObject::RemovedFromParent( lua_State * L, GroupObject * parent )
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-

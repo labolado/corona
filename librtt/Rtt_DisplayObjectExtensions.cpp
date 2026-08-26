@@ -387,7 +387,7 @@ DisplayObjectExtensions::getLinearVelocityFromLocalPoint(lua_State* L)
 
 typedef void shapeSetStateFcn( b2ShapeId shapeId, bool state );
 
-static int setBodyStateWithShapeIndex( lua_State* L, shapeSetStateFcn* setState )
+static int setBodyStateWithShapeIndex( lua_State* L, shapeSetStateFcn* setState, bool releaseCompoundPreSolveOwnership = false )
 {
 	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
 
@@ -417,6 +417,11 @@ static int setBodyStateWithShapeIndex( lua_State* L, shapeSetStateFcn* setState 
 		shapeArray.resize( count );
 		b2Body_GetShapes( bodyId, shapeArray.data(), count );
 		for ( int i = shapeIndexStart; i < shapeIndexEnd; ++i ) {
+			if ( releaseCompoundPreSolveOwnership )
+			{
+				PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+				physics.ReleaseCompoundInternalEdgePreSolveOwnership( shapeArray[i] );
+			}
 			setState( shapeArray[ i ], state );
 		}
 
@@ -478,7 +483,7 @@ DisplayObjectExtensions::setSensorEventsEnabled( lua_State* L )
 int
 DisplayObjectExtensions::setPreSolveEventsEnabled( lua_State* L )
 {
-	return setBodyStateWithShapeIndex( L, b2Shape_EnablePreSolveEvents );
+	return setBodyStateWithShapeIndex( L, b2Shape_EnablePreSolveEvents, true );
 }
 
 int
@@ -998,6 +1003,8 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 				std::vector<b2ShapeId> shapeArray;
 				shapeArray.resize( count );
 				b2Body_GetShapes( fBodyId, shapeArray.data(), count );
+				PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+				bool compoundEdgesInvalidated = false;
 				int destroyCount = 0;
 				std::vector<b2ChainId> chains;
 				for ( int i = 0; i < count; ++i )
@@ -1005,6 +1012,11 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 					b2ShapeId shapeId = shapeArray[i];
 					if ( b2Shape_IsSensor( shapeId ) != sensorState )
 					{
+						if ( compoundEdgesInvalidated == false )
+						{
+							physics.InvalidateCompoundInternalEdges( fBodyId );
+							compoundEdgesInvalidated = true;
+						}
 						b2ShapeType type = b2Shape_GetType( shapeId );
 						if (type != b2ShapeType::b2_chainSegmentShape)
 						{
@@ -1140,7 +1152,11 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 						}
 					}
 				}
-				if (destroyCount > 0) { b2Body_ApplyMassFromShapes( fBodyId ); }
+				if (destroyCount > 0)
+				{
+					b2Body_ApplyMassFromShapes( fBodyId );
+					physics.RefreshCompoundInternalEdges( fBodyId );
+				}
 			}
 			break;
 		case 10:
