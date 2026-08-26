@@ -180,6 +180,7 @@ Renderer::Renderer( Rtt_Allocator* allocator )
     fMaskCount( allocator ),
     fCurrentProgramMaskCount( 0 ),
     fWireframeEnabled( false ),
+    fTriangleListBatchingEnabled( false ),
     fStatisticsEnabled( false ),
     fScissorEnabled( false ),
     fMultisampleEnabled( false ),
@@ -672,10 +673,25 @@ Renderer::Insert( const RenderData* data, const ShaderData * shaderData )
 				|| fCaptureGroups.Length() > 0 
                 || batchBreakingDirtyCount > 0 );
 
-        // Only triangle strips are batched. All other primitive types
-        // force the previous batch to draw and a new one to be started.
+        // Triangle strips are always batchable. Complete, non-indexed triangle
+        // lists may also be batched when explicitly enabled. Requiring both the
+        // current and previous lists to contain complete triangles preserves the
+        // legacy behavior where GL ignores one or two trailing vertices instead
+        // of joining them to vertices from the next geometry.
         Geometry::PrimitiveType primitiveType = geometry->GetPrimitiveType();
-        if( primitiveType != fPreviousPrimitiveType || primitiveType != Geometry::kTriangleStrip )
+        bool primitiveSupportsBatching = primitiveType == Geometry::kTriangleStrip;
+
+        if( fTriangleListBatchingEnabled && primitiveType == Geometry::kTriangles )
+        {
+            Geometry* previousGeometry = fPrevious.fGeometry;
+            primitiveSupportsBatching =
+                0 == geometry->GetVerticesUsed() % 3 &&
+                previousGeometry &&
+                previousGeometry->GetPrimitiveType() == Geometry::kTriangles &&
+                0 == previousGeometry->GetVerticesUsed() % 3;
+        }
+
+        if( primitiveType != fPreviousPrimitiveType || !primitiveSupportsBatching )
         {
             batch = false;
         }
@@ -1516,6 +1532,18 @@ void
 Renderer::SetWireframeEnabled( bool enabled )
 {
     fWireframeEnabled = enabled;
+}
+
+bool
+Renderer::GetTriangleListBatchingEnabled() const
+{
+    return fTriangleListBatchingEnabled;
+}
+
+void
+Renderer::SetTriangleListBatchingEnabled( bool enabled )
+{
+    fTriangleListBatchingEnabled = enabled;
 }
 
 U32

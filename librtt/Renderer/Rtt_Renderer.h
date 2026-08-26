@@ -183,6 +183,13 @@ class Renderer
         // Render triangles as outlines with no interior. Useful for debugging.
         void SetWireframeEnabled( bool enabled );
 
+        // Return whether complete, non-indexed triangle lists may be batched.
+        // Disabled by default for compatibility with the legacy renderer.
+        bool GetTriangleListBatchingEnabled() const;
+
+        // Enable or disable batching of compatible Geometry::kTriangles data.
+        void SetTriangleListBatchingEnabled( bool enabled );
+
 		static U32 GetMaxTextureSize();
 		static const char *GetGlString( const char *s );
 		static bool GetGpuSupportsHighPrecisionFragmentShaders();
@@ -351,6 +358,7 @@ class Renderer
         U32 fCurrentProgramMaskCount;
 
         bool fWireframeEnabled;
+        bool fTriangleListBatchingEnabled;
         bool fStatisticsEnabled;
         Statistics fStatistics;
         Rtt_AbsoluteTime fStartTime;

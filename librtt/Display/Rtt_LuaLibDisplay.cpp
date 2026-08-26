@@ -1959,6 +1959,11 @@ DisplayLibrary::getDefault( lua_State *L )
         bool value = defaults.IsShaderCompilerVerbose();
         lua_pushboolean( L, value ? 1 : 0 );
     }
+    else if ( Rtt_StringCompare( key, "triangleListBatchingEnabled" ) == 0 )
+    {
+        bool value = display.GetRenderer().GetTriangleListBatchingEnabled();
+        lua_pushboolean( L, value ? 1 : 0 );
+    }
     else if ( ( Rtt_StringCompare( key, "isAnchorClamped" ) == 0 ) )
     {
         bool value = defaults.IsAnchorClamped();
@@ -2150,6 +2155,16 @@ DisplayLibrary::setDefault( lua_State *L )
     {
         bool value = lua_toboolean( L, index ) ? true : false;
         defaults.SetShaderCompilerVerbose( value );
+    }
+    else if ( Rtt_StringCompare( key, "triangleListBatchingEnabled" ) == 0 )
+    {
+        bool value = lua_toboolean( L, index ) ? true : false;
+        Renderer& renderer = display.GetRenderer();
+        if ( value != renderer.GetTriangleListBatchingEnabled() )
+        {
+            renderer.SetTriangleListBatchingEnabled( value );
+            display.Invalidate();
+        }
     }
     else if ( ( Rtt_StringCompare( key, "isAnchorClamped" ) == 0 ) )
     {
@@ -3730,4 +3745,3 @@ LuaLibDisplay::LuaNewPaint( lua_State *L, int index )
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-
