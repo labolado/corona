@@ -143,20 +143,21 @@ SDFInstanceRenderer::CreateBaseQuad()
 {
 	bgfx::VertexLayout layout;
 	layout.begin()
-		.add( bgfx::Attrib::Position, 2, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::Position, 3, bgfx::AttribType::Float )
+		.add( bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float )
 	.end();
 
 	struct QuadVertex
 	{
-		float x, y;
+		float x, y, z, u, v;
 	};
 
 	static const QuadVertex vertices[4] =
 	{
-		{ -1.0f, -1.0f },
-		{  1.0f, -1.0f },
-		{ -1.0f,  1.0f },
-		{  1.0f,  1.0f },
+		{ -1.0f, -1.0f, 0.0f, 0.0f, 0.0f },
+		{  1.0f, -1.0f, 0.0f, 1.0f, 0.0f },
+		{ -1.0f,  1.0f, 0.0f, 0.0f, 1.0f },
+		{  1.0f,  1.0f, 0.0f, 1.0f, 1.0f },
 	};
 
 	fBaseQuadVB = bgfx::createVertexBuffer(

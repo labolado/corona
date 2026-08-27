@@ -1021,6 +1021,13 @@ BgfxCommandBuffer::ExecuteDraw( const DeferredCmd& cmd )
 
         bgfx::setState( cmd.bgfxState );
 
+        // bgfx view/projection are identity in this backend. Supply Solar2D's
+        // view-projection matrix as the draw transform so u_modelViewProj is valid.
+        if ( cmd.uniforms[Uniform::kViewProjectionMatrix].valid )
+        {
+            bgfx::setTransform( cmd.uniforms[Uniform::kViewProjectionMatrix].data );
+        }
+
         if ( cmd.scissorEnabled )
         {
             bgfx::setScissor( cmd.scissorX, cmd.scissorY, cmd.scissorW, cmd.scissorH );

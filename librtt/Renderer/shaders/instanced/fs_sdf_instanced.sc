@@ -70,7 +70,7 @@ vec2 getShapeVert(int id, int i)
         if (i == 1) return vec2( 0.7361,  0.4250);
         return vec2(-0.7361,  0.4250);
     }
-
+    // id == 7 = 6-star (10 verts)
     if (i == 0) return vec2( 0.0000, -0.8200);
     if (i == 1) return vec2( 0.2100, -0.3637);
     if (i == 2) return vec2( 0.7101, -0.4100);
@@ -93,26 +93,28 @@ float sdPoly(vec2 p, int id, int n)
     for (int i = 0; i < 10; ++i)
     {
         if (i >= n) break;
-
         vec2 vi = getShapeVert(id, i);
         vec2 vj = getShapeVert(id, j);
         vec2 e = vj - vi;
         vec2 w = p - vi;
         vec2 b = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
         d = min(d, dot(b, b));
-
         bool c1 = p.y >= vi.y;
         bool c2 = p.y < vj.y;
         bool c3 = e.x * w.y > e.y * w.x;
-        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3))
-        {
-            s = -s;
-        }
-
+        if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) { s = -s; }
         j = i;
     }
-
     return s * sqrt(d);
+}
+
+// Bevel height at point p within bandwidth bw
+float getH(vec2 p, int id, int n, float bw)
+{
+    float d = sdPoly(p, id, n);
+    if (d > 0.0) return 0.0;
+    float t = clamp(-d / bw, 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
 }
 
 void main()
@@ -128,14 +130,36 @@ void main()
     );
 
     float d = sdPoly(p, shapeId, n);
-    float aa = max(fwidth(d), 0.0001);
-    float alpha = smoothstep(-aa, aa, d);
-    vec4 color = v_color * alpha;
+    float fw = max(fwidth(d), 0.0001);
+    float alpha = 1.0 - smoothstep(-fw, fw, d);
 
-    if (color.a < 0.001)
+    if (alpha < 0.001)
     {
         discard;
     }
 
-    gl_FragColor = color;
+    float bw = 0.13;
+    float bd = 0.087;
+    float gloss = 28.0;
+    float specIntensity = 0.55;
+    float lightZ = 1.0;
+    vec2 eps = vec2(0.004, 0.0);
+
+    float t0 = clamp(-d / bw, 0.0, 1.0);
+    float hc = d > 0.0 ? 0.0 : t0 * t0 * (3.0 - 2.0 * t0);
+    float hx = getH(p + eps.xy, shapeId, n, bw) - hc;
+    float hy = getH(p + eps.yx, shapeId, n, bw) - hc;
+
+    vec3 normal = normalize(vec3(-vec2(hx, hy) * (bd / (2.0 * eps.x)), 1.0));
+    vec3 lightDir = normalize(vec3(0.6, -0.6, lightZ));
+    vec3 halfDir = normalize(lightDir + vec3(0.0, 0.0, 1.0));
+    float diffuse = max(dot(normal, lightDir), 0.0);
+    float specular = pow(max(dot(normal, halfDir), 0.0), gloss);
+
+    float flatness = smoothstep(0.0, 0.8, hc);
+    float brightness = mix(0.35 + diffuse * 0.65, 0.85, flatness);
+    float spec = specular * specIntensity * (1.0 - flatness * 0.8);
+    vec3 lit = v_color.rgb * brightness + vec3(spec, spec, spec);
+
+    gl_FragColor = vec4(lit, v_color.a * alpha);
 }
