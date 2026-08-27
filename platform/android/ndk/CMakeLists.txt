@@ -869,6 +869,11 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/smoothpolygon/SmoothPolygon.cpp
 )
 
+set_source_files_properties(
+	${CORONA_ROOT}/external/sqlite3/sqlite3.c
+	PROPERTIES COMPILE_OPTIONS "-fno-strict-aliasing;-Wno-implicit-const-int-float-conversion"
+)
+
 if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64"))
 	# NDK version < 28
 	target_link_options(corona PRIVATE "-Wl,-z,max-page-size=16384")
