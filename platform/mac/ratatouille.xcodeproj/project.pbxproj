@@ -1658,6 +1658,9 @@
 		D4FB584AE38B7B4C1E73EB69 /* Rtt_BgfxMetalScale.mm in Sources */ = {isa = PBXBuildFile; fileRef = F2B91133D0BD622D8B67CE97 /* Rtt_BgfxMetalScale.mm */; };
 		D7BBE48CE731F22E1CFCF094 /* Rtt_BgfxFrameBufferObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EB59C7E9573B0FCBDD829A40 /* Rtt_BgfxFrameBufferObject.cpp */; };
 		DB52D2B2C26916FBB5A2548F /* Rtt_LuaLibSDFInstance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */; };
+		203BD7437D2CB63D788D7EC2 /* Rtt_SDFInstanceRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25AE89CFC31E9B68DC94A6F1 /* Rtt_SDFInstanceRenderer.cpp */; };
+		44CDB4374899D8749A0AA910 /* Rtt_SDFGroupObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0802754CAD95D6117ECB4106 /* Rtt_SDFGroupObject.cpp */; };
+		9630ACCC6F2B45670C013949 /* Rtt_LuaLibSDFInstance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F42EEF4ABDB8ABC1E10F7536 /* Rtt_LuaLibSDFInstance.cpp */; };
 		DB56B4CA284C2E7D00EC8B14 /* Rtt_AppleKeyServices.h in Headers */ = {isa = PBXBuildFile; fileRef = DB56B4C8284C2E7C00EC8B14 /* Rtt_AppleKeyServices.h */; };
 		DB56B4CB284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */; };
 		DB56B4CC284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm in Sources */ = {isa = PBXBuildFile; fileRef = DB56B4C9284C2E7D00EC8B14 /* Rtt_AppleKeyServices.mm */; };
@@ -7466,6 +7469,9 @@
 				E0B0A1C3D2F3E4A5B6C7D8EB /* Rtt_BatchObject.cpp in Sources */,
 				E0B0A1C4D2F3E4A5B6C7D8EC /* Rtt_BatchObject_Lua.cpp in Sources */,
 				D4FB584AE38B7B4C1E73EB69 /* Rtt_BgfxMetalScale.mm in Sources */,
+				203BD7437D2CB63D788D7EC2 /* Rtt_SDFInstanceRenderer.cpp in Sources */,
+				44CDB4374899D8749A0AA910 /* Rtt_SDFGroupObject.cpp in Sources */,
+				9630ACCC6F2B45670C013949 /* Rtt_LuaLibSDFInstance.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
