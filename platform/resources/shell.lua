@@ -288,6 +288,15 @@ local PluginSync =
 
 local json = require("json")
 
+local function canonicalBuild()
+	local build = system.getInfo("build")
+	local year, revision = string.match(build, "^(%d+)%.(%d+)")
+	if year and revision then
+		return year .. "." .. revision
+	end
+	return build
+end
+
 -- luacheck: push
 -- luacheck: ignore 212 -- Unused argument.
 function PluginSync:debugPrint(...)
@@ -325,7 +334,7 @@ function PluginSync:LoadCatalog()
 	end
 
 	local catalogBuildNumber = catalog.CoronaBuild
-	if catalogBuildNumber ~= system.getInfo("build") then
+	if catalogBuildNumber ~= canonicalBuild() then
 		return
 	end
 
@@ -342,7 +351,7 @@ function PluginSync:initialize( platform )
 end
 
 function PluginSync:UpdateClientCatalog()
-	self.clientCatalog.CoronaBuild = system.getInfo("build")
+	self.clientCatalog.CoronaBuild = canonicalBuild()
 	local content = json.encode( self.clientCatalog )
 
 	local f, ioErrorMessage = io.open( self.CatalogFilenamePath, 'w' ) -- erase previous contents

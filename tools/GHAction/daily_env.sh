@@ -13,8 +13,8 @@ then
     BUILD_NUMBER_FROM_TAG="$(printf '%s' "$TAG_NAME" | grep -oE '^[0-9]+' || true)"
     : "${BUILD_NUMBER:=${BUILD_NUMBER_FROM_TAG:-$GITHUB_RUN_NUMBER}}"
 else
-    : "${BUILD:=$GITHUB_RUN_NUMBER}"
     : "${BUILD_NUMBER:=$GITHUB_RUN_NUMBER}"
+    : "${BUILD:=$BUILD_NUMBER}"
 fi
 
 {

@@ -222,7 +222,7 @@ LuaLibSystem::getInfo( lua_State *L )
     }
     else if ( Rtt_StringCompare( key, "build" ) == 0 )
     {
-        lua_pushstring( L,  Rtt_STRING_BUILD );
+        lua_pushstring( L,  Rtt_STRING_BUILD_DISPLAY );
     }
     else if ( Rtt_StringCompare( key, "credits" ) == 0 )
     {

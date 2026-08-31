@@ -31,6 +31,12 @@
 #define Rtt_BUILD_REVISION Rtt_LOCAL_BUILD_REVISION
 #endif
 
+// Optional display-only suffix for custom builds. Keep Rtt_BUILD_REVISION
+// numeric because it is also consumed by integer-only platform APIs.
+#ifndef Rtt_BUILD_SUFFIX
+#define Rtt_BUILD_SUFFIX ""
+#endif
+
 // If this is a public release, this should be 0
 #define Rtt_IS_DAILYBUILD	1
 
@@ -46,7 +52,11 @@
 #define Rtt_STRING_VERSION	Rtt_MACRO_TO_STRING( Rtt_VERSION_MAJOR ) "." Rtt_MACRO_TO_STRING( Rtt_VERSION_MINOR ) "." Rtt_MACRO_TO_STRING( Rtt_VERSION_REVISION )
 
 // 2010.1234
-#define Rtt_STRING_BUILD	Rtt_MACRO_TO_STRING( Rtt_BUILD_YEAR ) "." Rtt_MACRO_TO_STRING( Rtt_BUILD_REVISION )
+#define Rtt_STRING_BUILD_BASE	Rtt_MACRO_TO_STRING( Rtt_BUILD_YEAR ) "." Rtt_MACRO_TO_STRING( Rtt_BUILD_REVISION )
+#define Rtt_STRING_BUILD		Rtt_STRING_BUILD_BASE
+
+// 2010.1234.b3.v1
+#define Rtt_STRING_BUILD_DISPLAY Rtt_STRING_BUILD_BASE Rtt_BUILD_SUFFIX
 
 // 2010.9.26
 #define Rtt_STRING_BUILD_DATE Rtt_MACRO_TO_STRING( Rtt_BUILD_YEAR ) "." Rtt_MACRO_TO_STRING( Rtt_BUILD_MONTH ) "." Rtt_MACRO_TO_STRING( Rtt_BUILD_DAY ) 
