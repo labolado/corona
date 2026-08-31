@@ -192,7 +192,7 @@ Runtime::Runtime(const MPlatform& platform, MCallback* viewCallback)
 {
 	Rtt_TRACE_SIM( ( "\n%s\n", Rtt_STRING_COPYRIGHT ) );
 	Rtt_TRACE_SIM( ( "\tVersion: %s\n", Rtt_STRING_VERSION ) );
-	Rtt_TRACE_SIM( ( "\tBuild: %s\n", Rtt_STRING_BUILD ) );
+	Rtt_TRACE_SIM( ( "\tBuild: %s\n", Rtt_STRING_BUILD_DISPLAY ) );
 
 	fResourcesHead->Retain();
 
