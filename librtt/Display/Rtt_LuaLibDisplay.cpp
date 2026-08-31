@@ -905,7 +905,7 @@ DisplayLibrary::newMesh( lua_State *L )
 	ShapePath *path = ShapePath::NewMesh( display.GetAllocator(), ShapeAdapterMesh::GetMeshMode( L, nextArg) );
 	
 	TesselatorMesh *tesselator = (TesselatorMesh *)path->GetTesselator();
-	if ( ShapeAdapterMesh::InitializeMesh( L, nextArg, * tesselator, hasZ ) )
+	if ( ShapeAdapterMesh::InitializeMesh( L, nextArg, * path, hasZ ) )
 	{
         ShapeObject *v = meshFactory( display.GetAllocator(), path );
 

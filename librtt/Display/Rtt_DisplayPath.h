@@ -99,6 +99,7 @@ class DisplayPath
         private:
             static int getAttributeDetails( lua_State *L );
             static int setAttributeValue( lua_State *L );
+            static int setAttributeValues( lua_State *L );
         
         private:
             bool fIsFill;

@@ -266,13 +266,15 @@ template<typename T> void CopyToOutput( T * to, const unsigned char * from, U32 
 }
 
 bool
-ShapeAdapterMesh::InitializeMesh(lua_State *L, int index, TesselatorMesh& tesselator, bool hasZ )
+ShapeAdapterMesh::InitializeMesh(lua_State *L, int index, ShapePath& path, bool hasZ )
 {
 	if ( !lua_istable( L, index ) )
 	{
 		return false;
 	}
 	index = Lua::Normalize( L, index );
+
+	TesselatorMesh& tesselator = *static_cast<TesselatorMesh *>( path.GetTesselator() );
 
 	int indicesStart = 1;
 	lua_getfield( L, index, "zeroBasedIndices" );
@@ -423,7 +425,7 @@ ShapeAdapterMesh::InitializeMesh(lua_State *L, int index, TesselatorMesh& tessel
 	lua_getfield( L, index, "uvs" );
 	const unsigned char* fromUVs = GetBuffer(L, sizeof(Vertex2), baseVertex, numUVs, stride);
 
-	if (fromVertices)
+	if (fromUVs)
 	{
 		if ( vertexCount )
 		{
@@ -470,6 +472,18 @@ ShapeAdapterMesh::InitializeMesh(lua_State *L, int index, TesselatorMesh& tessel
 
 	tesselator.Invalidate();
 	tesselator.Update();
+
+	lua_getfield( L, index, "fillVertexColors" );
+	U32 numFVCs;
+	U32 colorsOutputLen = (U32)mesh.Length();
+	const unsigned char* fromFVCs = GetBuffer(L, sizeof(U32), baseVertex, numFVCs, stride, &colorsOutputLen);
+
+	if (fromFVCs)
+	{
+		U32 *fvcs = path.GetFillVertexColors();
+		CopyToOutput(fvcs, fromFVCs, numFVCs, stride);
+	}
+	lua_pop( L, 1 );
 	
 	return true;
 }
@@ -962,6 +976,8 @@ int ShapeAdapterMesh::update(lua_State *L)
 		{
 			fvcs = path->GetFillVertexColors();
 			CopyToOutput(fvcs, fromFVCs, numFVCs, stride);
+			updated = true;
+			observerInvalidated |= DisplayObject::kGeometryFlag | DisplayObject::kColorFlag;
 		}
 		else if (lua_istable(L, -1))
 		{

@@ -20,6 +20,7 @@
 
 #include "CoronaLua.h"
 #include "CoronaGraphics.h"
+#include "CoronaMemory.h"
 #include "Rtt_LuaContext.h"
 
 #include <vector>
@@ -226,6 +227,9 @@ DisplayPath::ExtensionAdapter::ValueForKey(
         case 2:
             Lua::PushCachedFunction( L, setAttributeValue );
             break;
+        case 3:
+            Lua::PushCachedFunction( L, setAttributeValues );
+            break;
         default:
             result = 0;
             break;
@@ -359,8 +363,9 @@ DisplayPath::ExtensionAdapter::GetHash( lua_State *L ) const
         "getAttributeDetails", // 0
         "instances",           // 1
         "setAttributeValue",   // 2
+        "setAttributeValues",  // 3
     };
-    static StringHash sHash( *LuaContext::GetAllocator( L ), keys, sizeof( keys ) / sizeof( const char * ), 3, 6, 1, __FILE__, __LINE__ );
+    static StringHash sHash( *LuaContext::GetAllocator( L ), keys, sizeof( keys ) / sizeof( const char * ), 4, 6, 2, __FILE__, __LINE__ );
     return &sHash;
 }
 
@@ -586,9 +591,254 @@ DisplayPath::ExtensionAdapter::setAttributeValue( lua_State *L )
     return 0;
 }
 
+int
+DisplayPath::ExtensionAdapter::setAttributeValues( lua_State *L )
+{
+    int nextArg = 1;
+    LuaUserdataProxy* sender = LuaUserdataProxy::ToProxy( L, nextArg++ );
+    if (!sender) { return 0; }
+    ExtensionAdapter* adapter = (ExtensionAdapter*)sender->GetAdapter();
+    if (!adapter) { return 0; }
+    DisplayObject* object = (DisplayObject*)sender->GetUserdata();
+    if (!object) { return 0; }
+    Geometry* geometry = GetGeometry( object, adapter->fIsFill );
+
+    const char* name = luaL_checkstring( L, nextArg++ );
+    luaL_checktype( L, nextArg, LUA_TTABLE );
+    int optionsIndex = nextArg;
+
+    const FormatExtensionList* extensionList = geometry->GetExtensionList();
+
+    if (!extensionList)
+    {
+        CoronaLuaWarning( L, "No extension bound." );
+        return 0;
+    }
+
+    S32 nameIndex = extensionList->FindName( name );
+
+    if (-1 == nameIndex)
+    {
+        CoronaLuaWarning( L, "No attribute named %s.", name );
+        return 0;
+    }
+
+    U32 groupIndex = extensionList->FindGroup( (U32)nameIndex );
+    const FormatExtensionList::Group& group = extensionList->GetGroups()[groupIndex];
+    const FormatExtensionList::Attribute& attribute = extensionList->GetAttributes()[nameIndex];
+
+    if (group.IsInstanceRate())
+    {
+        CoronaLuaWarning( L, "Bulk updates of instance-rate attribute %s are not supported.", name );
+        return 0;
+    }
+
+    size_t componentSize = 0;
+
+    switch (attribute.type)
+    {
+    case kAttributeType_Byte:
+        componentSize = sizeof(U8);
+        break;
+    case kAttributeType_Float:
+        componentSize = sizeof(float);
+        break;
+    case kAttributeType_Int:
+        CoronaLuaWarning( L, "Bulk updates of int attribute %s are not supported.", name );
+        return 0;
+    default:
+        Rtt_ASSERT_NOT_REACHED();
+        return 0;
+    }
+
+    lua_getfield( L, optionsIndex, "componentCount" );
+    int componentCount = lua_isnoneornil( L, -1 ) ? attribute.components : luaL_checkint( L, -1 );
+    lua_pop( L, 1 );
+
+    if (componentCount <= 0 || componentCount > attribute.components)
+    {
+        CoronaLuaWarning( L, "componentCount for attribute %s must be between 1 and %u.", name, attribute.components );
+        return 0;
+    }
+
+    lua_getfield( L, optionsIndex, "count" );
+
+    if (!lua_isnumber( L, -1 ))
+    {
+        lua_pop( L, 1 );
+        CoronaLuaWarning( L, "Bulk attribute update requires a count." );
+        return 0;
+    }
+
+    int countValue = luaL_checkint( L, -1 );
+    lua_pop( L, 1 );
+
+    if (countValue < 0)
+    {
+        CoronaLuaWarning( L, "Bulk attribute update count must be non-negative." );
+        return 0;
+    }
+
+    U32 count = (U32)countValue;
+
+    if (count > geometry->GetVerticesUsed())
+    {
+        CoronaLuaWarning( L, "Bulk attribute update count exceeds the vertex count." );
+        return 0;
+    }
+
+    size_t packedSize = componentSize * (size_t)componentCount;
+    size_t stride = packedSize;
+
+    lua_getfield( L, optionsIndex, "stride" );
+
+    if (!lua_isnoneornil( L, -1 ))
+    {
+        lua_Integer strideValue = luaL_checkinteger( L, -1 );
+
+        if (strideValue < 0)
+        {
+            lua_pop( L, 1 );
+            CoronaLuaWarning( L, "Bulk attribute update stride must be non-negative." );
+            return 0;
+        }
+
+        stride = (size_t)strideValue;
+    }
+
+    lua_pop( L, 1 );
+
+    if (stride > 0 && stride < packedSize)
+    {
+        CoronaLuaWarning( L, "Bulk attribute update stride is smaller than one source value." );
+        return 0;
+    }
+
+    size_t sourceOffset = 0;
+    lua_getfield( L, optionsIndex, "offset" );
+
+    if (!lua_isnoneornil( L, -1 ))
+    {
+        lua_Integer offsetValue = luaL_checkinteger( L, -1 );
+
+        if (offsetValue < 0)
+        {
+            lua_pop( L, 1 );
+            CoronaLuaWarning( L, "Bulk attribute update offset must be non-negative." );
+            return 0;
+        }
+
+        sourceOffset = (size_t)offsetValue;
+    }
+
+    lua_pop( L, 1 );
+
+    lua_getfield( L, optionsIndex, "buffer" );
+    CoronaMemoryAcquireState state;
+    const U8* source = NULL;
+    size_t sourceLength = 0;
+
+    if (CoronaMemoryAcquireInterface( L, -1, &state ) && CORONA_MEMORY_HAS( state, getReadableBytes ))
+    {
+        source = static_cast<const U8*>( CORONA_MEMORY_GET( state, ReadableBytes ) );
+        sourceLength = CORONA_MEMORY_GET( state, ByteCount );
+    }
+
+    if (!source)
+    {
+        lua_pop( L, 1 );
+        CoronaLuaWarning( L, "Bulk attribute update requires a readable CoronaMemory buffer." );
+        return 0;
+    }
+
+    bool sourceFits = sourceOffset <= sourceLength;
+
+    if (sourceFits && count > 0)
+    {
+        size_t available = sourceLength - sourceOffset;
+        sourceFits = packedSize <= available;
+
+        if (sourceFits && stride > 0)
+        {
+            sourceFits = (size_t)(count - 1) <= (available - packedSize) / stride;
+        }
+    }
+
+    if (!sourceFits)
+    {
+        lua_pop( L, 1 );
+        CoronaLuaWarning( L, "Bulk attribute update reads beyond the source buffer." );
+        return 0;
+    }
+
+    S32 extendedDataLength = -1;
+    Geometry::Vertex* extendedData = geometry->GetWritableExtendedVertexData( &extendedDataLength );
+
+    if (!extendedData || extendedDataLength < 0)
+    {
+        lua_pop( L, 1 );
+        CoronaLuaWarning( L, "Unable to access extended vertex data." );
+        return 0;
+    }
+
+    size_t destinationOffset = attribute.offset;
+    size_t vertexSize = FormatExtensionList::GetExtraVertexSize( extensionList );
+
+    if (geometry->GetStoredOnGPU())
+    {
+        destinationOffset += sizeof(Geometry::Vertex);
+        vertexSize += sizeof(Geometry::Vertex);
+    }
+
+    size_t destinationLength = (size_t)extendedDataLength * sizeof(Geometry::Vertex);
+    bool destinationFits = destinationOffset <= destinationLength;
+
+    if (destinationFits && count > 0)
+    {
+        size_t available = destinationLength - destinationOffset;
+        destinationFits = attribute.GetSize() <= available;
+
+        if (destinationFits)
+        {
+            destinationFits = (size_t)(count - 1) <= (available - attribute.GetSize()) / vertexSize;
+        }
+    }
+
+    if (!destinationFits)
+    {
+        lua_pop( L, 1 );
+        CoronaLuaWarning( L, "Bulk attribute update exceeds the extended vertex data." );
+        return 0;
+    }
+
+    U8* destination = reinterpret_cast<U8*>( extendedData ) + destinationOffset;
+    source += sourceOffset;
+
+    for (U32 i = 0; i < count; ++i)
+    {
+        memset( destination, 0, attribute.GetSize() );
+        memcpy( destination, source, packedSize );
+
+        destination += vertexSize;
+
+        if (stride > 0)
+        {
+            source += stride;
+        }
+    }
+
+    lua_pop( L, 1 );
+
+    if (count > 0)
+    {
+        object->Invalidate( DisplayObject::kGeometryFlag );
+    }
+
+    return 0;
+}
+
 // ----------------------------------------------------------------------------
 
 } // namespace Rtt
 
 // ----------------------------------------------------------------------------
-
