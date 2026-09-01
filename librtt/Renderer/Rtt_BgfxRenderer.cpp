@@ -973,18 +973,21 @@ BgfxRenderer::CaptureFrameBuffer( RenderingStream & stream, BufferBitmap & bitma
             // Touch view BEFORE blit to ensure bgfx processes this view
             bgfx::touch( kBlitView );
 
-            bgfx::blit(
-                kBlitView,
-                fStagingTexture,
-                0, 0,
+            bgfx::TextureRegion blitDstRegion;
+            blitDstRegion.init( fStagingTexture, 0, 0, static_cast<uint16_t>( readW ), static_cast<uint16_t>( readH ) );
+            bgfx::TextureRegion blitSrcRegion;
+            blitSrcRegion.init(
                 srcTexture,
                 static_cast<uint16_t>( x_in_pixels ),
                 static_cast<uint16_t>( y_in_pixels ),
                 static_cast<uint16_t>( readW ),
                 static_cast<uint16_t>( readH )
             );
+            bgfx::blit( kBlitView, blitDstRegion, blitSrcRegion );
 
-            uint32_t readyFrame = bgfx::readTexture( fStagingTexture, readbackBuffer );
+            bgfx::TextureRegion readRegion;
+            readRegion.init( fStagingTexture );
+            uint32_t readyFrame = bgfx::read( readRegion, readbackBuffer );
 
             bgfx::touch( kBlitView );
             uint32_t currentFrame = bgfx::frame();

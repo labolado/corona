@@ -338,22 +338,11 @@ BgfxFrameBufferObject::Blit(
 	U16 height )
 {
 	// Use bgfx::blit for framebuffer blitting
-	bgfx::blit( 
-		dstView,
-		dstTexture,
-		0,      // dstMip
-		dstX,
-		dstY,
-		0,      // dstZ
-		srcTexture,
-		0,      // srcMip
-		srcX,
-		srcY,
-		0,      // srcZ
-		width,
-		height,
-		1       // depth
-	);
+	bgfx::TextureRegion dstRegion;
+	dstRegion.init( dstTexture, dstX, dstY, width, height );
+	bgfx::TextureRegion srcRegion;
+	srcRegion.init( srcTexture, srcX, srcY, width, height );
+	bgfx::blit( dstView, dstRegion, srcRegion );
 }
 
 // ----------------------------------------------------------------------------

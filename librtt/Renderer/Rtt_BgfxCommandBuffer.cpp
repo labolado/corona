@@ -1569,17 +1569,23 @@ BgfxCommandBuffer::ExecuteCaptureRect( const DeferredCmd& cmd )
     // Otherwise, this is a no-op (capture not available from backbuffer).
     if( bgfx::isValid( fScreenCaptureTexture ) )
     {
-        bgfx::blit(
-            blitView,
+        bgfx::TextureRegion blitDstRegion;
+        blitDstRegion.init(
             dstTexHandle,
             static_cast<uint16_t>( dstX ),
             static_cast<uint16_t>( dstY ),
+            static_cast<uint16_t>( w ),
+            static_cast<uint16_t>( h )
+        );
+        bgfx::TextureRegion blitSrcRegion;
+        blitSrcRegion.init(
             fScreenCaptureTexture,
             static_cast<uint16_t>( cmd.captureRectXMin ),
             static_cast<uint16_t>( cmd.captureRectYMin ),
             static_cast<uint16_t>( w ),
             static_cast<uint16_t>( h )
         );
+        bgfx::blit( blitView, blitDstRegion, blitSrcRegion );
         bgfx::touch( blitView );
     }
 }
