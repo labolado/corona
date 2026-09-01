@@ -55,7 +55,7 @@ preprocess_kernel() {
 compile_shader() {
     local SC_FILE="$1"
     local TYPE="$2"       # vertex or fragment
-    local PROFILE="$3"    # metal, 100_es, or spirv
+    local PROFILE="$3"    # metal, 300_es, or spirv
     local OUT_BIN="$4"
 
     local PLATFORM_FLAG=""
@@ -113,7 +113,7 @@ compile_default() {
     echo "=== Compiling default shaders ==="
     local TMP_DIR=$(mktemp -d)
 
-    for PROFILE in metal 100_es spirv; do
+    for PROFILE in metal 300_es spirv; do
         local SUFFIX
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; elif [ "$PROFILE" = "spirv" ]; then SUFFIX="spirv"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_${SUFFIX}.h"
@@ -164,7 +164,7 @@ compile_effects() {
     local COUNT=0
     local FAIL=0
 
-    for PROFILE in metal 100_es spirv; do
+    for PROFILE in metal 300_es spirv; do
         local SUFFIX
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; elif [ "$PROFILE" = "spirv" ]; then SUFFIX="spirv"; else SUFFIX="essl"; fi
         local HEADER="$OUTPUT_DIR/Rtt_BgfxShaderData_effects_${SUFFIX}.h"
@@ -250,7 +250,7 @@ check_sync() {
     local TMP_DIR=$(mktemp -d)
     local STALE=0
 
-    for PROFILE in metal 100_es; do
+    for PROFILE in metal 300_es; do
         local SUFFIX
         if [ "$PROFILE" = "metal" ]; then SUFFIX="metal"; else SUFFIX="essl"; fi
 
