@@ -6,7 +6,7 @@
     (1) across all draws, varied mat3 → BakeMaskUVs writes per-vertex
     UV; CanBatchDraws should now allow merging across mat3 differences.
 
-    Baseline (pre-PV) success ~10%. Target 20-30% (gemini revised).
+    Baseline (pre-PV) success ~10%. Target 20-30% (revised).
 --]]
 
 display.setStatusBar(display.HiddenStatusBar)
