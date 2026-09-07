@@ -253,6 +253,17 @@ if [ "$FTL_MODE" = "1" ]; then
     /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string $BUNDLE_ID" "$APP_PATH/Info.plist"
     /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes array' "$APP_PATH/Info.plist"
     /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string firebase-game-loop' "$APP_PATH/Info.plist"
+
+    # FTL delivers the iOS scenario number through a post-launch openURL, which
+    # main.lua cannot see at load time, so the bundled selector is what actually
+    # decides which test runs. Pin it explicitly — otherwise whatever the project
+    # directory happens to carry silently wins, and the run tests the wrong entry.
+    if [ -n "${FTL_TEST_ENTRY:-}" ]; then
+        echo -n "$FTL_TEST_ENTRY" > "$APP_PATH/solar2d_test.txt"
+        log "  FTL mode: 测试入口固定为 $FTL_TEST_ENTRY"
+    else
+        log "  ⚠️ 未设 FTL_TEST_ENTRY，将沿用 bundle 内的 $(cat "$APP_PATH/solar2d_test.txt" 2>/dev/null || echo '(无)')"
+    fi
 fi
 
 cp "$PROFILE" "$APP_PATH/embedded.mobileprovision"
