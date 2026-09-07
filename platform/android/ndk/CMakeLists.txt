@@ -231,11 +231,11 @@ ENDFOREACH()
 
 
 
-file(GLOB RUNTIME_SHADERC_FCPP_SOURCES
-	${CORONA_ROOT}/external/bgfx/3rdparty/fcpp/*.c
+# bgfx dropped the third-party fcpp preprocessor and now ships its own in
+# tools/shaderc/pp.cpp, which is what the runtime shader compiler links against.
+set(RUNTIME_SHADERC_PP_SOURCES
+	${CORONA_ROOT}/external/bgfx/tools/shaderc/pp.cpp
 )
-
-list(FILTER RUNTIME_SHADERC_FCPP_SOURCES EXCLUDE REGEX "/usecpp\\.c$")
 
 file(GLOB RUNTIME_SHADERC_SPIRV_CROSS_SOURCES
 	${CORONA_ROOT}/external/bgfx/3rdparty/spirv-cross/*.cpp
@@ -255,6 +255,7 @@ list(FILTER RUNTIME_SHADERC_SPIRV_TOOLS_SOURCES EXCLUDE REGEX "/mimalloc\\.cpp$"
 
 set_source_files_properties(
 	${CORONA_ROOT}/librtt/Renderer/Rtt_RuntimeShaderc.cpp
+	${RUNTIME_SHADERC_PP_SOURCES}
 	PROPERTIES COMPILE_FLAGS "-std=c++20 -DBX_CONFIG_DEBUG=0"
 )
 
@@ -774,7 +775,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Renderer/Rtt_RuntimeShaderc.cpp
 		${CORONA_ROOT}/librtt/Renderer/Rtt_BgfxTexture.cpp
 
-		${RUNTIME_SHADERC_FCPP_SOURCES}
+		${RUNTIME_SHADERC_PP_SOURCES}
 		${RUNTIME_SHADERC_SPIRV_CROSS_SOURCES}
 		${RUNTIME_SHADERC_SPIRV_TOOLS_SOURCES}
 
@@ -910,7 +911,6 @@ target_include_directories(corona PRIVATE
 	${CORONA_ROOT}/external/bgfx/include
 	${CORONA_ROOT}/external/bgfx/src
 	${CORONA_ROOT}/external/bgfx/tools/shaderc
-	${CORONA_ROOT}/external/bgfx/3rdparty/fcpp
 	${CORONA_ROOT}/external/bgfx/3rdparty/glslang
 	${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Public
 	${CORONA_ROOT}/external/bgfx/3rdparty/glslang/glslang/Include

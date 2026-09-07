@@ -194,12 +194,19 @@ log "  ✅ tar: $TAR_FILE ($TAR_SIZE)"
 log "Step 5: 安装 tar 到 Corona-b3"
 
 # 备份
-BACKUP="$TDIR/iphoneos_26.1.tar.bz.bak-$(date +%Y%m%d-%H%M%S)"
-cp "$TDIR/iphoneos_26.1.tar.bz" "$BACKUP"
-log "  备份: $(basename "$BACKUP")"
+# Install under the active SDK version. CoronaBuilder picks the template by the
+# SDK it builds against, so a hard-coded name silently leaves it on the stock
+# template and the app ships without our engine.
+TEMPLATE_DST="$TDIR/iphoneos_${SDK_VER}.tar.bz"
 
-cp "$TAR_FILE" "$TDIR/iphoneos_26.1.tar.bz"
-log "  ✅ 已安装"
+if [ -f "$TEMPLATE_DST" ]; then
+    BACKUP="$TEMPLATE_DST.bak-$(date +%Y%m%d-%H%M%S)"
+    cp "$TEMPLATE_DST" "$BACKUP"
+    log "  备份: $(basename "$BACKUP")"
+fi
+
+cp "$TAR_FILE" "$TEMPLATE_DST"
+log "  ✅ 已安装: $(basename "$TEMPLATE_DST")"
 
 # ============================================================
 # Step 6: CoronaBuilder 打包
@@ -277,8 +284,17 @@ codesign --force --sign "$SIGN_ID" --entitlements /tmp/ios-build-ent.plist "$APP
 log "  ✅ 已签名"
 
 # 最终验证：二进制包含 bgfx
+#
+# CoronaBuilder picks the template by its own SDK mapping, not by the SDK we
+# built against, so an app can link cleanly against the stock template and ship
+# without our engine. That produced a perfectly valid-looking IPA with no bgfx
+# in it, which would have been tested as if it were the real thing — so treat a
+# missing engine as fatal rather than a note.
 FINAL_BGFX=$(strings "$APP_PATH/$APP_NAME" 2>/dev/null | grep -c "BgfxRenderer" || true)
 log "  最终二进制 bgfx 符号: $FINAL_BGFX"
+if [ "$FINAL_BGFX" -eq 0 ]; then
+    fail "最终二进制不含 bgfx —— CoronaBuilder 用了 stock 模板。检查 $TDIR 下 CoronaBuilder 实际选用的 iphoneos_*.tar.bz 是否已被本次构建覆盖"
+fi
 
 # FTL mode: 校验 get-task-allow=false（distribution 签名标志），打包成 IPA
 if [ "$FTL_MODE" = "1" ]; then
