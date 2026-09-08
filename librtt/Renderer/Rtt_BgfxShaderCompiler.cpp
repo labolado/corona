@@ -2136,7 +2136,7 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
 
     // Calculate binary size: header + uniforms + code + trailer
     // Trailer: 1 null byte + numAttrs(1) + totalSize(2)
-    size_t binarySize = 4 + 4 + 4 + 2; // magic + hashIn + hashOut + uniformCount
+    size_t binarySize = 4 + 4 + 4 + 4 + 4 + 2; // magic + hashIn + hashOut + srvMask + uavMask + uniformCount
     for (const auto& u : uniforms)
         binarySize += 1 + u.name.size() + 1 + 1 + 2 + 2 + 2 + 2;
     binarySize += 4 + spirvSize + 1 + 1 + 2; // shaderSize + code + null + numAttrs + totalSize
@@ -2149,8 +2149,9 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
     auto writeU32 = [&](uint32_t v) { memcpy(ptr, &v, 4); ptr += 4; };
     auto writeBytes = [&](const void* data, size_t len) { memcpy(ptr, data, len); ptr += len; };
 
-    // 1. Magic
-    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
+    // 1. Magic — version 12, matching ConstructShaderBinary. See the note there:
+    //    bgfx refuses anything below 12, and 12 is what added the binding masks.
+    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)12 << 24);
     writeU32(magic);
 
     // 2-3. Hash in/out (same logic as ESSL)
@@ -2159,10 +2160,14 @@ bool BgfxShaderCompiler::ConstructShaderBinarySPIRV(
     else
     { writeU32(0); writeU32(interfaceHash); }
 
-    // 4. Uniform count
+    // 4. Raw binding masks — none declared.
+    writeU32(0);  // srvMask
+    writeU32(0);  // uavMask
+
+    // 5. Uniform count
     writeU16((uint16_t)uniforms.size());
 
-    // 5. Uniforms — adjust regIndex for SPIR-V binding model
+    // 6. Uniforms — adjust regIndex for SPIR-V binding model
     // bgfx renderer_vk.cpp reads sampler regIndex as the SPIR-V binding number,
     // then does (regIndex - kSpirvBindShift) to recover the slot.
     // So sampler regIndex must be kSpirvBindShift(2) + slot.
