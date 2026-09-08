@@ -1808,7 +1808,7 @@ bool BgfxShaderCompiler::ExtractInterfaceHash(const unsigned char* data, size_t 
 }
 
 // Construct a bgfx shader binary in-memory.
-// Format: Magic(4) + HashIn(4) + HashOut(4) + UniformCount(2) + Uniforms[] + ShaderSize(4) + ShaderCode(N)
+// Format: Magic(4) + HashIn(4) + HashOut(4) + SrvMask(4) + UavMask(4) + UniformCount(2) + Uniforms[] + ShaderSize(4) + ShaderCode(N)
 bool BgfxShaderCompiler::ConstructShaderBinary(
     const std::string& shaderSource,
     char shaderType,
@@ -1824,7 +1824,7 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
         return false;
 
     // Calculate binary size
-    size_t binarySize = 4 + 4 + 4 + 2; // magic + hashIn + hashOut + uniformCount
+    size_t binarySize = 4 + 4 + 4 + 4 + 4 + 2; // magic + hashIn + hashOut + srvMask + uavMask + uniformCount
     for (const auto& u : uniforms)
     {
         binarySize += 1 + u.name.size() + 1 + 1 + 2 + 2 + 2 + 2; // nameSize+name+type+num+regIndex+regCount+texInfo+texFormat
@@ -1840,8 +1840,12 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
     auto writeU32 = [&](uint32_t v) { memcpy(ptr, &v, 4); ptr += 4; };
     auto writeBytes = [&](const void* data, size_t len) { memcpy(ptr, data, len); ptr += len; };
 
-    // 1. Magic: [Type][S][H][version=11]
-    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)11 << 24);
+    // 1. Magic: [Type][S][H][version=12]
+    //    bgfx::createShader rejects anything below 12 outright
+    //    ("Unsupported shader binary version %d, expected 12 or newer"), so the
+    //    version and the raw binding masks below have to move together — 12 is
+    //    the version that introduced those masks.
+    uint32_t magic = ((uint32_t)shaderType) | ((uint32_t)'S' << 8) | ((uint32_t)'H' << 16) | ((uint32_t)12 << 24);
     writeU32(magic);
 
     // 2. HashIn — for FS, must match the VS's hashOut (varying interface hash).
@@ -1858,10 +1862,21 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
     else
         writeU32(0);
 
-    // 4. Uniform count
+    // 4. Raw binding masks (srvMask, uavMask).
+    //    bgfx reads these right after hashOut in every backend, with no version
+    //    gate, so the field must be present whatever version the magic declares.
+    //    We declare no raw SRV/UAV bindings, hence zero.
+    //
+    //    Omitting them misaligns everything downstream: bgfx reads the uniform
+    //    count out of these four bytes, then the source length out of uniform
+    //    data, and createProgram fails without logging anything.
+    writeU32(0);  // srvMask
+    writeU32(0);  // uavMask
+
+    // 5. Uniform count
     writeU16((uint16_t)uniforms.size());
 
-    // 5. Uniforms
+    // 6. Uniforms
     for (const auto& u : uniforms)
     {
         uint8_t nameLen = (uint8_t)u.name.size();
@@ -1875,11 +1890,11 @@ bool BgfxShaderCompiler::ConstructShaderBinary(
         writeU16(0); // texFormat (version >= 10)
     }
 
-    // 6. Shader code size
+    // 7. Shader code size
     uint32_t codeSize = (uint32_t)esslSource.size();
     writeU32(codeSize);
 
-    // 7. Shader code (plain text ESSL)
+    // 8. Shader code (plain text ESSL)
     writeBytes(esslSource.data(), codeSize);
 
     Rtt_LogException("ConstructShaderBinary: type='%c', %d uniforms, %u bytes ESSL, %zu bytes total\n",
