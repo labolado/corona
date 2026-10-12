@@ -636,38 +636,27 @@ void ParticleSystemObject::_CopyParticleFromParticleSystemToVertexData( b2Vec2 &
 	Geometry::Vertex &output_vert4 = output_vertices[ 4 ];
 	Geometry::Vertex &output_vert5 = output_vertices[ 5 ];
 
-	Vertex2 base_position_in_pixels = { ( base_position.x * fWorldScaleInPixelsPerMeter ),
-										( base_position.y * fWorldScaleInPixelsPerMeter ) };
-
-	// Transform from local-space to content-space.
-	GetSrcToDstMatrix().Apply( base_position_in_pixels );
-
-    // Using the position of the particle, work out the four vertices for the
-	// quad that will hold the particle and load those into the quads array.
-
-	// Meters to pixels.
-	Vertex2 min_edge = { ( base_position_in_pixels.x - fRenderRadiusInPixels.x ),
-							( base_position_in_pixels.y - fRenderRadiusInPixels.y ) };
-	Vertex2 max_edge = { ( base_position_in_pixels.x + fRenderRadiusInPixels.x ),
-							( base_position_in_pixels.y + fRenderRadiusInPixels.y ) };
-
-	// Bottom left.
-	output_vert0.SetPos( min_edge.x, max_edge.y );
-
-	// Top right.
-	output_vert1.SetPos( max_edge.x, min_edge.y );
-
-	// Top left.
-	output_vert2.SetPos( min_edge.x, min_edge.y );
-
-	// Bottom left.
-	output_vert3.SetPos( min_edge.x, max_edge.y );
-
-	// Bottom right.
-	output_vert4.SetPos( max_edge.x, max_edge.y );
-
-	// Top right.
-	output_vert5.SetPos( max_edge.x, min_edge.y );
+	Vertex2 center = { base_position.x * fWorldScaleInPixelsPerMeter,
+		base_position.y * fWorldScaleInPixelsPerMeter };
+	const Matrix& matrix = GetSrcToDstMatrix();
+	matrix.Apply( center );
+	Vertex2 dx = { fRenderRadiusInPixels.x, 0 };
+	Vertex2 dy = { 0, fRenderRadiusInPixels.y };
+	if ( ! matrix.IsIdentity() )
+	{
+		dx.x = matrix.Row0()[0] * fRenderRadiusInPixels.x;
+		dx.y = matrix.Row1()[0] * fRenderRadiusInPixels.x;
+		dy.x = matrix.Row0()[1] * fRenderRadiusInPixels.y;
+		dy.y = matrix.Row1()[1] * fRenderRadiusInPixels.y;
+	}
+	// Transform the shared quad axes as well as its center. Duplicate corners
+	// reuse the results instead of applying six full matrix transforms.
+	output_vert0.SetPos( center.x - dx.x + dy.x, center.y - dx.y + dy.y );
+	output_vert1.SetPos( center.x + dx.x - dy.x, center.y + dx.y - dy.y );
+	output_vert2.SetPos( center.x - dx.x - dy.x, center.y - dx.y - dy.y );
+	output_vert3.SetPos( output_vert0.x, output_vert0.y );
+	output_vert4.SetPos( center.x + dx.x + dy.x, center.y + dx.y + dy.y );
+	output_vert5.SetPos( output_vert1.x, output_vert1.y );
 
 	// Calculate vertex color, modulating by display object's alpha
 	RGBA rgba = { color.r, color.g, color.b, color.a };
@@ -776,7 +765,7 @@ void ParticleSystemObject::_Update( const Display &display )
 TRACE_CALL;
 	//// Prevent doing more than one update per frame.
 	//
-	if( ! fShouldUpdate )
+	if( ! fShouldUpdate && IsValid( kGeometryFlag | kColorFlag | kTransformFlag ) )
 	{
 		// Nothing to do.
 		return;
