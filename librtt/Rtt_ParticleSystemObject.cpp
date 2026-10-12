@@ -41,6 +41,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <cmath>
 
 # define ENABLE_DEBUG_PRINT	( 0 )
 #
@@ -83,6 +84,39 @@ namespace Rtt
 typedef std::map< const ParticleSystemObject *, BitmapPaint * > ParticleEffectMap;
 static ParticleEffectMap sParticleEffects;
 static std::set< ParticleSystemObject * > sParticleObjects;
+
+// Opt-in render configuration only; never changes particle buffers or stepping.
+struct ParticleCullState
+{
+	bool enabled;
+	Real margin;
+	ParticleCullState() : enabled( false ), margin( 0 ) {}
+};
+static std::map< const ParticleSystemObject *, ParticleCullState > sParticleCull;
+
+bool ParticleSystemObject::GetRenderCull() const
+{
+	std::map< const ParticleSystemObject *, ParticleCullState >::const_iterator iter = sParticleCull.find( this );
+	return iter != sParticleCull.end() && iter->second.enabled;
+}
+
+void ParticleSystemObject::SetRenderCull( bool enabled )
+{
+	sParticleCull[this].enabled = enabled;
+	Invalidate( kGeometryFlag );
+}
+
+Real ParticleSystemObject::GetRenderCullMargin() const
+{
+	std::map< const ParticleSystemObject *, ParticleCullState >::const_iterator iter = sParticleCull.find( this );
+	return iter != sParticleCull.end() ? iter->second.margin : 0;
+}
+
+void ParticleSystemObject::SetRenderCullMargin( Real margin )
+{
+	sParticleCull[this].margin = margin;
+	Invalidate( kGeometryFlag );
+}
 
 void ParticleSystemObject::DetachWorld( b2LiquidWorld *world )
 {
@@ -152,6 +186,9 @@ void ParticleSystemObject::SetEffect( lua_State *L, int valueIndex )
 		}
 	}
 
+	// A new effect can displace vertices. Require renewed explicit opt-in after
+	// every effect assignment, including removal; never infer safety by category.
+	if ( sParticleCull.find( this ) != sParticleCull.end() ) { SetRenderCull( false ); }
 	ParticleEffectMap::iterator iter = sParticleEffects.find( this );
 	if ( iter == sParticleEffects.end() && ! shader )
 	{
@@ -201,6 +238,7 @@ ParticleSystemObject::~ParticleSystemObject()
 TRACE_CALL;
 	_Cleanup();
 	sParticleObjects.erase( this );
+	sParticleCull.erase( this );
 }
 
 void ParticleSystemObject::_Cleanup()
@@ -699,6 +737,9 @@ TRACE_CALL;
 		return;
 	}
 
+	// Captures and offscreen targets can prepare the same object again in one
+	// frame. Rebuild even for the disabled-culling fallback of an enabled object.
+	if ( GetRenderCull() ) { fShouldUpdate = true; }
 	const U32 previousCount = fData.fGeometry->GetVerticesUsed();
 	_Update( display );
 
@@ -796,7 +837,27 @@ TRACE_CALL;
 
 	int32 max_box2d_particleCount = fParticleSystem->GetParticleCount();
 
-	fData.fGeometry->SetVerticesUsed( max_box2d_particleCount * VERTICES_PER_QUADS );
+	const StageObject *stage = GetStage();
+	const Rect *target = stage ? stage->GetSnapshotBounds() : NULL;
+	Rect bounds;
+	bool cull = GetRenderCull() && ! SkipsCull() && stage;
+	if ( cull )
+	{
+		bounds = target ? *target : stage->GetDisplay().GetScreenContentBounds();
+		// Empty bounds explicitly disable culling during uncropped object capture.
+		cull = ! bounds.IsEmpty();
+	}
+	const Matrix& matrix = GetSrcToDstMatrix();
+	const Real margin = GetRenderCullMargin();
+	Real extentX = fRenderRadiusInPixels.x, extentY = fRenderRadiusInPixels.y;
+	if ( cull && ! matrix.IsIdentity() )
+	{
+		extentX = std::fabs( matrix.Row0()[0] * fRenderRadiusInPixels.x ) + std::fabs( matrix.Row0()[1] * fRenderRadiusInPixels.y );
+		extentY = std::fabs( matrix.Row1()[0] * fRenderRadiusInPixels.x ) + std::fabs( matrix.Row1()[1] * fRenderRadiusInPixels.y );
+	}
+	extentX = std::fabs( extentX ) + margin;
+	extentY = std::fabs( extentY ) + margin;
+	int rendered = 0;
 
 	// Copy vertex data from Box2D to our own renderer format.
 	b2ParticleColor *colorBuffer = fParticleSystem->GetColorBuffer();
@@ -805,10 +866,21 @@ TRACE_CALL;
 			i < max_box2d_particleCount;
 			++i )
 	{
+		if ( cull )
+		{
+			Vertex2 center = { positionBuffer[i].x * fWorldScaleInPixelsPerMeter,
+				positionBuffer[i].y * fWorldScaleInPixelsPerMeter };
+			matrix.Apply( center );
+			// Strict separation retains quads intersecting the target boundary.
+			if ( center.x + extentX < bounds.xMin || center.x - extentX > bounds.xMax ||
+				center.y + extentY < bounds.yMin || center.y - extentY > bounds.yMax ) { continue; }
+		}
 		_CopyParticleFromParticleSystemToVertexData( positionBuffer[ i ],
 														colorBuffer[ i ],
-														&( input_vertices[ i * VERTICES_PER_QUADS ] ) );
+														&( input_vertices[ rendered * VERTICES_PER_QUADS ] ) );
+		++rendered;
 	}
+	fData.fGeometry->SetVerticesUsed( rendered * VERTICES_PER_QUADS );
 }
 
 void ParticleSystemObject::_ResizeRenderBuffers()

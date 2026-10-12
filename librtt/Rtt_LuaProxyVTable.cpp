@@ -8,6 +8,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
+#include <cmath>
 #include "Core/Rtt_Build.h"
 
 #include "Rtt_LuaProxyVTable.h"
@@ -3349,6 +3350,8 @@ enum
     kParticleSystemObject_particlePaused,
     kParticleSystemObject_imageRadius,
     kParticleSystemObject_effect,
+    kParticleSystemObject_renderCull,
+    kParticleSystemObject_renderCullMargin,
 
     // Read-only property.
     kParticleSystemObject_particleMass,
@@ -3377,6 +3380,8 @@ static const char * ParticleSystemObject_keys[] =
     "particlePaused",
     "imageRadius",
     "effect",
+    "renderCull",
+    "renderCullMargin",
 
     // Read-only property.
     "particleMass",
@@ -3395,7 +3400,7 @@ static const char * ParticleSystemObject_keys[] =
 static StringHash*
 GetParticleSystemObjectHash( lua_State *L )
 {
-    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 19, 30, 2, __FILE__, __LINE__ );
+    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 21, 33, 2, __FILE__, __LINE__ );
     return &sHash;
 }
 
@@ -3413,13 +3418,21 @@ LuaParticleSystemObjectProxyVTable::ValueForKey( lua_State *L, const MLuaProxyab
     Rtt_WARN_SIM_PROXY_TYPE( L, 1, ParticleSystemObject );
     const b2ParticleSystem *b2ps = o.GetB2ParticleSystem();
 
-    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect )
+    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect &&
+        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_renderCull:
+        lua_pushboolean( L, o.GetRenderCull() );
+        break;
+    case kParticleSystemObject_renderCullMargin:
+        lua_pushnumber( L, o.GetRenderCullMargin() );
+        break;
+
     case kParticleSystemObject_effect:
         o.PushEffect( L );
         break;
@@ -3577,13 +3590,27 @@ LuaParticleSystemObjectProxyVTable::SetValueForKey( lua_State *L, MLuaProxyable&
     StringHash *hash = GetParticleSystemObjectHash( L );
     int index = hash->Lookup( key );
 
-    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect )
+    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect &&
+        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_renderCull:
+        if ( ! lua_isboolean( L, valueIndex ) ) { luaL_error( L, "renderCull must be a boolean" ); }
+        o.SetRenderCull( !! lua_toboolean( L, valueIndex ) );
+        break;
+    case kParticleSystemObject_renderCullMargin:
+        {
+            lua_Number margin = luaL_checknumber( L, valueIndex );
+            if ( ! std::isfinite( margin ) || margin < 0 || margin > 1000000 )
+            { luaL_error( L, "renderCullMargin must be finite and in [0, 1000000]" ); }
+            o.SetRenderCullMargin( (Real)margin );
+        }
+        break;
+
     case kParticleSystemObject_effect:
         o.SetEffect( L, valueIndex );
         break;

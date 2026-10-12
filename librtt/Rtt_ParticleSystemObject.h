@@ -77,6 +77,10 @@ public:
 public:
 
 	static void DetachWorld( b2LiquidWorld *world );
+	bool GetRenderCull() const;
+	void SetRenderCull( bool enabled );
+	Real GetRenderCullMargin() const;
+	void SetRenderCullMargin( Real margin );
 	void PushEffect( lua_State *L ) const;
 	void SetEffect( lua_State *L, int valueIndex );
 
