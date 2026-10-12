@@ -20,6 +20,8 @@
 #include "Display/Rtt_Shader.h"
 #include "Display/Rtt_ShaderData.h"
 #include "Display/Rtt_ShaderFactory.h"
+#include "Display/Rtt_ShaderName.h"
+#include "Display/Rtt_BitmapPaint.h"
 #include "Display/Rtt_Scene.h"
 #include "Display/Rtt_TextureFactory.h"
 #include "Display/Rtt_TextureResource.h"
@@ -37,6 +39,7 @@
 #include "Rtt_LuaContainer.h"
 #include <algorithm>
 #include <list>
+#include <map>
 #include <set>
 
 # define ENABLE_DEBUG_PRINT	( 0 )
@@ -75,6 +78,10 @@ namespace Rtt
 
 // -----------------------------------------------------------------------------
 
+// Only objects using an effect allocate a Paint. The observer owns its lifetime;
+// keeping this state external preserves the existing C++ object layout.
+typedef std::map< const ParticleSystemObject *, BitmapPaint * > ParticleEffectMap;
+static ParticleEffectMap sParticleEffects;
 static std::set< ParticleSystemObject * > sParticleObjects;
 
 void ParticleSystemObject::DetachWorld( b2LiquidWorld *world )
@@ -91,6 +98,82 @@ void ParticleSystemObject::DetachWorld( b2LiquidWorld *world )
 			object->Invalidate( kGeometryFlag );
 		}
 	}
+}
+
+void ParticleSystemObject::PushEffect( lua_State *L ) const
+{
+	ParticleEffectMap::const_iterator iter = sParticleEffects.find( this );
+	if ( iter != sParticleEffects.end() )
+	{
+		iter->second->PushShader( L );
+	}
+	else
+	{
+		lua_pushnil( L );
+	}
+}
+
+void ParticleSystemObject::SetEffect( lua_State *L, int valueIndex )
+{
+	Shader *shader = NULL;
+	if ( ! lua_isnil( L, valueIndex ) )
+	{
+		if ( lua_type( L, valueIndex ) != LUA_TSTRING )
+		{
+			luaL_error( L, "particle effect must be a shader name or nil" );
+			return;
+		}
+		bool supported;
+		{
+			ShaderName name( lua_tostring( L, valueIndex ) );
+			supported = name.GetCategory() == ShaderTypes::kCategoryFilter ||
+				name.GetCategory() == ShaderTypes::kCategoryGenerator;
+			if ( supported )
+			{
+				shader = LuaContext::GetRuntime( L )->GetDisplay().GetShaderFactory().FindOrLoad( name );
+			}
+		}
+		// Destroy ShaderName before luaL_error(), which may longjmp.
+		if ( ! supported )
+		{
+			luaL_error( L, "particle effect requires a filter or generator; use a Snapshot for composite effects" );
+			return;
+		}
+		if ( ! shader )
+		{
+			luaL_error( L, "could not load particle effect" );
+			return;
+		}
+		if ( shader->HasChildren() || ! shader->IsCompatible( fData.fGeometry ) )
+		{
+			Rtt_DELETE( shader );
+			luaL_error( L, "particle effect requires a single-pass shader compatible with standard vertices" );
+			return;
+		}
+	}
+
+	ParticleEffectMap::iterator iter = sParticleEffects.find( this );
+	if ( iter == sParticleEffects.end() && ! shader )
+	{
+		return;
+	}
+	BitmapPaint *paint;
+	if ( iter == sParticleEffects.end() )
+	{
+		paint = Rtt_NEW( LuaContext::GetAllocator( L ), BitmapPaint( fTextureResource ) );
+		paint->SetBlend( fData.fBlendMode );
+		paint->SetBlendEquation( fData.fBlendEquation );
+		paint->SetObserver( this );
+		sParticleEffects[this] = paint;
+	}
+	else
+	{
+		paint = iter->second;
+	}
+	paint->SetShader( shader );
+	paint->Invalidate( Paint::kShaderVertexDataFlag );
+	// Keep the cached draw pointer valid even between assignment and Prepare().
+	fShader = paint->GetShader( LuaContext::GetRuntime( L )->GetDisplay().GetShaderFactory() );
 }
 
 ParticleSystemObject::ParticleSystemObject()
@@ -133,6 +216,13 @@ TRACE_CALL;
 	{
 		fWorld->DestroyParticleSystem( fParticleSystem );
 		fParticleSystem = NULL;
+	}
+
+	ParticleEffectMap::iterator effect = sParticleEffects.find( this );
+	if ( effect != sParticleEffects.end() )
+	{
+		Rtt_DELETE( effect->second );
+		sParticleEffects.erase( effect );
 	}
 
 	if( fData.fGeometry )
@@ -609,11 +699,38 @@ TRACE_CALL;
 		return;
 	}
 
+	const U32 previousCount = fData.fGeometry->GetVerticesUsed();
 	_Update( display );
 
 	Super::Prepare( display );
 
-	fShader->Prepare( fData, 0, 0, ShaderResource::kDefault );
+	ParticleEffectMap::iterator effect = sParticleEffects.find( this );
+	if ( effect != sParticleEffects.end() )
+	{
+		BitmapPaint *paint = effect->second;
+		paint->UpdatePaint( fData );
+		fShader = paint->GetShader( display.GetShaderFactory() );
+		if ( ! paint->IsValid( Paint::kShaderVertexDataFlag ) ||
+			previousCount != fData.fGeometry->GetVerticesUsed() )
+		{
+			Real x = 0, y = 0, z = 0, w = 0;
+			if ( fShader->GetData() )
+			{
+				fShader->GetData()->CopyVertexData( x, y, z, w );
+			}
+			Geometry::Vertex *vertices = fData.fGeometry->GetVertexData();
+			for ( U32 i = 0, count = fData.fGeometry->GetVerticesUsed(); i < count; ++i )
+			{
+				vertices[i].ux = x;
+				vertices[i].uy = y;
+				vertices[i].uz = z;
+				vertices[i].uw = w;
+			}
+			paint->SetValid( Paint::kShaderVertexDataFlag );
+		}
+	}
+
+	fShader->Prepare( fData, 2 * fRenderRadiusInPixels.x, 2 * fRenderRadiusInPixels.y, ShaderResource::kDefault );
 
 	SetValid( kGeometryFlag |
 				kPaintFlag |

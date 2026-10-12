@@ -3348,6 +3348,7 @@ enum
     kParticleSystemObject_particleDestructionByAge,
     kParticleSystemObject_particlePaused,
     kParticleSystemObject_imageRadius,
+    kParticleSystemObject_effect,
 
     // Read-only property.
     kParticleSystemObject_particleMass,
@@ -3375,6 +3376,7 @@ static const char * ParticleSystemObject_keys[] =
     "particleDestructionByAge",
     "particlePaused",
     "imageRadius",
+    "effect",
 
     // Read-only property.
     "particleMass",
@@ -3393,7 +3395,7 @@ static const char * ParticleSystemObject_keys[] =
 static StringHash*
 GetParticleSystemObjectHash( lua_State *L )
 {
-    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 18, 29, 2, __FILE__, __LINE__ );
+    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 19, 30, 2, __FILE__, __LINE__ );
     return &sHash;
 }
 
@@ -3411,13 +3413,17 @@ LuaParticleSystemObjectProxyVTable::ValueForKey( lua_State *L, const MLuaProxyab
     Rtt_WARN_SIM_PROXY_TYPE( L, 1, ParticleSystemObject );
     const b2ParticleSystem *b2ps = o.GetB2ParticleSystem();
 
-    if ( ! b2ps && index >= 0 )
+    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_effect:
+        o.PushEffect( L );
+        break;
+
     case kParticleSystemObject_particleDensity:
         {
             lua_pushnumber( L, b2ps->GetDensity() );
@@ -3571,13 +3577,17 @@ LuaParticleSystemObjectProxyVTable::SetValueForKey( lua_State *L, MLuaProxyable&
     StringHash *hash = GetParticleSystemObjectHash( L );
     int index = hash->Lookup( key );
 
-    if ( ! b2ps && index >= 0 )
+    if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_effect:
+        o.SetEffect( L, valueIndex );
+        break;
+
     case kParticleSystemObject_particleDensity:
         {
             b2ps->SetDensity( luaL_toreal( L, valueIndex ) );

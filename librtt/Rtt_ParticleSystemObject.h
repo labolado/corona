@@ -77,6 +77,8 @@ public:
 public:
 
 	static void DetachWorld( b2LiquidWorld *world );
+	void PushEffect( lua_State *L ) const;
+	void SetEffect( lua_State *L, int valueIndex );
 
 	void ApplyForce( lua_State *L );
 	void ApplyLinearImpulse( lua_State *L );
@@ -132,8 +134,7 @@ private:
 
 	//// Rendering.
 	//
-	// When we refactor the code to support non-default shaders,
-	// we'll replace fTextureResource and fShader by BitmapPaint.
+	// Optional effect Paint is stored externally to preserve object layout.
 
 	SharedPtr< TextureResource > fTextureResource;
 
