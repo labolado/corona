@@ -21,7 +21,8 @@ Rtt_GetPreciseAbsoluteTime()
 Rtt::Real 
 Rtt_PreciseAbsoluteToMilliseconds( Rtt_AbsoluteTime absoluteTime )
 {
-	return static_cast<Rtt::Real>( Rtt_AbsoluteToMilliseconds( absoluteTime ) );
+	// Convert before dividing to preserve sub-millisecond render timings.
+	return static_cast<Rtt::Real>( Rtt_AbsoluteToMicroseconds( absoluteTime ) ) / 1000.0f;
 }
 
 Rtt::Real 
