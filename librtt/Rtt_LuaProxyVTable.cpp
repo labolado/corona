@@ -3411,6 +3411,11 @@ LuaParticleSystemObjectProxyVTable::ValueForKey( lua_State *L, const MLuaProxyab
     Rtt_WARN_SIM_PROXY_TYPE( L, 1, ParticleSystemObject );
     const b2ParticleSystem *b2ps = o.GetB2ParticleSystem();
 
+    if ( ! b2ps && index >= 0 )
+    {
+        luaL_error( L, "particle system belongs to a stopped physics world" );
+    }
+
     switch ( index )
     {
     case kParticleSystemObject_particleDensity:
@@ -3565,6 +3570,11 @@ LuaParticleSystemObjectProxyVTable::SetValueForKey( lua_State *L, MLuaProxyable&
 
     StringHash *hash = GetParticleSystemObjectHash( L );
     int index = hash->Lookup( key );
+
+    if ( ! b2ps && index >= 0 )
+    {
+        luaL_error( L, "particle system belongs to a stopped physics world" );
+    }
 
     switch ( index )
     {

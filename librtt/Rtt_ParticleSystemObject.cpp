@@ -37,6 +37,7 @@
 #include "Rtt_LuaContainer.h"
 #include <algorithm>
 #include <list>
+#include <set>
 
 # define ENABLE_DEBUG_PRINT	( 0 )
 #
@@ -74,6 +75,24 @@ namespace Rtt
 
 // -----------------------------------------------------------------------------
 
+static std::set< ParticleSystemObject * > sParticleObjects;
+
+void ParticleSystemObject::DetachWorld( b2LiquidWorld *world )
+{
+	for ( std::set< ParticleSystemObject * >::iterator iter = sParticleObjects.begin();
+		iter != sParticleObjects.end(); ++iter )
+	{
+		ParticleSystemObject *object = *iter;
+		if ( object->fWorld == world )
+		{
+			object->fParticleSystem = NULL;
+			object->fWorld = NULL;
+			object->fShouldUpdate = false;
+			object->Invalidate( kGeometryFlag );
+		}
+	}
+}
+
 ParticleSystemObject::ParticleSystemObject()
 : Super()
 , MUpdatable()
@@ -90,6 +109,7 @@ ParticleSystemObject::ParticleSystemObject()
 {
 TRACE_CALL;
 
+	sParticleObjects.insert( this );
     SetObjectDesc("ParticleSystemObject"); // for introspection
 }
 
@@ -97,6 +117,7 @@ ParticleSystemObject::~ParticleSystemObject()
 {
 TRACE_CALL;
 	_Cleanup();
+	sParticleObjects.erase( this );
 }
 
 void ParticleSystemObject::_Cleanup()
@@ -512,7 +533,7 @@ TRACE_CALL;
 void ParticleSystemObject::Draw( Renderer& renderer ) const
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+	if ( ! fParticleSystem ) { return; }
 
 	if( ! ShouldDraw() )
 	{
@@ -533,7 +554,7 @@ TRACE_CALL;
 void ParticleSystemObject::GetSelfBounds( Rect& rect ) const
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+
 
 	rect.xMin = -0.5f;
 	rect.yMin = -0.5f;
@@ -544,7 +565,7 @@ TRACE_CALL;
 bool ParticleSystemObject::HitTest( Real contentX, Real contentY )
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+
 
 	return false;
 }
@@ -552,7 +573,7 @@ TRACE_CALL;
 ShaderResource::ProgramMod ParticleSystemObject::GetProgramMod() const
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+
 
 	return ShaderResource::kDefault;
 }
@@ -561,7 +582,7 @@ bool
 ParticleSystemObject::CanCull() const
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+
 
 	return false;
 }
@@ -569,7 +590,7 @@ TRACE_CALL;
 const LuaProxyVTable &ParticleSystemObject::ProxyVTable() const
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+
 
 	return LuaParticleSystemObjectProxyVTable::Constant();
 }
@@ -577,7 +598,7 @@ TRACE_CALL;
 void ParticleSystemObject::Prepare( const Display &display )
 {
 TRACE_CALL;
-	Rtt_ASSERT( fParticleSystem );
+	if ( ! fParticleSystem ) { return; }
 
 	if( ! ShouldHitTest() )
 	{
@@ -1414,6 +1435,8 @@ TRACE_CALL;
 
 void ParticleSystemObject::CreateParticle( lua_State *L )
 {
+	if ( ! fParticleSystem ) { luaL_error( L, "particle system belongs to a stopped physics world" ); return; }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -1425,6 +1448,8 @@ TRACE_CALL;
 
 void ParticleSystemObject::CreateGroup( lua_State *L )
 {
+	if ( ! fParticleSystem ) { luaL_error( L, "particle system belongs to a stopped physics world" ); return; }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -1468,6 +1493,8 @@ TRACE_CALL;
 
 void ParticleSystemObject::ApplyForce( lua_State *L )
 {
+	if ( ! fParticleSystem ) { luaL_error( L, "particle system belongs to a stopped physics world" ); return; }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -1487,6 +1514,8 @@ TRACE_CALL;
 
 void ParticleSystemObject::ApplyLinearImpulse( lua_State *L )
 {
+	if ( ! fParticleSystem ) { luaL_error( L, "particle system belongs to a stopped physics world" ); return; }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -1506,6 +1535,8 @@ TRACE_CALL;
 
 int ParticleSystemObject::DestroyParticlesInShape( lua_State *L )
 {
+	if ( ! fParticleSystem ) { return luaL_error( L, "particle system belongs to a stopped physics world" ); }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -2071,6 +2102,8 @@ int ParticleSystemObject::_CommonRayCast( lua_State *L,
 
 int ParticleSystemObject::RayCast( lua_State *L )
 {
+	if ( ! fParticleSystem ) { return luaL_error( L, "particle system belongs to a stopped physics world" ); }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 
@@ -2259,6 +2292,8 @@ namespace // anonymous namespace.
 
 int ParticleSystemObject::QueryRegion( lua_State *L )
 {
+	if ( ! fParticleSystem ) { return luaL_error( L, "particle system belongs to a stopped physics world" ); }
+
 TRACE_CALL;
 	Rtt_ASSERT( fParticleSystem );
 

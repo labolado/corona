@@ -76,6 +76,8 @@ public:
 
 public:
 
+	static void DetachWorld( b2LiquidWorld *world );
+
 	void ApplyForce( lua_State *L );
 	void ApplyLinearImpulse( lua_State *L );
 	void CreateGroup( lua_State *L );
@@ -87,7 +89,7 @@ public:
 	void SetParticleRenderRadiusInContentUnits( float r ){ fRenderRadiusInPixels.x = fRenderRadiusInPixels.y = r; }
 	float GetParticleRenderRadiusInContentUnits() const { return fRenderRadiusInPixels.x; }
 
-	b2ParticleSystem *GetB2ParticleSystem() const { Rtt_ASSERT( fParticleSystem ); return fParticleSystem; }
+	b2ParticleSystem *GetB2ParticleSystem() const { return fParticleSystem; }
 
 private:
 

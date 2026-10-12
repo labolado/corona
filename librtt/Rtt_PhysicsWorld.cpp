@@ -10,6 +10,7 @@
 #include "Core/Rtt_Build.h"
 
 #include "Rtt_PhysicsWorld.h"
+#include "Rtt_ParticleSystemObject.h"
 #include "Rtt_FixedStepScheduler.h"
 #include "Rtt_LuaContext.h"
 #include <map>
@@ -769,6 +770,7 @@ PhysicsWorld::StopWorld()
 	{
 		SetProperty( kIsWorldRunning, false );
 
+		ParticleSystemObject::DetachWorld( fWorld );
 		b2DestroyWorld( fWorld->GetWorldId() );
 		fPhysicsBodies.clear();
 		fDeferredBodyDestructions.clear();
