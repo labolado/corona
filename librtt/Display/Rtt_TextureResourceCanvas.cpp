@@ -163,10 +163,11 @@ void TextureResourceCanvas::Render(Rtt::Renderer &renderer, GroupObject *group, 
 	Rect contentBounds;
 	contentBounds.Initialize(-GetAnchorX()*GetContentWidth(), -GetAnchorY()*GetContentHeight(), GetContentWidth(), GetContentHeight());
 	
+	const Rect *previousBounds = group->GetStage()->GetSnapshotBounds();
 	group->GetStage()->SetSnapshotBounds( &contentBounds );
 	group->UpdateTransform(identity);
 	group->Prepare(GetTextureFactory().GetDisplay());
-	group->GetStage()->SetSnapshotBounds( NULL );
+	group->GetStage()->SetSnapshotBounds( previousBounds );
 	
 	
 	// Save current state so we can restore it later

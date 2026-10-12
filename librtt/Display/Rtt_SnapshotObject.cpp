@@ -235,6 +235,7 @@ SnapshotObject::UpdateTransform( const Matrix& parentToDstSpace )
 		// via the snapshot's boundary instead of the screen's
 		Rect bounds;
 		GetSelfBounds( bounds );
+		const Rect *previousBounds = group.GetStage()->GetSnapshotBounds();
 		group.GetStage()->SetSnapshotBounds( & bounds );
 		{
 			// During the offscreen render, group is relative to (0,0)
@@ -277,7 +278,7 @@ SnapshotObject::UpdateTransform( const Matrix& parentToDstSpace )
 				group.UpdateTransform( identity );
 			}
 		}
-		group.GetStage()->SetSnapshotBounds( NULL );
+		group.GetStage()->SetSnapshotBounds( previousBounds );
 	}
 
 	return Super::UpdateTransform( parentToDstSpace );
@@ -294,7 +295,14 @@ SnapshotObject::Prepare( const Display& display )
 
 		if ( group.NumChildren() > 0 )
 		{
+			Rect bounds;
+			// Match DrawGroup: corner offsets affect the displayed quad, not the FBO.
+			GetSelfBoundsForAnchor( bounds );
+			StageObject *stage = group.GetStage();
+			const Rect *previousBounds = stage->GetSnapshotBounds();
+			stage->SetSnapshotBounds( &bounds );
 			group.Prepare( display );
+			stage->SetSnapshotBounds( previousBounds );
 		}
 	}
 
@@ -304,7 +312,14 @@ SnapshotObject::Prepare( const Display& display )
 
 		if ( group.NumChildren() > 0 )
 		{
+			Rect bounds;
+			// Match DrawGroup: corner offsets affect the displayed quad, not the FBO.
+			GetSelfBoundsForAnchor( bounds );
+			StageObject *stage = group.GetStage();
+			const Rect *previousBounds = stage->GetSnapshotBounds();
+			stage->SetSnapshotBounds( &bounds );
 			group.Prepare( display );
+			stage->SetSnapshotBounds( previousBounds );
 		}
 	}
 
