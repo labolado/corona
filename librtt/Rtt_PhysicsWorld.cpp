@@ -771,7 +771,12 @@ PhysicsWorld::StopWorld()
 		SetProperty( kIsWorldRunning, false );
 
 		ParticleSystemObject::DetachWorld( fWorld );
-		b2DestroyWorld( fWorld->GetWorldId() );
+		// LiquidFun queries the world lock while destroying its particle systems.
+		// Keep the Box2D world alive until that cleanup has completed.
+		const b2WorldId worldId = fWorld->GetWorldId();
+		Rtt_DELETE( fWorld );
+		fWorld = NULL;
+		b2DestroyWorld( worldId );
 		fPhysicsBodies.clear();
 		fDeferredBodyDestructions.clear();
 		fCompoundInternalEdgePreSolveShapes.clear();
@@ -779,9 +784,6 @@ PhysicsWorld::StopWorld()
 
 		// Clear mouse body pool (all IDs are now invalid after world destruction)
 		fMouseBodies.clear();
-
-		Rtt_DELETE( fWorld );
-		fWorld = NULL;
 
 		Rtt_DELETE( fWorldContactListener );
 		fWorldContactListener = NULL;
