@@ -1252,6 +1252,7 @@ PhysicsWorld::StepWorld( double elapsedMS )
 
 		b2LiquidWorld& world = * fWorld;
 
+		bool stepped = false;
 		float dt = GetTimeStep();
 		if ( dt > Rtt_REAL_0 )
 		{
@@ -1266,6 +1267,7 @@ PhysicsWorld::StepWorld( double elapsedMS )
 				// Rtt_Log( "PhysicsWorld::StepWorld A, timeStep = %f, step=%d, fSubStepCount=%d", dt * fTimeScale, i, fSubStepCount );
 				// b2World_Step(fWorldId, dt * fTimeScale, fSubStepCount);
 				world.Step(dt * fTimeScale, fSubStepCount);
+				stepped = true;
 				StepEvents();
 			}
 		}
@@ -1296,6 +1298,7 @@ PhysicsWorld::StepWorld( double elapsedMS )
 					// Rtt_Log( "PhysicsWorld::StepWorld B, timeStep = %f, tStep = %f, step=%d", dt, tStep, i );
 					// b2World_Step(fWorldId, dt * fTimeScale, fSubStepCount);
 					world.Step(dt * fTimeScale, fSubStepCount);
+					stepped = true;
 					StepEvents();
 				}
 				tStep -= dt;
@@ -1303,6 +1306,14 @@ PhysicsWorld::StepWorld( double elapsedMS )
 
 			fTimePrevious = tCurrent;
 			fTimeRemainder = tStep;
+		}
+
+		// A zero-step frame still exposes the previous step's move events. Those
+		// transforms may be stale and their display objects may have been removed.
+		if ( ! stepped )
+		{
+			FlushDeferredBodyDestructions();
+			return;
 		}
 
 		Real scale = GetPixelsPerMeter();
@@ -1320,7 +1331,10 @@ PhysicsWorld::StepWorld( double elapsedMS )
 			// Prefetch next body in case we delete body
 			// nextBody = body->GetNext();
 
-			void* userData = event->userData;
+			if ( ! b2Body_IsValid( event->bodyId ) ) { continue; }
+			// Collision callbacks may have removed the object since this event was
+			// generated. Read the surviving body's current pointer, not its snapshot.
+			void* userData = b2Body_GetUserData( event->bodyId );
 			// if ( body->GetUserData() )
 			// Rtt_Log( "PhysicsWorld::StepWorld, index = %d, userData is not ground: %d,  userdata exists: %d", i, userData != groundBodyUserdata, userData != nullptr );
 			if ( userData )
