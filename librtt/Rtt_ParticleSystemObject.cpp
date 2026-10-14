@@ -458,7 +458,10 @@ TRACE_CALL;
 		lua_pop( L, 1 );
 	}
 
-	fParticleSystem = fWorld->CreateParticleSystem( &particleSystemDef );
+	lua_getfield( L, -1, "enableRotatingBoundaryCCD" );
+	const bool enableRotatingBoundaryCCD = lua_isboolean( L, -1 ) && lua_toboolean( L, -1 );
+	lua_pop( L, 1 );
+	fParticleSystem = fWorld->CreateParticleSystem( &particleSystemDef, enableRotatingBoundaryCCD );
 
 	// Texture
 	{
