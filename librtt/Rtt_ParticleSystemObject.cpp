@@ -1564,13 +1564,6 @@ TRACE_CALL;
 						continue;
 					}
 
-					if( m > b2_maxPolygonVertices )
-					{
-						// Clamp the maximum number of vertices to b2_maxPolygonVertices.
-						// THIS SHOULD NEVER HAPPEN, BUT IT DOES!!!
-						DEBUG_PRINT( "clamp the number of vertices in shape index: %d\n", i );
-						m = b2_maxPolygonVertices;
-					}
 
 					// Scale and translate all the vertices in tessellated_outline.
 				    for( size_t j = 0;
@@ -1586,15 +1579,24 @@ TRACE_CALL;
 						DEBUG_PRINT( "*** Fixture %03d : Vertex %03d : x, y: %f, %f\n", i, j, v.x, v.y );
 				    }
 
-					// This is released in the caller of this function.
-					polyVec.push_back( new b2LiquidShape );
-				    bool ok = polyVec.back()->Set( &( vertices[ 0 ] ), (int)m );
-					if( ! ok )
+					// Separator pieces are convex. Split large pieces into a fan
+					// instead of discarding vertices beyond Box2D's polygon limit.
+					size_t pieces = m > b2_maxPolygonVertices ? m - 2 : 1;
+					for( size_t piece = 0; piece < pieces; ++piece )
 					{
-						// Set() failed. Remove the polygon.
-						delete polyVec.back();
-						polyVec.pop_back();
+						b2Vec2 triangle[3] = { vertices[0], vertices[piece + 1], vertices[piece + 2] };
+						b2LiquidShape *part = new b2LiquidShape;
+						bool ok = pieces > 1 ? part->Set( triangle, 3 ) : part->Set( &vertices[0], (int)m );
+						if( ok )
+						{
+							polyVec.push_back( part );
+						}
+						else
+						{
+							delete part;
+						}
 					}
+
 				}
 				//
 				////
@@ -1640,15 +1642,11 @@ TRACE_CALL;
 											liquidShape,
 											polyVec );
 
-	/*
 	if( polyVec.size() )
 	{
-		// This is an outline.
-
-		particleGroupDef.shapes = (b2Shape **)&polyVec[ 0 ];
+		particleGroupDef.shapes = &polyVec[ 0 ];
 		particleGroupDef.shapeCount = (int)polyVec.size();
 	}
-	*/
 
 	fParticleSystem->CreateParticleGroup( particleGroupDef );
 
