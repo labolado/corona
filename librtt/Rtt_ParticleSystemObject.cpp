@@ -1381,7 +1381,6 @@ TRACE_CALL;
 	if( ! particleGroupDef.shape )
 	{
 		b2Vec2 half_size( b2Vec2_zero );
-		float radians = 0.0f;
 
 		lua_getfield( L, -1, "halfWidth" );
 		if( lua_isnumber( L, -1 ) )
@@ -1399,23 +1398,13 @@ TRACE_CALL;
 		}
 		lua_pop( L, 1 );
 
-		lua_getfield( L, -1, "angle" );
-		if( lua_isnumber( L, -1 ) )
-		{
-			radians = Rtt_RealDegreesToRadians( lua_tonumber( L, -1 ) );
-			particleGroupDef.shape = &polygonDef;
-		}
-		lua_pop( L, 1 );
-
 		if( particleGroupDef.shape )
 		{
 			// Pixels to meters.
 			half_size *= fWorldScaleInMetersPerPixel;
 
-			polygonDef.SetAsBox( half_size.x,
-									half_size.y,
-									b2Vec2_zero,
-									radians );
+			// The group transform applies angle once to every shape type.
+			polygonDef.SetAsBox( half_size.x, half_size.y );
 		}
 	}
 
@@ -1483,7 +1472,10 @@ TRACE_CALL;
 					p *= fWorldScaleInMetersPerPixel;
 				}
 
-				polygonDef.Set( vertexList, numVertices );
+				if( ! polygonDef.Set( vertexList, numVertices ) )
+				{
+					luaL_error( L, "particle shape must define a non-degenerate convex hull" );
+				}
 
 				particleGroupDef.shape = &polygonDef;
 			}
@@ -1852,7 +1844,10 @@ TRACE_CALL;
 					p *= fWorldScaleInMetersPerPixel;
 				}
 
-				polygonDef.Set( vertexList, numVertices );
+				if( ! polygonDef.Set( vertexList, numVertices ) )
+				{
+					luaL_error( L, "particle shape must define a non-degenerate convex hull" );
+				}
 
 				shape = &polygonDef;
 			}
