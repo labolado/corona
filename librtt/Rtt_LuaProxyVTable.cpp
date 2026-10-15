@@ -3352,6 +3352,7 @@ enum
     kParticleSystemObject_effect,
     kParticleSystemObject_renderCull,
     kParticleSystemObject_renderCullMargin,
+    kParticleSystemObject_renderStretch,
 
     // Read-only property.
     kParticleSystemObject_particleMass,
@@ -3382,6 +3383,7 @@ static const char * ParticleSystemObject_keys[] =
     "effect",
     "renderCull",
     "renderCullMargin",
+    "renderStretch",
 
     // Read-only property.
     "particleMass",
@@ -3400,7 +3402,7 @@ static const char * ParticleSystemObject_keys[] =
 static StringHash*
 GetParticleSystemObjectHash( lua_State *L )
 {
-    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 21, 33, 2, __FILE__, __LINE__ );
+    static StringHash sHash( *LuaContext::GetAllocator( L ), ParticleSystemObject_keys, sizeof( ParticleSystemObject_keys ) / sizeof(const char *), 22, 33, 2, __FILE__, __LINE__ );
     return &sHash;
 }
 
@@ -3419,13 +3421,17 @@ LuaParticleSystemObjectProxyVTable::ValueForKey( lua_State *L, const MLuaProxyab
     const b2ParticleSystem *b2ps = o.GetB2ParticleSystem();
 
     if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect &&
-        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin )
+        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin &&
+        index != kParticleSystemObject_renderStretch )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_renderStretch:
+        lua_pushnumber( L, o.GetRenderStretch() );
+        break;
     case kParticleSystemObject_renderCull:
         lua_pushboolean( L, o.GetRenderCull() );
         break;
@@ -3591,13 +3597,22 @@ LuaParticleSystemObjectProxyVTable::SetValueForKey( lua_State *L, MLuaProxyable&
     int index = hash->Lookup( key );
 
     if ( ! b2ps && index >= 0 && index != kParticleSystemObject_effect &&
-        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin )
+        index != kParticleSystemObject_renderCull && index != kParticleSystemObject_renderCullMargin &&
+        index != kParticleSystemObject_renderStretch )
     {
         luaL_error( L, "particle system belongs to a stopped physics world" );
     }
 
     switch ( index )
     {
+    case kParticleSystemObject_renderStretch:
+        {
+            lua_Number seconds = luaL_checknumber( L, valueIndex );
+            if ( ! std::isfinite( seconds ) || seconds < 0 || seconds > 0.1 )
+            { luaL_error( L, "renderStretch must be finite and in [0, 0.1] seconds" ); }
+            o.SetRenderStretch( (Real)seconds );
+        }
+        break;
     case kParticleSystemObject_renderCull:
         if ( ! lua_isboolean( L, valueIndex ) ) { luaL_error( L, "renderCull must be a boolean" ); }
         o.SetRenderCull( !! lua_toboolean( L, valueIndex ) );

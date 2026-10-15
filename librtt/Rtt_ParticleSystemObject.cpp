@@ -90,7 +90,8 @@ struct ParticleCullState
 {
 	bool enabled;
 	Real margin;
-	ParticleCullState() : enabled( false ), margin( 0 ) {}
+	Real stretch;
+	ParticleCullState() : enabled( false ), margin( 0 ), stretch( 0 ) {}
 };
 static std::map< const ParticleSystemObject *, ParticleCullState > sParticleCull;
 
@@ -115,6 +116,19 @@ Real ParticleSystemObject::GetRenderCullMargin() const
 void ParticleSystemObject::SetRenderCullMargin( Real margin )
 {
 	sParticleCull[this].margin = margin;
+	Invalidate( kGeometryFlag );
+}
+
+Real ParticleSystemObject::GetRenderStretch() const
+{
+	std::map< const ParticleSystemObject *, ParticleCullState >::const_iterator iter = sParticleCull.find( this );
+	return iter != sParticleCull.end() ? iter->second.stretch : 0;
+}
+
+void ParticleSystemObject::SetRenderStretch( Real seconds )
+{
+	sParticleCull[this].stretch = seconds;
+	fShouldUpdate = true;
 	Invalidate( kGeometryFlag );
 }
 
@@ -855,6 +869,19 @@ TRACE_CALL;
 		extentX = std::fabs( matrix.Row0()[0] * fRenderRadiusInPixels.x ) + std::fabs( matrix.Row0()[1] * fRenderRadiusInPixels.y );
 		extentY = std::fabs( matrix.Row1()[0] * fRenderRadiusInPixels.x ) + std::fabs( matrix.Row1()[1] * fRenderRadiusInPixels.y );
 	}
+	// The rank-one stretch below has a maximum singular value of three.
+	// Use a conservative bound even for rotated/nonuniform parent transforms.
+	const Real stretch = GetRenderStretch();
+	if ( stretch > 0 )
+	{
+		const Real radius = 3 * std::max( std::fabs( fRenderRadiusInPixels.x ), std::fabs( fRenderRadiusInPixels.y ) );
+		extentX = extentY = radius;
+		if ( ! matrix.IsIdentity() )
+		{
+			extentX *= std::fabs( matrix.Row0()[0] ) + std::fabs( matrix.Row0()[1] );
+			extentY *= std::fabs( matrix.Row1()[0] ) + std::fabs( matrix.Row1()[1] );
+		}
+	}
 	extentX = std::fabs( extentX ) + margin;
 	extentY = std::fabs( extentY ) + margin;
 	int rendered = 0;
@@ -862,6 +889,7 @@ TRACE_CALL;
 	// Copy vertex data from Box2D to our own renderer format.
 	b2ParticleColor *colorBuffer = fParticleSystem->GetColorBuffer();
 	b2Vec2 *positionBuffer = fParticleSystem->GetPositionBuffer();
+	const b2Vec2 *velocityBuffer = stretch > 0 ? fParticleSystem->GetVelocityBuffer() : NULL;
 	for( int i = 0;
 			i < max_box2d_particleCount;
 			++i )
@@ -878,6 +906,39 @@ TRACE_CALL;
 		_CopyParticleFromParticleSystemToVertexData( positionBuffer[ i ],
 														colorBuffer[ i ],
 														&( input_vertices[ rendered * VERTICES_PER_QUADS ] ) );
+		if ( velocityBuffer )
+		{
+			const b2Vec2& velocity = velocityBuffer[i];
+			const float speed = std::sqrt( velocity.x * velocity.x + velocity.y * velocity.y );
+			const float radius = std::fabs( fRenderRadiusInPixels.x );
+			if ( std::isfinite( speed ) && speed > 0 && radius > 0 )
+			{
+				// Read-only, centered deformation I + extension * direction * direction^T.
+				// No additional vertices and no change to particle positions or radius.
+				const float extension = std::min( 2.0f, speed * fWorldScaleInPixelsPerMeter * stretch / radius );
+				const float ux = velocity.x / speed, uy = velocity.y / speed;
+				Vertex2 dx = { extension * ux * ux * fRenderRadiusInPixels.x,
+					extension * ux * uy * fRenderRadiusInPixels.x };
+				Vertex2 dy = { extension * ux * uy * fRenderRadiusInPixels.y,
+					extension * uy * uy * fRenderRadiusInPixels.y };
+				if ( ! matrix.IsIdentity() )
+				{
+					const Vertex2 localX = dx, localY = dy;
+					dx.x = matrix.Row0()[0] * localX.x + matrix.Row0()[1] * localX.y;
+					dx.y = matrix.Row1()[0] * localX.x + matrix.Row1()[1] * localX.y;
+					dy.x = matrix.Row0()[0] * localY.x + matrix.Row0()[1] * localY.y;
+					dy.y = matrix.Row1()[0] * localY.x + matrix.Row1()[1] * localY.y;
+				}
+				static const int signsX[] = { -1, 1, -1, -1, 1, 1 };
+				static const int signsY[] = { 1, -1, -1, 1, 1, -1 };
+				Geometry::Vertex *vertices = &input_vertices[rendered * VERTICES_PER_QUADS];
+				for ( int v = 0; v < VERTICES_PER_QUADS; ++v )
+				{
+					vertices[v].x += signsX[v] * dx.x + signsY[v] * dy.x;
+					vertices[v].y += signsX[v] * dx.y + signsY[v] * dy.y;
+				}
+			}
+		}
 		++rendered;
 	}
 	fData.fGeometry->SetVerticesUsed( rendered * VERTICES_PER_QUADS );
