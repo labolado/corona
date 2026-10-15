@@ -27,7 +27,7 @@ ifeq ($(config),Debug)
   DEFINES   += -DRtt_DEBUG -DLUA_USE_APICHECK
   INCLUDES  += -I../../../external/box2d_v3/extern/glad/include -I../../../external/box2d_v3/include -I../../../external/box2d_v3/
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -g -msimd128 -msse2 -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
+  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -g -msimd128 -msse2 -ffp-contract=off -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
   ALL_CXXFLAGS  += $(CXXFLAGS) $(ALL_CFLAGS) -fno-exceptions -fno-rtti
   ALL_RESFLAGS  += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   ALL_LDFLAGS   += $(LDFLAGS)
@@ -51,7 +51,7 @@ ifeq ($(config),Release)
   DEFINES   += -DNDEBUG
   INCLUDES  += -I../../../external/box2d_v3/extern/glad/include -I../../../external/box2d_v3/include -I../../../external/box2d_v3/
   ALL_CPPFLAGS  += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -O2 -msimd128 -msse2 -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
+  ALL_CFLAGS    += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -O2 -msimd128 -msse2 -ffp-contract=off -pthread -s USE_PTHREADS=1 -s ALLOW_MEMORY_GROWTH
   ALL_CXXFLAGS  += $(CXXFLAGS) $(ALL_CFLAGS) -fno-exceptions -fno-rtti
   ALL_RESFLAGS  += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   ALL_LDFLAGS   += $(LDFLAGS) -Wl,-x

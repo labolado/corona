@@ -795,6 +795,14 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/smoothpolygon/SmoothPolygon.cpp
 )
 
+# These sources bypass Box2D's CMake target and must retain its FP contract.
+get_target_property(CORONA_SOURCES corona SOURCES)
+foreach(CORONA_SOURCE IN LISTS CORONA_SOURCES)
+	if(CORONA_SOURCE MATCHES "/external/box2d_v3/")
+		set_property(SOURCE "${CORONA_SOURCE}" APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+	endif()
+endforeach()
+
 if(ANDROID AND (ANDROID_ABI STREQUAL "arm64-v8a" OR ANDROID_ABI STREQUAL "x86_64"))
 	# NDK version < 28
 	target_link_options(corona PRIVATE "-Wl,-z,max-page-size=16384")

@@ -4170,6 +4170,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_C_LANGUAGE_STANDARD = c11;
+				OTHER_CFLAGS = "$(inherited) -ffp-contract=off";
 				"OTHER_CFLAGS[arch=arm64]" = (
 					"-fexceptions",
 					"-ffp-contract=off",
@@ -4187,6 +4188,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_C_LANGUAGE_STANDARD = c11;
+				OTHER_CFLAGS = "$(inherited) -ffp-contract=off";
 				"OTHER_CFLAGS[arch=arm64]" = (
 					"-fexceptions",
 					"-DNS_BLOCK_ASSERTIONS=1",
@@ -4203,6 +4205,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_C_LANGUAGE_STANDARD = c11;
+				OTHER_CFLAGS = "$(inherited) -ffp-contract=off";
 				PRODUCT_NAME = box2d;
 				SWIFT_VERSION = 3.0;
 			};
@@ -4212,6 +4215,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_C_LANGUAGE_STANDARD = c11;
+				OTHER_CFLAGS = "$(inherited) -ffp-contract=off";
 				PRODUCT_NAME = box2d;
 				SWIFT_VERSION = 3.0;
 			};
