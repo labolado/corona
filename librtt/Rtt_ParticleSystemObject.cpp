@@ -79,9 +79,9 @@ namespace Rtt
 
 // -----------------------------------------------------------------------------
 
-// Only objects using an effect allocate a Paint. The observer owns its lifetime;
+// Effects and filename-free systems allocate a Paint. The observer owns its lifetime;
 // keeping this state external preserves the existing C++ object layout.
-typedef std::map< const ParticleSystemObject *, BitmapPaint * > ParticleEffectMap;
+typedef std::map< const ParticleSystemObject *, Paint * > ParticleEffectMap;
 static ParticleEffectMap sParticleEffects;
 static std::set< ParticleSystemObject * > sParticleObjects;
 
@@ -208,7 +208,7 @@ void ParticleSystemObject::SetEffect( lua_State *L, int valueIndex )
 	{
 		return;
 	}
-	BitmapPaint *paint;
+	Paint *paint;
 	if ( iter == sParticleEffects.end() )
 	{
 		paint = Rtt_NEW( LuaContext::GetAllocator( L ), BitmapPaint( fTextureResource ) );
@@ -567,17 +567,11 @@ TRACE_CALL;
 
 		_InitializeFromLua_ParticleSystemDef( L, particleSystemDef );
 
-		// filename is required.
+		// Omitted filenames use the same shared texture as solid-color shapes.
 		lua_getfield( L, -1, "filename" );
-		textureFileName = luaL_checkstring( L, -1 );
-		if( ! Rtt_VERIFY( textureFileName ) )
+		if ( ! lua_isnil( L, -1 ) )
 		{
-			// Nothing to do.
-			lua_pop( L, 1 );
-			_Cleanup();
-			luaL_error( L,
-						"\"filename\" is missing." );
-			return false;
+			textureFileName = luaL_checkstring( L, -1 );
 		}
 		lua_pop( L, 1 );
 
@@ -607,11 +601,11 @@ TRACE_CALL;
 
 	// Texture
 	{
-		fTextureResource = display.GetTextureFactory().FindOrCreate( textureFileName,
+		fTextureResource = textureFileName ? display.GetTextureFactory().FindOrCreate( textureFileName,
 																		baseDir,
 																		( PlatformBitmap::kIsNearestAvailablePixelDensity |
 																		PlatformBitmap::kIsBitsFullResolution ), //!< Image sheets should be loaded at full resolution AND support dynamic image resolution
-																		false );
+																		false ) : display.GetTextureFactory().GetDefault();
 		if( fTextureResource.IsNull() )
 		{
 			_Cleanup();
@@ -668,6 +662,16 @@ TRACE_CALL;
 			fData.fUserUniform2 = NULL;
 			fData.fUserUniform3 = NULL;
 		}
+	}
+
+	if ( ! textureFileName )
+	{
+		Paint *paint = Paint::NewColor( display.GetAllocator(), fTextureResource, 255, 255, 255, 255 );
+		paint->SetBlend( fData.fBlendMode );
+		paint->SetBlendEquation( fData.fBlendEquation );
+		paint->SetObserver( this );
+		sParticleEffects[this] = paint;
+		fShader = paint->GetShader( display.GetShaderFactory() );
 	}
 
 	display.GetScene().AddActiveUpdatable( this );
@@ -762,7 +766,7 @@ TRACE_CALL;
 	ParticleEffectMap::iterator effect = sParticleEffects.find( this );
 	if ( effect != sParticleEffects.end() )
 	{
-		BitmapPaint *paint = effect->second;
+		Paint *paint = effect->second;
 		paint->UpdatePaint( fData );
 		fShader = paint->GetShader( display.GetShaderFactory() );
 		if ( ! paint->IsValid( Paint::kShaderVertexDataFlag ) ||
@@ -833,7 +837,9 @@ void ParticleSystemObject::_CopyParticleFromParticleSystemToVertexData( b2Vec2 &
 	// Calculate vertex color, modulating by display object's alpha
 	RGBA rgba = { color.r, color.g, color.b, color.a };
 	rgba.ModulateAlpha( AlphaCumulative() );
-	if ( fTextureResource->GetBitmap()->IsPremultiplied() )
+	// The shared default texture has no PlatformBitmap and uses premultiplied color.
+	const PlatformBitmap *bitmap = fTextureResource->GetBitmap();
+	if ( ! bitmap || bitmap->IsPremultiplied() )
 	{
 		rgba.PremultiplyAlpha();
 	}
