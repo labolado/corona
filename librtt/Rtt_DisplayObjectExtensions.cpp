@@ -685,7 +685,7 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			break;
 		case 3:
 			{
-				lua_pushboolean( L, b2Body_IsSleepEnabled(fBodyId) );
+				lua_pushboolean( L, b2Body_IsSleepingEnabled(fBodyId) );
 			}
 			break;
 		case 4:
@@ -952,7 +952,7 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 			break;
 		case 3:
 			{
-				b2Body_EnableSleep( fBodyId, lua_toboolean( L, valueIndex ) );
+				b2Body_EnableSleeping( fBodyId, lua_toboolean( L, valueIndex ) );
 			}
 			break;
 		case 4:

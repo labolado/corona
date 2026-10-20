@@ -746,6 +746,9 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/constraint_graph.c
 		${CORONA_ROOT}/external/box2d_v3/src/contact.c
 		${CORONA_ROOT}/external/box2d_v3/src/contact_solver.c
+		${CORONA_ROOT}/external/box2d_v3/src/contact_solver_w4.c
+		${CORONA_ROOT}/external/box2d_v3/src/contact_solver_w8.c
+		${CORONA_ROOT}/external/box2d_v3/src/simd.c
 		${CORONA_ROOT}/external/box2d_v3/src/core.c
 		${CORONA_ROOT}/external/box2d_v3/src/distance.c
 		${CORONA_ROOT}/external/box2d_v3/src/distance_joint.c

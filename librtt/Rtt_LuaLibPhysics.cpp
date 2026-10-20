@@ -4648,7 +4648,7 @@ SetMaximumLinearSpeed( lua_State *L )
 		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 
 		float maximumLinearSpeed = lua_tonumber( L , 1 ) * physics.GetMetersPerPixel();
-		b2World_SetMaximumLinearSpeed( physics.GetWorldId(),  maximumLinearSpeed );
+		b2World_SetMaxLinearSpeed( physics.GetWorldId(),  maximumLinearSpeed );
 	}
 
 	return 0;
@@ -4660,7 +4660,7 @@ static int
 GetMaximumLinearSpeed( lua_State *L )
 {
 	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-	float speed = b2World_GetMaximumLinearSpeed( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
+	float speed = b2World_GetMaxLinearSpeed( physics.GetWorldId() ) * physics.GetPixelsPerMeter();
 	lua_pushnumber( L, speed );
 
 	return 1;

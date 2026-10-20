@@ -62,7 +62,6 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\solver.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\solver_set.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\dynamic_tree.h" />
-    <ClInclude Include="..\..\..\external\box2d_v3\src\qsort.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\recording.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\replay.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\snapshot.h" />
@@ -99,6 +98,11 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\constraint_graph.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\contact.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\contact_solver.c" />
+    <ClCompile Include="..\..\..\external\box2d_v3\src\contact_solver_w4.c" />
+    <ClCompile Include="..\..\..\external\box2d_v3\src\contact_solver_w8.c">
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\src\simd.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\core.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\distance.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\distance_joint.c" />
