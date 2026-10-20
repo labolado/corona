@@ -128,6 +128,21 @@ static int NewPin(lua_State* L)
     pin.gain=Value(L,2,"motorGain",8,0,1e6);
     int id=int(w.pins.size());w.pins.push_back(pin);PushEntity(L,kPin,id);return 1;
 }
+static int NewWorldPin(lua_State* L)
+{
+    Handle* owner=WorldHandle(L);
+    auto& world=World(L)->world;
+    luaL_checktype(L,2,LUA_TTABLE);
+    if(world.pins.size()>=64)return luaL_error(L,"soft joint allocation limit reached");
+    Field(L,2,"body");Entity* body=Object(L,kBody,-1);lua_pop(L,1);
+    if(body->owner!=owner)return luaL_error(L,"pin body belongs to another world");
+    Core::Pin pin;pin.a=body->id;pin.b=-1;
+    Weights(L,"weights",pin.wa);
+    pin.worldAnchor={float(Value(L,2,"x",0,-1e4,1e4)),float(Value(L,2,"y",0,-1e4,1e4))};
+    pin.gain=Value(L,2,"motorGain",8,0,1e6);
+    int id=int(world.pins.size());world.pins.push_back(pin);PushEntity(L,kPin,id);
+    return 1;
+}
 static int NewTouchJoint(lua_State* L)
 {
     Handle* owner=WorldHandle(L);
@@ -280,7 +295,7 @@ static void Metatable(lua_State* L,const char* name,const luaL_Reg* methods)
 { luaL_newmetatable(L,name);luaL_register(L,NULL,methods);lua_pushvalue(L,-1);lua_setfield(L,-2,"__index");lua_pop(L,1); }
 static void Register(lua_State* L)
 {
-    const luaL_Reg world[]={{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
+    const luaL_Reg world[]={{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
     const luaL_Reg boundary[]={{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};
