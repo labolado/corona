@@ -88,7 +88,11 @@ static int NewBody(lua_State* L)
     auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
     if(w.bodies.size()>=32)return luaL_error(L,"soft body allocation limit reached");
     Field(L,2,"material");const char* material=luaL_checkstring(L,-1);
-    int kind=!strcmp(material,"localFrame") ? 0 : (!strcmp(material,"pressure") ? 2 : -1);lua_pop(L,1);
+    int kind=-1;
+    if(!strcmp(material,"localFrame"))kind=0;
+    else if(!strcmp(material,"pressure"))kind=2;
+    else if(!strcmp(material,"recoverable"))kind=3;
+    lua_pop(L,1);
     if(kind<0)return luaL_error(L,"unsupported soft material");
     float mass=Value(L,2,"mass",1,.001,1000),rx=Value(L,2,"halfWidth",.35,.01,100),ry=Value(L,2,"halfHeight",.35,.01,100);
     float stiffness=Value(L,2,"edgeStiffness",300,.001,1e6),hz=Value(L,2,"frequency",6,0,1000);
@@ -96,7 +100,10 @@ static int NewBody(lua_State* L)
     float scale=Value(L,2,"materialScale",1,.001,1e4),overlap=Value(L,2,"frameOverlap",.2,0,100);
     float bulk=Value(L,2,"bulkStiffness",300,.001,1e6);
     float x=Value(L,2,"x",0,-1e4,1e4),y=Value(L,2,"y",0,-1e4,1e4);
-    if((kind==2 && scale!=1) || (kind==0 && preload!=0))return luaL_error(L,"materialScale is localFrame-only; preload is pressure-only");
+    if((kind==2 && scale!=1) || (kind==0 && preload!=0))return luaL_error(L,"materialScale requires localFrame or recoverable; preload is pressure-only");
+    if(kind==3 && 2*3.14159265358979323846*hz*std::sqrt(scale)*w.dt>1)
+        return luaL_error(L,"recoverable frequency is too high for the world substep; reduce frequency or increase substeps");
+    if(kind==3 && (preload!=0 || hz==0))return luaL_error(L,"recoverable material requires positive frequency and zero preload");
     if(kind==2 && preload>0 && rx!=ry)return luaL_error(L,"pressure preload currently requires a circle");
     SoftBody::Body<float> body(kind,mass,rx,ry,stiffness,hz,damping,preload,scale,overlap);body.bulk=bulk;
     for(float length:body.lengths)if(!(length>1e-6))return luaL_error(L,"preload exceeds edge rest length");
