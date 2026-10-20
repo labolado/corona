@@ -8,6 +8,7 @@ namespace Rtt { namespace ExperimentalSoftWorld {
 using Core=SoftBody::World<float>;
 static const char kWorld[]="physics.experimentalSoftWorld";
 static const char kBody[]="physics.experimentalSoftBody";
+static const char kTouch[]="physics.experimentalSoftTouchJoint";
 static const char kPin[]="physics.experimentalSoftPin";
 static const char kBoundary[]="physics.experimentalSoftBoundary";
 static int sLive=0;
@@ -17,7 +18,7 @@ struct Instance
     Instance(){++sLive;}~Instance(){--sLive;}
 };
 struct Handle { Instance* instance; };
-struct Entity { Handle* owner;int id; };
+struct Entity { Handle* owner;int id;unsigned long long generation; };
 static Handle* WorldHandle(lua_State* L,int index=1)
 { return static_cast<Handle*>(luaL_checkudata(L,index,kWorld)); }
 static Instance* World(lua_State* L,int index=1)
@@ -27,7 +28,11 @@ static Entity* Object(lua_State* L,const char* type,int index=1)
     Entity* e=static_cast<Entity*>(luaL_checkudata(L,index,type));
     if(!e->owner->instance)luaL_error(L,"soft world was removed");
     auto& w=e->owner->instance->world;
-    bool active=type==kBody ? w.bodies[e->id].active : (type==kPin ? w.pins[e->id].active : w.boundaries[e->id].active);
+    bool active=false;
+    if(type==kBody)active=w.bodies[e->id].active;
+    else if(type==kPin)active=w.pins[e->id].active;
+    else if(type==kTouch)active=w.touchJoints[e->id].active && w.touchJoints[e->id].generation==e->generation;
+    else active=w.boundaries[e->id].active;
     if(!active)luaL_error(L,"soft object was removed");return e;
 }
 static void Field(lua_State* L,int table,const char* name)
@@ -57,6 +62,7 @@ static void PushEntity(lua_State* L,const char* type,int id)
 {
     Handle* owner=WorldHandle(L);
     Entity* e=static_cast<Entity*>(lua_newuserdata(L,sizeof(Entity)));e->owner=owner;e->id=id;
+    e->generation=type==kTouch ? owner->instance->world.touchJoints[id].generation : 0;
     luaL_getmetatable(L,type);lua_setmetatable(L,-2);
     // Child owns a Lua reference to the world userdata, never a bare native lifetime.
     lua_newtable(L);lua_pushvalue(L,1);lua_setfield(L,-2,"world");lua_setfenv(L,-2);
@@ -69,11 +75,12 @@ static int RemoveEntity(lua_State* L,const char* type)
     if(e->owner->instance)
     {
         auto& w=e->owner->instance->world;
-        if(type==kBody)w.removeBody(e->id);else if(type==kPin)w.pins[e->id].active=false;else w.boundaries[e->id].active=false;
+        if(type==kBody)w.removeBody(e->id);else if(type==kPin)w.pins[e->id].active=false;else if(type==kTouch){if(w.touchJoints[e->id].generation==e->generation)w.touchJoints[e->id].active=false;}else w.boundaries[e->id].active=false;
     }
     return 0;
 }
 static int RemoveBody(lua_State* L){return RemoveEntity(L,kBody);}
+static int RemoveTouch(lua_State* L){return RemoveEntity(L,kTouch);}
 static int RemovePin(lua_State* L){return RemoveEntity(L,kPin);}
 static int RemoveBoundary(lua_State* L){return RemoveEntity(L,kBoundary);}
 static int NewBody(lua_State* L)
@@ -113,6 +120,61 @@ static int NewPin(lua_State* L)
     Core::Pin pin;pin.a=a->id;pin.b=b->id;Weights(L,"weightsA",pin.wa);Weights(L,"weightsB",pin.wb);
     pin.gain=Value(L,2,"motorGain",8,0,1e6);
     int id=int(w.pins.size());w.pins.push_back(pin);PushEntity(L,kPin,id);return 1;
+}
+static int NewTouchJoint(lua_State* L)
+{
+    Handle* owner=WorldHandle(L);
+    Core& world=World(L)->world;
+    luaL_checktype(L,2,LUA_TTABLE);
+    int id=0;
+    while(id<int(world.touchJoints.size()) && world.touchJoints[id].active)++id;
+    if(id>=64)return luaL_error(L,"active touch joint limit reached");
+    Field(L,2,"body");
+    Entity* body=Object(L,kBody,-1);
+    lua_pop(L,1);
+    if(body->owner!=owner)return luaL_error(L,"touch body must belong to this world");
+
+    Core::TouchJoint joint;
+    joint.body=body->id;
+    Weights(L,"weights",joint.weights);
+    joint.target={float(Value(L,2,"targetX",0,-1e4,1e4)),
+                  float(Value(L,2,"targetY",0,-1e4,1e4))};
+    joint.frequency=Value(L,2,"frequency",3,.01,60);
+    joint.dampingRatio=Value(L,2,"dampingRatio",1,0,10);
+    joint.maxForce=Value(L,2,"maxForce",50,0,1e5);
+    if(id==int(world.touchJoints.size()))
+    {
+        world.touchJoints.push_back(joint);
+    }
+    else
+    {
+        joint.generation=world.touchJoints[id].generation+1;
+        world.touchJoints[id]=joint;
+    }
+    PushEntity(L,kTouch,id);
+    return 1;
+}
+static int TouchTarget(lua_State* L)
+{
+    Entity* entity=Object(L,kTouch);
+    float x=Argument(L,2,-1e4,1e4);
+    float y=Argument(L,3,-1e4,1e4);
+    entity->owner->instance->world.touchJoints[entity->id].target={x,y};
+    return 0;
+}
+static int TouchState(lua_State* L)
+{
+    Entity* entity=Object(L,kTouch);
+    Core& world=entity->owner->instance->world;
+    const auto& joint=world.touchJoints[entity->id];
+    auto point=world.anchor(joint.body,joint.weights);
+    lua_createtable(L,0,5);
+    Number(L,"x",point[0]);
+    Number(L,"y",point[1]);
+    Number(L,"targetX",joint.target[0]);
+    Number(L,"targetY",joint.target[1]);
+    Number(L,"force",joint.lastForce);
+    return 1;
 }
 static int SetMotor(lua_State* L)
 {
@@ -211,10 +273,17 @@ static void Metatable(lua_State* L,const char* name,const luaL_Reg* methods)
 { luaL_newmetatable(L,name);luaL_register(L,NULL,methods);lua_pushvalue(L,-1);lua_setfield(L,-2,"__index");lua_pop(L,1); }
 static void Register(lua_State* L)
 {
-    const luaL_Reg world[]={{"createBody",NewBody},{"createPinJoint",NewPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
+    const luaL_Reg world[]={{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
     const luaL_Reg boundary[]={{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};
+    const luaL_Reg touch[]={
+        {"setTarget",TouchTarget},
+        {"getState",TouchState},
+        {"removeSelf",RemoveTouch},
+        {NULL,NULL}
+    };
+    Metatable(L,kTouch,touch);
     Metatable(L,kWorld,world);Metatable(L,kBody,body);Metatable(L,kPin,pin);Metatable(L,kBoundary,boundary);
     lua_pushcfunction(L,New);lua_setfield(L,-2,"newExperimentalSoftWorld");
 }
