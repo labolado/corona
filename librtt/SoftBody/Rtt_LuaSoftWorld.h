@@ -218,7 +218,7 @@ static int NewBoundary(lua_State* L)
     auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
     if(w.boundaries.size()>=64)return luaL_error(L,"soft boundary allocation limit reached");
     Field(L,2,"type");const char* type=luaL_checkstring(L,-1);
-    int kind=!strcmp(type,"plane") ? 0 : (!strcmp(type,"corner") ? 1 : -1);lua_pop(L,1);
+    int kind=!strcmp(type,"plane") ? 0 : (!strcmp(type,"corner") ? 1 : (!strcmp(type,"box") ? 2 : -1));lua_pop(L,1);
     if(kind<0)return luaL_error(L,"unsupported soft boundary");
     Core::Boundary b;b.kind=kind;b.friction=Value(L,2,"friction",.8,0,10);
     if(kind==0)
@@ -226,6 +226,13 @@ static int NewBoundary(lua_State* L)
         b.normal={float(Value(L,2,"normalX",0,-1,1)),float(Value(L,2,"normalY",1,-1,1))};
         if(std::abs(std::hypot(b.normal[0],b.normal[1])-1)>1e-6)return luaL_error(L,"plane normal must be unit length");
         b.target=b.offset=Value(L,2,"offset",0,-1e4,1e4);
+    }
+    else if(kind==2)
+    {
+        b.center={float(Value(L,2,"x",0,-1e4,1e4)),float(Value(L,2,"y",0,-1e4,1e4))};
+        b.halfSize={float(Value(L,2,"halfWidth",1,.001,1e4)),float(Value(L,2,"halfHeight",.1,.001,1e4))};
+        double angle=Value(L,2,"angle",0,-360,360)*3.14159265358979323846/180;
+        b.axis={float(std::cos(angle)),float(std::sin(angle))};
     }
     else { b.left=Value(L,2,"left",0,-1e4,1e4);b.top=Value(L,2,"top",0,-1e4,1e4); }
     int id=int(w.boundaries.size());w.boundaries.push_back(b);PushEntity(L,kBoundary,id);return 1;
