@@ -214,6 +214,25 @@ static int SetCollision(lua_State* L)
         { if(lua_toboolean(L,4))w.exclusions.erase(i);return 0; }
     if(!lua_toboolean(L,4))w.exclusions.push_back({a->id,b->id});return 0;
 }
+static int SetBoundaryCollision(lua_State* L)
+{
+    Entity* boundary=Object(L,kBoundary);
+    Entity* body=Object(L,kBody,2);
+    if(boundary->owner!=body->owner)return luaL_error(L,"body belongs to another world");
+    luaL_checktype(L,3,LUA_TBOOLEAN);
+    auto& exclusions=boundary->owner->instance->world.boundaries[boundary->id].excludedBodies;
+    bool enabled=lua_toboolean(L,3);
+    for(auto i=exclusions.begin();i!=exclusions.end();++i)
+    {
+        if(*i==body->id)
+        {
+            if(enabled)exclusions.erase(i);
+            return 0;
+        }
+    }
+    if(!enabled)exclusions.push_back(body->id);
+    return 0;
+}
 static int NewBoundary(lua_State* L)
 {
     auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
@@ -306,7 +325,7 @@ static void Register(lua_State* L)
     const luaL_Reg world[]={{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
-    const luaL_Reg boundary[]={{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};
+    const luaL_Reg boundary[]={{"setCollisionEnabled",SetBoundaryCollision},{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};
     const luaL_Reg touch[]={
         {"setTarget",TouchTarget},
         {"getState",TouchState},
