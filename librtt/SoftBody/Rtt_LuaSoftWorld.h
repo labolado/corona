@@ -98,6 +98,7 @@ static int NewBody(lua_State* L)
     float stiffness=Value(L,2,"edgeStiffness",300,.001,1e6),hz=Value(L,2,"frequency",6,0,1000);
     float damping=Value(L,2,"damping",40,0,1e5),preload=Value(L,2,"preload",0,0,1e6);
     float scale=Value(L,2,"materialScale",1,.001,1e4),overlap=Value(L,2,"frameOverlap",.2,0,100);
+    float friction=Value(L,2,"friction",0,0,10);
     float bulk=Value(L,2,"bulkStiffness",300,.001,1e6);
     float x=Value(L,2,"x",0,-1e4,1e4),y=Value(L,2,"y",0,-1e4,1e4);
     if((kind==2 && scale!=1) || (kind==0 && preload!=0))return luaL_error(L,"materialScale requires localFrame or recoverable; preload is pressure-only");
@@ -105,7 +106,7 @@ static int NewBody(lua_State* L)
         return luaL_error(L,"recoverable frequency is too high for the world substep; reduce frequency or increase substeps");
     if(kind==3 && (preload!=0 || hz==0))return luaL_error(L,"recoverable material requires positive frequency and zero preload");
     if(kind==2 && preload>0 && rx!=ry)return luaL_error(L,"pressure preload currently requires a circle");
-    SoftBody::Body<float> body(kind,mass,rx,ry,stiffness,hz,damping,preload,scale,overlap);body.bulk=bulk;
+    SoftBody::Body<float> body(kind,mass,rx,ry,stiffness,hz,damping,preload,scale,overlap);body.bulk=bulk;body.friction=friction;
     for(float length:body.lengths)if(!(length>1e-6))return luaL_error(L,"preload exceeds edge rest length");
     for(auto& p:body.x){p[0]+=x;p[1]+=y;}
     int id=int(w.bodies.size());w.bodies.push_back(body);PushEntity(L,kBody,id);return 1;
