@@ -4574,6 +4574,63 @@ GetSeamContactFilterEnabled( lua_State *L )
 	return 1;
 }
 
+// physics.setWeldRestitutionEnabled(enabled)
+// Opt in to rigid weld participation in restitution. Reset when the world is destroyed.
+static int
+SetWeldRestitutionEnabled( lua_State *L )
+{
+	if ( ! lua_isboolean( L, 1 ) )
+	{
+		CoronaLuaError( L, "physics.setWeldRestitutionEnabled() requires 1 parameter (boolean)" );
+		return 0;
+	}
+	if ( ! LuaLibPhysics::IsWorldLocked( L, "physics.setWeldRestitutionEnabled()" ) )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2World_EnableWeldRestitution( physics.GetWorldId(), lua_toboolean( L, 1 ) );
+	}
+	return 0;
+}
+
+static int
+GetWeldRestitutionEnabled( lua_State *L )
+{
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushboolean( L, physics.IsWorldValid() && b2World_IsWeldRestitutionEnabled( physics.GetWorldId() ) );
+	return 1;
+}
+
+// This is the world's contact restitution iteration count, not the physics substep count.
+static int
+SetRestitutionIterations( lua_State *L )
+{
+	lua_Number value = lua_tonumber( L, 1 );
+	if ( lua_type( L, 1 ) != LUA_TNUMBER || ! ( value >= 0 && value <= B2_MAX_RESTITUTION_ITERATIONS ) ||
+		value != (int)value )
+	{
+		CoronaLuaError( L, "physics.setRestitutionIterations() requires an integer from 0 to %d", B2_MAX_RESTITUTION_ITERATIONS );
+		return 0;
+	}
+	if ( ! LuaLibPhysics::IsWorldLocked( L, "physics.setRestitutionIterations()" ) )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2World_SetRestitutionIterations( physics.GetWorldId(), (int)value );
+	}
+	return 0;
+}
+
+static int
+GetRestitutionIterations( lua_State *L )
+{
+	if ( ! LuaLibPhysics::IsWorldValid( L, "physics.getRestitutionIterations()" ) )
+	{
+		return 0;
+	}
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushinteger( L, b2World_GetRestitutionIterations( physics.GetWorldId() ) );
+	return 1;
+}
+
 // physics.setRestitutionThreshold(value)
 // Adjust the restitution threshold. It is recommended not to make this value very small
 // because it will prevent bodies from sleeping. Usually in meters per second.
@@ -4777,6 +4834,10 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getSeamContactFilterEnabled", GetSeamContactFilterEnabled },
 		{ "setMaximumLinearSpeed", SetMaximumLinearSpeed },
 		{ "getMaximumLinearSpeed", GetMaximumLinearSpeed },
+		{ "setWeldRestitutionEnabled", SetWeldRestitutionEnabled },
+		{ "getWeldRestitutionEnabled", GetWeldRestitutionEnabled },
+		{ "setRestitutionIterations", SetRestitutionIterations },
+		{ "getRestitutionIterations", GetRestitutionIterations },
 		{ "setRestitutionThreshold", SetRestitutionThreshold },
 		{ "getRestitutionThreshold", GetRestitutionThreshold },
 		{ "setHitEventThreshold", SetHitEventThreshold },
