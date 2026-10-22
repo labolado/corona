@@ -1241,7 +1241,7 @@
     <ClCompile Include="..\..\..\external\libjpeg\jidctred.c">
       <Filter>libjpeg</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\external\libjpeg\jmemansi.c">
+    <ClCompile Include="..\..\..\external\libjpeg\jmemnobs.c">
       <Filter>libjpeg</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\libjpeg\jmemmgr.c">
