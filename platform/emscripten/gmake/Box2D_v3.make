@@ -97,6 +97,9 @@ OBJECTS := \
 	$(OBJDIR)/constraint_graph.o \
 	$(OBJDIR)/contact.o \
 	$(OBJDIR)/contact_solver.o \
+	$(OBJDIR)/contact_solver_w4.o \
+	$(OBJDIR)/contact_solver_w8.o \
+	$(OBJDIR)/simd.o \
 	$(OBJDIR)/core.o \
 	$(OBJDIR)/distance.o \
 	$(OBJDIR)/distance_joint.o \
@@ -265,6 +268,15 @@ $(OBJDIR)/contact.o: ../../../external/box2d_v3/src/contact.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/contact_solver.o: ../../../external/box2d_v3/src/contact_solver.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/contact_solver_w4.o: ../../../external/box2d_v3/src/contact_solver_w4.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/contact_solver_w8.o: ../../../external/box2d_v3/src/contact_solver_w8.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/simd.o: ../../../external/box2d_v3/src/simd.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/core.o: ../../../external/box2d_v3/src/core.c

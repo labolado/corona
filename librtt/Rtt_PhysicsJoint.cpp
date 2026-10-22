@@ -801,7 +801,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				{
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
-					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2DistanceJoint_GetLength(baseJoint) ), scale );
+					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2DistanceJoint_GetRestLength(baseJoint) ), scale );
 					lua_pushnumber( L, valuePixels );
 				}
 				else if ( 0 == strcmp( "frequency", key ) )
@@ -854,7 +854,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				}
 				else if ( 0 == strcmp( "motorSpeed", key ) )
 				{
-					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2RevoluteJoint_GetMotorSpeed(baseJoint) ) );
+					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2RevoluteJoint_GetTargetMotorSpeed(baseJoint) ) );
 					lua_pushnumber( L, valueDegrees );
 				}
 				else if ( 0 == strcmp( "motorTorque", key ) )  // read-only
@@ -862,7 +862,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 					Runtime& runtime = * LuaContext::GetRuntime( L );
 					float inverseDeltaTime = (float)runtime.GetFPS();
 
-					lua_pushnumber( L, b2RevoluteJoint_GetMotorTorque(baseJoint) * inverseDeltaTime );
+					lua_pushnumber( L, b2RevoluteJoint_GetCurrentMotorTorque(baseJoint) * inverseDeltaTime );
 				}
 				else if ( 0 == strcmp( "maxMotorTorque", key ) )
 				{
@@ -878,7 +878,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				}
 				else if ( 0 == strcmp( "jointAngle", key ) )  // read-only
 				{
-					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2RevoluteJoint_GetAngle(baseJoint) ) );
+					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2RevoluteJoint_GetCurrentAngle(baseJoint) ) );
 					lua_pushnumber( L, valueDegrees );
 				}
 				else if ( 0 == strcmp( "jointSpeed", key ) )  // read-only
@@ -984,7 +984,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				{
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
-					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetMotorSpeed(baseJoint) ), scale );
+					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetTargetMotorSpeed(baseJoint) ), scale );
 					lua_pushnumber( L, valuePixels );
 				}
 				else if ( 0 == strcmp( "motorForce", key ) ) // read-only
@@ -992,7 +992,7 @@ PhysicsJoint::ValueForKey( lua_State *L )
 					Runtime& runtime = * LuaContext::GetRuntime( L );
 					float inverseDeltaTime = (float)runtime.GetFPS();
 
-					lua_pushnumber( L,  b2PrismaticJoint_GetMotorForce(baseJoint) * inverseDeltaTime );
+					lua_pushnumber( L,  b2PrismaticJoint_GetCurrentMotorForce(baseJoint) * inverseDeltaTime );
 				}
 				else if ( 0 == strcmp( "maxMotorForce", key ) )
 				{
@@ -1015,14 +1015,14 @@ PhysicsJoint::ValueForKey( lua_State *L )
 				{
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
-					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetTranslation(baseJoint) ), scale );
+					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetCurrentTranslation(baseJoint) ), scale );
 					lua_pushnumber( L, valuePixels );
 				}
 				else if ( 0 == strcmp( "jointSpeed", key ) )  // read-only
 				{
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
-					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetSpeed(baseJoint) ), scale );
+					Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( b2PrismaticJoint_GetCurrentSpeed(baseJoint) ), scale );
 					lua_pushnumber( L, valuePixels );
 				}
 				else if ( 0 == strcmp( "isLimitEnabled", key ) )
@@ -1080,12 +1080,12 @@ PhysicsJoint::ValueForKey( lua_State *L )
 					// Real scale = physics.GetPixelsPerMeter();
 					// Rtt_Real valuePixels = Rtt_RealMul( Rtt_FloatToReal( joint->GetMotorSpeed() ), scale );
 					// lua_pushnumber( L, valuePixels );
-					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2WheelJoint_GetMotorSpeed(baseJoint) ) );
+					Rtt_Real valueDegrees = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2WheelJoint_GetTargetMotorSpeed(baseJoint) ) );
 					lua_pushnumber( L, valueDegrees );
 				}
 				else if ( 0 == strcmp( "motorTorque", key ) )  // read-only
 				{
-					lua_pushnumber( L, b2WheelJoint_GetMotorTorque(baseJoint) );
+					lua_pushnumber( L, b2WheelJoint_GetCurrentMotorTorque(baseJoint) );
 				}
 				else if ( 0 == strcmp( "maxMotorTorque", key ) )
 				{
@@ -1354,7 +1354,7 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
 					Real valueMeters = Rtt_RealDiv( luaL_toreal( L, 3 ), scale );
-					b2DistanceJoint_SetLength( baseJoint, valueMeters );
+					b2DistanceJoint_SetRestLength( baseJoint, valueMeters );
 				}
 			}
 			else if ( 0 == strcmp( "frequency", key ) )
@@ -1525,7 +1525,7 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 				if ( lua_isnumber( L, 3 ) )
 				{
 					Rtt_Real valueRadians = Rtt_RealDegreesToRadians( luaL_toreal( L, 3 ) );
-					b2RevoluteJoint_SetMotorSpeed( baseJoint, Rtt_RealToFloat( valueRadians ) );
+					b2RevoluteJoint_SetTargetMotorSpeed( baseJoint, Rtt_RealToFloat( valueRadians ) );
 					b2Joint_WakeBodies( baseJoint );
 				}
 			}
@@ -1581,7 +1581,7 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 					const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 					Real scale = physics.GetPixelsPerMeter();
 					Real valueMeters = Rtt_RealDiv( luaL_toreal( L, 3 ), scale );
-					b2PrismaticJoint_SetMotorSpeed( baseJoint, Rtt_RealToFloat( valueMeters ) );
+					b2PrismaticJoint_SetTargetMotorSpeed( baseJoint, Rtt_RealToFloat( valueMeters ) );
 					b2Joint_WakeBodies( baseJoint );
 				}
 			}
@@ -1667,7 +1667,7 @@ PhysicsJoint::SetValueForKey( lua_State *L )
 				if ( lua_isnumber( L, 3 ) )
 				{
 					Rtt_Real valueRadians = Rtt_RealDegreesToRadians( luaL_toreal( L, 3 ) );
-					b2WheelJoint_SetMotorSpeed( baseJoint, Rtt_RealToFloat( valueRadians ) );
+					b2WheelJoint_SetTargetMotorSpeed( baseJoint, Rtt_RealToFloat( valueRadians ) );
 					b2Joint_WakeBodies( baseJoint );
 				}
 			}

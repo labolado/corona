@@ -5,7 +5,7 @@
 	<key>CFBundleAllowMixedLocalizations</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>English</string>
 	<key>CFBundleExecutable</key>
 	<string>applet</string>
 	<key>CFBundleIconFile</key>
@@ -30,35 +30,13 @@
 	<key>LSRequiresCarbon</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>This script needs to control other applications to run.</string>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>This script needs access to your music to run.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>This script needs access to your calendars to run.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This script needs access to your camera to run.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>This script needs access to your contacts to run.</string>
-	<key>NSHomeKitUsageDescription</key>
-	<string>This script needs access to your HomeKit Home to run.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This script needs access to your microphone to run.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This script needs access to your photos to run.</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>This script needs access to your reminders to run.</string>
-	<key>NSSiriUsageDescription</key>
-	<string>This script needs access to Siri to run.</string>
-	<key>NSSystemAdministrationUsageDescription</key>
-	<string>This script needs access to administer this system to run.</string>
-	<key>OSAAppletShowStartupScreen</key>
-	<false/>
+	<string>To create necessary links</string>
 	<key>WindowState</key>
 	<dict>
 		<key>bundleDividerCollapsed</key>
 		<true/>
 		<key>bundlePositionOfDivider</key>
-		<real>0.0</real>
+		<real>0</real>
 		<key>dividerCollapsed</key>
 		<false/>
 		<key>eventLogLevel</key>
@@ -66,11 +44,11 @@
 		<key>name</key>
 		<string>ScriptWindowState</string>
 		<key>positionOfDivider</key>
-		<real>538</real>
+		<real>504</real>
 		<key>savedFrame</key>
-		<string>2068 475 719 773 2048 -160 2560 1415 </string>
+		<string>778 598 1082 802 0 0 2560 1578 </string>
 		<key>selectedTab</key>
-		<string>description</string>
+		<string>result</string>
 	</dict>
 </dict>
 </plist>
