@@ -1727,6 +1727,10 @@
 		F86F3313171886AA00F98693 /* widget_tabbar.lua in Sources */ = {isa = PBXBuildFile; fileRef = F86F3305171886AA00F98693 /* widget_tabbar.lua */; };
 		F86F3314171886AA00F98693 /* widget_tableview.lua in Sources */ = {isa = PBXBuildFile; fileRef = F86F3306171886AA00F98693 /* widget_tableview.lua */; };
 		F86F3315171886AA00F98693 /* widget.lua in Sources */ = {isa = PBXBuildFile; fileRef = F86F3307171886AA00F98693 /* widget.lua */; };
+		23D07D7B4339AA3A691BD406 /* soft_body.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57B68E059303A6B74F3FB327 /* soft_body.cpp */; };
+		F2EF683F339C896512C3E292 /* soft_contact.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7649CB75AF452750B2BB873E /* soft_contact.cpp */; };
+		011220DF88F3E7E989268AF7 /* soft_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 42642255D0A24E9FF0639B53 /* soft_world.cpp */; };
+		FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -3433,6 +3437,10 @@
 		F86F3305171886AA00F98693 /* widget_tabbar.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget_tabbar.lua; path = ../../subrepos/widget/widgetLibrary/widget_tabbar.lua; sourceTree = "<group>"; };
 		F86F3306171886AA00F98693 /* widget_tableview.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget_tableview.lua; path = ../../subrepos/widget/widgetLibrary/widget_tableview.lua; sourceTree = "<group>"; };
 		F86F3307171886AA00F98693 /* widget.lua */ = {isa = PBXFileReference; lastKnownFileType = text; name = widget.lua; path = ../../subrepos/widget/widgetLibrary/widget.lua; sourceTree = "<group>"; };
+		57B68E059303A6B74F3FB327 /* soft_body.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_body.cpp; sourceTree = "<group>"; };
+		7649CB75AF452750B2BB873E /* soft_contact.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_contact.cpp; sourceTree = "<group>"; };
+		42642255D0A24E9FF0639B53 /* soft_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_world.cpp; sourceTree = "<group>"; };
+		FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_static.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -4569,6 +4577,7 @@
 			isa = PBXGroup;
 			children = (
 				4155A6182C6B64CA002F8BBD /* liquidfun */,
+				FCBE0E76D10A470A9D7040CB /* softbody */,
 			);
 			path = extern;
 			sourceTree = "<group>";
@@ -5425,6 +5434,17 @@
 				F5F0540020374B9A007E92B0 /* tErrorLib.h */,
 			);
 			path = Isolated;
+			sourceTree = "<group>";
+		};
+		FCBE0E76D10A470A9D7040CB /* softbody */ = {
+			isa = PBXGroup;
+			children = (
+				57B68E059303A6B74F3FB327 /* soft_body.cpp */,
+				7649CB75AF452750B2BB873E /* soft_contact.cpp */,
+				42642255D0A24E9FF0639B53 /* soft_world.cpp */,
+				FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */,
+			);
+			path = softbody;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -7309,6 +7329,10 @@
 				4161798D2FCED6960084DB15 /* parallel_for.c in Sources */,
 				41B9AAE12C5A446A000F59B1 /* types.c in Sources */,
 				4155A6292C6B64CA002F8BBD /* liquid_world.cpp in Sources */,
+				FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */,
+				011220DF88F3E7E989268AF7 /* soft_world.cpp in Sources */,
+				F2EF683F339C896512C3E292 /* soft_contact.cpp in Sources */,
+				23D07D7B4339AA3A691BD406 /* soft_body.cpp in Sources */,
 				41B9AACE2C5A446A000F59B1 /* joint.c in Sources */,
 				41B9AACC2C5A446A000F59B1 /* island.c in Sources */,
 				41B9AACA2C5A446A000F59B1 /* id_pool.c in Sources */,

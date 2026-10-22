@@ -1,6 +1,6 @@
 #pragma once
 // Private opt-in Lua adapter. Solver is isolated in the Box2D extern tree.
-#include "../../external/box2d_v3/extern/softbody/sb_world.h"
+#include "../../external/box2d_v3/extern/softbody/soft_world.h"
 #include <new>
 #include <cstring>
 
