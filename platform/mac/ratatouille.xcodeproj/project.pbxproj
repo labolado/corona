@@ -1731,6 +1731,7 @@
 		F2EF683F339C896512C3E292 /* soft_contact.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7649CB75AF452750B2BB873E /* soft_contact.cpp */; };
 		011220DF88F3E7E989268AF7 /* soft_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 42642255D0A24E9FF0639B53 /* soft_world.cpp */; };
 		FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */; };
+		4E6334F1C34449C9B34F126A /* soft_box2d_box.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -3441,6 +3442,7 @@
 		7649CB75AF452750B2BB873E /* soft_contact.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_contact.cpp; sourceTree = "<group>"; };
 		42642255D0A24E9FF0639B53 /* soft_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_world.cpp; sourceTree = "<group>"; };
 		FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_static.cpp; sourceTree = "<group>"; };
+		8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_box.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -5443,6 +5445,7 @@
 				7649CB75AF452750B2BB873E /* soft_contact.cpp */,
 				42642255D0A24E9FF0639B53 /* soft_world.cpp */,
 				FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */,
+				8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */,
 			);
 			path = softbody;
 			sourceTree = "<group>";
@@ -7330,6 +7333,7 @@
 				41B9AAE12C5A446A000F59B1 /* types.c in Sources */,
 				4155A6292C6B64CA002F8BBD /* liquid_world.cpp in Sources */,
 				FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */,
+				4E6334F1C34449C9B34F126A /* soft_box2d_box.cpp in Sources */,
 				011220DF88F3E7E989268AF7 /* soft_world.cpp in Sources */,
 				F2EF683F339C896512C3E292 /* soft_contact.cpp in Sources */,
 				23D07D7B4339AA3A691BD406 /* soft_body.cpp in Sources */,
