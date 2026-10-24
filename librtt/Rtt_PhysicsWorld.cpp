@@ -54,6 +54,7 @@ struct FixedStepState
     bool enabled = false;
     bool executing = false;
     bool faulted = false;
+    bool coupledFault = false;
     float dt = 1.0f / 60.0f;
     int subSteps = 8;
     int maxSteps = 8;
@@ -65,6 +66,7 @@ struct FixedStepState
     Runtime *runtime = NULL;
     int listener = LUA_NOREF;
     std::string error;
+    FixedStepScheduler::Client client = {};
 };
 std::map<PhysicsWorld *, FixedStepState> sFixedSteps;
 std::mutex sFixedStepsMutex;
@@ -135,10 +137,44 @@ bool FixedCallback( PhysicsWorld& physics, FixedStepState& state, const char *ph
 }
 }
 
+const char *FixedStepScheduler::Attach(PhysicsWorld& physics, const Client& client, float dt)
+{
+    FixedStepState *state = FindFixedStep(physics);
+    if (!state || !state->enabled || state->dt != dt || dt != 1.0f/480.0f || state->subSteps != 1)
+    { return "coupled soft world requires fixed timeStep=1/480 and subSteps=1"; }
+    if (state->executing || state->faulted || !physics.IsWorldValid())
+    { return "cannot attach soft world during a step, after a fault, or without physics.start"; }
+    if (state->client.owner) { return "only one coupled soft world is supported"; }
+    const char *error = client.prepare(client.owner, physics);
+    if (!error) { state->client = client; }
+    return error;
+}
+
+void FixedStepScheduler::Detach(PhysicsWorld& physics, void *owner)
+{
+    FixedStepState *state = FindFixedStep(physics);
+    if (state && state->client.owner == owner) { state->client = {}; }
+}
+
+void FixedStepScheduler::Invalidate(PhysicsWorld& physics)
+{
+    FixedStepState *state = FindFixedStep(physics);
+    if (state && state->client.owner)
+    {
+        Client client = state->client;
+        state->client = {};
+        client.invalidate(client.owner);
+    }
+}
+
 int FixedStepScheduler::Configure( lua_State *L )
 {
     PhysicsWorld& physics = FixedPhysics( L );
     FixedStepState *previous = FindFixedStep( physics );
+    if ( previous && previous->coupledFault && physics.IsWorldValid() )
+    { return luaL_error( L, "stop the faulted coupled world before changing fixed step mode" ); }
+    if ( previous && previous->client.owner )
+    { return luaL_error( L, "remove the coupled soft world before changing fixed step mode" ); }
     if ( previous && previous->executing )
     { return luaL_error( L, "setFixedStepMode cannot change mode during a physics step" ); }
     if ( physics.IsWorldValid() && physics.GetWorld()->IsLocked() )
@@ -232,6 +268,7 @@ void FixedStepScheduler::Reset( PhysicsWorld& physics )
     state->index = 0;
     state->budget = 0;
     state->faulted = false;
+    state->coupledFault = false;
     state->error.clear();
     // Do not clear executing: stop/start inside a callback must not reenter Step.
 }
@@ -366,9 +403,29 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
         if ( state->generation != generation || !physics.IsWorldValid() ) { break; }
         // A pause in before finishes this already-prepared step (no duplicate
         // force application on resume). A stop cancels it by changing generation.
+        const char *error = state->client.owner ? state->client.prepare(state->client.owner, physics) : NULL;
+        if (error)
+        {
+            state->coupledFault = true;
+            state->faulted = true;
+            state->error = error;
+            physics.PauseWorld();
+            break;
+        }
         physics.GetWorld()->Step( state->dt, state->subSteps );
         state->budget -= 1.0;
         state->index = next;
+        // The rigid step has completed: consume it even if the soft solve fails.
+        error = state->client.owner ? state->client.advance(state->client.owner, physics) : NULL;
+        if (error)
+        {
+            state->coupledFault = true;
+            state->faulted = true;
+            state->error = error;
+            physics.PauseWorld();
+            SyncDisplay(physics);
+            break;
+        }
         SyncDisplay( physics );
         if ( !DispatchEvents( physics, generation ) ) { break; }
         if ( !FixedCallback( physics, *state, "after", next ) ) { break; }
@@ -765,6 +822,7 @@ PhysicsWorld::onResumed()
 void
 PhysicsWorld::StopWorld()
 {
+	FixedStepScheduler::Invalidate( *this );
 	FixedStepScheduler::Reset( *this );
 	if ( fWorld )
 	{

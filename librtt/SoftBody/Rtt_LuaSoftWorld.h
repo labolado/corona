@@ -1,6 +1,8 @@
 #pragma once
 // Private opt-in Lua adapter. Solver is isolated in the Box2D extern tree.
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_static.h"
+#include "../../external/box2d_v3/extern/softbody/soft_box2d_box.h"
+#include "Rtt_FixedStepScheduler.h"
 #include <new>
 #include <cstring>
 
@@ -17,21 +19,29 @@ struct Instance
 {
     struct Attachment { b2BodyId body;size_t first,count;bool active=true; };
     Core world;SoftBody::Box2DStaticContacts rigid;
+    SoftBody::Box2DBoxContacts boxes;
+    PhysicsWorld* physics=nullptr;
+    b2WorldId physicsId=b2_nullWorldId;
+    bool coupled=false,invalidated=false;
+    unsigned long rigidSteps=0;
     std::vector<Attachment> attachments;
     float rigidScale=0;
     unsigned long frames=0;double timeStep=1./60;
-    Instance(){++sLive;}~Instance(){--sLive;}
+    Instance(){++sLive;}
+    ~Instance(){if(physics)FixedStepScheduler::Detach(*physics,this);--sLive;}
 };
+#include "Rtt_SoftWorldCoupling.h"
 struct Handle { Instance* instance; };
 struct Entity { Handle* owner;int id;unsigned long long generation; };
 static Handle* WorldHandle(lua_State* L,int index=1)
 { return static_cast<Handle*>(luaL_checkudata(L,index,kWorld)); }
 static Instance* World(lua_State* L,int index=1)
-{ Handle* h=WorldHandle(L,index);if(!h->instance)luaL_error(L,"soft world was removed");return h->instance; }
+{ Handle* h=WorldHandle(L,index);if(!h->instance)luaL_error(L,"soft world was removed");if(h->instance->invalidated)luaL_error(L,"coupled soft world was invalidated by physics.stop");return h->instance; }
 static Entity* Object(lua_State* L,const char* type,int index=1)
 {
     Entity* e=static_cast<Entity*>(luaL_checkudata(L,index,type));
     if(!e->owner->instance)luaL_error(L,"soft world was removed");
+    if(e->owner->instance->invalidated)luaL_error(L,"coupled soft world was invalidated by physics.stop");
     auto& w=e->owner->instance->world;
     bool active=false;
     if(type==kBody)active=w.bodies[e->id].active;
@@ -295,7 +305,11 @@ static int BodyState(lua_State* L)
 }
 static int State(lua_State* L)
 {
-    Instance* s=World(L);auto& w=s->world;auto m=w.currentMetrics();lua_createtable(L,0,16);
+    Instance* s=WorldHandle(L)->instance;if(!s)return luaL_error(L,"soft world was removed");
+    auto& w=s->world;auto m=w.currentMetrics();lua_createtable(L,0,20);
+    Bool(L,"coupled",s->coupled);Bool(L,"invalidated",s->invalidated);
+    Number(L,"rigidSteps",s->rigidSteps);Number(L,"softSteps",s->frames);
+    Number(L,"boxContacts",s->boxes.contacts);
     Number(L,"time",s->frames*s->timeStep);Number(L,"substep",double(w.completedSubsteps));Number(L,"liveInstances",sLive);
     Number(L,"motorWork",w.motorWork);Number(L,"boundaryWork",w.boundaryWork);Number(L,"appliedWork",w.appliedWork);Number(L,"energy",m.energy);
     Number(L,"penetration",w.peak.penetration);Number(L,"pinError",w.peak.pin);Number(L,"nodeSpeed",w.peak.nodeSpeed);
@@ -318,6 +332,7 @@ static int State(lua_State* L)
 static int AttachStatic(lua_State* L)
 {
     Instance* instance=World(L);
+    if(instance->coupled)return luaL_error(L,"use attachPhysicsBody for a coupled soft world");
     auto& physics=LuaContext::GetRuntime(L)->GetPhysicsWorld();
     DisplayObject* object=static_cast<DisplayObject*>(LuaProxy::GetProxyableObject(L,2));
     if(!object || !object->GetExtensions())return luaL_error(L,"attachStaticBody requires a physics display object");
@@ -352,6 +367,25 @@ static int AttachStatic(lua_State* L)
     instance->rigidScale=scale;instance->rigid.flipY=true;
     PushEntity(L,kRigid,int(instance->attachments.size())-1);return 1;
 }
+static int AttachPhysics(lua_State* L)
+{
+    Instance* instance=World(L);
+    if(!instance->coupled)return luaL_error(L,"attachPhysicsBody requires a coupled soft world");
+    DisplayObject* object=static_cast<DisplayObject*>(LuaProxy::GetProxyableObject(L,2));
+    if(!object || !object->GetExtensions())return luaL_error(L,"expected a physics display object");
+    b2BodyId body=object->GetExtensions()->GetBody();
+    if(!b2Body_IsValid(body) || b2StoreWorldId(b2Body_GetWorld(body))!=b2StoreWorldId(instance->physicsId))
+        return luaL_error(L,"attachment must belong to the coupled physics world");
+    if(instance->attachments.size()>=64)return luaL_error(L,"attachment limit reached");
+    if(b2Body_GetShapeCount(body)!=1)return luaL_error(L,"attachment requires one centred sharp box");
+    b2ShapeId shape;b2Body_GetShapes(body,&shape,1);
+    instance->boxes.shapes.push_back({shape,{}});
+    const char* error=instance->boxes.validate(instance->world);
+    if(error){instance->boxes.shapes.pop_back();return luaL_error(L,"%s",error);}
+    Instance::Attachment attachment;attachment.body=body;attachment.first=instance->boxes.shapes.size()-1;attachment.count=1;
+    instance->attachments.push_back(attachment);
+    PushEntity(L,kRigid,int(instance->attachments.size())-1);return 1;
+}
 static int RemoveStatic(lua_State* L)
 {
     Entity* entity=static_cast<Entity*>(luaL_checkudata(L,1,kRigid));
@@ -359,7 +393,9 @@ static int RemoveStatic(lua_State* L)
     {
         auto& instance=*entity->owner->instance;
         auto& attachment=instance.attachments[entity->id];attachment.active=false;
-        for(size_t i=0;i<attachment.count;++i)instance.rigid.shapes[attachment.first+i].id=b2_nullShapeId;
+        for(size_t i=0;i<attachment.count;++i)
+            if(instance.coupled)instance.boxes.shapes[attachment.first+i].id=b2_nullShapeId;
+            else instance.rigid.shapes[attachment.first+i].id=b2_nullShapeId;
     }
     return 0;
 }
@@ -372,7 +408,7 @@ static int StaticCollision(lua_State* L)
     const auto& attachment=instance.attachments[boundary->id];
     for(size_t i=0;i<attachment.count;++i)
     {
-        auto& excluded=instance.rigid.shapes[attachment.first+i].excludedBodies;
+        auto& excluded=instance.coupled ? instance.boxes.shapes[attachment.first+i].excludedBodies : instance.rigid.shapes[attachment.first+i].excludedBodies;
         auto found=std::find(excluded.begin(),excluded.end(),body->id);
         if(enabled && found!=excluded.end())excluded.erase(found);
         else if(!enabled && found==excluded.end())excluded.push_back(body->id);
@@ -386,13 +422,15 @@ static int RigidFilter(lua_State* L)
     double group=Value(L,2,"groupIndex",0,-32768,32767);
     if(category!=std::floor(category)||mask!=std::floor(mask)||group!=std::floor(group))
         return luaL_error(L,"filter fields must be integers");
-    auto& filters=entity->owner->instance->rigid.filters;
+    auto& instance=*entity->owner->instance;
+    auto& filters=instance.coupled ? instance.boxes.filters : instance.rigid.filters;
     if(filters.size()<=size_t(entity->id))filters.resize(entity->id+1,b2DefaultFilter());
     filters[entity->id]={uint64_t(category),uint64_t(mask),int(group)};return 0;
 }
 static int Advance(lua_State* L)
 {
     Instance* s=World(L);if(lua_gettop(L)!=1)return luaL_error(L,"world:step takes no arguments");
+    if(s->coupled)return luaL_error(L,"coupled soft world is advanced by physics; manual step is forbidden");
     if(s->rigidScale!=0)
     {
         if(s->rigidScale!=LuaContext::GetRuntime(L)->GetPhysicsWorld().GetPixelsPerMeter())
@@ -415,20 +453,33 @@ static int Advance(lua_State* L)
 static int New(lua_State* L)
 {
     luaL_checktype(L,1,LUA_TTABLE);
-    double step=Value(L,1,"timeStep",1./60,1./1000,1./30);
-    double subs=Value(L,1,"substeps",8,1,32),iterations=Value(L,1,"iterations",8,1,32);
+    Field(L,1,"coupled");bool coupled=lua_toboolean(L,-1);lua_pop(L,1);
+    double step=Value(L,1,"timeStep",coupled ? 1./480 : 1./60,1./1000,1./30);
+    double subs=Value(L,1,"substeps",coupled ? 1 : 8,1,32),iterations=Value(L,1,"iterations",8,1,32);
     if(subs!=std::floor(subs)||iterations!=std::floor(iterations))return luaL_error(L,"substeps and iterations must be integers");
+    if(coupled && (float(step)!=1.f/480 || subs!=1))return luaL_error(L,"coupled world requires timeStep=1/480 and substeps=1");
     float gx=Value(L,1,"gravityX",0,-1000,1000),gy=Value(L,1,"gravityY",-20,-1000,1000);
     Handle* h=static_cast<Handle*>(lua_newuserdata(L,sizeof(Handle)));h->instance=NULL;
     luaL_getmetatable(L,kWorld);lua_setmetatable(L,-2);h->instance=new(std::nothrow) Instance;
     if(!h->instance)return luaL_error(L,"cannot allocate soft world");
-    auto& s=*h->instance;s.timeStep=step;s.world.dt=float(step/subs);s.world.substeps=int(subs);s.world.iterations=int(iterations);s.world.gravity={gx,gy};return 1;
+    auto& s=*h->instance;s.timeStep=step;s.world.dt=float(step/subs);s.world.substeps=int(subs);s.world.iterations=int(iterations);s.world.gravity={gx,gy};
+    if(coupled)
+    {
+        auto& physics=LuaContext::GetRuntime(L)->GetPhysicsWorld();
+        if(!physics.IsWorldValid()){delete h->instance;h->instance=nullptr;return luaL_error(L,"coupled soft world requires physics.start");}
+        s.coupled=true;s.timeStep=s.world.dt;s.physicsId=physics.GetWorldId();s.rigidScale=physics.GetPixelsPerMeter();s.boxes.flipY=true;
+        FixedStepScheduler::Client client={&s,PrepareCoupled,AdvanceCoupled,InvalidateCoupled};
+        const char* error=FixedStepScheduler::Attach(physics,client,s.world.dt);
+        if(error){delete h->instance;h->instance=nullptr;return luaL_error(L,"%s",error);}
+        s.physics=&physics;
+    }
+    return 1;
 }
 static void Metatable(lua_State* L,const char* name,const luaL_Reg* methods)
 { luaL_newmetatable(L,name);luaL_register(L,NULL,methods);lua_pushvalue(L,-1);lua_setfield(L,-2,"__index");lua_pop(L,1); }
 static void Register(lua_State* L)
 {
-    const luaL_Reg world[]={{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
+    const luaL_Reg world[]={{"attachPhysicsBody",AttachPhysics},{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"setRigidFilter",RigidFilter},{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
     const luaL_Reg boundary[]={{"setCollisionEnabled",SetBoundaryCollision},{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};

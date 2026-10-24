@@ -8,6 +8,17 @@ class PhysicsWorld;
 class FixedStepScheduler
 {
 public:
+    // Private experimental client. Callbacks never call Lua; owner unregisters on GC.
+    struct Client
+    {
+        void *owner;
+        const char *(*prepare)(void *, PhysicsWorld&);
+        const char *(*advance)(void *, PhysicsWorld&);
+        void (*invalidate)(void *);
+    };
+    static const char *Attach(PhysicsWorld& physics, const Client& client, float dt);
+    static void Detach(PhysicsWorld& physics, void *owner);
+    static void Invalidate(PhysicsWorld& physics);
     static int Configure( lua_State *L );
     static int SetSpeed( lua_State *L );
     static int SetListener( lua_State *L );
