@@ -139,6 +139,10 @@ bool FixedCallback( PhysicsWorld& physics, FixedStepState& state, const char *ph
 
 const char *FixedStepScheduler::Attach(PhysicsWorld& physics, const Client& client, float dt)
 {
+    if (!client.owner || !client.prepare || !client.invalidate ||
+        (!client.wholeStep && !client.advance) ||
+        (client.wholeStep && (!client.retain || !client.release)))
+    { return "invalid coupled client callbacks"; }
     FixedStepState *state = FindFixedStep(physics);
     if (!state || !state->enabled || state->dt != dt || dt != 1.0f/480.0f || state->subSteps != 1)
     { return "coupled soft world requires fixed timeStep=1/480 and subSteps=1"; }
@@ -412,11 +416,30 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
             physics.PauseWorld();
             break;
         }
-        physics.GetWorld()->Step( state->dt, state->subSteps );
-        state->budget -= 1.0;
-        state->index = next;
-        // The rigid step has completed: consume it even if the soft solve fails.
-        error = state->client.owner ? state->client.advance(state->client.owner, physics) : NULL;
+        bool entered = true;
+        if (state->client.wholeStep)
+        {
+            // Snapshot before native entry: preCollision may detach this client.
+            const Client client = state->client;
+            client.retain(client.owner);
+            entered = false;
+            error = client.wholeStep(client.owner, physics, entered);
+            // Copy diagnostics before release can delete the native owner.
+            if (error) { state->error = error; }
+            client.release(client.owner);
+            error = error ? state->error.c_str() : NULL;
+            if (!entered && !error) { error = "coupled step did not enter the rigid world"; }
+        }
+        else
+        {
+            physics.GetWorld()->Step( state->dt, state->subSteps );
+            error = state->client.owner ? state->client.advance(state->client.owner, physics) : NULL;
+        }
+        if (entered)
+        {
+            state->budget -= 1.0;
+            state->index = next;
+        }
         if (error)
         {
             state->coupledFault = true;

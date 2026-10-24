@@ -8,13 +8,19 @@ class PhysicsWorld;
 class FixedStepScheduler
 {
 public:
-    // Private experimental client. Callbacks never call Lua; owner unregisters on GC.
+    // Private experimental client. Native stepping may dispatch existing collision Lua.
+    // A whole-step client must retain its owner until the callback returns.
     struct Client
     {
         void *owner;
         const char *(*prepare)(void *, PhysicsWorld&);
         const char *(*advance)(void *, PhysicsWorld&);
         void (*invalidate)(void *);
+        // Optional alternative to rigid Step + advance. entered is true even
+        // when a failure follows native entry; such a step must not be retried.
+        const char *(*wholeStep)(void *, PhysicsWorld&, bool& entered);
+        void (*retain)(void *);
+        void (*release)(void *);
     };
     static const char *Attach(PhysicsWorld& physics, const Client& client, float dt);
     static void Detach(PhysicsWorld& physics, void *owner);
