@@ -12,6 +12,7 @@ static const char kWorld[]="physics.experimentalSoftWorld";
 static const char kBody[]="physics.experimentalSoftBody";
 static const char kTouch[]="physics.experimentalSoftTouchJoint";
 static const char kPin[]="physics.experimentalSoftPin";
+static const char kRigidPin[]="physics.experimentalSoftRigidPin";
 static const char kRigid[]="physics.experimentalSoftStaticBody";
 static const char kBoundary[]="physics.experimentalSoftBoundary";
 static int sLive=0;
@@ -47,6 +48,11 @@ static Entity* Object(lua_State* L,const char* type,int index=1)
     if(type==kBody)active=w.bodies[e->id].active;
     else if(type==kPin)active=w.pins[e->id].active;
     else if(type==kTouch)active=w.touchJoints[e->id].active && w.touchJoints[e->id].generation==e->generation;
+    else if(type==kRigidPin)
+    {
+        const auto& pin=e->owner->instance->boxes.pins[e->id];
+        active=pin.active && w.bodies[pin.softBody].active && b2Body_IsValid(pin.rigid);
+    }
     else if(type==kRigid)
     {
         const auto& attachment=e->owner->instance->attachments[e->id];
@@ -95,13 +101,15 @@ static int RemoveEntity(lua_State* L,const char* type)
     if(e->owner->instance)
     {
         auto& w=e->owner->instance->world;
-        if(type==kBody)w.removeBody(e->id);else if(type==kPin)w.pins[e->id].active=false;else if(type==kTouch){if(w.touchJoints[e->id].generation==e->generation)w.touchJoints[e->id].active=false;}else w.boundaries[e->id].active=false;
+        if(type==kRigidPin)e->owner->instance->boxes.pins[e->id].active=false;
+        else if(type==kBody)w.removeBody(e->id);else if(type==kPin)w.pins[e->id].active=false;else if(type==kTouch){if(w.touchJoints[e->id].generation==e->generation)w.touchJoints[e->id].active=false;}else w.boundaries[e->id].active=false;
     }
     return 0;
 }
 static int RemoveBody(lua_State* L){return RemoveEntity(L,kBody);}
 static int RemoveTouch(lua_State* L){return RemoveEntity(L,kTouch);}
 static int RemovePin(lua_State* L){return RemoveEntity(L,kPin);}
+static int RemoveRigidPin(lua_State* L){return RemoveEntity(L,kRigidPin);}
 static int RemoveBoundary(lua_State* L){return RemoveEntity(L,kBoundary);}
 static int NewBody(lua_State* L)
 {
@@ -386,6 +394,37 @@ static int AttachPhysics(lua_State* L)
     instance->attachments.push_back(attachment);
     PushEntity(L,kRigid,int(instance->attachments.size())-1);return 1;
 }
+static int NewRigidPin(lua_State* L)
+{
+    Instance* instance=World(L);Handle* owner=WorldHandle(L);luaL_checktype(L,2,LUA_TTABLE);
+    if(!instance->coupled)return luaL_error(L,"rigid pin requires a coupled soft world");
+    if(instance->boxes.pins.size()>=64)return luaL_error(L,"rigid pin allocation limit reached");
+    Field(L,2,"body");Entity* soft=Object(L,kBody,-1);lua_pop(L,1);
+    Field(L,2,"rigid");Entity* rigid=Object(L,kRigid,-1);lua_pop(L,1);
+    if(soft->owner!=owner || rigid->owner!=owner)return luaL_error(L,"rigid pin entities must belong to this world");
+    SoftBody::Box2DBoxContacts::Pin pin;
+    pin.softBody=soft->id;pin.rigid=instance->attachments[rigid->id].body;
+    if(b2Body_GetType(pin.rigid)!=b2_dynamicBody)return luaL_error(L,"rigid pin requires a dynamic body");
+    if(!b2Body_IsEnabled(pin.rigid))return luaL_error(L,"rigid pin requires an enabled body");
+    Weights(L,"weights",pin.weights);
+    pin.localAnchor={float(Value(L,2,"localAnchorX",0,-100,100)),-float(Value(L,2,"localAnchorY",0,-100,100))};
+    pin.frequency=Value(L,2,"frequency",30,1,60);
+    pin.dampingRatio=Value(L,2,"dampingRatio",1,0,10);
+    if(instance->boxes.pinError(instance->world,pin)>.001)return luaL_error(L,"rigid pin anchors must initially coincide within 1mm");
+    instance->boxes.pins.push_back(pin);
+    const char* error=instance->boxes.validate(instance->world);
+    if(error){instance->boxes.pins.pop_back();return luaL_error(L,"%s",error);}
+    PushEntity(L,kRigidPin,int(instance->boxes.pins.size())-1);return 1;
+}
+static int RigidPinState(lua_State* L)
+{
+    Entity* entity=Object(L,kRigidPin);auto& instance=*entity->owner->instance;
+    const auto& pin=instance.boxes.pins[entity->id];lua_createtable(L,0,3);
+    Bool(L,"enabled",instance.boxes.pinActive(instance.world,pin));
+    Number(L,"errorM",instance.boxes.pinError(instance.world,pin));
+    Number(L,"impulseX",pin.impulse.x);Number(L,"impulseY",-pin.impulse.y);
+    return 1;
+}
 static int RemoveStatic(lua_State* L)
 {
     Entity* entity=static_cast<Entity*>(luaL_checkudata(L,1,kRigid));
@@ -393,6 +432,7 @@ static int RemoveStatic(lua_State* L)
     {
         auto& instance=*entity->owner->instance;
         auto& attachment=instance.attachments[entity->id];attachment.active=false;
+        for(auto& pin:instance.boxes.pins)if(B2_ID_EQUALS(pin.rigid,attachment.body))pin.active=false;
         for(size_t i=0;i<attachment.count;++i)
             if(instance.coupled)instance.boxes.shapes[attachment.first+i].id=b2_nullShapeId;
             else instance.rigid.shapes[attachment.first+i].id=b2_nullShapeId;
@@ -479,7 +519,7 @@ static void Metatable(lua_State* L,const char* name,const luaL_Reg* methods)
 { luaL_newmetatable(L,name);luaL_register(L,NULL,methods);lua_pushvalue(L,-1);lua_setfield(L,-2,"__index");lua_pop(L,1); }
 static void Register(lua_State* L)
 {
-    const luaL_Reg world[]={{"attachPhysicsBody",AttachPhysics},{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
+    const luaL_Reg world[]={{"createRigidPinJoint",NewRigidPin},{"attachPhysicsBody",AttachPhysics},{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"setRigidFilter",RigidFilter},{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
     const luaL_Reg boundary[]={{"setCollisionEnabled",SetBoundaryCollision},{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};
@@ -490,6 +530,8 @@ static void Register(lua_State* L)
         {NULL,NULL}
     };
     const luaL_Reg rigid[]={{"setCollisionEnabled",StaticCollision},{"removeSelf",RemoveStatic},{NULL,NULL}};
+    const luaL_Reg rigidPin[]={{"getState",RigidPinState},{"removeSelf",RemoveRigidPin},{NULL,NULL}};
+    Metatable(L,kRigidPin,rigidPin);
     Metatable(L,kRigid,rigid);
     Metatable(L,kTouch,touch);
     Metatable(L,kWorld,world);Metatable(L,kBody,body);Metatable(L,kPin,pin);Metatable(L,kBoundary,boundary);
