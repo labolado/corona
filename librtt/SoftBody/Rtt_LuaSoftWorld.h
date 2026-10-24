@@ -194,6 +194,9 @@ static int NewTouchJoint(lua_State* L)
     Handle* owner=WorldHandle(L);
     Core& world=World(L)->world;
     luaL_checktype(L,2,LUA_TTABLE);
+    if(owner->instance->wholeStep)
+        for(const auto& touch:world.touchJoints)if(touch.active)
+            return luaL_error(L,"attachment mode supports one active touch joint");
     int id=0;
     while(id<int(world.touchJoints.size()) && world.touchJoints[id].active)++id;
     if(id>=64)return luaL_error(L,"active touch joint limit reached");
