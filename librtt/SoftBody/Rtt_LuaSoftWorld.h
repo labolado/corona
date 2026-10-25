@@ -399,6 +399,23 @@ static int State(lua_State* L)
     for(const auto& b:w.bodies)if(b.active)for(auto p:b.x)for(float v:p){lua_pushnumber(L,v);lua_rawseti(L,-2,++n);}
     lua_setfield(L,-2,"vertices");return 1;
 }
+static int ProfileState(lua_State* L)
+{
+    auto* s=World(L);
+    if(!s->assemblyMode)return luaL_error(L,"profiling requires assembly mode");
+    const auto& profile=s->assembly->profile;
+    lua_createtable(L,0,12);
+    Bool(L,"enabled",profile.enabled);Bool(L,"clockFailed",profile.clockFailed);
+    const char* names[]={"prepare","materialMotor","initialLinks","contactGeometry",
+        "contactSolve","observe","finalize","nativeWorld","advance","adapter"};
+    for(int i=0;i<SoftBody::Game::Profile::Count;++i)
+    {
+        const auto& sample=profile.samples[i];lua_createtable(L,0,3);
+        Number(L,"wallMs",sample.wallMs);Number(L,"cpuMs",sample.cpuMs);Number(L,"calls",sample.calls);
+        lua_setfield(L,-2,names[i]);
+    }
+    return 1;
+}
 // Static-only bridge into the existing experimental, metre/up-positive world.
 // The application retains ownership of the registered display/physics body.
 static int AttachStatic(lua_State* L)
@@ -590,6 +607,11 @@ static int New(lua_State* L)
     }
     lua_pop(L,1);
     if(wholeStep && !coupled)return luaL_error(L,"attachment mode requires coupled=true");
+    Field(L,1,"profile");
+    if(!lua_isnil(L,-1) && !lua_isboolean(L,-1))return luaL_error(L,"profile must be boolean");
+    bool profile=lua_toboolean(L,-1);lua_pop(L,1);
+    if(profile && (!assemblyMode || !SoftBody::Game::Profile::supported()))
+        return luaL_error(L,"profiling requires assembly mode and thread CPU clock support");
     double step=Value(L,1,"timeStep",coupled ? 1./480 : 1./60,1./1000,1./30);
     double subs=Value(L,1,"substeps",coupled ? 1 : 8,1,32),iterations=Value(L,1,"iterations",8,1,32);
     if(subs!=std::floor(subs)||iterations!=std::floor(iterations))return luaL_error(L,"substeps and iterations must be integers");
@@ -611,6 +633,7 @@ static int New(lua_State* L)
         s.assembly=new(std::nothrow) SoftBody::Game::Assembly(s.world);
         if(!s.assembly){delete h->instance;h->instance=nullptr;return luaL_error(L,"cannot allocate assembly solver");}
         s.assembly->flipY=true;
+        s.assembly->profile.enabled=profile;
     }
     if(coupled)
     {
@@ -629,7 +652,7 @@ static void Metatable(lua_State* L,const char* name,const luaL_Reg* methods)
 { luaL_newmetatable(L,name);luaL_register(L,NULL,methods);lua_pushvalue(L,-1);lua_setfield(L,-2,"__index");lua_pop(L,1); }
 static void Register(lua_State* L)
 {
-    const luaL_Reg world[]={{"createRigidAttachment",NewRigidAttachment},{"createRigidPinJoint",NewRigidPin},{"attachPhysicsBody",AttachPhysics},{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
+    const luaL_Reg world[]={{"createRigidAttachment",NewRigidAttachment},{"createRigidPinJoint",NewRigidPin},{"attachPhysicsBody",AttachPhysics},{"attachStaticBody",AttachStatic},{"createTouchJoint",NewTouchJoint},{"createBody",NewBody},{"createPinJoint",NewPin},{"createWorldPinJoint",NewWorldPin},{"createBoundary",NewBoundary},{"setCollisionEnabled",SetCollision},{"step",Advance},{"getProfile",ProfileState},{"getState",State},{"removeSelf",RemoveWorld},{"__gc",RemoveWorld},{NULL,NULL}};
     const luaL_Reg body[]={{"setRigidFilter",RigidFilter},{"getState",BodyState},{"applyForce",ApplyForce},{"applyTorque",ApplyTorque},{"removeSelf",RemoveBody},{NULL,NULL}};
     const luaL_Reg pin[]={{"setMotor",SetMotor},{"removeSelf",RemovePin},{NULL,NULL}};
     const luaL_Reg boundary[]={{"setCollisionEnabled",SetBoundaryCollision},{"setTarget",Target},{"setEnabled",Enable},{"removeSelf",RemoveBoundary},{NULL,NULL}};

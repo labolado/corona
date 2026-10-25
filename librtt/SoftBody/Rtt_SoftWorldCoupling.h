@@ -41,6 +41,7 @@ static const char* PrepareGame(Instance& s)
 static const char* PrepareAssembly(Instance& s)
 {
     auto& solver=*s.assembly;
+    SoftBody::Game::Profile::Scope timing(solver.profile,SoftBody::Game::Profile::Adapter);
     if(!s.physics && s.world.bodies.empty())return nullptr;
     if(solver.error)return solver.error;
     solver.world=s.physicsId;
