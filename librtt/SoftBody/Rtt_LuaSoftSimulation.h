@@ -287,6 +287,17 @@ static int TouchState( lua_State* L )
     Number( L, "force", state.force );
     return 1;
 }
+static int ApplyLinearImpulse( lua_State* L )
+{
+    auto* e = Object( L, kBody );
+    if ( lua_gettop( L ) != 3 )
+        return luaL_error( L, "applyLinearImpulse expects two impulse components in kg*m/s, y up" );
+    auto& api = e->owner->instance->simulation;
+    bool ok = api.applyLinearImpulse( e->id,
+        { float( NumberArg( L, 2, -1e4, 1e4 ) ), float( NumberArg( L, 3, -1e4, 1e4 ) ) } );
+    Check( L, ok, api.lastError() );
+    return 0;
+}
 static int BodyState( lua_State* L )
 {
     auto* e = Object( L, kBody );
@@ -565,6 +576,7 @@ static void Register( lua_State* L )
                                { "__gc", RemoveWorld },
                                { NULL, NULL } };
     const luaL_Reg body[] = { { "getState", BodyState },         { "setRigidFilter", RigidFilter },
+                              { "applyLinearImpulse", ApplyLinearImpulse },
                               { "applyForce", UnsupportedLoad }, { "applyTorque", UnsupportedLoad },
                               { "removeSelf", RemoveBody },      { NULL, NULL } };
     const luaL_Reg joint[] = { { "setMotor", SetMotor }, { "removeSelf", RemoveJoint }, { NULL, NULL } };
