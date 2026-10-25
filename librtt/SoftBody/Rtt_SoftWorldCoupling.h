@@ -1,5 +1,43 @@
 // Private implementation included inside ExperimentalSoftWorld after Instance.
 // Runs only on the Runtime owner thread. No Lua API calls from solver hooks.
+static const char* PrepareGame(Instance& s)
+{
+    auto& solver=*s.game;
+    // Scheduler registration happens before Lua can create the first body.
+    // Every actual step still requires the complete configuration below.
+    if(!s.physics && s.world.bodies.empty())return nullptr;
+    if(solver.error)return solver.error;
+    solver.world=s.physicsId;solver.pin.active=false;
+    for(const auto& pin:s.boxes.pins)if(pin.active)solver.pin=pin;
+    solver.filter=s.boxes.filters.empty()?b2DefaultFilter():s.boxes.filters[0];
+    if(s.world.bodies.size()==1)solver.friction=s.world.bodies[0].friction;
+    b2ShapeId targets[SoftBody::Game::MaxBoxes];int count=0;bool support=!solver.pin.active;
+    for(const auto& attachment:s.attachments)if(attachment.active)
+    {
+        const auto& shape=s.boxes.shapes[attachment.first];
+        if(!b2Shape_IsValid(shape.id))return "game attachment shape was removed; detach it before deletion";
+        bool excluded=std::find(shape.excludedBodies.begin(),shape.excludedBodies.end(),0)!=shape.excludedBodies.end();
+        if(solver.pin.active && B2_ID_EQUALS(attachment.body,solver.pin.rigid))
+        {
+            if(!excluded)return "disable soft collision with the attachment support";
+            support=true;
+        }
+        else if(!excluded)
+        {
+            if(count==SoftBody::Game::MaxBoxes)return "game mode supports four contact boxes";
+            targets[count++]=shape.id;
+        }
+    }
+    if(!support)return "game attachment support was removed";
+    bool changed=count!=solver.boxCount;
+    for(int i=0;i<count && !changed;++i)changed=!B2_ID_EQUALS(targets[i],solver.boxes[i].shape);
+    if(changed)
+    {
+        solver.clearCache();solver.boxes={};solver.boxCount=0;
+        for(int i=0;i<count;++i)solver.add(targets[i]);
+    }
+    return solver.validate() && solver.prepare()?nullptr:solver.error;
+}
 static const char* PrepareCoupled(void* owner,PhysicsWorld& physics)
 {
     auto& s=*static_cast<Instance*>(owner);
@@ -16,7 +54,7 @@ static const char* PrepareCoupled(void* owner,PhysicsWorld& physics)
     }
     b2Vec2 gravity=b2World_GetGravity(s.physicsId);
     s.world.gravity={gravity.x,-gravity.y};
-    return s.boxes.validate(s.world);
+    return s.gameMode?PrepareGame(s):s.boxes.validate(s.world);
 }
 static const char* AdvanceCoupled(void* owner,PhysicsWorld& physics)
 {
@@ -74,6 +112,21 @@ static const char* AdvanceAttachment(void* owner,PhysicsWorld& physics,bool& ent
     if(entered)++s.rigidSteps;
     if(!success)return solver.guard.error?solver.guard.error:"attachment step failed";
     bridge.pins[0].impulse=solver.impulse;
+    ++s.frames;
+    return nullptr;
+}
+
+static const char* AdvanceGame(void* owner,PhysicsWorld& physics,bool& entered)
+{
+    auto& s=*static_cast<Instance*>(owner);auto& solver=*s.game;
+    entered=false;
+    if(const char* error=PrepareCoupled(owner,physics))return error;
+    auto before=solver.entered;
+    bool success=solver.advance();
+    entered=solver.entered!=before;
+    if(entered)++s.rigidSteps;
+    if(!success)return solver.error?solver.error:"game step failed";
+    for(auto& pin:s.boxes.pins)if(pin.active)pin.impulse={solver.impulse.x,-solver.impulse.y};
     ++s.frames;
     return nullptr;
 }

@@ -2,6 +2,7 @@
 // Private opt-in Lua adapter. Solver is isolated in the Box2D extern tree.
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_static.h"
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_box.h"
+#include "../../external/box2d_v3/extern/softbody/soft_game_world.h"
 #include "Rtt_FixedStepScheduler.h"
 #include <new>
 #include <cstring>
@@ -22,7 +23,8 @@ struct Instance
     Core world;SoftBody::Box2DStaticContacts rigid;
     SoftBody::Box2DBoxContacts boxes;
     SoftBody::Box2DBoxContacts::AttachmentOwner attachmentOwner;
-    bool wholeStep=false,removePending=false;
+    SoftBody::Game::Solver* game=nullptr;
+    bool gameMode=false,wholeStep=false,removePending=false;
     unsigned activeSteps=0;
     PhysicsWorld* physics=nullptr;
     b2WorldId physicsId=b2_nullWorldId;
@@ -32,7 +34,7 @@ struct Instance
     float rigidScale=0;
     unsigned long frames=0;double timeStep=1./60;
     Instance(){++sLive;}
-    ~Instance(){if(physics)FixedStepScheduler::Detach(*physics,this);--sLive;}
+    ~Instance(){if(physics)FixedStepScheduler::Detach(*physics,this);delete game;--sLive;}
 };
 #include "Rtt_SoftWorldCoupling.h"
 struct Handle { Instance* instance; };
@@ -131,6 +133,7 @@ static int RemoveBoundary(lua_State* L){return RemoveEntity(L,kBoundary);}
 static int NewBody(lua_State* L)
 {
     auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
+    if(World(L)->gameMode && !w.bodies.empty())return luaL_error(L,"game mode supports one soft body");
     if(w.bodies.size()>=32)return luaL_error(L,"soft body allocation limit reached");
     Field(L,2,"material");const char* material=luaL_checkstring(L,-1);
     int kind=-1;
@@ -138,6 +141,7 @@ static int NewBody(lua_State* L)
     else if(!strcmp(material,"pressure"))kind=2;
     else if(!strcmp(material,"recoverable"))kind=3;
     lua_pop(L,1);
+    if(World(L)->gameMode && kind!=3)return luaL_error(L,"game mode requires recoverable material");
     if(kind<0)return luaL_error(L,"unsupported soft material");
     float mass=Value(L,2,"mass",1,.001,1000),rx=Value(L,2,"halfWidth",.35,.01,100),ry=Value(L,2,"halfHeight",.35,.01,100);
     float stiffness=Value(L,2,"edgeStiffness",300,.001,1e6),hz=Value(L,2,"frequency",6,0,1000);
@@ -165,6 +169,7 @@ static void Weights(lua_State* L,const char* field,std::array<float,16>& result)
 }
 static int NewPin(lua_State* L)
 {
+    if(World(L)->gameMode)return luaL_error(L,"game mode has no soft-soft pins yet");
     Handle* owner=WorldHandle(L);auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
     if(w.pins.size()>=64)return luaL_error(L,"soft joint allocation limit reached");
     Field(L,2,"bodyA");Entity* a=Object(L,kBody,-1);lua_pop(L,1);
@@ -176,6 +181,7 @@ static int NewPin(lua_State* L)
 }
 static int NewWorldPin(lua_State* L)
 {
+    if(World(L)->gameMode)return luaL_error(L,"game mode uses native rigid attachments");
     Handle* owner=WorldHandle(L);
     auto& world=World(L)->world;
     luaL_checktype(L,2,LUA_TTABLE);
@@ -283,6 +289,7 @@ static int SetBoundaryCollision(lua_State* L)
 }
 static int NewBoundary(lua_State* L)
 {
+    if(World(L)->gameMode)return luaL_error(L,"game mode uses attached native boxes");
     auto& w=World(L)->world;luaL_checktype(L,2,LUA_TTABLE);
     if(w.boundaries.size()>=64)return luaL_error(L,"soft boundary allocation limit reached");
     Field(L,2,"type");const char* type=luaL_checkstring(L,-1);
@@ -314,6 +321,7 @@ static int Enable(lua_State* L)
 { Entity* e=Object(L,kBoundary);luaL_checktype(L,2,LUA_TBOOLEAN);e->owner->instance->world.boundaries[e->id].enabled=lua_toboolean(L,2);return 0; }
 static int ApplyForce(lua_State* L)
 {
+    if(Object(L,kBody)->owner->instance->gameMode)return luaL_error(L,"game mode supports touch loads only");
     Entity* e=Object(L,kBody);auto& b=e->owner->instance->world.bodies[e->id];
     double x=Argument(L,2,-1e6,1e6)+b.forceInput[0],y=Argument(L,3,-1e6,1e6)+b.forceInput[1];
     if(std::abs(x)>1e6||std::abs(y)>1e6)return luaL_error(L,"accumulated force outside supported range");
@@ -321,6 +329,7 @@ static int ApplyForce(lua_State* L)
 }
 static int ApplyTorque(lua_State* L)
 {
+    if(Object(L,kBody)->owner->instance->gameMode)return luaL_error(L,"game mode supports touch loads only");
     Entity* e=Object(L,kBody);auto& b=e->owner->instance->world.bodies[e->id];
     double torque=Argument(L,2,-1e6,1e6)+b.torqueInput;
     if(std::abs(torque)>1e6)return luaL_error(L,"accumulated torque outside supported range");
@@ -337,7 +346,17 @@ static int State(lua_State* L)
     auto& w=s->world;auto m=w.currentMetrics();lua_createtable(L,0,20);
     Bool(L,"coupled",s->coupled);Bool(L,"invalidated",s->invalidated);
     Number(L,"rigidSteps",s->rigidSteps);Number(L,"softSteps",s->frames);
-    Number(L,"boxContacts",s->wholeStep?s->attachmentOwner.contacts:s->boxes.contacts);
+    Number(L,"boxContacts",s->gameMode?s->game->rowSolves:(s->wholeStep?s->attachmentOwner.contacts:s->boxes.contacts));
+    Bool(L,"gameMode",s->gameMode);
+    if(s->gameMode)
+    {
+        Bool(L,"recovering",s->game->recovery.active);
+        Number(L,"recoveryEntries",s->game->recovery.entries);
+        Number(L,"recoveryExits",s->game->recovery.exits);
+        Number(L,"recoverySteps",s->game->recovery.activeSteps);
+        Number(L,"contactDepthM",s->game->lastDepth);
+        Number(L,"warmHits",s->game->warmHits);
+    }
     Bool(L,"wholeStep",s->wholeStep);
     Number(L,"time",s->frames*s->timeStep);Number(L,"substep",double(w.completedSubsteps));Number(L,"liveInstances",sLive);
     Number(L,"motorWork",w.motorWork);Number(L,"boundaryWork",w.boundaryWork);Number(L,"appliedWork",w.appliedWork);Number(L,"energy",m.energy);
@@ -409,7 +428,15 @@ static int AttachPhysics(lua_State* L)
     if(b2Body_GetShapeCount(body)!=1)return luaL_error(L,"attachment requires one centred sharp box");
     b2ShapeId shape;b2Body_GetShapes(body,&shape,1);
     instance->boxes.shapes.push_back({shape,{}});
-    const char* error=instance->boxes.validate(instance->world);
+    const char* error=nullptr;
+    if(instance->gameMode)
+    {
+        // Validate the new fixture independently; a pin may be added afterward.
+        SoftBody::Game::Solver candidate(instance->world);candidate.world=instance->physicsId;
+        candidate.add(shape);if(!candidate.prepare())error=candidate.error;
+        for(const auto& a:instance->attachments)if(a.active && B2_ID_EQUALS(a.body,body))error="body already attached";
+    }
+    else error=instance->boxes.validate(instance->world);
     if(error){instance->boxes.shapes.pop_back();return luaL_error(L,"%s",error);}
     Instance::Attachment attachment;attachment.body=body;attachment.first=instance->boxes.shapes.size()-1;attachment.count=1;
     instance->attachments.push_back(attachment);
@@ -441,7 +468,7 @@ static int NewRigidConnection(lua_State* L,bool hard)
     pin.dampingRatio=Value(L,2,"dampingRatio",1,0,10);
     if(instance->boxes.pinError(instance->world,pin)>.001)return luaL_error(L,"rigid pin anchors must initially coincide within 1mm");
     instance->boxes.pins.push_back(pin);
-    const char* error=instance->boxes.validate(instance->world);
+    const char* error=instance->gameMode?nullptr:instance->boxes.validate(instance->world);
     if(error){instance->boxes.pins.pop_back();return luaL_error(L,"%s",error);}
     PushEntity(L,kRigidPin,int(instance->boxes.pins.size())-1);return 1;
 }
@@ -526,11 +553,13 @@ static int New(lua_State* L)
 {
     luaL_checktype(L,1,LUA_TTABLE);
     Field(L,1,"coupled");bool coupled=lua_toboolean(L,-1);lua_pop(L,1);
-    Field(L,1,"couplingMode");bool wholeStep=false;
+    Field(L,1,"couplingMode");bool wholeStep=false,gameMode=false;
     if(!lua_isnil(L,-1))
     {
-        if(lua_type(L,-1)!=LUA_TSTRING || std::strcmp(lua_tostring(L,-1),"attachment"))
-            return luaL_error(L,"couplingMode must be attachment or omitted");
+        if(lua_type(L,-1)!=LUA_TSTRING)return luaL_error(L,"couplingMode must be attachment, game or omitted");
+        gameMode=!std::strcmp(lua_tostring(L,-1),"game");
+        if(!gameMode && std::strcmp(lua_tostring(L,-1),"attachment"))
+            return luaL_error(L,"couplingMode must be attachment, game or omitted");
         wholeStep=true;
     }
     lua_pop(L,1);
@@ -539,18 +568,25 @@ static int New(lua_State* L)
     double subs=Value(L,1,"substeps",coupled ? 1 : 8,1,32),iterations=Value(L,1,"iterations",8,1,32);
     if(subs!=std::floor(subs)||iterations!=std::floor(iterations))return luaL_error(L,"substeps and iterations must be integers");
     if(coupled && (float(step)!=1.f/480 || subs!=1))return luaL_error(L,"coupled world requires timeStep=1/480 and substeps=1");
+    if(gameMode && iterations!=8)return luaL_error(L,"game mode requires iterations=8");
     float gx=Value(L,1,"gravityX",0,-1000,1000),gy=Value(L,1,"gravityY",-20,-1000,1000);
     Handle* h=static_cast<Handle*>(lua_newuserdata(L,sizeof(Handle)));h->instance=NULL;
     luaL_getmetatable(L,kWorld);lua_setmetatable(L,-2);h->instance=new(std::nothrow) Instance;
     if(!h->instance)return luaL_error(L,"cannot allocate soft world");
-    auto& s=*h->instance;s.wholeStep=wholeStep;s.attachmentOwner.flipY=true;s.timeStep=step;s.world.dt=float(step/subs);s.world.substeps=int(subs);s.world.iterations=int(iterations);s.world.gravity={gx,gy};
+    auto& s=*h->instance;s.gameMode=gameMode;s.wholeStep=wholeStep;s.attachmentOwner.flipY=true;s.timeStep=step;s.world.dt=float(step/subs);s.world.substeps=int(subs);s.world.iterations=int(iterations);s.world.gravity={gx,gy};
+    if(gameMode)
+    {
+        s.game=new(std::nothrow) SoftBody::Game::Solver(s.world);
+        if(!s.game){delete h->instance;h->instance=nullptr;return luaL_error(L,"cannot allocate game solver");}
+        s.game->flipY=true;
+    }
     if(coupled)
     {
         auto& physics=LuaContext::GetRuntime(L)->GetPhysicsWorld();
         if(!physics.IsWorldValid()){delete h->instance;h->instance=nullptr;return luaL_error(L,"coupled soft world requires physics.start");}
         s.coupled=true;s.timeStep=s.world.dt;s.physicsId=physics.GetWorldId();s.rigidScale=physics.GetPixelsPerMeter();s.boxes.flipY=true;
         FixedStepScheduler::Client client={&s,PrepareCoupled,AdvanceCoupled,InvalidateCoupled,
-            wholeStep?AdvanceAttachment:nullptr,wholeStep?RetainCoupled:nullptr,wholeStep?ReleaseCoupled:nullptr};
+            gameMode?AdvanceGame:(wholeStep?AdvanceAttachment:nullptr),wholeStep?RetainCoupled:nullptr,wholeStep?ReleaseCoupled:nullptr};
         const char* error=FixedStepScheduler::Attach(physics,client,s.world.dt);
         if(error){delete h->instance;h->instance=nullptr;return luaL_error(L,"%s",error);}
         s.physics=&physics;
