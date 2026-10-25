@@ -387,6 +387,13 @@ static int State( lua_State* L )
     Number( L, "contactDepthM", coupled.contactDepth );
     Number( L, "warmHits", coupled.warmHits );
     Number( L, "boxContacts", coupled.contactRows );
+    Number( L, "softContactRows", coupled.softContactRows );
+    Number( L, "softContactDepthM", coupled.softContactDepth );
+    Number( L, "softRecoverySteps", coupled.softRecoverySteps );
+    Number( L, "softRecoveryEntries", coupled.softRecoveryEntries );
+    Number( L, "softRecoveryExits", coupled.softRecoveryExits );
+    Number( L, "softRecoveringPairs", coupled.softRecoveringPairs );
+    Number( L, "softRecoveryDistanceM", coupled.softRecoveryDistance );
     Number( L, "assemblyPinErrorM", coupled.peakGap );
     Number( L, "motorWork", state.motorWork );
     Number( L, "appliedWork", state.appliedWork );
@@ -518,6 +525,11 @@ static int New( lua_State* L )
     if ( profile && !SoftBody::Box2DCoupling::profilingSupported() )
         return luaL_error( L, "profiling requires thread CPU clock support" );
     SoftBody::SimulationDef def;
+    Field( L, 1, "enableSoftContacts" );
+    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
+        return luaL_error( L, "enableSoftContacts must be boolean" );
+    def.enableSoftContacts = lua_toboolean( L, -1 );
+    lua_pop( L, 1 );
     double dt = Value( L, 1, "timeStep", 1. / 480, 1. / 1000, 1. / 30 ), subs = Value( L, 1, "substeps", 1, 1, 32 ),
            iterations = Value( L, 1, "iterations", 8, 1, 32 );
     if ( float( dt ) != 1.f / 480 || subs != 1 || iterations != 8 )

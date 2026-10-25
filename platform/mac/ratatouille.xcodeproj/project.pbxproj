@@ -1733,6 +1733,7 @@
 		FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */; };
 		4E6334F1C34449C9B34F126A /* soft_box2d_box.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */; };
 		D367C72ABC9A58E9AE6DF23B /* soft_game_assembly.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 988BE13B6A1E37073452872E /* soft_game_assembly.cpp */; };
+		E5264F43C824447393CA7862 /* soft_pair_contacts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7D0F45838A3492A8F471825 /* soft_pair_contacts.cpp */; };
 		F3B47DA8E4B6388511E363E3 /* soft_box2d_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 794497897EC26A3004F4E081 /* soft_box2d_simulation.cpp */; };
 		C52DE8F6FD350EBE5DC92C86 /* soft_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C98F20C1EFEEC50674B81316 /* soft_simulation.cpp */; };
 		D9CB7693C353B79055634177 /* soft_game_recovery.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2ED9C42F82B59CBF1E53589F /* soft_game_recovery.cpp */; };
@@ -3450,6 +3451,7 @@
 		FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_static.cpp; sourceTree = "<group>"; };
 		8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_box.cpp; sourceTree = "<group>"; };
 		988BE13B6A1E37073452872E /* soft_game_assembly.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_assembly.cpp; sourceTree = "<group>"; };
+		A7D0F45838A3492A8F471825 /* soft_pair_contacts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_pair_contacts.cpp; sourceTree = "<group>"; };
 		794497897EC26A3004F4E081 /* soft_box2d_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_simulation.cpp; sourceTree = "<group>"; };
 		C98F20C1EFEEC50674B81316 /* soft_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_simulation.cpp; sourceTree = "<group>"; };
 		2ED9C42F82B59CBF1E53589F /* soft_game_recovery.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_recovery.cpp; sourceTree = "<group>"; };
@@ -5459,6 +5461,7 @@
 				FE32CCA06B1C9F4F0551ADE7 /* soft_box2d_static.cpp */,
 				8EF6367BC9D849A5A8F732BB /* soft_box2d_box.cpp */,
 				988BE13B6A1E37073452872E /* soft_game_assembly.cpp */,
+				A7D0F45838A3492A8F471825 /* soft_pair_contacts.cpp */,
 				794497897EC26A3004F4E081 /* soft_box2d_simulation.cpp */,
 				C98F20C1EFEEC50674B81316 /* soft_simulation.cpp */,
 				2ED9C42F82B59CBF1E53589F /* soft_game_recovery.cpp */,
@@ -7353,6 +7356,7 @@
 				FB6746C25E67807FA06A93D7 /* soft_box2d_static.cpp in Sources */,
 				4E6334F1C34449C9B34F126A /* soft_box2d_box.cpp in Sources */,
 				D367C72ABC9A58E9AE6DF23B /* soft_game_assembly.cpp in Sources */,
+				E5264F43C824447393CA7862 /* soft_pair_contacts.cpp in Sources */,
 				F3B47DA8E4B6388511E363E3 /* soft_box2d_simulation.cpp in Sources */,
 				C52DE8F6FD350EBE5DC92C86 /* soft_simulation.cpp in Sources */,
 				D9CB7693C353B79055634177 /* soft_game_recovery.cpp in Sources */,

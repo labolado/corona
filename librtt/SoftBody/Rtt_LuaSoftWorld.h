@@ -942,6 +942,13 @@ static int New( lua_State* L )
     lua_pop( L, 1 );
     if ( dynamicContacts )
         return luaL_error( L, "enableDynamicContacts requires assembly mode" );
+    Field( L, 1, "enableSoftContacts" );
+    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
+        return luaL_error( L, "enableSoftContacts must be boolean" );
+    bool softContacts = lua_toboolean( L, -1 );
+    lua_pop( L, 1 );
+    if ( softContacts )
+        return luaL_error( L, "enableSoftContacts requires assembly mode" );
     Field( L, 1, "profile" );
     if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
         return luaL_error( L, "profile must be boolean" );

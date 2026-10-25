@@ -789,6 +789,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_game_geometry.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_game_recovery.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_game_assembly.cpp
+		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_pair_contacts.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_simulation.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/softbody/soft_box2d_simulation.cpp
 		${CORONA_ROOT}/external/box2d_v3/extern/liquidfun/block_allocator.cpp
