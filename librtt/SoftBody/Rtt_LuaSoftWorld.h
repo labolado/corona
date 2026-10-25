@@ -935,6 +935,13 @@ static int New( lua_State* L )
     lua_pop( L, 1 );
     if ( wholeStep && !coupled )
         return luaL_error( L, "attachment mode requires coupled=true" );
+    Field( L, 1, "enableDynamicContacts" );
+    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
+        return luaL_error( L, "enableDynamicContacts must be boolean" );
+    bool dynamicContacts = lua_toboolean( L, -1 );
+    lua_pop( L, 1 );
+    if ( dynamicContacts )
+        return luaL_error( L, "enableDynamicContacts requires assembly mode" );
     Field( L, 1, "profile" );
     if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
         return luaL_error( L, "profile must be boolean" );

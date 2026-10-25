@@ -510,6 +510,11 @@ static int New( lua_State* L )
         return luaL_error( L, "profile must be boolean" );
     bool profile = lua_toboolean( L, -1 );
     lua_pop( L, 1 );
+    Field( L, 1, "enableDynamicContacts" );
+    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
+        return luaL_error( L, "enableDynamicContacts must be boolean" );
+    bool dynamicContacts = lua_toboolean( L, -1 );
+    lua_pop( L, 1 );
     if ( profile && !SoftBody::Box2DCoupling::profilingSupported() )
         return luaL_error( L, "profiling requires thread CPU clock support" );
     SoftBody::SimulationDef def;
@@ -531,6 +536,7 @@ static int New( lua_State* L )
     box.world = physics.GetWorldId();
     box.flipY = true;
     box.profile = profile;
+    box.enableDynamicContacts = dynamicContacts;
     auto* h = static_cast<Handle*>( lua_newuserdata( L, sizeof( Handle ) ) );
     h->instance = nullptr;
     luaL_getmetatable( L, kWorld );
