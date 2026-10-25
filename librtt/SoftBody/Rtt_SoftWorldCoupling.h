@@ -38,6 +38,35 @@ static const char* PrepareGame(Instance& s)
     }
     return solver.validate() && solver.prepare()?nullptr:solver.error;
 }
+static const char* PrepareAssembly(Instance& s)
+{
+    auto& solver=*s.assembly;
+    if(!s.physics && s.world.bodies.empty())return nullptr;
+    if(solver.error)return solver.error;
+    solver.world=s.physicsId;
+    for(int body=0;body<SoftBody::Game::Assembly::PartCount;++body)
+    {
+        auto& contact=solver.parts[body].contact;
+        contact.filter=body<int(s.boxes.filters.size())?s.boxes.filters[body]:b2DefaultFilter();
+        b2ShapeId targets[SoftBody::Game::MaxBoxes];int count=0;
+        for(const auto& attachment:s.attachments)if(attachment.active)
+        {
+            const auto& shape=s.boxes.shapes[attachment.first];
+            if(!b2Shape_IsValid(shape.id))return "assembly attachment was removed; detach it before deletion";
+            if(std::find(shape.excludedBodies.begin(),shape.excludedBodies.end(),body)!=shape.excludedBodies.end())continue;
+            if(count==SoftBody::Game::MaxBoxes)return "assembly mode supports four contact boxes per body";
+            targets[count++]=shape.id;
+        }
+        bool changed=count!=contact.boxCount;
+        for(int i=0;i<count && !changed;++i)changed=!B2_ID_EQUALS(targets[i],contact.boxes[i].shape);
+        if(changed)
+        {
+            contact.clearCache();contact.boxes={};contact.boxCount=0;
+            for(int i=0;i<count;++i)contact.add(targets[i]);
+        }
+    }
+    return solver.prepare()?nullptr:solver.error;
+}
 static const char* PrepareCoupled(void* owner,PhysicsWorld& physics)
 {
     auto& s=*static_cast<Instance*>(owner);
@@ -54,7 +83,7 @@ static const char* PrepareCoupled(void* owner,PhysicsWorld& physics)
     }
     b2Vec2 gravity=b2World_GetGravity(s.physicsId);
     s.world.gravity={gravity.x,-gravity.y};
-    return s.gameMode?PrepareGame(s):s.boxes.validate(s.world);
+    return s.assemblyMode?PrepareAssembly(s):(s.gameMode?PrepareGame(s):s.boxes.validate(s.world));
 }
 static const char* AdvanceCoupled(void* owner,PhysicsWorld& physics)
 {
@@ -127,6 +156,20 @@ static const char* AdvanceGame(void* owner,PhysicsWorld& physics,bool& entered)
     if(entered)++s.rigidSteps;
     if(!success)return solver.error?solver.error:"game step failed";
     for(auto& pin:s.boxes.pins)if(pin.active)pin.impulse={solver.impulse.x,-solver.impulse.y};
+    ++s.frames;
+    return nullptr;
+}
+
+static const char* AdvanceAssembly(void* owner,PhysicsWorld& physics,bool& entered)
+{
+    auto& s=*static_cast<Instance*>(owner);auto& solver=*s.assembly;
+    entered=false;
+    if(const char* error=PrepareCoupled(owner,physics))return error;
+    auto before=solver.entered;
+    bool success=solver.advance();
+    entered=solver.entered!=before;
+    if(entered)++s.rigidSteps;
+    if(!success)return solver.error?solver.error:"assembly step failed";
     ++s.frames;
     return nullptr;
 }
