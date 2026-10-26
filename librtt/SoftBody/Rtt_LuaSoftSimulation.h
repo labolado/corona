@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <new>
+#include <limits>
 
 namespace Rtt
 {
@@ -122,21 +123,30 @@ static void Check( lua_State* L, bool ok, const char* error )
     if ( !ok )
         luaL_error( L, "%s", error ? error : "invalid soft operation" );
 }
-static SoftBody::Weights ReadWeights( lua_State* L, const char* name )
+// Lua owns temporary numeric buffers, so validation errors cannot strand C++
+// allocations through luaL_error's longjmp. Keep userdata rooted on the stack.
+struct WeightInput
 {
-    SoftBody::Weights result{};
+    float* values;
+    int count;
+};
+static WeightInput ReadWeights( lua_State* L, const char* name, SoftBody::ObjectId body )
+{
+    int count = World( L )->simulation.getBodyNodeCount( body );
+    Check( L, count > 0, "body state unavailable" );
     Field( L, 2, name );
     luaL_checktype( L, -1, LUA_TTABLE );
-    if ( lua_objlen( L, -1 ) != 16 )
-        luaL_error( L, "%s requires 16 weights", name );
-    for ( int i = 0; i < 16; ++i )
+    int table = lua_gettop( L );
+    if ( lua_objlen( L, table ) != size_t( count ) )
+        luaL_error( L, "%s requires one weight per body node (%d)", name, count );
+    float* values = static_cast<float*>( lua_newuserdata( L, sizeof( float ) * count ) );
+    for ( int i = 0; i < count; ++i )
     {
-        lua_rawgeti( L, -1, i + 1 );
-        result[i] = NumberArg( L, -1, 0, 1 );
+        lua_rawgeti( L, table, i + 1 );
+        values[i] = NumberArg( L, -1, 0, 1 );
         lua_pop( L, 1 );
     }
-    lua_pop( L, 1 );
-    return result;
+    return { values, count };
 }
 static SoftBody::ObjectId BodyField( lua_State* L, const char* field )
 {
@@ -209,6 +219,70 @@ static int RemoveAttachment( lua_State* L )
 {
     return Remove( L, kAttachment );
 }
+// Parse into Lua-owned scratch first; allocate native vectors only after all
+// Lua argument validation has succeeded.
+static void ReadShape( lua_State* L, SoftBody::SoftShapeDef& shape )
+{
+    Field( L, 2, "shape" );
+    if ( lua_isnil( L, -1 ) )
+    {
+        lua_pop( L, 1 );
+        return;
+    }
+    luaL_checktype( L, -1, LUA_TTABLE );
+    int table = lua_gettop( L );
+    lua_pushnil( L );
+    while ( lua_next( L, table ) )
+    {
+        if ( lua_type( L, -2 ) != LUA_TSTRING ||
+             ( std::strcmp( lua_tostring( L, -2 ), "nodes" ) && std::strcmp( lua_tostring( L, -2 ), "boundary" ) ) )
+            luaL_error( L, "shape supports only nodes and one boundary; holes and internal structures are not supported" );
+        lua_pop( L, 1 );
+    }
+    Field( L, table, "nodes" );
+    luaL_checktype( L, -1, LUA_TTABLE );
+    size_t size = lua_objlen( L, -1 );
+    if ( size < 6 || size % 2 )
+        luaL_error( L, "shape.nodes requires at least 3 x,y pairs in local metres, y up" );
+    if ( size / 2 > size_t( World( L )->simulation.availableNodes() ) )
+        luaL_error( L, "soft node capacity reached (maxNodes)" );
+    int count = int( size / 2 );
+    int nodeTable = lua_gettop( L );
+    auto* nodes = static_cast<SoftBody::Point*>( lua_newuserdata( L, sizeof( SoftBody::Point ) * count ) );
+    for ( int i = 0; i < count; ++i )
+        new ( nodes + i ) SoftBody::Point{};
+    int* boundary = nullptr;
+    for ( int i = 0; i < count * 2; ++i )
+    {
+        lua_rawgeti( L, nodeTable, i + 1 );
+        nodes[i / 2][i % 2] = NumberArg( L, -1, -100, 100 );
+        lua_pop( L, 1 );
+    }
+    Field( L, table, "boundary" );
+    bool explicitBoundary = !lua_isnil( L, -1 );
+    if ( explicitBoundary )
+    {
+        luaL_checktype( L, -1, LUA_TTABLE );
+        if ( lua_objlen( L, -1 ) != size_t( count ) )
+            luaL_error( L, "shape.boundary must use every node exactly once" );
+        int boundaryTable = lua_gettop( L );
+        boundary = static_cast<int*>( lua_newuserdata( L, sizeof( int ) * count ) );
+        for ( int i = 0; i < count; ++i )
+        {
+            lua_rawgeti( L, boundaryTable, i + 1 );
+            double value = NumberArg( L, -1, 1, count );
+            if ( value != std::floor( value ) )
+                luaL_error( L, "shape.boundary requires integer node indices" );
+            boundary[i] = int( value ) - 1;
+            lua_pop( L, 1 );
+        }
+    }
+    // No further Lua validation after these allocations. The caller destroys
+    // its definition before reporting any native creation failure to Lua.
+    shape.nodes.assign( nodes, nodes + count );
+    if ( explicitBoundary )
+        shape.boundary.assign( boundary, boundary + count );
+}
 static int NewBody( lua_State* L )
 {
     auto* s = World( L );
@@ -217,56 +291,81 @@ static int NewBody( lua_State* L )
     if ( std::strcmp( luaL_checkstring( L, -1 ), "recoverable" ) )
         return luaL_error( L, "assembly mode requires recoverable material" );
     lua_pop( L, 1 );
-    SoftBody::SoftBodyDef def;
-    def.mass = Value( L, 2, "mass", 1, .001, 1000 );
-    def.halfWidth = Value( L, 2, "halfWidth", .35, .01, 100 );
-    def.halfHeight = Value( L, 2, "halfHeight", .35, .01, 100 );
-    def.position = { float( Value( L, 2, "x", 0, -1e4, 1e4 ) ), float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
-    def.frequency = Value( L, 2, "frequency", 6, 0, 1000 );
-    def.damping = Value( L, 2, "damping", 40, 0, 1e5 );
-    def.materialScale = Value( L, 2, "materialScale", 1, .001, 1e4 );
-    def.friction = Value( L, 2, "friction", 0, 0, 10 );
-    Field( L, 2, "support" );
-    if ( !lua_isnil( L, -1 ) )
+    SoftBody::ObjectId body;
     {
-        luaL_checktype( L, -1, LUA_TSTRING );
-        const char* support = lua_tostring( L, -1 );
-        if ( !std::strcmp( support, "world" ) )
-            def.support = SoftBody::BodySupport::World;
-        else if ( std::strcmp( support, "free" ) )
-            return luaL_error( L, "support must be 'free' or 'world'" );
+        SoftBody::SoftBodyDef def;
+        def.mass = Value( L, 2, "mass", 1, .001, 1000 );
+        def.halfWidth = Value( L, 2, "halfWidth", .35, .01, 100 );
+        def.halfHeight = Value( L, 2, "halfHeight", .35, .01, 100 );
+        def.position = { float( Value( L, 2, "x", 0, -1e4, 1e4 ) ), float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
+        def.frequency = Value( L, 2, "frequency", 6, 0, 1000 );
+        def.damping = Value( L, 2, "damping", 40, 0, 1e5 );
+        def.materialScale = Value( L, 2, "materialScale", 1, .001, 1e4 );
+        def.friction = Value( L, 2, "friction", 0, 0, 10 );
+        Field( L, 2, "support" );
+        if ( !lua_isnil( L, -1 ) )
+        {
+            luaL_checktype( L, -1, LUA_TSTRING );
+            const char* support = lua_tostring( L, -1 );
+            if ( !std::strcmp( support, "world" ) )
+                def.support = SoftBody::BodySupport::World;
+            else if ( std::strcmp( support, "free" ) )
+                return luaL_error( L, "support must be 'free' or 'world'" );
+        }
+        lua_pop( L, 1 );
+        if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
+            return luaL_error( L, "recoverable material requires zero preload" );
+        ReadShape( L, def.shape );
+        body = s->simulation.createBody( def );
     }
-    lua_pop( L, 1 );
-    if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
-        return luaL_error( L, "recoverable material requires zero preload" );
-    return Push( L, kBody, s->simulation.createBody( def ) );
+    return Push( L, kBody, body );
 }
 static int NewJoint( lua_State* L )
 {
     auto* s = World( L );
     luaL_checktype( L, 2, LUA_TTABLE );
-    SoftBody::SoftJointDef def;
-    def.bodyA = BodyField( L, "bodyA" );
-    def.bodyB = BodyField( L, "bodyB" );
-    def.weightsA = ReadWeights( L, "weightsA" );
-    def.weightsB = ReadWeights( L, "weightsB" );
-    def.frequency = Value( L, 2, "frequency", 12, .01, 60 );
-    def.dampingRatio = Value( L, 2, "dampingRatio", 1, 0, 10 );
-    def.motorGain = Value( L, 2, "motorGain", 8, 0, 1e6 );
-    return Push( L, kJoint, s->simulation.createJoint( def ) );
+    auto a = BodyField( L, "bodyA" ), b = BodyField( L, "bodyB" );
+    auto wa = ReadWeights( L, "weightsA", a ), wb = ReadWeights( L, "weightsB", b );
+    float frequency = Value( L, 2, "frequency", 12, .01, 60 );
+    float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
+    float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
+    SoftBody::ObjectId id;
+    {
+        SoftBody::SoftJointDef def;
+        def.bodyA = a;
+        def.bodyB = b;
+        def.weightsA.assign( wa.values, wa.values + wa.count );
+        def.weightsB.assign( wb.values, wb.values + wb.count );
+        def.frequency = frequency;
+        def.dampingRatio = damping;
+        def.motorGain = gain;
+        id = s->simulation.createJoint( def );
+    }
+    return Push( L, kJoint, id );
 }
 static int NewTouch( lua_State* L )
 {
     auto* s = World( L );
     luaL_checktype( L, 2, LUA_TTABLE );
-    SoftBody::SoftTouchDef def;
-    def.body = BodyField( L, "body" );
-    def.weights = ReadWeights( L, "weights" );
-    def.target = { float( Value( L, 2, "targetX", 0, -1e4, 1e4 ) ), float( Value( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
-    def.frequency = Value( L, 2, "frequency", 3, .01, 60 );
-    def.dampingRatio = Value( L, 2, "dampingRatio", 1, 0, 10 );
-    def.maxForce = Value( L, 2, "maxForce", 50, 0, 1e5 );
-    return Push( L, kTouch, s->simulation.createTouch( def ) );
+    auto body = BodyField( L, "body" );
+    auto weights = ReadWeights( L, "weights", body );
+    SoftBody::Point target{ float( Value( L, 2, "targetX", 0, -1e4, 1e4 ) ),
+                            float( Value( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
+    float frequency = Value( L, 2, "frequency", 3, .01, 60 );
+    float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
+    float force = Value( L, 2, "maxForce", 50, 0, 1e5 );
+    SoftBody::ObjectId id;
+    {
+        SoftBody::SoftTouchDef def;
+        def.body = body;
+        def.weights.assign( weights.values, weights.values + weights.count );
+        def.target = target;
+        def.frequency = frequency;
+        def.dampingRatio = damping;
+        def.maxForce = force;
+        id = s->simulation.createTouch( def );
+    }
+    return Push( L, kTouch, id );
 }
 static int SetMotor( lua_State* L )
 {
@@ -320,10 +419,18 @@ static int BodyState( lua_State* L )
     lua_setfield( L, -2, "support" );
     Number( L, "referenceX", state.referencePosition[0] );
     Number( L, "referenceY", state.referencePosition[1] );
-    lua_createtable( L, 32, 0 );
+    Number( L, "nodeCount", state.nodeCount );
+    lua_createtable( L, state.nodeCount, 0 );
+    for ( int i = 0; i < state.nodeCount; ++i )
+    {
+        lua_pushinteger( L, state.boundary[i] + 1 );
+        lua_rawseti( L, -2, i + 1 );
+    }
+    lua_setfield( L, -2, "boundary" );
+    lua_createtable( L, state.nodeCount * 2, 0 );
     int n = 0;
-    for ( auto p : state.vertices )
-        for ( float v : p )
+    for ( int i = 0; i < state.nodeCount; ++i )
+        for ( float v : state.vertices[i] )
         {
             lua_pushnumber( L, v );
             lua_rawseti( L, -2, ++n );
@@ -553,6 +660,12 @@ static int New( lua_State* L )
            touches = Value( L, 1, "maxTouches", 1, 0, 64 );
     if ( bodies != std::floor( bodies ) || joints != std::floor( joints ) || touches != std::floor( touches ) )
         return luaL_error( L, "soft capacities must be integers" );
+    double nodes = Value( L, 1, "maxNodes", 512, 3, std::numeric_limits<int>::max() / 4 - 4 );
+    double rows = Value( L, 1, "maxSoftContactRows", 512, 1, std::numeric_limits<int>::max() );
+    if ( nodes != std::floor( nodes ) || rows != std::floor( rows ) )
+        return luaL_error( L, "soft node and contact capacities must be integers" );
+    def.maxNodes = int( nodes );
+    def.maxSoftContactRows = int( rows );
     def.maxBodies = int( bodies );
     def.maxJoints = int( joints );
     def.maxTouches = int( touches );

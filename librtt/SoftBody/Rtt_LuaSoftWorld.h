@@ -235,6 +235,11 @@ static int NewBody( lua_State* L )
 {
     auto& w = World( L )->world;
     luaL_checktype( L, 2, LUA_TTABLE );
+    Field( L, 2, "shape" );
+    bool hasShape = !lua_isnil( L, -1 );
+    lua_pop( L, 1 );
+    if ( hasShape )
+        return luaL_error( L, "custom soft shapes require assembly mode" );
     Field( L, 2, "support" );
     if ( !lua_isnil( L, -1 ) &&
          ( lua_type( L, -1 ) != LUA_TSTRING || strcmp( lua_tostring( L, -1 ), "free" ) ) )
@@ -275,19 +280,24 @@ static int NewBody( lua_State* L )
         return luaL_error( L, "recoverable material requires positive frequency and zero preload" );
     if ( kind == 2 && preload > 0 && rx != ry )
         return luaL_error( L, "pressure preload currently requires a circle" );
-    SoftBody::Body<float> body( kind, mass, rx, ry, stiffness, hz, damping, preload, scale, overlap );
-    body.bulk = bulk;
-    body.friction = friction;
-    for ( float length : body.lengths )
-        if ( !( length > 1e-6 ) )
-            return luaL_error( L, "preload exceeds edge rest length" );
-    for ( auto& p : body.x )
-    {
-        p[0] += x;
-        p[1] += y;
-    }
+    bool validLengths = true;
     int id = int( w.bodies.size() );
-    w.bodies.push_back( body );
+    {
+        SoftBody::Body<float> body( kind, mass, rx, ry, stiffness, hz, damping, preload, scale, overlap );
+        body.bulk = bulk;
+        body.friction = friction;
+        for ( float length : body.lengths )
+            validLengths = validLengths && length > 1e-6;
+        for ( auto& p : body.x )
+        {
+            p[0] += x;
+            p[1] += y;
+        }
+        if ( validLengths )
+            w.bodies.push_back( std::move( body ) );
+    }
+    if ( !validLengths )
+        return luaL_error( L, "preload exceeds edge rest length" );
     PushEntity( L, kBody, id );
     return 1;
 }
@@ -326,12 +336,16 @@ static int NewPin( lua_State* L )
     lua_pop( L, 1 );
     if ( a->owner != owner || b->owner != owner || a->id == b->id )
         return luaL_error( L, "pin requires distinct bodies in this world" );
+    std::array<float, 16> wa{}, wb{};
+    Weights( L, "weightsA", wa );
+    Weights( L, "weightsB", wb );
+    float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
     Core::Pin pin;
     pin.a = a->id;
     pin.b = b->id;
-    Weights( L, "weightsA", pin.wa );
-    Weights( L, "weightsB", pin.wb );
-    pin.gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
+    pin.wa.assign( wa.begin(), wa.end() );
+    pin.wb.assign( wb.begin(), wb.end() );
+    pin.gain = gain;
     int id = int( w.pins.size() );
     w.pins.push_back( pin );
     PushEntity( L, kPin, id );
@@ -351,12 +365,16 @@ static int NewWorldPin( lua_State* L )
     lua_pop( L, 1 );
     if ( body->owner != owner )
         return luaL_error( L, "pin body belongs to another world" );
+    std::array<float, 16> weights{};
+    Weights( L, "weights", weights );
+    Core::Vec anchor{ float( Value( L, 2, "x", 0, -1e4, 1e4 ) ), float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
+    float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
     Core::Pin pin;
     pin.a = body->id;
     pin.b = -1;
-    Weights( L, "weights", pin.wa );
-    pin.worldAnchor = { float( Value( L, 2, "x", 0, -1e4, 1e4 ) ), float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
-    pin.gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
+    pin.wa.assign( weights.begin(), weights.end() );
+    pin.worldAnchor = anchor;
+    pin.gain = gain;
     int id = int( world.pins.size() );
     world.pins.push_back( pin );
     PushEntity( L, kPin, id );
@@ -382,13 +400,19 @@ static int NewTouchJoint( lua_State* L )
     if ( body->owner != owner )
         return luaL_error( L, "touch body must belong to this world" );
 
+    std::array<float, 16> weights{};
+    Weights( L, "weights", weights );
+    Core::Vec target{ float( Value( L, 2, "targetX", 0, -1e4, 1e4 ) ), float( Value( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
+    float frequency = Value( L, 2, "frequency", 3, .01, 60 );
+    float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
+    float force = Value( L, 2, "maxForce", 50, 0, 1e5 );
     Core::TouchJoint joint;
     joint.body = body->id;
-    Weights( L, "weights", joint.weights );
-    joint.target = { float( Value( L, 2, "targetX", 0, -1e4, 1e4 ) ), float( Value( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
-    joint.frequency = Value( L, 2, "frequency", 3, .01, 60 );
-    joint.dampingRatio = Value( L, 2, "dampingRatio", 1, 0, 10 );
-    joint.maxForce = Value( L, 2, "maxForce", 50, 0, 1e5 );
+    joint.weights.assign( weights.begin(), weights.end() );
+    joint.target = target;
+    joint.frequency = frequency;
+    joint.dampingRatio = damping;
+    joint.maxForce = force;
     if ( id == int( world.touchJoints.size() ) )
     {
         world.touchJoints.push_back( joint );
