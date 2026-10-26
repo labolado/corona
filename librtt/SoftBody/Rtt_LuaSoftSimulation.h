@@ -343,6 +343,30 @@ static int NewJoint( lua_State* L )
     }
     return Push( L, kJoint, id );
 }
+static int NewWorldJoint( lua_State* L )
+{
+    auto* s = World( L );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    auto body = BodyField( L, "body" );
+    auto weights = ReadWeights( L, "weights", body );
+    SoftBody::Point anchor{ float( Value( L, 2, "x", 0, -1e4, 1e4 ) ),
+                           float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
+    float frequency = Value( L, 2, "frequency", 12, .01, 60 );
+    float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
+    float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
+    SoftBody::ObjectId id;
+    {
+        SoftBody::SoftWorldJointDef def;
+        def.body = body;
+        def.weights.assign( weights.values, weights.values + weights.count );
+        def.anchor = anchor;
+        def.frequency = frequency;
+        def.dampingRatio = damping;
+        def.motorGain = gain;
+        id = s->simulation.createWorldJoint( def );
+    }
+    return Push( L, kJoint, id );
+}
 static int NewTouch( lua_State* L )
 {
     auto* s = World( L );
@@ -711,7 +735,7 @@ static void Register( lua_State* L )
                                { "attachPhysicsBody", AttachBody },
                                { "attachStaticBody", Unsupported },
                                { "setCollisionEnabled", SetCollision },
-                               { "createWorldPinJoint", Unsupported },
+                               { "createWorldPinJoint", NewWorldJoint },
                                { "createRigidPinJoint", Unsupported },
                                { "createRigidAttachment", Unsupported },
                                { "createBoundary", Unsupported },
