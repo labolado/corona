@@ -235,6 +235,11 @@ static int NewBody( lua_State* L )
 {
     auto& w = World( L )->world;
     luaL_checktype( L, 2, LUA_TTABLE );
+    Field( L, 2, "support" );
+    if ( !lua_isnil( L, -1 ) &&
+         ( lua_type( L, -1 ) != LUA_TSTRING || strcmp( lua_tostring( L, -1 ), "free" ) ) )
+        return luaL_error( L, "world support requires assembly mode" );
+    lua_pop( L, 1 );
     if ( World( L )->gameMode && !w.bodies.empty() )
         return luaL_error( L, "game mode supports one soft body" );
     if ( w.bodies.size() >= 32 )

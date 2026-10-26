@@ -226,6 +226,17 @@ static int NewBody( lua_State* L )
     def.damping = Value( L, 2, "damping", 40, 0, 1e5 );
     def.materialScale = Value( L, 2, "materialScale", 1, .001, 1e4 );
     def.friction = Value( L, 2, "friction", 0, 0, 10 );
+    Field( L, 2, "support" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        luaL_checktype( L, -1, LUA_TSTRING );
+        const char* support = lua_tostring( L, -1 );
+        if ( !std::strcmp( support, "world" ) )
+            def.support = SoftBody::BodySupport::World;
+        else if ( std::strcmp( support, "free" ) )
+            return luaL_error( L, "support must be 'free' or 'world'" );
+    }
+    lua_pop( L, 1 );
     if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
         return luaL_error( L, "recoverable material requires zero preload" );
     return Push( L, kBody, s->simulation.createBody( def ) );
@@ -303,8 +314,12 @@ static int BodyState( lua_State* L )
     auto* e = Object( L, kBody );
     SoftBody::SoftBodyState state;
     Check( L, e->owner->instance->simulation.getBodyState( e->id, state ), "body state unavailable" );
-    lua_createtable( L, 0, 2 );
+    lua_createtable( L, 0, 5 );
     Number( L, "id", e->id.index + 1 );
+    lua_pushstring( L, state.support == SoftBody::BodySupport::World ? "world" : "free" );
+    lua_setfield( L, -2, "support" );
+    Number( L, "referenceX", state.referencePosition[0] );
+    Number( L, "referenceY", state.referencePosition[1] );
     lua_createtable( L, 32, 0 );
     int n = 0;
     for ( auto p : state.vertices )
