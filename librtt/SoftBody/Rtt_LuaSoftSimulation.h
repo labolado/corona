@@ -224,13 +224,19 @@ static int RemoveAttachment( lua_State* L )
 }
 // Parse into Lua-owned scratch first; allocate native vectors only after all
 // Lua argument validation has succeeded.
-static void ReadShape( lua_State* L, SoftBody::SoftShapeDef& shape )
+struct ShapeInput
+{
+    SoftBody::Point* nodes = nullptr;
+    int* boundary = nullptr;
+    int count = 0;
+};
+static ShapeInput ReadShape( lua_State* L )
 {
     Field( L, 2, "shape" );
     if ( lua_isnil( L, -1 ) )
     {
         lua_pop( L, 1 );
-        return;
+        return {};
     }
     luaL_checktype( L, -1, LUA_TTABLE );
     int table = lua_gettop( L );
@@ -239,7 +245,7 @@ static void ReadShape( lua_State* L, SoftBody::SoftShapeDef& shape )
     {
         if ( lua_type( L, -2 ) != LUA_TSTRING ||
              ( std::strcmp( lua_tostring( L, -2 ), "nodes" ) && std::strcmp( lua_tostring( L, -2 ), "boundary" ) ) )
-            luaL_error( L, "shape supports only nodes and one boundary; holes and internal structures are not supported" );
+            luaL_error( L, "shape supports only nodes and one boundary; put internalSprings on the body definition" );
         lua_pop( L, 1 );
     }
     Field( L, table, "nodes" );
@@ -280,11 +286,64 @@ static void ReadShape( lua_State* L, SoftBody::SoftShapeDef& shape )
             lua_pop( L, 1 );
         }
     }
-    // No further Lua validation after these allocations. The caller destroys
-    // its definition before reporting any native creation failure to Lua.
-    shape.nodes.assign( nodes, nodes + count );
-    if ( explicitBoundary )
-        shape.boundary.assign( boundary, boundary + count );
+    ShapeInput result;
+    result.nodes = nodes;
+    result.boundary = boundary;
+    result.count = count;
+    return result;
+}
+struct SpringInput
+{
+    SoftBody::SoftSpringDef* values = nullptr;
+    int count = 0;
+};
+static SpringInput ReadInternalSprings( lua_State* L, int nodeCount )
+{
+    Field( L, 2, "internalSprings" );
+    if ( lua_isnil( L, -1 ) )
+    {
+        lua_pop( L, 1 );
+        return {};
+    }
+    luaL_checktype( L, -1, LUA_TTABLE );
+    size_t count = lua_objlen( L, -1 );
+    if ( count > size_t( World( L )->simulation.availableInternalSprings() ) )
+        luaL_error( L, "soft internal spring capacity reached (maxInternalSprings)" );
+    int table = lua_gettop( L );
+    auto* values = static_cast<SoftBody::SoftSpringDef*>( lua_newuserdata( L, sizeof( SoftBody::SoftSpringDef ) * count ) );
+    for ( size_t i = 0; i < count; ++i )
+    {
+        new ( values + i ) SoftBody::SoftSpringDef{};
+        lua_rawgeti( L, table, int( i + 1 ) );
+        luaL_checktype( L, -1, LUA_TTABLE );
+        int entry = lua_gettop( L );
+        lua_pushnil( L );
+        while ( lua_next( L, entry ) )
+        {
+            if ( lua_type( L, -2 ) != LUA_TSTRING ||
+                 ( std::strcmp( lua_tostring( L, -2 ), "nodeA" ) && std::strcmp( lua_tostring( L, -2 ), "nodeB" ) &&
+                   std::strcmp( lua_tostring( L, -2 ), "stiffness" ) && std::strcmp( lua_tostring( L, -2 ), "dampingRatio" ) ) )
+                luaL_error( L, "internalSprings entries support nodeA, nodeB, stiffness and dampingRatio" );
+            lua_pop( L, 1 );
+        }
+        Field( L, entry, "nodeA" );
+        double a = NumberArg( L, -1, 1, nodeCount );
+        lua_pop( L, 1 );
+        Field( L, entry, "nodeB" );
+        double b = NumberArg( L, -1, 1, nodeCount );
+        lua_pop( L, 1 );
+        if ( a != std::floor( a ) || b != std::floor( b ) )
+            luaL_error( L, "internal spring node identities must be integers" );
+        values[i].nodeA = int( a ) - 1;
+        values[i].nodeB = int( b ) - 1;
+        values[i].stiffness = Value( L, entry, "stiffness", 300, .001, 1e8 );
+        values[i].dampingRatio = Value( L, entry, "dampingRatio", .3, 0, 10 );
+        lua_pop( L, 1 );
+    }
+    SpringInput result;
+    result.values = values;
+    result.count = int( count );
+    return result;
 }
 static int NewBody( lua_State* L )
 {
@@ -318,7 +377,15 @@ static int NewBody( lua_State* L )
         lua_pop( L, 1 );
         if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
             return luaL_error( L, "recoverable material requires zero preload" );
-        ReadShape( L, def.shape );
+        auto shape = ReadShape( L );
+        auto springs = ReadInternalSprings( L, shape.count ? shape.count : 16 );
+        // All Lua validation is finished. No longjmp may bypass owned vectors.
+        if ( shape.count )
+            def.shape.nodes.assign( shape.nodes, shape.nodes + shape.count );
+        if ( shape.boundary )
+            def.shape.boundary.assign( shape.boundary, shape.boundary + shape.count );
+        if ( springs.count )
+            def.internalSprings.assign( springs.values, springs.values + springs.count );
         body = s->simulation.createBody( def );
     }
     return Push( L, kBody, body );
@@ -505,6 +572,9 @@ static int BodyState( lua_State* L )
     Number( L, "referenceX", state.referencePosition[0] );
     Number( L, "referenceY", state.referencePosition[1] );
     Number( L, "nodeCount", state.nodeCount );
+    Number( L, "internalSpringScale", state.internalSpringScale );
+    Number( L, "internalSpringWork", state.internalSpringWork );
+    Number( L, "internalSpringRecoverySteps", state.internalSpringRecoverySteps );
     lua_createtable( L, state.nodeCount, 0 );
     for ( int i = 0; i < state.nodeCount; ++i )
     {
@@ -747,9 +817,11 @@ static int New( lua_State* L )
         return luaL_error( L, "soft capacities must be integers" );
     double nodes = Value( L, 1, "maxNodes", 512, 3, std::numeric_limits<int>::max() / 4 - 4 );
     double rows = Value( L, 1, "maxSoftContactRows", 512, 1, std::numeric_limits<int>::max() );
-    if ( nodes != std::floor( nodes ) || rows != std::floor( rows ) )
-        return luaL_error( L, "soft node and contact capacities must be integers" );
+    double springs = Value( L, 1, "maxInternalSprings", 2048, 0, std::numeric_limits<int>::max() / 64 );
+    if ( nodes != std::floor( nodes ) || rows != std::floor( rows ) || springs != std::floor( springs ) )
+        return luaL_error( L, "soft node, contact and internal spring capacities must be integers" );
     def.maxNodes = int( nodes );
+    def.maxInternalSprings = int( springs );
     def.maxSoftContactRows = int( rows );
     def.maxBodies = int( bodies );
     def.maxJoints = int( joints );
