@@ -345,6 +345,32 @@ static SpringInput ReadInternalSprings( lua_State* L, int nodeCount )
     result.count = int( count );
     return result;
 }
+static SoftBody::SoftBodyDef::Pressure ReadPressure( lua_State* L )
+{
+    SoftBody::SoftBodyDef::Pressure result;
+    Field( L, 2, "pressure" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        luaL_checktype( L, -1, LUA_TTABLE );
+        int table = lua_gettop( L );
+        lua_pushnil( L );
+        while ( lua_next( L, table ) )
+        {
+            if ( lua_type( L, -2 ) != LUA_TSTRING ||
+                 ( std::strcmp( lua_tostring( L, -2 ), "target" ) && std::strcmp( lua_tostring( L, -2 ), "maxPressure" ) &&
+                   std::strcmp( lua_tostring( L, -2 ), "rate" ) && std::strcmp( lua_tostring( L, -2 ), "maxAcceleration" ) ) )
+                luaL_error( L, "pressure supports target, maxPressure, rate and maxAcceleration" );
+            lua_pop( L, 1 );
+        }
+        result.enabled = true;
+        result.maxPressure = Value( L, table, "maxPressure", 1000, .001, 1e6 );
+        result.target = Value( L, table, "target", 0, 0, result.maxPressure );
+        result.rate = Value( L, table, "rate", 500, .001, 1e6 );
+        result.maxAcceleration = Value( L, table, "maxAcceleration", 200, .001, 1000 );
+    }
+    lua_pop( L, 1 );
+    return result;
+}
 static int NewBody( lua_State* L )
 {
     auto* s = World( L );
@@ -377,6 +403,7 @@ static int NewBody( lua_State* L )
         lua_pop( L, 1 );
         if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
             return luaL_error( L, "recoverable material requires zero preload" );
+        def.pressure = ReadPressure( L );
         auto shape = ReadShape( L );
         auto springs = ReadInternalSprings( L, shape.count ? shape.count : 16 );
         // All Lua validation is finished. No longjmp may bypass owned vectors.
@@ -560,6 +587,16 @@ static int ApplyLinearImpulse( lua_State* L )
     Check( L, ok, api.lastError() );
     return 0;
 }
+static int PressureTarget( lua_State* L )
+{
+    auto* e = Object( L, kBody );
+    if ( lua_gettop( L ) != 2 )
+        return luaL_error( L, "setPressureTarget expects nominal pressure in N/m" );
+    auto& api = e->owner->instance->simulation;
+    bool ok = api.setPressureTarget( e->id, float( NumberArg( L, 2, 0, 1e6 ) ) );
+    Check( L, ok, api.lastError() );
+    return 0;
+}
 static int BodyState( lua_State* L )
 {
     auto* e = Object( L, kBody );
@@ -575,6 +612,13 @@ static int BodyState( lua_State* L )
     Number( L, "internalSpringScale", state.internalSpringScale );
     Number( L, "internalSpringWork", state.internalSpringWork );
     Number( L, "internalSpringRecoverySteps", state.internalSpringRecoverySteps );
+    Number( L, "pressureTarget", state.pressureTarget );
+    Number( L, "pressureLevel", state.pressureLevel );
+    Number( L, "pressureApplied", state.pressureApplied );
+    Number( L, "pressureScale", state.pressureScale );
+    Number( L, "pressureWork", state.pressureWork );
+    Number( L, "pressureRecoverySteps", state.pressureRecoverySteps );
+    Number( L, "pressureLimitedSteps", state.pressureLimitedSteps );
     lua_createtable( L, state.nodeCount, 0 );
     for ( int i = 0; i < state.nodeCount; ++i )
     {
@@ -890,6 +934,7 @@ static void Register( lua_State* L )
                                { NULL, NULL } };
     const luaL_Reg body[] = { { "getState", BodyState },         { "setRigidFilter", RigidFilter },
                               { "applyLinearImpulse", ApplyLinearImpulse },
+                              { "setPressureTarget", PressureTarget },
                               { "applyForce", UnsupportedLoad }, { "applyTorque", UnsupportedLoad },
                               { "removeSelf", RemoveBody },      { NULL, NULL } };
     const luaL_Reg joint[] = { { "setMotor", SetMotor }, { "removeSelf", RemoveJoint }, { NULL, NULL } };
