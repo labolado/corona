@@ -16,6 +16,7 @@ namespace SoftSimulationLua
 static const char kWorld[] = "physics.softSimulationWorld";
 static const char kBody[] = "physics.softSimulationBody";
 static const char kJoint[] = "physics.softSimulationJoint";
+static const char kRigidJoint[] = "physics.softSimulationRigidJoint";
 static const char kTouch[] = "physics.softSimulationTouch";
 static const char kAttachment[] = "physics.softSimulationAttachment";
 static int& LiveCount()
@@ -82,7 +83,7 @@ static Entity* Object( lua_State* L, const char* type, int index = 1 )
         luaL_error( L, "soft world was removed" );
     if ( s->invalidated )
         luaL_error( L, "coupled soft world was invalidated by physics.stop" );
-    bool valid = type == kAttachment ? s->coupling.isValid( e->id ) : s->simulation.isValid( e->id );
+    bool valid = type == kAttachment || type == kRigidJoint ? s->coupling.isValid( e->id ) : s->simulation.isValid( e->id );
     if ( !valid )
         luaL_error( L, "soft object was removed" );
     return e;
@@ -161,7 +162,7 @@ static SoftBody::ObjectId BodyField( lua_State* L, const char* field )
 static int Push( lua_State* L, const char* type, SoftBody::ObjectId id )
 {
     auto* s = World( L );
-    Check( L, id.index >= 0, type == kAttachment ? s->coupling.lastError() : s->simulation.lastError() );
+    Check( L, id.index >= 0, type == kAttachment || type == kRigidJoint ? s->coupling.lastError() : s->simulation.lastError() );
     auto* e = new ( lua_newuserdata( L, sizeof( Entity ) ) ) Entity{};
     e->owner = WorldHandle( L );
     e->id = id;
@@ -198,6 +199,8 @@ static int Remove( lua_State* L, const char* type )
     {
         if ( type == kAttachment )
             s->coupling.detach( e->id );
+        else if ( type == kRigidJoint )
+            s->coupling.removeRigidJoint( e->id );
         else
             s->simulation.remove( e->id );
     }
@@ -366,6 +369,64 @@ static int NewWorldJoint( lua_State* L )
         id = s->simulation.createWorldJoint( def );
     }
     return Push( L, kJoint, id );
+}
+static int NewRigidJoint( lua_State* L )
+{
+    auto* s = World( L );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    auto body = BodyField( L, "body" );
+    Field( L, 2, "rigid" );
+    auto* attachment = Object( L, kAttachment, -1 );
+    if ( attachment->owner != WorldHandle( L ) )
+        return luaL_error( L, "rigid attachment belongs to another world" );
+    auto rigid = attachment->id;
+    lua_pop( L, 1 );
+    auto weights = ReadWeights( L, "weights", body );
+    float x = Value( L, 2, "localAnchorX", 0, -1e4, 1e4 );
+    float y = Value( L, 2, "localAnchorY", 0, -1e4, 1e4 );
+    float frequency = Value( L, 2, "frequency", 30, 1, 60 );
+    float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
+    float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
+    SoftBody::ObjectId id;
+    {
+        SoftBody::SoftRigidJointDef def;
+        def.body = body;
+        def.rigid = rigid;
+        def.weights.assign( weights.values, weights.values + weights.count );
+        def.localAnchor = { x, y };
+        def.frequency = frequency;
+        def.dampingRatio = damping;
+        def.motorGain = gain;
+        id = s->coupling.createRigidJoint( def );
+    }
+    return Push( L, kRigidJoint, id );
+}
+static int RemoveRigidJoint( lua_State* L )
+{
+    return Remove( L, kRigidJoint );
+}
+static int RigidJointState( lua_State* L )
+{
+    auto* e = Object( L, kRigidJoint );
+    SoftBody::SoftRigidJointState state;
+    Check( L, e->owner->instance->coupling.getRigidJointState( e->id, state ), "rigid pin state unavailable" );
+    lua_createtable( L, 0, 7 );
+    Bool( L, "enabled", state.enabled );
+    Number( L, "errorM", state.errorM );
+    Number( L, "impulseX", state.impulse[0] );
+    Number( L, "impulseY", state.impulse[1] );
+    Number( L, "relativeSpeed", state.relativeSpeed );
+    Number( L, "motorImpulse", state.motorImpulse );
+    Number( L, "motorWork", state.motorWork );
+    return 1;
+}
+static int SetRigidMotor( lua_State* L )
+{
+    auto* e = Object( L, kRigidJoint );
+    auto& api = e->owner->instance->coupling;
+    bool ok = api.setRigidMotor( e->id, NumberArg( L, 2, -1e4, 1e4 ), NumberArg( L, 3, 0, 1e6 ) );
+    Check( L, ok, api.lastError() );
+    return 0;
 }
 static int NewTouch( lua_State* L )
 {
@@ -701,6 +762,10 @@ static int New( lua_State* L )
     box.flipY = true;
     box.profile = profile;
     box.enableDynamicContacts = dynamicContacts;
+    double rigidJoints = Value( L, 1, "maxRigidJoints", 64, 0, 64 );
+    if ( rigidJoints != std::floor( rigidJoints ) )
+        return luaL_error( L, "maxRigidJoints must be an integer" );
+    box.maxRigidJoints = int( rigidJoints );
     auto* h = static_cast<Handle*>( lua_newuserdata( L, sizeof( Handle ) ) );
     h->instance = nullptr;
     luaL_getmetatable( L, kWorld );
@@ -736,7 +801,7 @@ static void Register( lua_State* L )
                                { "attachStaticBody", Unsupported },
                                { "setCollisionEnabled", SetCollision },
                                { "createWorldPinJoint", NewWorldJoint },
-                               { "createRigidPinJoint", Unsupported },
+                               { "createRigidPinJoint", NewRigidJoint },
                                { "createRigidAttachment", Unsupported },
                                { "createBoundary", Unsupported },
                                { "step", ManualStep },
@@ -750,13 +815,15 @@ static void Register( lua_State* L )
                               { "applyForce", UnsupportedLoad }, { "applyTorque", UnsupportedLoad },
                               { "removeSelf", RemoveBody },      { NULL, NULL } };
     const luaL_Reg joint[] = { { "setMotor", SetMotor }, { "removeSelf", RemoveJoint }, { NULL, NULL } };
+    const luaL_Reg rigidJoint[] = { { "setMotor", SetRigidMotor }, { "getState", RigidJointState },
+                                  { "removeSelf", RemoveRigidJoint }, { NULL, NULL } };
     const luaL_Reg touch[] = {
         { "setTarget", TouchTarget }, { "getState", TouchState }, { "removeSelf", RemoveTouch }, { NULL, NULL } };
     const luaL_Reg attachment[] = {
         { "setCollisionEnabled", AttachmentCollision }, { "removeSelf", RemoveAttachment }, { NULL, NULL } };
-    const char* names[] = { kWorld, kBody, kJoint, kTouch, kAttachment };
-    const luaL_Reg* methods[] = { world, body, joint, touch, attachment };
-    for ( int i = 0; i < 5; ++i )
+    const char* names[] = { kWorld, kBody, kJoint, kRigidJoint, kTouch, kAttachment };
+    const luaL_Reg* methods[] = { world, body, joint, rigidJoint, touch, attachment };
+    for ( int i = 0; i < 6; ++i )
     {
         luaL_newmetatable( L, names[i] );
         luaL_register( L, nullptr, methods[i] );
