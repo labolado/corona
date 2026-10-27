@@ -664,6 +664,8 @@ static int State( lua_State* L )
     Number( L, "contactDepthM", coupled.contactDepth );
     Number( L, "warmHits", coupled.warmHits );
     Number( L, "boxContacts", coupled.contactRows );
+    Number( L, "chainCandidates", coupled.chainCandidates );
+    Number( L, "chainQueries", coupled.chainQueries );
     Number( L, "softContactRows", coupled.softContactRows );
     Number( L, "softContactDepthM", coupled.softContactDepth );
     Number( L, "softRecoverySteps", coupled.softRecoverySteps );
@@ -838,6 +840,10 @@ static int New( lua_State* L )
     if ( rigidJoints != std::floor( rigidJoints ) )
         return luaL_error( L, "maxRigidJoints must be an integer" );
     box.maxRigidJoints = int( rigidJoints );
+    double chainSegments = Value( L, 1, "maxChainSegments", 256, 1, 4096 );
+    if ( chainSegments != std::floor( chainSegments ) )
+        return luaL_error( L, "maxChainSegments must be an integer" );
+    box.maxChainSegments = int( chainSegments );
     auto* h = static_cast<Handle*>( lua_newuserdata( L, sizeof( Handle ) ) );
     h->instance = nullptr;
     luaL_getmetatable( L, kWorld );
