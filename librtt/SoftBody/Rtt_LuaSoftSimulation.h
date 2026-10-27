@@ -371,6 +371,34 @@ static SoftBody::SoftBodyDef::Pressure ReadPressure( lua_State* L )
     lua_pop( L, 1 );
     return result;
 }
+static SoftBody::SoftBodyDef::ReferenceScale ReadReferenceScale( lua_State* L )
+{
+    SoftBody::SoftBodyDef::ReferenceScale result;
+    Field( L, 2, "referenceScale" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        luaL_checktype( L, -1, LUA_TTABLE );
+        int table = lua_gettop( L );
+        lua_pushnil( L );
+        while ( lua_next( L, table ) )
+        {
+            if ( lua_type( L, -2 ) != LUA_TSTRING ||
+                 ( std::strcmp( lua_tostring( L, -2 ), "target" ) && std::strcmp( lua_tostring( L, -2 ), "min" ) &&
+                   std::strcmp( lua_tostring( L, -2 ), "max" ) && std::strcmp( lua_tostring( L, -2 ), "rate" ) &&
+                   std::strcmp( lua_tostring( L, -2 ), "maxSpeed" ) ) )
+                luaL_error( L, "referenceScale supports target, min, max, rate and maxSpeed" );
+            lua_pop( L, 1 );
+        }
+        result.enabled = true;
+        result.min = Value( L, table, "min", .5, .25, 1 );
+        result.max = Value( L, table, "max", 2, 1, 4 );
+        result.target = Value( L, table, "target", 1, result.min, result.max );
+        result.rate = Value( L, table, "rate", 1, .001, 10 );
+        result.maxSpeed = Value( L, table, "maxSpeed", 2, .001, 20 );
+    }
+    lua_pop( L, 1 );
+    return result;
+}
 static int NewBody( lua_State* L )
 {
     auto* s = World( L );
@@ -404,6 +432,7 @@ static int NewBody( lua_State* L )
         if ( Value( L, 2, "preload", 0, 0, 1e6 ) != 0 )
             return luaL_error( L, "recoverable material requires zero preload" );
         def.pressure = ReadPressure( L );
+        def.referenceScale = ReadReferenceScale( L );
         auto shape = ReadShape( L );
         auto springs = ReadInternalSprings( L, shape.count ? shape.count : 16 );
         // All Lua validation is finished. No longjmp may bypass owned vectors.
@@ -597,6 +626,16 @@ static int PressureTarget( lua_State* L )
     Check( L, ok, api.lastError() );
     return 0;
 }
+static int ReferenceScaleTarget( lua_State* L )
+{
+    auto* e = Object( L, kBody );
+    if ( lua_gettop( L ) != 2 )
+        return luaL_error( L, "setReferenceScaleTarget expects one uniform scale factor" );
+    auto& api = e->owner->instance->simulation;
+    bool ok = api.setReferenceScaleTarget( e->id, float( NumberArg( L, 2, .25, 4 ) ) );
+    Check( L, ok, api.lastError() );
+    return 0;
+}
 static int BodyState( lua_State* L )
 {
     auto* e = Object( L, kBody );
@@ -619,6 +658,10 @@ static int BodyState( lua_State* L )
     Number( L, "pressureWork", state.pressureWork );
     Number( L, "pressureRecoverySteps", state.pressureRecoverySteps );
     Number( L, "pressureLimitedSteps", state.pressureLimitedSteps );
+    Number( L, "referenceScale", state.referenceScale );
+    Number( L, "referenceScaleTarget", state.referenceScaleTarget );
+    Number( L, "referenceScaleWork", state.referenceScaleWork );
+    Number( L, "referenceScaleLimitedSteps", state.referenceScaleLimitedSteps );
     lua_createtable( L, state.nodeCount, 0 );
     for ( int i = 0; i < state.nodeCount; ++i )
     {
@@ -935,6 +978,7 @@ static void Register( lua_State* L )
     const luaL_Reg body[] = { { "getState", BodyState },         { "setRigidFilter", RigidFilter },
                               { "applyLinearImpulse", ApplyLinearImpulse },
                               { "setPressureTarget", PressureTarget },
+                              { "setReferenceScaleTarget", ReferenceScaleTarget },
                               { "applyForce", UnsupportedLoad }, { "applyTorque", UnsupportedLoad },
                               { "removeSelf", RemoveBody },      { NULL, NULL } };
     const luaL_Reg joint[] = { { "setMotor", SetMotor }, { "removeSelf", RemoveJoint }, { NULL, NULL } };
