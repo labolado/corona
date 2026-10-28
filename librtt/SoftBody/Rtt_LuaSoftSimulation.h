@@ -796,11 +796,19 @@ static int State( lua_State* L )
 static int ProfileState( lua_State* L )
 {
     auto profile = World( L )->coupling.getProfile();
-    lua_createtable( L, 0, 12 );
+    lua_createtable( L, 0, SoftBody::CouplingProfile::Count + 8 );
+    Number( L, "schemaVersion", 2 );
+    Number( L, "projectionCandidates", profile.projectionCandidates );
+    Number( L, "projectionCorrections", profile.projectionCorrections );
+    Number( L, "gatherCandidates", profile.gatherCandidates );
+    Number( L, "cacheComparisons", profile.cacheComparisons );
+    Number( L, "rows", profile.rows );
     Bool( L, "enabled", profile.enabled );
     Bool( L, "clockFailed", profile.clockFailed );
     const char* names[] = { "prepare", "materialMotor", "initialLinks", "contactGeometry", "contactSolve",
-                            "observe", "finalize",      "nativeWorld",  "advance",         "adapter" };
+                            "observe", "finalize",      "nativeWorld",  "advance",         "adapter",
+                            "geometryProject", "geometryGather", "geometryCache", "geometryRecovery", "geometrySides" };
+    static_assert( sizeof( names ) / sizeof( names[0] ) == SoftBody::CouplingProfile::Count, "profile names" );
     for ( int i = 0; i < SoftBody::CouplingProfile::Count; ++i )
     {
         const auto& sample = profile.samples[i];
