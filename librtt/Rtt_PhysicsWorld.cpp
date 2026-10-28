@@ -137,15 +137,24 @@ bool FixedCallback( PhysicsWorld& physics, FixedStepState& state, const char *ph
 }
 }
 
-const char *FixedStepScheduler::Attach(PhysicsWorld& physics, const Client& client, float dt)
+bool FixedStepScheduler::GetTiming(PhysicsWorld& physics, float& dt, int& subSteps)
+{
+    FixedStepState *state = FindFixedStep(physics);
+    if (!state || !state->enabled) { return false; }
+    dt = state->dt;
+    subSteps = state->subSteps;
+    return true;
+}
+
+const char *FixedStepScheduler::Attach(PhysicsWorld& physics, const Client& client, float dt, int subSteps)
 {
     if (!client.owner || !client.prepare || !client.invalidate ||
         (!client.wholeStep && !client.advance) ||
         (client.wholeStep && (!client.retain || !client.release)))
     { return "invalid coupled client callbacks"; }
     FixedStepState *state = FindFixedStep(physics);
-    if (!state || !state->enabled || state->dt != dt || dt != 1.0f/480.0f || state->subSteps != 1)
-    { return "coupled soft world requires fixed timeStep=1/480 and subSteps=1"; }
+    if (!state || !state->enabled || state->dt != dt || state->subSteps != subSteps)
+    { return "coupled soft world timing must match fixed timeStep and subSteps"; }
     if (state->executing || state->faulted || !physics.IsWorldValid())
     { return "cannot attach soft world during a step, after a fault, or without physics.start"; }
     if (state->client.owner) { return "only one coupled soft world is supported"; }

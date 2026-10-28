@@ -31,10 +31,12 @@ struct Instance
     PhysicsWorld* physics = nullptr;
     b2WorldId physicsId = b2_nullWorldId;
     float scale = 0;
+    float timeStep;
+    int subSteps;
     unsigned activeSteps = 0;
     bool invalidated = false, removePending = false;
     Instance( const SoftBody::SimulationDef& def, const SoftBody::Box2DCouplingDef& box )
-        : simulation( def ), coupling( simulation, box )
+        : simulation( def ), coupling( simulation, box ), timeStep( def.timeStep ), subSteps( def.subSteps )
     {
         ++LiveCount();
         physicsId = box.world;
@@ -740,9 +742,13 @@ static int State( lua_State* L )
     Bool( L, "assemblyMode", true );
     Bool( L, "wholeStep", true );
     Number( L, "rigidSteps", coupled.entered );
-    Number( L, "softSteps", coupled.completed );
+    Number( L, "softSteps", state.completedSteps );
     Number( L, "substep", state.completedSteps );
-    Number( L, "time", coupled.completed * ( 1. / 480 ) );
+    Number( L, "time", coupled.completed * double( s->timeStep ) );
+    Number( L, "worldSteps", coupled.completed );
+    Number( L, "timeStep", s->timeStep );
+    Number( L, "subSteps", s->subSteps );
+    Number( L, "subStepTime", s->timeStep / s->subSteps );
     Number( L, "liveInstances", LiveCount() );
     Bool( L, "recovering", coupled.recovering );
     Number( L, "recoveryEntries", coupled.recoveryEntries );
@@ -909,10 +915,20 @@ static int New( lua_State* L )
         return luaL_error( L, "enableSoftContacts must be boolean" );
     def.enableSoftContacts = lua_toboolean( L, -1 );
     lua_pop( L, 1 );
-    double dt = Value( L, 1, "timeStep", 1. / 480, 1. / 1000, 1. / 30 ), subs = Value( L, 1, "substeps", 1, 1, 32 ),
-           iterations = Value( L, 1, "iterations", 8, 1, 32 );
-    if ( float( dt ) != 1.f / 480 || subs != 1 || iterations != 8 )
-        return luaL_error( L, "coupled world requires timeStep=1/480, substeps=1 and iterations=8" );
+    auto& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+    if ( !physics.IsWorldValid() )
+        return luaL_error( L, "coupled soft world requires physics.start" );
+    if ( !FixedStepScheduler::GetTiming( physics, def.timeStep, def.subSteps ) )
+        return luaL_error( L, "configure physics.setFixedStepMode before creating a soft world" );
+    // The physics scheduler is the sole clock. Optional historical fields may
+    // assert its configuration, but must never select an independent soft clock.
+    double dt = Value( L, 1, "timeStep", def.timeStep, 0, 1 );
+    double subs = Value( L, 1, "substeps", def.subSteps, 1, 128 );
+    double iterations = Value( L, 1, "iterations", 8, 1, 32 );
+    if ( float( dt ) != def.timeStep || subs != def.subSteps )
+        return luaL_error( L, "configure timeStep and subSteps with physics.setFixedStepMode" );
+    if ( iterations != 8 )
+        return luaL_error( L, "soft constraint iterations must be 8" );
     double bodies = Value( L, 1, "maxBodies", 32, 1, 32 ), joints = Value( L, 1, "maxJoints", 64, 0, 64 ),
            touches = Value( L, 1, "maxTouches", 1, 0, 64 );
     if ( bodies != std::floor( bodies ) || joints != std::floor( joints ) || touches != std::floor( touches ) )
@@ -928,9 +944,6 @@ static int New( lua_State* L )
     def.maxBodies = int( bodies );
     def.maxJoints = int( joints );
     def.maxTouches = int( touches );
-    auto& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-    if ( !physics.IsWorldValid() )
-        return luaL_error( L, "coupled soft world requires physics.start" );
     SoftBody::Box2DCouplingDef box;
     box.world = physics.GetWorldId();
     box.flipY = true;
@@ -961,7 +974,7 @@ static int New( lua_State* L )
         return luaL_error( L, "%s", error );
     }
     FixedStepScheduler::Client client = { &s, Prepare, nullptr, Invalidate, Advance, Retain, Release };
-    if ( const char* error = FixedStepScheduler::Attach( physics, client, def.timeStep ) )
+    if ( const char* error = FixedStepScheduler::Attach( physics, client, def.timeStep, def.subSteps ) )
     {
         delete h->instance;
         h->instance = nullptr;

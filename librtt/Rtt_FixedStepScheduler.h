@@ -22,7 +22,8 @@ public:
         void (*retain)(void *);
         void (*release)(void *);
     };
-    static const char *Attach(PhysicsWorld& physics, const Client& client, float dt);
+    static bool GetTiming(PhysicsWorld& physics, float& dt, int& subSteps);
+    static const char *Attach(PhysicsWorld& physics, const Client& client, float dt, int subSteps);
     static void Detach(PhysicsWorld& physics, void *owner);
     static void Invalidate(PhysicsWorld& physics);
     static int Configure( lua_State *L );
