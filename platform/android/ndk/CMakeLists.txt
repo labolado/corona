@@ -482,6 +482,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/librtt/Rtt_LuaLibNative.cpp
 		${CORONA_ROOT}/librtt/Rtt_LuaLibOpenAL.cpp
 		${CORONA_ROOT}/librtt/Rtt_LuaLibPhysics.cpp
+		${CORONA_ROOT}/librtt/Rtt_LuaPhysicsWorld.cpp
 		${CORONA_ROOT}/librtt/Rtt_LuaLibSQLite.cpp
 		${CORONA_ROOT}/librtt/Rtt_LuaLibSystem.cpp
 		${CORONA_ROOT}/librtt/Rtt_LuaProxy.cpp

@@ -129,6 +129,7 @@
 		000DCBDB12B05F3E00042A5E /* Rtt_LuaLibOpenAL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000DCB0212B05F3E00042A5E /* Rtt_LuaLibOpenAL.cpp */; };
 		000DCBDC12B05F3E00042A5E /* Rtt_LuaLibOpenAL.h in Headers */ = {isa = PBXBuildFile; fileRef = 000DCB0312B05F3E00042A5E /* Rtt_LuaLibOpenAL.h */; };
 		000DCBDF12B05F3E00042A5E /* Rtt_LuaLibPhysics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000DCB0612B05F3E00042A5E /* Rtt_LuaLibPhysics.cpp */; };
+		4E883D4B499C841A0EDE0B36 /* Rtt_LuaPhysicsWorld.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF4DC0F8ED0DF95475370BA0 /* Rtt_LuaPhysicsWorld.cpp */; };
 		000DCBE012B05F3E00042A5E /* Rtt_LuaLibPhysics.h in Headers */ = {isa = PBXBuildFile; fileRef = 000DCB0712B05F3E00042A5E /* Rtt_LuaLibPhysics.h */; };
 		000DCBE212B05F3E00042A5E /* Rtt_LuaLibSocket.h in Headers */ = {isa = PBXBuildFile; fileRef = 000DCB0912B05F3E00042A5E /* Rtt_LuaLibSocket.h */; };
 		000DCBE512B05F3E00042A5E /* Rtt_LuaLibSQLite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 000DCB0C12B05F3E00042A5E /* Rtt_LuaLibSQLite.cpp */; };
@@ -1011,6 +1012,7 @@
 		000DCB0212B05F3E00042A5E /* Rtt_LuaLibOpenAL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_LuaLibOpenAL.cpp; sourceTree = "<group>"; };
 		000DCB0312B05F3E00042A5E /* Rtt_LuaLibOpenAL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_LuaLibOpenAL.h; sourceTree = "<group>"; };
 		000DCB0612B05F3E00042A5E /* Rtt_LuaLibPhysics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_LuaLibPhysics.cpp; sourceTree = "<group>"; };
+		EF4DC0F8ED0DF95475370BA0 /* Rtt_LuaPhysicsWorld.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_LuaPhysicsWorld.cpp; sourceTree = "<group>"; };
 		000DCB0712B05F3E00042A5E /* Rtt_LuaLibPhysics.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_LuaLibPhysics.h; sourceTree = "<group>"; };
 		000DCB0912B05F3E00042A5E /* Rtt_LuaLibSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Rtt_LuaLibSocket.h; sourceTree = "<group>"; };
 		000DCB0C12B05F3E00042A5E /* Rtt_LuaLibSQLite.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Rtt_LuaLibSQLite.cpp; sourceTree = "<group>"; };
@@ -1965,6 +1967,7 @@
 				000DCB0212B05F3E00042A5E /* Rtt_LuaLibOpenAL.cpp */,
 				000DCB0312B05F3E00042A5E /* Rtt_LuaLibOpenAL.h */,
 				000DCB0612B05F3E00042A5E /* Rtt_LuaLibPhysics.cpp */,
+				EF4DC0F8ED0DF95475370BA0 /* Rtt_LuaPhysicsWorld.cpp */,
 				000DCB0712B05F3E00042A5E /* Rtt_LuaLibPhysics.h */,
 				000DCB0912B05F3E00042A5E /* Rtt_LuaLibSocket.h */,
 				000DCB0C12B05F3E00042A5E /* Rtt_LuaLibSQLite.cpp */,
@@ -3777,6 +3780,7 @@
 				000DCBD912B05F3E00042A5E /* Rtt_LuaLibNative.cpp in Sources */,
 				000DCBDB12B05F3E00042A5E /* Rtt_LuaLibOpenAL.cpp in Sources */,
 				000DCBDF12B05F3E00042A5E /* Rtt_LuaLibPhysics.cpp in Sources */,
+				4E883D4B499C841A0EDE0B36 /* Rtt_LuaPhysicsWorld.cpp in Sources */,
 				000DCBE512B05F3E00042A5E /* Rtt_LuaLibSQLite.cpp in Sources */,
 				000DCBE712B05F3E00042A5E /* Rtt_LuaLibSystem.cpp in Sources */,
 				000DCBE912B05F3E00042A5E /* Rtt_LuaProxy.cpp in Sources */,

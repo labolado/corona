@@ -220,6 +220,7 @@
 		A4551F4F1BAA182D00FB3BDF /* Rtt_LuaLibNative.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551EC71BAA182C00FB3BDF /* Rtt_LuaLibNative.cpp */; };
 		A4551F501BAA182D00FB3BDF /* Rtt_LuaLibOpenAL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551EC91BAA182C00FB3BDF /* Rtt_LuaLibOpenAL.cpp */; };
 		A4551F511BAA182D00FB3BDF /* Rtt_LuaLibPhysics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551ECB1BAA182C00FB3BDF /* Rtt_LuaLibPhysics.cpp */; };
+		DBFF50567D4CC72D1B1755EE /* Rtt_LuaPhysicsWorld.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3DA75EAC87623F7B2BBCA248 /* Rtt_LuaPhysicsWorld.cpp */; };
 		A4551F531BAA182D00FB3BDF /* Rtt_LuaLibSQLite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551ECF1BAA182C00FB3BDF /* Rtt_LuaLibSQLite.cpp */; };
 		A4551F541BAA182D00FB3BDF /* Rtt_LuaLibSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551ED11BAA182C00FB3BDF /* Rtt_LuaLibSystem.cpp */; };
 		A4551F551BAA182D00FB3BDF /* Rtt_LuaProxy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A4551ED31BAA182C00FB3BDF /* Rtt_LuaProxy.cpp */; };
@@ -2086,6 +2087,7 @@
 		A4551EC91BAA182C00FB3BDF /* Rtt_LuaLibOpenAL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibOpenAL.cpp; path = ../../librtt/Rtt_LuaLibOpenAL.cpp; sourceTree = "<group>"; };
 		A4551ECA1BAA182C00FB3BDF /* Rtt_LuaLibOpenAL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_LuaLibOpenAL.h; path = ../../librtt/Rtt_LuaLibOpenAL.h; sourceTree = "<group>"; };
 		A4551ECB1BAA182C00FB3BDF /* Rtt_LuaLibPhysics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibPhysics.cpp; path = ../../librtt/Rtt_LuaLibPhysics.cpp; sourceTree = "<group>"; };
+		3DA75EAC87623F7B2BBCA248 /* Rtt_LuaPhysicsWorld.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaPhysicsWorld.cpp; path = ../../librtt/Rtt_LuaPhysicsWorld.cpp; sourceTree = "<group>"; };
 		A4551ECC1BAA182C00FB3BDF /* Rtt_LuaLibPhysics.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_LuaLibPhysics.h; path = ../../librtt/Rtt_LuaLibPhysics.h; sourceTree = "<group>"; };
 		A4551ECE1BAA182C00FB3BDF /* Rtt_LuaLibSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_LuaLibSocket.h; path = ../../librtt/Rtt_LuaLibSocket.h; sourceTree = "<group>"; };
 		A4551ECF1BAA182C00FB3BDF /* Rtt_LuaLibSQLite.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_LuaLibSQLite.cpp; path = ../../librtt/Rtt_LuaLibSQLite.cpp; sourceTree = "<group>"; };
@@ -3626,6 +3628,7 @@
 				A4551EC91BAA182C00FB3BDF /* Rtt_LuaLibOpenAL.cpp */,
 				A4551ECA1BAA182C00FB3BDF /* Rtt_LuaLibOpenAL.h */,
 				A4551ECB1BAA182C00FB3BDF /* Rtt_LuaLibPhysics.cpp */,
+				3DA75EAC87623F7B2BBCA248 /* Rtt_LuaPhysicsWorld.cpp */,
 				A4551ECC1BAA182C00FB3BDF /* Rtt_LuaLibPhysics.h */,
 				A4551ECE1BAA182C00FB3BDF /* Rtt_LuaLibSocket.h */,
 				A4551ECF1BAA182C00FB3BDF /* Rtt_LuaLibSQLite.cpp */,
@@ -6025,6 +6028,7 @@
 				A4551DED1BAA17CF00FB3BDF /* Rtt_EmbossedTextObject.cpp in Sources */,
 				A4551E0E1BAA17CF00FB3BDF /* Rtt_ShapeAdapter.cpp in Sources */,
 				A4551F511BAA182D00FB3BDF /* Rtt_LuaLibPhysics.cpp in Sources */,
+				DBFF50567D4CC72D1B1755EE /* Rtt_LuaPhysicsWorld.cpp in Sources */,
 				A4551E1F1BAA17CF00FB3BDF /* Rtt_TesselatorRoundedRect.cpp in Sources */,
 				A4551F5D1BAA182D00FB3BDF /* Rtt_ParticleSystemObject.cpp in Sources */,
 				A4551DFE1BAA17CF00FB3BDF /* Rtt_PlatformBitmapTexture.cpp in Sources */,

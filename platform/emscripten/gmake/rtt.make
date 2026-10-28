@@ -110,6 +110,7 @@ OBJECTS := \
 	$(OBJDIR)/Rtt_LuaLibMedia.o \
 	$(OBJDIR)/Rtt_LuaLibNative.o \
 	$(OBJDIR)/Rtt_LuaLibPhysics.o \
+	$(OBJDIR)/Rtt_LuaPhysicsWorld.o \
 	$(OBJDIR)/Rtt_LuaLibSQLite.o \
 	$(OBJDIR)/Rtt_LuaLibSystem.o \
 	$(OBJDIR)/Rtt_LuaProxy.o \
@@ -628,6 +629,10 @@ $(OBJDIR)/Rtt_LuaLibNative.o: ../../../librtt/Rtt_LuaLibNative.cpp
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 
 $(OBJDIR)/Rtt_LuaLibPhysics.o: ../../../librtt/Rtt_LuaLibPhysics.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
+
+$(OBJDIR)/Rtt_LuaPhysicsWorld.o: ../../../librtt/Rtt_LuaPhysicsWorld.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 

@@ -445,6 +445,7 @@
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaLibMedia.cpp" />
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaLibNative.cpp" />
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaLibPhysics.cpp" />
+    <ClCompile Include="..\..\..\..\librtt\Rtt_LuaPhysicsWorld.cpp" />
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaLibSQLite.cpp" />
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaLibSystem.cpp" />
     <ClCompile Include="..\..\..\..\librtt\Rtt_LuaProxy.cpp" />
