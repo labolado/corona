@@ -12,6 +12,7 @@
 #include "Rtt_LuaProxyVTable.h"
 #include "Display/Rtt_DisplayObject.h"
 #include "box2d/box2d.h"
+#include "box2d/constants.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -27,6 +28,8 @@ namespace
 const char *kWorld = "Solar2D.physicsWorld";
 const char *kBody = "Solar2D.physicsWorld.body";
 const char *kJoint = "Solar2D.physicsWorld.joint";
+const char *kShape = "Solar2D.physicsWorld.shape";
+const char *kChain = "Solar2D.physicsWorld.chain";
 const char *kBinding = "_physicsWorldBinding";
 const double kRad = 0.017453292519943295;
 const size_t kInactive = (size_t)-1;
@@ -46,7 +49,22 @@ struct Body
     size_t serial = 0;
     size_t activeIndex = kInactive;
     unsigned int fixtureCount = 0;
+    std::vector<size_t> shapes, chains;
     std::unique_ptr<Binding> binding; // No interpolation state for unbound bodies.
+};
+struct Shape
+{
+    b2ShapeId id = b2_nullShapeId;
+    size_t serial = 0, body = 0, chain = kInactive;
+    unsigned int element = 0;
+    int segmentIndex = 0;
+};
+struct Chain
+{
+    b2ChainId id = b2_nullChainId;
+    size_t serial = 0, body = 0;
+    unsigned int element = 0;
+    std::vector<size_t> segments;
 };
 struct World
 {
@@ -60,7 +78,10 @@ struct World
     std::string error;
     std::vector<std::unique_ptr<Body>> bodies;
     std::vector<b2JointId> joints;
+    std::vector<std::unique_ptr<Shape>> shapes;
+    std::vector<std::unique_ptr<Chain>> chains;
     std::vector<size_t> freeBodies, freeJoints;
+    std::vector<size_t> freeShapes, freeChains;
     std::vector<Body *> active;
 };
 struct Handle
@@ -69,6 +90,18 @@ struct Handle
     size_t index;
     b2BodyId bodyId;
     b2JointId jointId;
+};
+struct ShapeHandle
+{
+    World *world;
+    size_t index;
+    b2ShapeId id;
+};
+struct ChainHandle
+{
+    World *world;
+    size_t index;
+    b2ChainId id;
 };
 double Number( lua_State *L, int i )
 {
@@ -189,6 +222,292 @@ void StoreHandle( lua_State *L, int wi, const char *kind, size_t index )
     lua_pushvalue( L, hi );
     lua_rawseti( L, -2, (int)index + 1 );
     lua_pop( L, 2 );
+}
+bool ValidShape( const ShapeHandle &h )
+{
+    return h.world->alive && h.index < h.world->shapes.size() &&
+           B2_ID_EQUALS( h.world->shapes[h.index]->id, h.id ) && b2Shape_IsValid( h.id );
+}
+bool ValidChain( const ChainHandle &h )
+{
+    return h.world->alive && h.index < h.world->chains.size() &&
+           B2_ID_EQUALS( h.world->chains[h.index]->id, h.id ) && b2Chain_IsValid( h.id );
+}
+ShapeHandle &GetShape( lua_State *L )
+{
+    auto *h = (ShapeHandle *)luaL_checkudata( L, 1, kShape );
+    if ( !ValidShape( *h ) )
+        luaL_error( L, "physics shape is destroyed" );
+    return *h;
+}
+ChainHandle &GetChain( lua_State *L )
+{
+    auto *h = (ChainHandle *)luaL_checkudata( L, 1, kChain );
+    if ( !ValidChain( *h ) )
+        luaL_error( L, "physics chain is destroyed" );
+    return *h;
+}
+double IntegerOption( lua_State *L, int table, const char *key, double value, double low, double high )
+{
+    value = Option( L, table, key, value );
+    if ( value < low || value > high || value != std::floor( value ) )
+        luaL_error( L, "%s requires an integer in the supported range", key );
+    return value;
+}
+// Lua numbers represent all 32-bit masks exactly. Do not silently round the
+// 64-bit native filter into a double. Larger bitsets need a separate API contract.
+b2Filter ReadFilter( lua_State *L, int table )
+{
+    luaL_checktype( L, table, LUA_TTABLE );
+    Options( L, table, { "categoryBits", "maskBits", "groupIndex" } );
+    b2Filter f = b2DefaultFilter();
+    f.categoryBits = (uint64_t)IntegerOption( L, table, "categoryBits", 1, 0, UINT32_MAX );
+    f.maskBits = (uint64_t)IntegerOption( L, table, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    f.groupIndex = (int)IntegerOption( L, table, "groupIndex", 0, INT32_MIN, INT32_MAX );
+    return f;
+}
+b2Filter FilterOption( lua_State *L, int table )
+{
+    b2Filter f = b2DefaultFilter();
+    f.maskBits = UINT32_MAX;
+    lua_getfield( L, table, "filter" );
+    if ( !lua_isnil( L, -1 ) )
+        f = ReadFilter( L, lua_gettop( L ) );
+    lua_pop( L, 1 );
+    return f;
+}
+void PushFilter( lua_State *L, b2Filter f )
+{
+    lua_createtable( L, 0, 3 );
+    Field( L, "categoryBits", (double)f.categoryBits );
+    Field( L, "maskBits", (double)f.maskBits );
+    Field( L, "groupIndex", f.groupIndex );
+}
+void ForgetHandle( lua_State *L, int wi, const char *kind, size_t slot )
+{
+    lua_getfenv( L, wi );
+    lua_getfield( L, -1, kind );
+    lua_pushnil( L );
+    lua_rawseti( L, -2, (int)slot + 1 );
+    lua_pop( L, 2 );
+}
+void EraseSlot( std::vector<size_t> &slots, size_t slot )
+{
+    slots.erase( std::remove( slots.begin(), slots.end(), slot ), slots.end() );
+}
+void ReleaseShape( lua_State *L, World &w, int wi, size_t slot, bool unlinkBody = true )
+{
+    Shape &s = *w.shapes[slot];
+    if ( unlinkBody )
+        EraseSlot( w.bodies[s.body]->shapes, slot );
+    s.id = b2_nullShapeId;
+    w.freeShapes.push_back( slot );
+    ForgetHandle( L, wi, "shapes", slot );
+}
+void ReleaseChain( lua_State *L, World &w, int wi, size_t slot )
+{
+    Chain &c = *w.chains[slot];
+    // Remove a long terrain's entries in one pass, preserving enumeration order.
+    auto &shapes = w.bodies[c.body]->shapes;
+    shapes.erase( std::remove_if( shapes.begin(), shapes.end(),
+                                  [&]( size_t shape ) { return w.shapes[shape]->chain == slot; } ),
+                  shapes.end() );
+    for ( size_t shape : c.segments )
+        ReleaseShape( L, w, wi, shape, false );
+    c.segments.clear();
+    EraseSlot( w.bodies[c.body]->chains, slot );
+    c.id = b2_nullChainId;
+    w.freeChains.push_back( slot );
+    ForgetHandle( L, wi, "chains", slot );
+}
+// All native shapes, including chain segments, have stable identity in queries
+// and events. Lua handles retain the world; the world owns the native storage.
+void RegisterShape( lua_State *L, World &w, Body &b, int wi, b2ShapeId id, unsigned int element,
+                    size_t chain = kInactive, int segmentIndex = 0 )
+{
+    Shape *s;
+    if ( w.freeShapes.empty() )
+    {
+        s = new Shape;
+        s->serial = w.shapes.size();
+        w.shapes.emplace_back( s );
+    }
+    else
+    {
+        s = w.shapes[w.freeShapes.back()].get();
+        w.freeShapes.pop_back();
+    }
+    s->id = id;
+    s->body = b.serial;
+    s->element = element;
+    s->chain = chain;
+    s->segmentIndex = segmentIndex;
+    b.shapes.push_back( s->serial );
+    b2Shape_SetUserData( id, s );
+    auto *h = (ShapeHandle *)lua_newuserdata( L, sizeof( ShapeHandle ) );
+    *h = { &w, s->serial, id };
+    luaL_getmetatable( L, kShape );
+    lua_setmetatable( L, -2 );
+    StoreHandle( L, wi, "shapes", s->serial );
+}
+int ReturnShape( lua_State *L, World &w, Body &b, b2ShapeId id )
+{
+    if ( !b2Shape_IsValid( id ) )
+        return luaL_error( L, "shape creation failed" );
+    PushWorld( L, 1 );
+    RegisterShape( L, w, b, lua_gettop( L ), id, ++b.fixtureCount );
+    return 1;
+}
+int ShapeValid( lua_State *L )
+{
+    lua_pushboolean( L, ValidShape( *(ShapeHandle *)luaL_checkudata( L, 1, kShape ) ) );
+    return 1;
+}
+int ShapeIndex( lua_State *L )
+{
+    // isValid remains callable after destruction.
+    const char *key = luaL_checkstring( L, 2 );
+    if ( !strcmp( key, "isValid" ) )
+    {
+        lua_pushcfunction( L, ShapeValid );
+        return 1;
+    }
+    ShapeHandle &h = GetShape( L );
+    Shape &s = *h.world->shapes[h.index];
+    if ( !strcmp( key, "density" ) )
+        lua_pushnumber( L, b2Shape_GetDensity( h.id ) );
+    else if ( !strcmp( key, "friction" ) )
+        lua_pushnumber( L, b2Shape_GetFriction( h.id ) );
+    else if ( !strcmp( key, "bounce" ) )
+        lua_pushnumber( L, b2Shape_GetRestitution( h.id ) );
+    else if ( !strcmp( key, "isSensor" ) )
+        lua_pushboolean( L, b2Shape_IsSensor( h.id ) );
+    else if ( !strcmp( key, "filter" ) )
+        PushFilter( L, b2Shape_GetFilter( h.id ) );
+    else if ( !strcmp( key, "body" ) || !strcmp( key, "chain" ) )
+    {
+        PushWorld( L, 1 );
+        if ( !strcmp( key, "body" ) )
+            PushHandle( L, lua_gettop( L ), "bodies", s.body );
+        else if ( s.chain != kInactive )
+            PushHandle( L, lua_gettop( L ), "chains", s.chain );
+        else
+            lua_pushnil( L );
+    }
+    else if ( !strcmp( key, "element" ) )
+        lua_pushinteger( L, s.element );
+    else if ( !strcmp( key, "segmentIndex" ) )
+        lua_pushinteger( L, s.segmentIndex );
+    else if ( !strcmp( key, "type" ) )
+    {
+        b2ShapeType type = b2Shape_GetType( h.id );
+        lua_pushstring( L, type == b2_circleShape         ? "circle"
+                           : type == b2_chainSegmentShape ? "chainSegment"
+                                                          : "polygon" );
+    }
+    else
+    {
+        luaL_getmetatable( L, kShape );
+        lua_pushvalue( L, 2 );
+        lua_rawget( L, -2 );
+    }
+    return 1;
+}
+int ShapeNewIndex( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    Mutable( L, *h.world );
+    const char *key = luaL_checkstring( L, 2 );
+    if ( !strcmp( key, "filter" ) )
+        b2Shape_SetFilter( h.id, ReadFilter( L, 3 ) );
+    else if ( !strcmp( key, "density" ) || !strcmp( key, "friction" ) || !strcmp( key, "bounce" ) )
+    {
+        double v = Number( L, 3 );
+        if ( v < 0 || ( !strcmp( key, "bounce" ) && v > 1 ) )
+            return luaL_error( L, "invalid shape material value" );
+        if ( !strcmp( key, "density" ) )
+        {
+            if ( h.world->shapes[h.index]->chain != kInactive )
+                return luaL_error( L, "chain segments have no mass" );
+            b2Shape_SetDensity( h.id, (float)v, true );
+        }
+        else if ( !strcmp( key, "friction" ) )
+            b2Shape_SetFriction( h.id, (float)v );
+        else
+            b2Shape_SetRestitution( h.id, (float)v );
+    }
+    else
+        return luaL_error( L, "unknown or read-only shape property; recreate to change sensor state" );
+    return 0;
+}
+int ShapeDestroy( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    Mutable( L, *h.world );
+    if ( h.world->shapes[h.index]->chain != kInactive )
+        return luaL_error( L, "destroy the owning chain, not an individual segment" );
+    b2DestroyShape( h.id, true );
+    PushWorld( L, 1 );
+    ReleaseShape( L, *h.world, lua_gettop( L ), h.index );
+    return 0;
+}
+int ChainValid( lua_State *L )
+{
+    lua_pushboolean( L, ValidChain( *(ChainHandle *)luaL_checkudata( L, 1, kChain ) ) );
+    return 1;
+}
+int ChainDestroy( lua_State *L )
+{
+    ChainHandle &h = GetChain( L );
+    Mutable( L, *h.world );
+    b2DestroyChain( h.id );
+    PushWorld( L, 1 );
+    ReleaseChain( L, *h.world, lua_gettop( L ), h.index );
+    return 0;
+}
+int ChainSegments( lua_State *L )
+{
+    ChainHandle &h = GetChain( L );
+    PushWorld( L, 1 );
+    int wi = lua_gettop( L );
+    const auto &segments = h.world->chains[h.index]->segments;
+    lua_createtable( L, (int)segments.size(), 0 );
+    int index = 0;
+    for ( size_t slot : segments )
+    {
+        PushHandle( L, wi, "shapes", slot );
+        lua_rawseti( L, -2, ++index );
+    }
+    return 1;
+}
+int BodyShapes( lua_State *L )
+{
+    Body &b = GetBody( L );
+    PushWorld( L, 1 );
+    int wi = lua_gettop( L );
+    lua_createtable( L, (int)b.shapes.size(), 0 );
+    int index = 0;
+    for ( size_t slot : b.shapes )
+    {
+        PushHandle( L, wi, "shapes", slot );
+        lua_rawseti( L, -2, ++index );
+    }
+    return 1;
+}
+int BodyMass( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2MassData mass = b2Body_GetMassData( b.id );
+    b2Pos center = b2Body_GetWorldCenter( b.id );
+    lua_createtable( L, 0, 6 );
+    Field( L, "mass", mass.mass );
+    Field( L, "localCenterX", mass.center.x * w.scale );
+    Field( L, "localCenterY", mass.center.y * w.scale );
+    Field( L, "worldCenterX", center.x * w.scale );
+    Field( L, "worldCenterY", center.y * w.scale );
+    Field( L, "rotationalInertia", mass.rotationalInertia );
+    return 1;
 }
 void Activate( World &w, Body &b )
 {
@@ -440,6 +759,10 @@ int BodyDestroy( lua_State *L )
         b2Body_GetJoints( b.id, attached.data(), count );
     for ( b2JointId joint : attached )
         ReleaseJoint( L, w, wi, joint );
+    while ( !b.chains.empty() )
+        ReleaseChain( L, w, wi, b.chains.back() );
+    while ( !b.shapes.empty() )
+        ReleaseShape( L, w, wi, b.shapes.back() );
     b2DestroyBody( b.id );
     b.id = b2_nullBodyId;
     b.fixtureCount = 0;
@@ -450,7 +773,7 @@ int BodyDestroy( lua_State *L )
     lua_rawseti( L, -2, (int)b.serial + 1 );
     return 0;
 }
-b2ShapeDef ShapeOptions( lua_State *L, int ti, Body &b )
+b2ShapeDef ShapeOptions( lua_State *L, int ti )
 {
     b2ShapeDef d = b2DefaultShapeDef();
     d.density = (float)Option( L, ti, "density", 1 );
@@ -462,7 +785,7 @@ b2ShapeDef ShapeOptions( lua_State *L, int ti, Body &b )
     d.isSensor = Flag( L, ti, "isSensor", false );
     d.enableContactEvents = true;
     d.enableSensorEvents = true;
-    d.userData = (void *)(uintptr_t)( b.fixtureCount + 1 );
+    d.filter = FilterOption( L, ti );
     return d;
 }
 int BodyCircle( lua_State *L )
@@ -471,17 +794,14 @@ int BodyCircle( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "isSensor" } );
-    b2ShapeDef d = ShapeOptions( L, 2, b );
+    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "isSensor", "filter" } );
+    b2ShapeDef d = ShapeOptions( L, 2 );
     float r = (float)( Option( L, 2, "radius", 0 ) / w.scale );
     if ( r <= 0 )
         return luaL_error( L, "radius must be positive" );
     b2Circle c = {
         { (float)( Option( L, 2, "x", 0 ) / w.scale ), (float)( Option( L, 2, "y", 0 ) / w.scale ) }, r };
-    b2CreateCircleShape( b.id, &d, &c );
-    ++b.fixtureCount;
-    lua_pushvalue( L, 1 );
-    return 1;
+    return ReturnShape( L, w, b, b2CreateCircleShape( b.id, &d, &c ) );
 }
 int BodyBox( lua_State *L )
 {
@@ -490,8 +810,9 @@ int BodyBox( lua_State *L )
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
-             { "halfWidth", "halfHeight", "x", "y", "angle", "density", "friction", "bounce", "isSensor" } );
-    b2ShapeDef d = ShapeOptions( L, 2, b );
+             { "halfWidth", "halfHeight", "x", "y", "angle", "density", "friction", "bounce", "isSensor",
+               "filter" } );
+    b2ShapeDef d = ShapeOptions( L, 2 );
     float hx = (float)( Option( L, 2, "halfWidth", 0 ) / w.scale ),
           hy = (float)( Option( L, 2, "halfHeight", 0 ) / w.scale );
     if ( hx <= 0 || hy <= 0 )
@@ -500,10 +821,7 @@ int BodyBox( lua_State *L )
                       (float)( Option( L, 2, "y", 0 ) / w.scale ) };
     b2Polygon p =
         b2MakeOffsetBox( hx, hy, center, b2MakeRot( (float)( Option( L, 2, "angle", 0 ) * kRad ) ) );
-    b2CreatePolygonShape( b.id, &d, &p );
-    ++b.fixtureCount;
-    lua_pushvalue( L, 1 );
-    return 1;
+    return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &p ) );
 }
 int BodyPolygon( lua_State *L )
 {
@@ -511,8 +829,8 @@ int BodyPolygon( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "shape", "density", "friction", "bounce", "isSensor" } );
-    b2ShapeDef d = ShapeOptions( L, 2, b );
+    Options( L, 2, { "shape", "density", "friction", "bounce", "isSensor", "filter" } );
+    b2ShapeDef d = ShapeOptions( L, 2 );
     lua_getfield( L, 2, "shape" );
     luaL_checktype( L, -1, LUA_TTABLE );
     size_t length = lua_objlen( L, -1 );
@@ -532,9 +850,158 @@ int BodyPolygon( lua_State *L )
     if ( hull.count < 3 || !b2ValidateHull( &hull ) )
         return luaL_error( L, "degenerate polygon hull" );
     b2Polygon polygon = b2MakePolygon( &hull, 0 );
-    b2CreatePolygonShape( b.id, &d, &polygon );
-    ++b.fixtureCount;
-    lua_pushvalue( L, 1 );
+    return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &polygon ) );
+}
+int ChainBody( lua_State *L )
+{
+    ChainHandle &h = GetChain( L );
+    PushWorld( L, 1 );
+    PushHandle( L, lua_gettop( L ), "bodies", h.world->chains[h.index]->body );
+    return 1;
+}
+int ChainFilter( lua_State *L )
+{
+    ChainHandle &h = GetChain( L );
+    Mutable( L, *h.world );
+    b2Filter filter = ReadFilter( L, 2 );
+    for ( size_t slot : h.world->chains[h.index]->segments )
+        b2Shape_SetFilter( h.world->shapes[slot]->id, filter );
+    return 0;
+}
+int ChainMaterial( lua_State *L )
+{
+    ChainHandle &h = GetChain( L );
+    Mutable( L, *h.world );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    Options( L, 2, { "friction", "bounce" } );
+    b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
+    material.friction = (float)Option( L, 2, "friction", .3 );
+    material.restitution = (float)Option( L, 2, "bounce", 0 );
+    if ( material.friction < 0 || material.restitution < 0 || material.restitution > 1 )
+        return luaL_error( L, "invalid chain material" );
+    b2Chain_SetAllSurfaceMaterials( h.id, &material );
+    return 0;
+}
+b2Vec2 GhostOption( lua_State *L, const char *key, b2Vec2 fallback, float scale )
+{
+    lua_getfield( L, 2, key );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        int table = lua_gettop( L );
+        luaL_checktype( L, table, LUA_TTABLE );
+        Options( L, table, { "x", "y" } );
+        lua_getfield( L, table, "x" );
+        fallback.x = (float)( Number( L, -1 ) / scale );
+        lua_pop( L, 1 );
+        lua_getfield( L, table, "y" );
+        fallback.y = (float)( Number( L, -1 ) / scale );
+        lua_pop( L, 1 );
+    }
+    lua_pop( L, 1 );
+    return fallback;
+}
+int BodyChain( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    if ( b2Body_GetType( b.id ) != b2_staticBody )
+        return luaL_error( L, "chains require a static body" );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    Options( L, 2, { "points", "isLoop", "ghost1", "ghost2", "friction", "bounce", "filter" } );
+    b2ChainDef def = b2DefaultChainDef();
+    def.isLoop = Flag( L, 2, "isLoop", false );
+    def.filter = FilterOption( L, 2 );
+    def.enableSensorEvents = true;
+    b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
+    material.friction = (float)Option( L, 2, "friction", .3 );
+    material.restitution = (float)Option( L, 2, "bounce", 0 );
+    if ( material.friction < 0 || material.restitution < 0 || material.restitution > 1 )
+        return luaL_error( L, "invalid chain material" );
+    lua_getfield( L, 2, "points" );
+    luaL_checktype( L, -1, LUA_TTABLE );
+    int table = lua_gettop( L );
+    size_t length = lua_objlen( L, table );
+    if ( length % 2 || length < ( def.isLoop ? 6 : 4 ) || length > 8192 )
+        return luaL_error( L, "chain requires 2..4096 points (3 for a loop)" );
+    int count = (int)length / 2;
+    // Lua owns scratch storage, including when argument validation longjmps.
+    auto *points = (b2Vec2 *)lua_newuserdata( L, count * sizeof( b2Vec2 ) );
+    for ( int i = 0; i < count; ++i )
+    {
+        lua_rawgeti( L, table, 2 * i + 1 );
+        points[i].x = (float)( Number( L, -1 ) / w.scale );
+        lua_pop( L, 1 );
+        lua_rawgeti( L, table, 2 * i + 2 );
+        points[i].y = (float)( Number( L, -1 ) / w.scale );
+        lua_pop( L, 1 );
+        if ( std::abs( points[i].x ) > 1e4 || std::abs( points[i].y ) > 1e4 )
+            return luaL_error( L, "chain local points must be within +/-10000 metres" );
+    }
+    const float slopSquared = B2_LINEAR_SLOP * B2_LINEAR_SLOP;
+    int segments = def.isLoop ? count : count - 1;
+    for ( int i = 0; i < segments; ++i )
+        if ( b2DistanceSquared( points[i], points[( i + 1 ) % count] ) <= slopSquared )
+            return luaL_error( L, "chain neighbours must be farther apart than Box2D linear slop" );
+    if ( def.isLoop )
+    {
+        for ( const char *key : { "ghost1", "ghost2" } )
+        {
+            lua_getfield( L, 2, key );
+            if ( !lua_isnil( L, -1 ) )
+                return luaL_error( L, "loop chains do not take ghost points" );
+            lua_pop( L, 1 );
+        }
+    }
+    else
+    {
+        def.ghost1 = GhostOption( L, "ghost1", b2Sub( b2MulSV( 2, points[0] ), points[1] ), w.scale );
+        def.ghost2 =
+            GhostOption( L, "ghost2", b2Sub( b2MulSV( 2, points[count - 1] ), points[count - 2] ), w.scale );
+        if ( std::abs( def.ghost1.x ) > 2e4 || std::abs( def.ghost1.y ) > 2e4 ||
+             std::abs( def.ghost2.x ) > 2e4 || std::abs( def.ghost2.y ) > 2e4 ||
+             b2DistanceSquared( def.ghost1, points[0] ) <= slopSquared ||
+             b2DistanceSquared( def.ghost2, points[count - 1] ) <= slopSquared )
+            return luaL_error( L, "invalid or too-close chain ghost point" );
+    }
+    def.points = points;
+    def.pointCount = count;
+    def.materials = &material;
+    def.materialCount = 1;
+    auto *ids = (b2ShapeId *)lua_newuserdata( L, segments * sizeof( b2ShapeId ) );
+    b2ChainId id = b2CreateChain( b.id, &def );
+    if ( !b2Chain_IsValid( id ) )
+        return luaL_error( L, "chain creation failed" );
+    b2Chain_GetSegments( id, ids, segments );
+    Chain *chain;
+    if ( w.freeChains.empty() )
+    {
+        chain = new Chain;
+        chain->serial = w.chains.size();
+        w.chains.emplace_back( chain );
+    }
+    else
+    {
+        chain = w.chains[w.freeChains.back()].get();
+        w.freeChains.pop_back();
+    }
+    chain->id = id;
+    chain->body = b.serial;
+    chain->element = ++b.fixtureCount;
+    b.chains.push_back( chain->serial );
+    PushWorld( L, 1 );
+    int wi = lua_gettop( L );
+    for ( int i = 0; i < segments; ++i )
+    {
+        RegisterShape( L, w, b, wi, ids[i], chain->element, chain->serial, i + 1 );
+        chain->segments.push_back( b.shapes.back() );
+        lua_pop( L, 1 );
+    }
+    auto *h = (ChainHandle *)lua_newuserdata( L, sizeof( ChainHandle ) );
+    *h = { &w, chain->serial, id };
+    luaL_getmetatable( L, kChain );
+    lua_setmetatable( L, -2 );
+    StoreHandle( L, wi, "chains", chain->serial );
     return 1;
 }
 int BodyIndex( lua_State *L )
@@ -859,8 +1326,14 @@ bool Contacts( lua_State *L, World &w, int wi )
         lua_setfield( L, -2, "body1" );
         PushHandle( L, wi, "bodies", b->serial );
         lua_setfield( L, -2, "body2" );
-        Field( L, "element1", (double)(uintptr_t)b2Shape_GetUserData( e.a ) );
-        Field( L, "element2", (double)(uintptr_t)b2Shape_GetUserData( e.b ) );
+        auto *sa = (Shape *)b2Shape_GetUserData( e.a );
+        auto *sb = (Shape *)b2Shape_GetUserData( e.b );
+        Field( L, "element1", sa->element );
+        Field( L, "element2", sb->element );
+        PushHandle( L, wi, "shapes", sa->serial );
+        lua_setfield( L, -2, "shape1" );
+        PushHandle( L, wi, "shapes", sb->serial );
+        lua_setfield( L, -2, "shape2" );
         if ( !Call( L, w, top ) )
             return false;
     }
@@ -1026,6 +1499,8 @@ int WorldState( lua_State *L )
     Field( L, "speed", w.speed );
     Field( L, "bodySlots", w.bodies.size() );
     Field( L, "jointSlots", w.joints.size() );
+    Field( L, "shapeSlots", w.shapes.size() );
+    Field( L, "chainSlots", w.chains.size() );
     Field( L, "pendingSteps", w.budget );
     Field( L, "activeBindings", w.active.size() );
     Field( L, "viewUpdates", w.lastViewUpdates );
@@ -1044,8 +1519,16 @@ int WorldRay( lua_State *L )
         return luaL_error( L, "world is locked" );
     float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
     b2Vec2 end = { (float)( Number( L, 4 ) / w.scale ), (float)( Number( L, 5 ) / w.scale ) };
-    b2RayResult result =
-        b2World_CastRayClosest( w.id, { x, y }, { end.x - x, end.y - y }, b2DefaultQueryFilter() );
+    b2QueryFilter filter = b2DefaultQueryFilter();
+    filter.maskBits = UINT32_MAX;
+    if ( !lua_isnoneornil( L, 6 ) )
+    {
+        luaL_checktype( L, 6, LUA_TTABLE );
+        Options( L, 6, { "categoryBits", "maskBits" } );
+        filter.categoryBits = (uint64_t)IntegerOption( L, 6, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
+        filter.maskBits = (uint64_t)IntegerOption( L, 6, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    }
+    b2RayResult result = b2World_CastRayClosest( w.id, { x, y }, { end.x - x, end.y - y }, filter );
     if ( !result.hit )
     {
         lua_pushnil( L );
@@ -1055,6 +1538,10 @@ int WorldRay( lua_State *L )
     lua_createtable( L, 0, 6 );
     PushHandle( L, 1, "bodies", b->serial );
     lua_setfield( L, -2, "body" );
+    auto *shape = (Shape *)b2Shape_GetUserData( result.shapeId );
+    PushHandle( L, 1, "shapes", shape->serial );
+    lua_setfield( L, -2, "shape" );
+    Field( L, "element", shape->element );
     Field( L, "x", result.point.x * w.scale );
     Field( L, "y", result.point.y * w.scale );
     Field( L, "normalX", result.normal.x );
@@ -1079,6 +1566,10 @@ void Destroy( lua_State *L, World &w, int wi )
     ++w.interruption;
     w.bodies.clear();
     w.joints.clear();
+    w.shapes.clear();
+    w.chains.clear();
+    w.freeShapes.clear();
+    w.freeChains.clear();
     w.active.clear();
     w.freeBodies.clear();
     w.freeJoints.clear();
@@ -1153,6 +1644,9 @@ int LuaPhysicsWorld::New( lua_State *L )
                                      { "addCircle", BodyCircle },
                                      { "addBox", BodyBox },
                                      { "addPolygon", BodyPolygon },
+                                     { "addChain", BodyChain },
+                                     { "getShapes", BodyShapes },
+                                     { "getMassData", BodyMass },
                                      { "getPosition", BodyPosition },
                                      { "setTransform", BodyTransform },
                                      { "getLinearVelocity", BodyVelocity },
@@ -1182,6 +1676,19 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "rayCast", WorldRay },
                                       { "destroy", WorldDestroy },
                                       { NULL, NULL } };
+    const luaL_Reg shapeMethods[] = { { "__index", ShapeIndex },   { "__newindex", ShapeNewIndex },
+                                      { "destroy", ShapeDestroy }, { "removeSelf", ShapeDestroy },
+                                      { "isValid", ShapeValid },   { NULL, NULL } };
+    const luaL_Reg chainMethods[] = { { "getSegments", ChainSegments }, { "getBody", ChainBody },
+                                      { "setFilter", ChainFilter },     { "setMaterial", ChainMaterial },
+                                      { "destroy", ChainDestroy },      { "removeSelf", ChainDestroy },
+                                      { "isValid", ChainValid },        { NULL, NULL } };
+    Metatable( L, kShape, shapeMethods );
+    Metatable( L, kChain, chainMethods );
+    luaL_getmetatable( L, kChain );
+    lua_pushvalue( L, -1 );
+    lua_setfield( L, -2, "__index" );
+    lua_pop( L, 1 );
     Metatable( L, kBody, bodyMethods );
     Metatable( L, kJoint, jointMethods );
     Metatable( L, kWorld, worldMethods );
@@ -1205,6 +1712,10 @@ int LuaPhysicsWorld::New( lua_State *L )
     lua_setfield( L, -2, "bodies" );
     lua_newtable( L );
     lua_setfield( L, -2, "joints" );
+    lua_newtable( L );
+    lua_setfield( L, -2, "shapes" );
+    lua_newtable( L );
+    lua_setfield( L, -2, "chains" );
     lua_setfenv( L, -2 );
     w.scale = (float)scale;
     w.dt = (float)dt;
