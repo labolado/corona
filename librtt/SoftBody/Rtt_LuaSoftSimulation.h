@@ -6,10 +6,14 @@
 #include "Rtt_FixedStepScheduler.h"
 #include "Rtt_LuaPhysicsWorld.h"
 #include "Rtt_LuaSoftWorldBridge.h"
+#include "Display/Rtt_ShapeObject.h"
+#include "Display/Rtt_ShapePath.h"
+#include "Display/Rtt_ShapeAdapterMesh.h"
 #include <cmath>
 #include <cstring>
 #include <new>
 #include <limits>
+#include <memory>
 
 namespace Rtt
 {
@@ -21,6 +25,17 @@ static const char kJoint[] = "physics.softSimulationJoint";
 static const char kRigidJoint[] = "physics.softSimulationRigidJoint";
 static const char kTouch[] = "physics.softSimulationTouch";
 static const char kAttachment[] = "physics.softSimulationAttachment";
+// Shared with the independent rigid binding; a view has only one physical owner.
+static const char kMeshClaim[] = "_physicsWorldBinding";
+struct MeshBinding
+{
+    SoftBody::ObjectId body;
+    LuaProxy* proxy = nullptr; // Retained by the body userdata environment.
+    bool interpolate = true;
+    std::vector<int> nodes;
+    std::vector<SoftBody::Point> previous;
+    SoftBody::SoftBodyState current; // Reused buffers; only bound bodies have history.
+};
 static int& LiveCount()
 {
     static int count = 0;
@@ -38,6 +53,8 @@ struct Instance
     int subSteps;
     unsigned activeSteps = 0;
     bool invalidated = false, removePending = false;
+    std::vector<std::unique_ptr<MeshBinding>> meshes;
+    size_t meshUpdates = 0;
     Instance( const SoftBody::SimulationDef& def, const SoftBody::Box2DCouplingDef& box )
         : simulation( def ), coupling( simulation, box ), timeStep( def.timeStep ), subSteps( def.subSteps )
     {
@@ -200,6 +217,227 @@ static int Push( lua_State* L, const char* type, SoftBody::ObjectId id )
     lua_setfenv( L, -2 );
     return 1;
 }
+// Mesh bindings belong to the Lua adapter, never to the native simulation.
+// The system environment retains bound body handles; each handle retains its
+// view AND proxy userdata, so removeSelf cannot leave a dangling proxy pointer.
+static int MeshIndex( Instance& s, SoftBody::ObjectId id )
+{
+    for ( size_t i = 0; i < s.meshes.size(); ++i )
+        if ( s.meshes[i]->body.index == id.index && s.meshes[i]->body.generation == id.generation )
+            return int( i );
+    return -1;
+}
+static void ClearMesh( lua_State* L, Instance& s, size_t index, int systemIndex )
+{
+    auto* binding = s.meshes[index].get();
+    lua_getfenv( L, systemIndex );
+    lua_getfield( L, -1, "meshBindings" );
+    lua_pushlightuserdata( L, binding );
+    lua_rawget( L, -2 ); // Bound body userdata.
+    lua_getfenv( L, -1 );
+    lua_getfield( L, -1, "mesh" );
+    if ( lua_istable( L, -1 ) )
+    {
+        lua_pushstring( L, kMeshClaim );
+        lua_pushnil( L );
+        lua_rawset( L, -3 );
+    }
+    lua_pop( L, 1 );
+    lua_pushnil( L );
+    lua_setfield( L, -2, "mesh" );
+    lua_pushnil( L );
+    lua_setfield( L, -2, "meshProxy" );
+    lua_pop( L, 2 );
+    lua_pushlightuserdata( L, binding );
+    lua_pushnil( L );
+    lua_rawset( L, -3 );
+    lua_pop( L, 2 );
+    s.meshes.erase( s.meshes.begin() + index );
+}
+static void ClearMeshes( lua_State* L, void* owner, int systemIndex )
+{
+    auto& s = *static_cast<Instance*>( owner );
+    while ( !s.meshes.empty() )
+        ClearMesh( L, s, s.meshes.size() - 1, systemIndex );
+    s.meshUpdates = 0;
+}
+static int UnbindMesh( lua_State* L )
+{
+    auto* e = Object( L, kBody );
+    auto& s = *e->owner->instance;
+    int index = MeshIndex( s, e->id );
+    if ( index >= 0 )
+    {
+        lua_getfenv( L, 1 );
+        lua_getfield( L, -1, "world" );
+        ClearMesh( L, s, size_t( index ), lua_gettop( L ) );
+        lua_pop( L, 2 );
+    }
+    return 0;
+}
+static ShapePath* MeshPath( LuaProxy* proxy )
+{
+    const LuaProxyVTable* v = proxy ? &proxy->Delegate() : nullptr;
+    while ( v && v != &LuaShapeObjectProxyVTable::Constant() )
+    {
+        const auto* parent = &v->Parent();
+        v = parent == v ? nullptr : parent;
+    }
+    if ( !v || !proxy->Object() )
+        return nullptr;
+    auto* object = static_cast<ShapeObject*>( proxy->Object() );
+    if ( object->IsOrphan() || object->GetExtensions() ||
+         object->GetPath().GetAdapter() != &ShapeAdapterMesh::Constant() )
+        return nullptr;
+    auto* path = static_cast<ShapePath*>( &object->GetPath() );
+    return path->GetFillSource().ExtraFloatArray( DisplayPath::ZKey() ) ? nullptr : path;
+}
+static int BindMesh( lua_State* L )
+{
+    auto* e = Object( L, kBody );
+    auto& s = *e->owner->instance;
+    if ( !s.independent.owner )
+        return luaL_error( L, "bindMesh requires an independent physics world" );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    auto* proxy = LuaProxy::GetProxy( L, 2 );
+    auto* path = MeshPath( proxy );
+    if ( !path )
+        return luaL_error( L, "bindMesh requires an on-stage 2D mesh without a physics body" );
+    lua_pushstring( L, kMeshClaim );
+    lua_rawget( L, 2 );
+    bool claimed = !lua_isnil( L, -1 );
+    lua_pop( L, 1 );
+    if ( claimed )
+        return luaL_error( L, "view is already bound; unbind it first" );
+    if ( lua_isnoneornil( L, 3 ) )
+    {
+        lua_settop( L, 2 );
+        lua_newtable( L );
+    }
+    luaL_checktype( L, 3, LUA_TTABLE );
+    lua_pushnil( L );
+    while ( lua_next( L, 3 ) )
+    {
+        if ( lua_type( L, -2 ) != LUA_TSTRING ||
+             ( strcmp( lua_tostring( L, -2 ), "interpolation" ) && strcmp( lua_tostring( L, -2 ), "nodeMap" ) ) )
+            return luaL_error( L, "unknown mesh binding option" );
+        lua_pop( L, 1 );
+    }
+    Field( L, 3, "interpolation" );
+    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
+        return luaL_error( L, "interpolation must be boolean" );
+    bool interpolate = lua_isnil( L, -1 ) || lua_toboolean( L, -1 );
+    lua_pop( L, 1 );
+    int count = static_cast<TesselatorMesh*>( path->GetTesselator() )->GetMesh().Length();
+    int nodes = s.simulation.getBodyNodeCount( e->id );
+    Field( L, 3, "nodeMap" );
+    int map = lua_gettop( L );
+    bool identity = lua_isnil( L, map );
+    if ( count == 0 || ( identity && count != nodes ) )
+        return luaL_error( L, "mesh vertex count differs from soft nodes; provide nodeMap" );
+    if ( !identity )
+    {
+        luaL_checktype( L, map, LUA_TTABLE );
+        if ( lua_objlen( L, map ) != size_t( count ) )
+            return luaL_error( L, "nodeMap requires one node index per mesh vertex" );
+        for ( int i = 0; i < count; ++i )
+        {
+            lua_rawgeti( L, map, i + 1 );
+            double n = NumberArg( L, -1, 1, nodes );
+            if ( n != std::floor( n ) )
+                return luaL_error( L, "nodeMap indices must be integers" );
+            lua_pop( L, 1 );
+        }
+    }
+    // Complete validation before replacing the previous binding.
+    UnbindMesh( L );
+    std::unique_ptr<MeshBinding> binding( new MeshBinding );
+    binding->body = e->id;
+    binding->proxy = proxy;
+    binding->interpolate = interpolate;
+    binding->nodes.resize( count );
+    for ( int i = 0; i < count; ++i )
+    {
+        if ( identity )
+            binding->nodes[i] = i;
+        else
+        {
+            lua_rawgeti( L, map, i + 1 );
+            binding->nodes[i] = int( lua_tointeger( L, -1 ) ) - 1;
+            lua_pop( L, 1 );
+        }
+    }
+    s.simulation.getBodyState( e->id, binding->current );
+    binding->previous = binding->current.vertices;
+    lua_getfenv( L, 1 );
+    lua_pushvalue( L, 2 );
+    lua_setfield( L, -2, "mesh" );
+    lua_pushliteral( L, "_proxy" );
+    lua_rawget( L, 2 );
+    lua_setfield( L, -2, "meshProxy" );
+    lua_getfield( L, -1, "world" );
+    lua_getfenv( L, -1 );
+    lua_getfield( L, -1, "meshBindings" );
+    lua_pushlightuserdata( L, binding.get() );
+    lua_pushvalue( L, 1 );
+    lua_rawset( L, -3 );
+    lua_pop( L, 4 );
+    lua_pushstring( L, kMeshClaim );
+    lua_pushlightuserdata( L, binding.get() );
+    lua_rawset( L, 2 );
+    s.meshes.push_back( std::move( binding ) );
+    return 0;
+}
+static void SyncMeshes( lua_State* L, void* owner, int systemIndex, double alpha )
+{
+    auto& s = *static_cast<Instance*>( owner );
+    s.meshUpdates = 0;
+    for ( size_t i = 0; i < s.meshes.size(); )
+    {
+        auto& binding = *s.meshes[i];
+        auto* path = MeshPath( binding.proxy );
+        auto* tess = path ? static_cast<TesselatorMesh*>( path->GetTesselator() ) : nullptr;
+        if ( !tess || size_t( tess->GetMesh().Length() ) != binding.nodes.size() )
+        {
+            ClearMesh( L, s, i, systemIndex );
+            continue;
+        }
+        auto* object = path->GetObserver();
+        const auto offset = tess->GetVertexOffset();
+        auto* vertices = tess->GetMesh().WriteAccess();
+        double t = binding.interpolate ? alpha : 1;
+        bool changed = false;
+        for ( size_t v = 0; v < binding.nodes.size(); ++v )
+        {
+            int n = binding.nodes[v];
+            const auto& a = binding.previous[n];
+            const auto& b = binding.current.vertices[n];
+            Real x = (Real)( ( t == 1 ? b[0] : a[0] + ( double( b[0] ) - a[0] ) * t ) * s.scale ) - offset.x;
+            Real y = (Real)( -( t == 1 ? b[1] : a[1] + ( double( b[1] ) - a[1] ) * t ) * s.scale ) - offset.y;
+            changed |= vertices[v].x != x || vertices[v].y != y;
+            vertices[v].x = x;
+            vertices[v].y = y;
+        }
+        if ( changed )
+        {
+            tess->Invalidate();
+            path->Invalidate( ClosedPath::kFillSource | ClosedPath::kStrokeSource );
+            object->Invalidate( DisplayObject::kGeometryFlag | DisplayObject::kStageBoundsFlag |
+                                DisplayObject::kTransformFlag );
+        }
+        // Same coordinates as path:setVertex; offset cancels mesh construction
+        // centering. Camera transformations belong to the shared parent group.
+        object->SetAnchorX( Rtt_REAL_HALF );
+        object->SetAnchorY( Rtt_REAL_HALF );
+        object->SetGeometricProperty( kScaleX, Rtt_REAL_1 );
+        object->SetGeometricProperty( kScaleY, Rtt_REAL_1 );
+        object->SetGeometricProperty( kRotation, Rtt_REAL_0 );
+        object->SetGeometricProperty( kOriginX, offset.x );
+        object->SetGeometricProperty( kOriginY, offset.y );
+        ++s.meshUpdates;
+        ++i;
+    }
+}
 static int RemoveWorld( lua_State* L )
 {
     auto* handle = WorldHandle( L );
@@ -210,6 +448,7 @@ static int RemoveWorld( lua_State* L )
     handle->instance = nullptr;
     if ( s )
     {
+        ClearMeshes( L, s, 1 );
         if ( s->physics )
             FixedStepScheduler::Detach( *s->physics, s );
         if ( s->independent.owner )
@@ -238,7 +477,11 @@ static int Remove( lua_State* L, const char* type )
         else if ( type == kRigidJoint )
             s->coupling.removeRigidJoint( e->id );
         else
+        {
+            if ( type == kBody && MeshIndex( *s, e->id ) >= 0 )
+                UnbindMesh( L );
             s->simulation.remove( e->id );
+        }
     }
     return 0;
 }
@@ -789,6 +1032,12 @@ static int State( lua_State* L )
     Number( L, "subStepTime", s->timeStep / s->subSteps );
     Number( L, "liveInstances", LiveCount() );
     Number( L, "pixelsPerMeter", s->scale );
+    Number( L, "meshBindings", s->meshes.size() );
+    Number( L, "meshUpdates", s->meshUpdates );
+    size_t historyNodes = 0;
+    for ( const auto& mesh : s->meshes )
+        historyNodes += mesh->previous.size();
+    Number( L, "meshHistoryNodes", historyNodes );
     lua_pushliteral( L, "pixels" ); lua_setfield( L, -2, "coordinateUnits" );
     Bool( L, "recovering", coupled.recovering );
     Number( L, "recoveryEntries", coupled.recoveryEntries );
@@ -1030,6 +1279,8 @@ static int Create( lua_State* L, const IndependentHost* independent = nullptr )
         lua_newtable( L );
         lua_pushvalue( L, 1 );
         lua_setfield( L, -2, "physicsWorld" );
+        lua_newtable( L );
+        lua_setfield( L, -2, "meshBindings" );
         lua_setfenv( L, -2 );
         return 1;
     }
@@ -1055,13 +1306,19 @@ static const char* PrepareIndependent( void* owner )
 static const char* AdvanceIndependent( void* owner, bool& entered )
 {
     auto& s = *static_cast<Instance*>( owner );
-    return s.coupling.advance( &entered ) ? nullptr : s.coupling.lastError();
+    for ( auto& mesh : s.meshes )
+        mesh->previous = mesh->current.vertices;
+    bool success = s.coupling.advance( &entered );
+    if ( entered )
+        for ( auto& mesh : s.meshes )
+            s.simulation.getBodyState( mesh->body, mesh->current );
+    return success ? nullptr : s.coupling.lastError();
 }
 int NewIndependent( lua_State* L, const IndependentHost& host, IndependentClient& client )
 {
     Create( L, &host );
     auto* handle = static_cast<Handle*>( lua_touserdata( L, -1 ) );
-    client = { handle->instance, PrepareIndependent, AdvanceIndependent, Invalidate, Retain, Release };
+    client = { handle->instance, PrepareIndependent, AdvanceIndependent, Invalidate, Retain, Release, SyncMeshes, ClearMeshes };
     return 1;
 }
 static void Register( lua_State* L )
@@ -1083,6 +1340,7 @@ static void Register( lua_State* L )
                                { "__gc", RemoveWorld },
                                { NULL, NULL } };
     const luaL_Reg body[] = { { "getState", BodyState },         { "setRigidFilter", RigidFilter },
+                              { "bindMesh", BindMesh },           { "unbindMesh", UnbindMesh },
                               { "applyLinearImpulse", ApplyLinearImpulse },
                               { "setPressureTarget", PressureTarget },
                               { "setReferenceScaleTarget", ReferenceScaleTarget },

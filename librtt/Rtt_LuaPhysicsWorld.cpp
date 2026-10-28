@@ -670,6 +670,13 @@ void SyncViews( lua_State *L, World &w, int wi, double alpha )
         else
             ++i;
     }
+    if ( w.soft.owner )
+    {
+        lua_getfenv( L, wi );
+        lua_getfield( L, -1, "softSystem" );
+        w.soft.syncViews( L, w.soft.owner, lua_gettop( L ), alpha );
+        lua_pop( L, 2 );
+    }
     w.syncing = false;
 }
 int BodyTransform( lua_State *L )
@@ -1713,6 +1720,10 @@ void Destroy( lua_State *L, World &w, int wi )
 {
     if ( w.soft.owner )
     {
+        lua_getfenv( L, wi );
+        lua_getfield( L, -1, "softSystem" );
+        w.soft.clearViews( L, w.soft.owner, lua_gettop( L ) );
+        lua_pop( L, 2 );
         w.soft.invalidate( w.soft.owner );
         w.soft = {};
     }

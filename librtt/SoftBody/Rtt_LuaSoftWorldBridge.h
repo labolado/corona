@@ -24,6 +24,8 @@ struct IndependentClient
     void ( *invalidate )( void * );
     void ( *retain )( void * );
     void ( *release )( void * );
+    void ( *syncViews )( lua_State *, void *, int systemIndex, double alpha );
+    void ( *clearViews )( lua_State *, void *, int systemIndex );
 };
 // L[1] is the owning rigid world, L[2] the validated options table. Pushes one
 // soft userdata, retaining L[1]. Implemented with the existing Lua adapter in
