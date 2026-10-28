@@ -42,7 +42,7 @@
 #include "Rtt_ParticleSystemObject.h"
 
 #include "CoronaLua.h"
-#include "SoftBody/Rtt_LuaSoftWorld.h"
+#include "SoftBody/Rtt_LuaSoftSimulation.h"
 
 #include <list>
 
@@ -4859,7 +4859,7 @@ LuaLibPhysics::Open( lua_State *L )
 	PhysicsJoint::Initialize( L );
 
 	luaL_register( L, "physics", kVTable );
-	ExperimentalSoftWorld::Register( L );
+	SoftSimulationLua::Register( L );
 
 	// Set the "version" property.
 	{

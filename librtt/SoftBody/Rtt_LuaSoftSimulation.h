@@ -1,6 +1,6 @@
 #pragma once
 // Lua/lifetime adapter for the native simulation API. No solver storage or
-// contact-cache access belongs here. Historical modes use their old adapter.
+// contact-cache access belongs here. Only the assembly runtime is registered.
 #include "../../external/box2d_v3/extern/softbody/soft_simulation.h"
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_simulation.h"
 #include "Rtt_FixedStepScheduler.h"
@@ -881,8 +881,13 @@ static void Release( void* owner )
 static int New( lua_State* L )
 {
     luaL_checktype( L, 1, LUA_TTABLE );
+    Field( L, 1, "couplingMode" );
+    bool assembly = lua_type( L, -1 ) == LUA_TSTRING && strcmp( lua_tostring( L, -1 ), "assembly" ) == 0;
+    lua_pop( L, 1 );
+    if ( !assembly )
+        return luaL_error( L, "only couplingMode='assembly' is supported; historical soft modes were removed" );
     Field( L, 1, "coupled" );
-    bool coupled = lua_toboolean( L, -1 );
+    bool coupled = lua_isboolean( L, -1 ) && lua_toboolean( L, -1 );
     lua_pop( L, 1 );
     if ( !coupled )
         return luaL_error( L, "assembly mode requires coupled=true" );
@@ -1006,6 +1011,8 @@ static void Register( lua_State* L )
         lua_setfield( L, -2, "__index" );
         lua_pop( L, 1 );
     }
+    lua_pushcfunction( L, New );
+    lua_setfield( L, -2, "newExperimentalSoftWorld" );
 }
 }
 }
