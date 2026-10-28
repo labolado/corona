@@ -111,6 +111,22 @@ static double Value( lua_State* L, int table, const char* name, double fallback,
     lua_pop( L, 1 );
     return value;
 }
+// Public lengths use Solar2D logical pixels. Native softbody stays metres/y-up.
+// Defaults and validation bounds below remain physical, independent of display scale.
+static double LengthValue( lua_State* L, int table, const char* name, double fallback, double low, double high )
+{
+    const double scale = World( L )->scale;
+    return Value( L, table, name, fallback * scale, low * scale, high * scale ) / scale;
+}
+static double LengthArg( lua_State* L, int index, double scale )
+{
+    return NumberArg( L, index, -1e4 * scale, 1e4 * scale ) / scale;
+}
+static double AngularSpeedArg( lua_State* L, int index )
+{
+    const double radiansPerDegree = 3.14159265358979323846 / 180;
+    return -NumberArg( L, index, -1e4 / radiansPerDegree, 1e4 / radiansPerDegree ) * radiansPerDegree;
+}
 static void Number( lua_State* L, const char* key, double value )
 {
     lua_pushnumber( L, value );
@@ -254,7 +270,7 @@ static ShapeInput ReadShape( lua_State* L )
     luaL_checktype( L, -1, LUA_TTABLE );
     size_t size = lua_objlen( L, -1 );
     if ( size < 6 || size % 2 )
-        luaL_error( L, "shape.nodes requires at least 3 x,y pairs in local metres, y up" );
+        luaL_error( L, "shape.nodes requires at least 3 x,y pairs in local pixels, y down" );
     if ( size / 2 > size_t( World( L )->simulation.availableNodes() ) )
         luaL_error( L, "soft node capacity reached (maxNodes)" );
     int count = int( size / 2 );
@@ -266,7 +282,8 @@ static ShapeInput ReadShape( lua_State* L )
     for ( int i = 0; i < count * 2; ++i )
     {
         lua_rawgeti( L, nodeTable, i + 1 );
-        nodes[i / 2][i % 2] = NumberArg( L, -1, -100, 100 );
+        const double scale = World( L )->scale;
+        nodes[i / 2][i % 2] = NumberArg( L, -1, -100 * scale, 100 * scale ) / scale * ( i % 2 ? -1 : 1 );
         lua_pop( L, 1 );
     }
     Field( L, table, "boundary" );
@@ -396,7 +413,7 @@ static SoftBody::SoftBodyDef::ReferenceScale ReadReferenceScale( lua_State* L )
         result.max = Value( L, table, "max", 2, 1, 4 );
         result.target = Value( L, table, "target", 1, result.min, result.max );
         result.rate = Value( L, table, "rate", 1, .001, 10 );
-        result.maxSpeed = Value( L, table, "maxSpeed", 2, .001, 20 );
+        result.maxSpeed = LengthValue( L, table, "maxSpeed", 2, .001, 20 );
     }
     lua_pop( L, 1 );
     return result;
@@ -413,9 +430,9 @@ static int NewBody( lua_State* L )
     {
         SoftBody::SoftBodyDef def;
         def.mass = Value( L, 2, "mass", 1, .001, 1000 );
-        def.halfWidth = Value( L, 2, "halfWidth", .35, .01, 100 );
-        def.halfHeight = Value( L, 2, "halfHeight", .35, .01, 100 );
-        def.position = { float( Value( L, 2, "x", 0, -1e4, 1e4 ) ), float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
+        def.halfWidth = LengthValue( L, 2, "halfWidth", .35, .01, 100 );
+        def.halfHeight = LengthValue( L, 2, "halfHeight", .35, .01, 100 );
+        def.position = { float( LengthValue( L, 2, "x", 0, -1e4, 1e4 ) ), float( -LengthValue( L, 2, "y", 0, -1e4, 1e4 ) ) };
         def.frequency = Value( L, 2, "frequency", 6, 0, 1000 );
         def.damping = Value( L, 2, "damping", 40, 0, 1e5 );
         def.materialScale = Value( L, 2, "materialScale", 1, .001, 1e4 );
@@ -477,8 +494,8 @@ static int NewWorldJoint( lua_State* L )
     luaL_checktype( L, 2, LUA_TTABLE );
     auto body = BodyField( L, "body" );
     auto weights = ReadWeights( L, "weights", body );
-    SoftBody::Point anchor{ float( Value( L, 2, "x", 0, -1e4, 1e4 ) ),
-                           float( Value( L, 2, "y", 0, -1e4, 1e4 ) ) };
+    SoftBody::Point anchor{ float( LengthValue( L, 2, "x", 0, -1e4, 1e4 ) ),
+                           float( -LengthValue( L, 2, "y", 0, -1e4, 1e4 ) ) };
     float frequency = Value( L, 2, "frequency", 12, .01, 60 );
     float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
     float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
@@ -507,8 +524,8 @@ static int NewRigidJoint( lua_State* L )
     auto rigid = attachment->id;
     lua_pop( L, 1 );
     auto weights = ReadWeights( L, "weights", body );
-    float x = Value( L, 2, "localAnchorX", 0, -1e4, 1e4 );
-    float y = Value( L, 2, "localAnchorY", 0, -1e4, 1e4 );
+    float x = LengthValue( L, 2, "localAnchorX", 0, -1e4, 1e4 );
+    float y = -LengthValue( L, 2, "localAnchorY", 0, -1e4, 1e4 );
     float frequency = Value( L, 2, "frequency", 30, 1, 60 );
     float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
     float gain = Value( L, 2, "motorGain", 8, 0, 1e6 );
@@ -537,11 +554,11 @@ static int RigidJointState( lua_State* L )
     Check( L, e->owner->instance->coupling.getRigidJointState( e->id, state ), "rigid pin state unavailable" );
     lua_createtable( L, 0, 7 );
     Bool( L, "enabled", state.enabled );
-    Number( L, "errorM", state.errorM );
+    Number( L, "errorDistance", state.errorM * e->owner->instance->scale );
     Number( L, "impulseX", state.impulse[0] );
-    Number( L, "impulseY", state.impulse[1] );
-    Number( L, "relativeSpeed", state.relativeSpeed );
-    Number( L, "motorImpulse", state.motorImpulse );
+    Number( L, "impulseY", -state.impulse[1] );
+    Number( L, "relativeSpeed", -state.relativeSpeed * ( 180 / 3.14159265358979323846 ) );
+    Number( L, "motorImpulse", -state.motorImpulse );
     Number( L, "motorWork", state.motorWork );
     return 1;
 }
@@ -549,7 +566,7 @@ static int SetRigidMotor( lua_State* L )
 {
     auto* e = Object( L, kRigidJoint );
     auto& api = e->owner->instance->coupling;
-    bool ok = api.setRigidMotor( e->id, NumberArg( L, 2, -1e4, 1e4 ), NumberArg( L, 3, 0, 1e6 ) );
+    bool ok = api.setRigidMotor( e->id, AngularSpeedArg( L, 2 ), NumberArg( L, 3, 0, 1e6 ) );
     Check( L, ok, api.lastError() );
     return 0;
 }
@@ -559,8 +576,8 @@ static int NewTouch( lua_State* L )
     luaL_checktype( L, 2, LUA_TTABLE );
     auto body = BodyField( L, "body" );
     auto weights = ReadWeights( L, "weights", body );
-    SoftBody::Point target{ float( Value( L, 2, "targetX", 0, -1e4, 1e4 ) ),
-                            float( Value( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
+    SoftBody::Point target{ float( LengthValue( L, 2, "targetX", 0, -1e4, 1e4 ) ),
+                            float( -LengthValue( L, 2, "targetY", 0, -1e4, 1e4 ) ) };
     float frequency = Value( L, 2, "frequency", 3, .01, 60 );
     float damping = Value( L, 2, "dampingRatio", 1, 0, 10 );
     float force = Value( L, 2, "maxForce", 50, 0, 1e5 );
@@ -581,7 +598,7 @@ static int SetMotor( lua_State* L )
 {
     auto* e = Object( L, kJoint );
     auto& api = e->owner->instance->simulation;
-    bool ok = api.setMotor( e->id, NumberArg( L, 2, -1e4, 1e4 ), NumberArg( L, 3, 0, 1e6 ) );
+    bool ok = api.setMotor( e->id, AngularSpeedArg( L, 2 ), NumberArg( L, 3, 0, 1e6 ) );
     Check( L, ok, api.lastError() );
     return 0;
 }
@@ -590,7 +607,8 @@ static int TouchTarget( lua_State* L )
     auto* e = Object( L, kTouch );
     auto& api = e->owner->instance->simulation;
     bool ok =
-        api.setTouchTarget( e->id, { float( NumberArg( L, 2, -1e4, 1e4 ) ), float( NumberArg( L, 3, -1e4, 1e4 ) ) } );
+        api.setTouchTarget( e->id, { float( LengthArg( L, 2, e->owner->instance->scale ) ),
+                                   -float( LengthArg( L, 3, e->owner->instance->scale ) ) } );
     Check( L, ok, api.lastError() );
     return 0;
 }
@@ -600,10 +618,10 @@ static int TouchState( lua_State* L )
     SoftBody::SoftTouchState state;
     Check( L, e->owner->instance->simulation.getTouchState( e->id, state ), "touch state unavailable" );
     lua_createtable( L, 0, 5 );
-    Number( L, "x", state.position[0] );
-    Number( L, "y", state.position[1] );
-    Number( L, "targetX", state.target[0] );
-    Number( L, "targetY", state.target[1] );
+    Number( L, "x", state.position[0] * e->owner->instance->scale );
+    Number( L, "y", -state.position[1] * e->owner->instance->scale );
+    Number( L, "targetX", state.target[0] * e->owner->instance->scale );
+    Number( L, "targetY", -state.target[1] * e->owner->instance->scale );
     Number( L, "force", state.force );
     return 1;
 }
@@ -611,10 +629,10 @@ static int ApplyLinearImpulse( lua_State* L )
 {
     auto* e = Object( L, kBody );
     if ( lua_gettop( L ) != 3 )
-        return luaL_error( L, "applyLinearImpulse expects two impulse components in kg*m/s, y up" );
+        return luaL_error( L, "applyLinearImpulse expects two impulse components in kg*m/s, y down" );
     auto& api = e->owner->instance->simulation;
     bool ok = api.applyLinearImpulse( e->id,
-        { float( NumberArg( L, 2, -1e4, 1e4 ) ), float( NumberArg( L, 3, -1e4, 1e4 ) ) } );
+        { float( NumberArg( L, 2, -1e4, 1e4 ) ), -float( NumberArg( L, 3, -1e4, 1e4 ) ) } );
     Check( L, ok, api.lastError() );
     return 0;
 }
@@ -647,8 +665,8 @@ static int BodyState( lua_State* L )
     Number( L, "id", e->id.index + 1 );
     lua_pushstring( L, state.support == SoftBody::BodySupport::World ? "world" : "free" );
     lua_setfield( L, -2, "support" );
-    Number( L, "referenceX", state.referencePosition[0] );
-    Number( L, "referenceY", state.referencePosition[1] );
+    Number( L, "referenceX", state.referencePosition[0] * e->owner->instance->scale );
+    Number( L, "referenceY", -state.referencePosition[1] * e->owner->instance->scale );
     Number( L, "nodeCount", state.nodeCount );
     Number( L, "internalSpringScale", state.internalSpringScale );
     Number( L, "internalSpringWork", state.internalSpringWork );
@@ -674,9 +692,9 @@ static int BodyState( lua_State* L )
     lua_createtable( L, state.nodeCount * 2, 0 );
     int n = 0;
     for ( int i = 0; i < state.nodeCount; ++i )
-        for ( float v : state.vertices[i] )
+        for ( int axis = 0; axis < 2; ++axis )
         {
-            lua_pushnumber( L, v );
+            lua_pushnumber( L, state.vertices[i][axis] * double( e->owner->instance->scale ) * ( axis ? -1 : 1 ) );
             lua_rawseti( L, -2, ++n );
         }
     lua_setfield( L, -2, "vertices" );
@@ -750,31 +768,33 @@ static int State( lua_State* L )
     Number( L, "subSteps", s->subSteps );
     Number( L, "subStepTime", s->timeStep / s->subSteps );
     Number( L, "liveInstances", LiveCount() );
+    Number( L, "pixelsPerMeter", s->scale );
+    lua_pushliteral( L, "pixels" ); lua_setfield( L, -2, "coordinateUnits" );
     Bool( L, "recovering", coupled.recovering );
     Number( L, "recoveryEntries", coupled.recoveryEntries );
     Number( L, "recoveryExits", coupled.recoveryExits );
     Number( L, "recoverySteps", coupled.recoverySteps );
-    Number( L, "contactDepthM", coupled.contactDepth );
+    Number( L, "contactDepth", coupled.contactDepth * s->scale );
     Number( L, "warmHits", coupled.warmHits );
     Number( L, "boxContacts", coupled.contactRows );
     Number( L, "chainCandidates", coupled.chainCandidates );
     Number( L, "chainQueries", coupled.chainQueries );
     Number( L, "softContactRows", coupled.softContactRows );
-    Number( L, "softContactDepthM", coupled.softContactDepth );
+    Number( L, "softContactDepth", coupled.softContactDepth * s->scale );
     Number( L, "softRecoverySteps", coupled.softRecoverySteps );
     Number( L, "softRecoveryEntries", coupled.softRecoveryEntries );
     Number( L, "softRecoveryExits", coupled.softRecoveryExits );
     Number( L, "softRecoveringPairs", coupled.softRecoveringPairs );
-    Number( L, "softRecoveryDistanceM", coupled.softRecoveryDistance );
-    Number( L, "assemblyPinErrorM", coupled.peakGap );
+    Number( L, "softRecoveryDistance", coupled.softRecoveryDistance * s->scale );
+    Number( L, "assemblyPinError", coupled.peakGap * s->scale );
     Number( L, "motorWork", state.motorWork );
     Number( L, "appliedWork", state.appliedWork );
     Number( L, "boundaryWork", 0 );
     Number( L, "energy", state.energy );
-    Number( L, "penetration", state.penetration );
-    Number( L, "pinError", state.pinError );
-    Number( L, "nodeSpeed", state.nodeSpeed );
-    Number( L, "centerSpeed", state.centerSpeed );
+    Number( L, "penetration", state.penetration * s->scale );
+    Number( L, "pinError", state.pinError * s->scale );
+    Number( L, "nodeSpeed", state.nodeSpeed * s->scale );
+    Number( L, "centerSpeed", state.centerSpeed * s->scale );
     Number( L, "minAreaRatio", state.minAreaRatio );
     Bool( L, "selfCross", state.selfCross );
     Number( L, "strictEvents", 0 );
@@ -793,7 +813,7 @@ static int State( lua_State* L )
     int n = 0;
     for ( float value : state.vertices )
     {
-        lua_pushnumber( L, value );
+        lua_pushnumber( L, value * double( s->scale ) * ( n % 2 ? -1 : 1 ) );
         lua_rawseti( L, -2, ++n );
     }
     lua_setfield( L, -2, "vertices" );
