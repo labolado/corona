@@ -69,6 +69,7 @@ struct Chain
 struct World
 {
     b2WorldId id = b2_nullWorldId;
+    b2BodyId touchGround = b2_nullBodyId; // Private, shapeless anchor shared by touch joints.
     bool alive = true, busy = false, syncing = false, paused = false, faulted = false;
     unsigned long long index = 0, interruption = 0;
     float scale = 30, dt = 1.0f / 60;
@@ -734,6 +735,40 @@ int BodyImpulse( lua_State *L )
     b2Body_ApplyLinearImpulse( b.id, { x, y }, point, true );
     return 0;
 }
+int BodyTorque( lua_State *L )
+{
+    Body &b = GetBody( L );
+    Mutable( L, Owner( L, 1, kBody ) );
+    b2Body_ApplyTorque( b.id, (float)Number( L, 2 ), true );
+    return 0;
+}
+int BodyAngularImpulse( lua_State *L )
+{
+    Body &b = GetBody( L );
+    Mutable( L, Owner( L, 1, kBody ) );
+    b2Body_ApplyAngularImpulse( b.id, (float)Number( L, 2 ), true );
+    return 0;
+}
+int BodyWorldPoint( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2Vec2 p = { (float)( Number( L, 2 ) / w.scale ), (float)( Number( L, 3 ) / w.scale ) };
+    b2Pos result = b2Body_GetWorldPoint( b.id, p );
+    lua_pushnumber( L, result.x * w.scale );
+    lua_pushnumber( L, result.y * w.scale );
+    return 2;
+}
+int BodyLocalPoint( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2Pos p = { (float)( Number( L, 2 ) / w.scale ), (float)( Number( L, 3 ) / w.scale ) };
+    b2Vec2 result = b2Body_GetLocalPoint( b.id, p );
+    lua_pushnumber( L, result.x * w.scale );
+    lua_pushnumber( L, result.y * w.scale );
+    return 2;
+}
 void ReleaseJoint( lua_State *L, World &w, int wi, b2JointId joint )
 {
     size_t slot = (size_t)(uintptr_t)b2Joint_GetUserData( joint ) - 1;
@@ -1024,6 +1059,25 @@ int BodyIndex( lua_State *L )
         lua_pushboolean( L, b2Body_IsAwake( b.id ) );
     else if ( !strcmp( key, "gravityScale" ) )
         lua_pushnumber( L, b2Body_GetGravityScale( b.id ) );
+    else if ( !strcmp( key, "linearDamping" ) )
+        lua_pushnumber( L, b2Body_GetLinearDamping( b.id ) );
+    else if ( !strcmp( key, "angularDamping" ) )
+        lua_pushnumber( L, b2Body_GetAngularDamping( b.id ) );
+    else if ( !strcmp( key, "isBullet" ) )
+        lua_pushboolean( L, b2Body_IsBullet( b.id ) );
+    else if ( !strcmp( key, "isSleepingAllowed" ) )
+        lua_pushboolean( L, b2Body_IsSleepingEnabled( b.id ) );
+    else if ( !strcmp( key, "isFixedRotation" ) )
+        lua_pushboolean( L, b2Body_GetMotionLocks( b.id ).angularZ );
+    else if ( !strcmp( key, "isActive" ) )
+        lua_pushboolean( L, b2Body_IsEnabled( b.id ) );
+    else if ( !strcmp( key, "bodyType" ) )
+    {
+        b2BodyType type = b2Body_GetType( b.id );
+        lua_pushstring( L, type == b2_dynamicBody     ? "dynamic"
+                           : type == b2_kinematicBody ? "kinematic"
+                                                      : "static" );
+    }
     else
     {
         luaL_getmetatable( L, kBody );
@@ -1063,6 +1117,57 @@ int BodyNewIndex( lua_State *L )
         b2Body_SetAngularVelocity( b.id, (float)( Number( L, 3 ) * kRad ) );
     else if ( !strcmp( key, "gravityScale" ) )
         b2Body_SetGravityScale( b.id, (float)Number( L, 3 ) );
+    else if ( !strcmp( key, "linearDamping" ) || !strcmp( key, "angularDamping" ) )
+    {
+        float value = (float)Number( L, 3 );
+        if ( value < 0 )
+            return luaL_error( L, "negative damping" );
+        if ( !strcmp( key, "linearDamping" ) )
+            b2Body_SetLinearDamping( b.id, value );
+        else
+            b2Body_SetAngularDamping( b.id, value );
+    }
+    else if ( !strcmp( key, "isBullet" ) || !strcmp( key, "isSleepingAllowed" ) ||
+              !strcmp( key, "isFixedRotation" ) || !strcmp( key, "isActive" ) )
+    {
+        luaL_checktype( L, 3, LUA_TBOOLEAN );
+        bool value = lua_toboolean( L, 3 ) != 0;
+        if ( !strcmp( key, "isBullet" ) )
+            b2Body_SetBullet( b.id, value );
+        else if ( !strcmp( key, "isSleepingAllowed" ) )
+            b2Body_EnableSleeping( b.id, value );
+        else if ( !strcmp( key, "isFixedRotation" ) )
+        {
+            b2MotionLocks locks = b2Body_GetMotionLocks( b.id );
+            locks.angularZ = value;
+            b2Body_SetMotionLocks( b.id, locks );
+        }
+        else
+        {
+            if ( value )
+                b2Body_Enable( b.id );
+            else
+                b2Body_Disable( b.id );
+            ResetPose( w, b );
+        }
+    }
+    else if ( !strcmp( key, "bodyType" ) )
+    {
+        const char *value = luaL_checkstring( L, 3 );
+        b2BodyType type;
+        if ( !strcmp( value, "static" ) )
+            type = b2_staticBody;
+        else if ( !strcmp( value, "kinematic" ) )
+            type = b2_kinematicBody;
+        else if ( !strcmp( value, "dynamic" ) )
+            type = b2_dynamicBody;
+        else
+            return luaL_error( L, "unknown body type" );
+        if ( type != b2_staticBody && !b.chains.empty() )
+            return luaL_error( L, "chain bodies must remain static" );
+        b2Body_SetType( b.id, type );
+        ResetPose( w, b );
+    }
     else if ( !strcmp( key, "isAwake" ) )
     {
         luaL_checktype( L, 3, LUA_TBOOLEAN );
@@ -1131,98 +1236,8 @@ int WorldBody( lua_State *L )
     StoreHandle( L, 1, "bodies", b->serial );
     return 1;
 }
-int JointDestroy( lua_State *L )
-{
-    b2JointId id = GetJoint( L );
-    Handle &h = GetHandle( L, 1, kJoint );
-    Mutable( L, *h.world );
-    PushWorld( L, 1 );
-    ReleaseJoint( L, *h.world, lua_gettop( L ), id );
-    b2DestroyJoint( id );
-    return 0;
-}
-int JointIndex( lua_State *L )
-{
-    b2JointId j = GetJoint( L );
-    const char *key = luaL_checkstring( L, 2 );
-    if ( !strcmp( key, "jointAngle" ) )
-        lua_pushnumber( L, b2RevoluteJoint_GetCurrentAngle( j ) / kRad );
-    else if ( !strcmp( key, "motorSpeed" ) )
-        lua_pushnumber( L, b2RevoluteJoint_GetTargetMotorSpeed( j ) / kRad );
-    else if ( !strcmp( key, "maxMotorTorque" ) )
-        lua_pushnumber( L, b2RevoluteJoint_GetMaxMotorTorque( j ) );
-    else if ( !strcmp( key, "isMotorEnabled" ) )
-        lua_pushboolean( L, b2RevoluteJoint_IsMotorEnabled( j ) );
-    else
-    {
-        luaL_getmetatable( L, kJoint );
-        lua_pushvalue( L, 2 );
-        lua_rawget( L, -2 );
-    }
-    return 1;
-}
-int JointNewIndex( lua_State *L )
-{
-    b2JointId j = GetJoint( L );
-    Mutable( L, Owner( L, 1, kJoint ) );
-    const char *key = luaL_checkstring( L, 2 );
-    if ( !strcmp( key, "motorSpeed" ) )
-        b2RevoluteJoint_SetTargetMotorSpeed( j, (float)( Number( L, 3 ) * kRad ) );
-    else if ( !strcmp( key, "maxMotorTorque" ) )
-    {
-        float v = (float)Number( L, 3 );
-        if ( v < 0 )
-            return luaL_error( L, "negative motor torque" );
-        b2RevoluteJoint_SetMaxMotorTorque( j, v );
-    }
-    else if ( !strcmp( key, "isMotorEnabled" ) )
-    {
-        luaL_checktype( L, 3, LUA_TBOOLEAN );
-        b2RevoluteJoint_EnableMotor( j, lua_toboolean( L, 3 ) != 0 );
-    }
-    else
-        return luaL_error( L, "unknown or read-only joint property" );
-    return 0;
-}
-int WorldJoint( lua_State *L )
-{
-    World &w = GetWorld( L );
-    Mutable( L, w );
-    const char *type = luaL_checkstring( L, 2 );
-    if ( strcmp( type, "pivot" ) )
-        return luaL_error( L, "only pivot joints are supported" );
-    Body &a = GetBody( L, 3 );
-    Body &b = GetBody( L, 4 );
-    if ( &Owner( L, 3, kBody ) != &w || &Owner( L, 4, kBody ) != &w || &a == &b )
-        return luaL_error( L, "joint bodies must be distinct and belong to this world" );
-    b2Pos anchor = { (float)( Number( L, 5 ) / w.scale ), (float)( Number( L, 6 ) / w.scale ) };
-    b2RevoluteJointDef d = b2DefaultRevoluteJointDef();
-    d.base.bodyIdA = a.id;
-    d.base.bodyIdB = b.id;
-    d.base.localFrameA.p = b2Body_GetLocalPoint( a.id, anchor );
-    d.base.localFrameB.p = b2Body_GetLocalPoint( b.id, anchor );
-    d.base.localFrameA.q = b2Rot_identity;
-    d.base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( b.id ), b2Body_GetRotation( a.id ) );
-    size_t index;
-    if ( w.freeJoints.empty() )
-    {
-        index = w.joints.size();
-        w.joints.push_back( b2_nullJointId );
-    }
-    else
-    {
-        index = w.freeJoints.back();
-        w.freeJoints.pop_back();
-    }
-    d.base.userData = (void *)(uintptr_t)( index + 1 );
-    w.joints[index] = b2CreateRevoluteJoint( w.id, &d );
-    Handle *h = (Handle *)lua_newuserdata( L, sizeof( Handle ) );
-    *h = { &w, index, b2_nullBodyId, w.joints[index] };
-    luaL_getmetatable( L, kJoint );
-    lua_setmetatable( L, -2 );
-    StoreHandle( L, 1, "joints", index );
-    return 1;
-}
+#include "Rtt_LuaPhysicsWorldJoints.h"
+
 int WorldListener( lua_State *L )
 {
     World &w = GetWorld( L );
@@ -1653,6 +1668,10 @@ int LuaPhysicsWorld::New( lua_State *L )
                                      { "setLinearVelocity", BodySetVelocity },
                                      { "applyForce", BodyForce },
                                      { "applyLinearImpulse", BodyImpulse },
+                                     { "applyTorque", BodyTorque },
+                                     { "applyAngularImpulse", BodyAngularImpulse },
+                                     { "getWorldPoint", BodyWorldPoint },
+                                     { "getLocalPoint", BodyLocalPoint },
                                      { "bindView", BodyBind },
                                      { "unbindView", BodyUnbind },
                                      { "destroy", BodyDestroy },
@@ -1662,6 +1681,13 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "__newindex", JointNewIndex },
                                       { "destroy", JointDestroy },
                                       { "removeSelf", JointDestroy },
+                                      { "getLimits", JointGetLimits },
+                                      { "setLimits", JointSetLimits },
+                                      { "getAnchors", JointAnchors },
+                                      { "getReactionForce", JointForce },
+                                      { "getReactionTorque", JointTorque },
+                                      { "getTarget", JointTarget },
+                                      { "setTarget", JointSetTarget },
                                       { NULL, NULL } };
     const luaL_Reg worldMethods[] = { { "__gc", WorldGC },
                                       { "newBody", WorldBody },
