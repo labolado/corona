@@ -11,6 +11,7 @@
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Display/Rtt_DisplayObject.h"
+#include "SoftBody/Rtt_LuaSoftWorldBridge.h"
 #include "box2d/box2d.h"
 #include "box2d/constants.h"
 #include <algorithm>
@@ -84,6 +85,7 @@ struct World
     std::vector<size_t> freeBodies, freeJoints;
     std::vector<size_t> freeShapes, freeChains;
     std::vector<Body *> active;
+    SoftSimulationLua::IndependentClient soft{};
 };
 struct Handle
 {
@@ -1376,11 +1378,38 @@ bool OneStep( lua_State *L, World &w, int wi )
     }
     if ( !StepCallback( L, w, wi, "before" ) )
         return false;
+    if ( w.soft.owner )
+        if ( const char *error = w.soft.prepare( w.soft.owner ) )
+        {
+            w.error = error;
+            w.faulted = w.paused = true;
+            ++w.interruption;
+            return false;
+        }
     for ( Body *b : w.active )
         b->binding->previous = b->binding->current;
-    b2World_Step( w.id, w.dt, w.subSteps, NULL, NULL );
-    ++w.index;
-    if ( w.bindingCount )
+    bool entered = true;
+    if ( w.soft.owner )
+    {
+        // The soft client owns this ONE complete native step, including rigid
+        // substeps. Never follow it with a second b2World_Step.
+        const auto client = w.soft;
+        client.retain( client.owner );
+        entered = false;
+        const char *error = client.advance( client.owner, entered );
+        if ( error || !entered )
+        {
+            w.error = error ? error : "soft step did not enter the rigid world";
+            w.faulted = w.paused = true;
+            ++w.interruption;
+        }
+        client.release( client.owner );
+    }
+    else
+        b2World_Step( w.id, w.dt, w.subSteps, NULL, NULL );
+    if ( entered )
+        ++w.index;
+    if ( entered && w.bindingCount )
     {
         const b2BodyEvents events = b2World_GetBodyEvents( w.id );
         for ( int i = 0; i < events.moveCount; ++i )
@@ -1393,6 +1422,8 @@ bool OneStep( lua_State *L, World &w, int wi )
             }
         }
     }
+    if ( w.faulted )
+        return false; // No after/contact callbacks for a failed step; no retry.
     // Physical getters are already current; visual poses remain a separate projection.
     return Contacts( L, w, wi ) && StepCallback( L, w, wi, "after" );
 }
@@ -1519,6 +1550,7 @@ int WorldState( lua_State *L )
     Bool( L, "destroyed", !w.alive );
     Bool( L, "paused", w.paused );
     Bool( L, "faulted", w.faulted );
+    Bool( L, "hasSoftSystem", w.soft.owner != nullptr );
     Field( L, "stepIndex", (double)w.index );
     Field( L, "simulationTime", w.index * (double)w.dt );
     Field( L, "timeStep", w.dt );
@@ -1679,6 +1711,11 @@ int WorldRay( lua_State *L )
 }
 void Destroy( lua_State *L, World &w, int wi )
 {
+    if ( w.soft.owner )
+    {
+        w.soft.invalidate( w.soft.owner );
+        w.soft = {};
+    }
     for ( auto &b : w.bodies )
         if ( b->binding )
         {
@@ -1725,6 +1762,45 @@ int WorldGC( lua_State *L )
     }
     return 0;
 }
+const char *ValidateSoftHost( void *owner )
+{
+    World &w = *(World *)owner;
+    return !w.alive || w.syncing || b2World_IsLocked( w.id )
+               ? "physics world is destroyed, locked, or synchronizing views"
+               : nullptr;
+}
+void DetachSoft( void *owner, void *client )
+{
+    World &w = *(World *)owner;
+    if ( w.soft.owner == client )
+        w.soft = {};
+}
+int WorldNewSoft( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    if ( w.soft.owner || w.faulted )
+        return luaL_error( L, "world already has a soft system or is faulted" );
+    if ( lua_isnoneornil( L, 2 ) )
+    {
+        lua_settop( L, 1 );
+        lua_newtable( L );
+    }
+    luaL_checktype( L, 2, LUA_TTABLE );
+    // Timing/scale and native world are owned by this world, not soft options.
+    Options( L, 2,
+             { "enableDynamicContacts", "enableSoftContacts", "profile", "maxBodies", "maxJoints",
+               "maxTouches", "maxRigidJoints", "maxNodes", "maxSoftContactRows", "maxInternalSprings",
+               "maxChainSegments" } );
+    SoftSimulationLua::IndependentHost host = { &w,        w.id, w.scale, w.dt, w.subSteps, ValidateSoftHost,
+                                                DetachSoft };
+    SoftSimulationLua::NewIndependent( L, host, w.soft );
+    lua_getfenv( L, 1 );
+    lua_pushvalue( L, -2 );
+    lua_setfield( L, -2, "softSystem" );
+    lua_pop( L, 1 );
+    return 1;
+}
 void Metatable( lua_State *L, const char *name, const luaL_Reg *methods )
 {
     luaL_newmetatable( L, name );
@@ -1734,6 +1810,14 @@ void Metatable( lua_State *L, const char *name, const luaL_Reg *methods )
     lua_pop( L, 1 );
 }
 } // anonymous namespace
+
+b2BodyId LuaPhysicsWorld::GetBodyId( lua_State *L, int index, b2WorldId owner )
+{
+    Body &body = GetBody( L, index );
+    if ( b2StoreWorldId( b2Body_GetWorld( body.id ) ) != b2StoreWorldId( owner ) )
+        luaL_error( L, "rigid body belongs to another physics world" );
+    return body.id;
+}
 
 int LuaPhysicsWorld::New( lua_State *L )
 {
@@ -1813,6 +1897,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "resume", WorldResume },
                                       { "setSimulationSpeed", WorldSpeed },
                                       { "getState", WorldState },
+                                      { "newSoftSystem", WorldNewSoft },
                                       { "rayCast", WorldRay },
                                       { "queryPoint", WorldQueryPoint },
                                       { "queryRegion", WorldQueryRegion },

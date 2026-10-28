@@ -4,6 +4,8 @@
 #include "../../external/box2d_v3/extern/softbody/soft_simulation.h"
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_simulation.h"
 #include "Rtt_FixedStepScheduler.h"
+#include "Rtt_LuaPhysicsWorld.h"
+#include "Rtt_LuaSoftWorldBridge.h"
 #include <cmath>
 #include <cstring>
 #include <new>
@@ -29,6 +31,7 @@ struct Instance
     SoftBody::Simulation simulation;
     SoftBody::Box2DCoupling coupling;
     PhysicsWorld* physics = nullptr;
+    IndependentHost independent{};
     b2WorldId physicsId = b2_nullWorldId;
     float scale = 0;
     float timeStep;
@@ -45,6 +48,8 @@ struct Instance
     {
         if ( physics )
             FixedStepScheduler::Detach( *physics, this );
+        if ( independent.owner )
+            independent.detach( independent.owner, this );
         --LiveCount();
     }
 };
@@ -61,6 +66,9 @@ static void CheckStep( lua_State* L, Instance* s )
 {
     if ( s && s->activeSteps )
         luaL_error( L, "attachment world is executing a native step" );
+    if ( s && s->independent.owner )
+        if ( const char* error = s->independent.validate( s->independent.owner ) )
+            luaL_error( L, "%s", error );
 }
 static Handle* WorldHandle( lua_State* L )
 {
@@ -73,7 +81,7 @@ static Instance* World( lua_State* L )
     if ( !s )
         luaL_error( L, "soft world was removed" );
     if ( s->invalidated )
-        luaL_error( L, "coupled soft world was invalidated by physics.stop" );
+        luaL_error( L, "coupled soft world was invalidated by its physics owner" );
     return s;
 }
 static Entity* Object( lua_State* L, const char* type, int index = 1 )
@@ -84,7 +92,7 @@ static Entity* Object( lua_State* L, const char* type, int index = 1 )
     if ( !s )
         luaL_error( L, "soft world was removed" );
     if ( s->invalidated )
-        luaL_error( L, "coupled soft world was invalidated by physics.stop" );
+        luaL_error( L, "coupled soft world was invalidated by its physics owner" );
     bool valid = type == kAttachment || type == kRigidJoint ? s->coupling.isValid( e->id ) : s->simulation.isValid( e->id );
     if ( !valid )
         luaL_error( L, "soft object was removed" );
@@ -196,16 +204,26 @@ static int RemoveWorld( lua_State* L )
 {
     auto* handle = WorldHandle( L );
     auto* s = handle->instance;
+    if ( s && s->independent.owner )
+        if ( const char* error = s->independent.validate( s->independent.owner ) )
+            return luaL_error( L, "%s", error );
     handle->instance = nullptr;
     if ( s )
     {
         if ( s->physics )
             FixedStepScheduler::Detach( *s->physics, s );
+        if ( s->independent.owner )
+        {
+            s->independent.detach( s->independent.owner, s );
+            s->independent.owner = nullptr;
+        }
         if ( s->activeSteps )
             s->removePending = true;
         else
             delete s;
     }
+    lua_newtable( L );
+    lua_setfenv( L, 1 );
     return 0;
 }
 static int Remove( lua_State* L, const char* type )
@@ -713,6 +731,8 @@ static int SetCollision( lua_State* L )
 static int AttachBody( lua_State* L )
 {
     auto* s = World( L );
+    if ( s->independent.owner )
+        return Push( L, kAttachment, s->coupling.attachBody( LuaPhysicsWorld::GetBodyId( L, 2, s->physicsId ) ) );
     auto* object = static_cast<DisplayObject*>( LuaProxy::GetProxyableObject( L, 2 ) );
     if ( !object || !object->GetExtensions() )
         return luaL_error( L, "expected a physics display object" );
@@ -892,6 +912,7 @@ static void Invalidate( void* owner )
 {
     auto* s = static_cast<Instance*>( owner );
     s->physics = nullptr;
+    s->independent.owner = nullptr;
     s->invalidated = true;
 }
 static void Retain( void* owner )
@@ -904,25 +925,26 @@ static void Release( void* owner )
     if ( --s->activeSteps == 0 && s->removePending )
         delete s;
 }
-static int New( lua_State* L )
+static int Create( lua_State* L, const IndependentHost* independent = nullptr )
 {
-    luaL_checktype( L, 1, LUA_TTABLE );
-    Field( L, 1, "couplingMode" );
+    const int options = independent ? 2 : 1;
+    luaL_checktype( L, options, LUA_TTABLE );
+    Field( L, options, "couplingMode" );
     bool assembly = lua_type( L, -1 ) == LUA_TSTRING && strcmp( lua_tostring( L, -1 ), "assembly" ) == 0;
     lua_pop( L, 1 );
-    if ( !assembly )
+    if ( !independent && !assembly )
         return luaL_error( L, "only couplingMode='assembly' is supported; historical soft modes were removed" );
-    Field( L, 1, "coupled" );
+    Field( L, options, "coupled" );
     bool coupled = lua_isboolean( L, -1 ) && lua_toboolean( L, -1 );
     lua_pop( L, 1 );
-    if ( !coupled )
+    if ( !independent && !coupled )
         return luaL_error( L, "assembly mode requires coupled=true" );
-    Field( L, 1, "profile" );
+    Field( L, options, "profile" );
     if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
         return luaL_error( L, "profile must be boolean" );
     bool profile = lua_toboolean( L, -1 );
     lua_pop( L, 1 );
-    Field( L, 1, "enableDynamicContacts" );
+    Field( L, options, "enableDynamicContacts" );
     if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
         return luaL_error( L, "enableDynamicContacts must be boolean" );
     bool dynamicContacts = lua_toboolean( L, -1 );
@@ -930,32 +952,41 @@ static int New( lua_State* L )
     if ( profile && !SoftBody::Box2DCoupling::profilingSupported() )
         return luaL_error( L, "profiling requires thread CPU clock support" );
     SoftBody::SimulationDef def;
-    Field( L, 1, "enableSoftContacts" );
+    Field( L, options, "enableSoftContacts" );
     if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
         return luaL_error( L, "enableSoftContacts must be boolean" );
     def.enableSoftContacts = lua_toboolean( L, -1 );
     lua_pop( L, 1 );
-    auto& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
-    if ( !physics.IsWorldValid() )
-        return luaL_error( L, "coupled soft world requires physics.start" );
-    if ( !FixedStepScheduler::GetTiming( physics, def.timeStep, def.subSteps ) )
-        return luaL_error( L, "configure physics.setFixedStepMode before creating a soft world" );
+    PhysicsWorld* physics = nullptr;
+    if ( independent )
+    {
+        def.timeStep = independent->timeStep;
+        def.subSteps = independent->subSteps;
+    }
+    else
+    {
+        physics = &LuaContext::GetRuntime( L )->GetPhysicsWorld();
+        if ( !physics->IsWorldValid() )
+            return luaL_error( L, "coupled soft world requires physics.start" );
+        if ( !FixedStepScheduler::GetTiming( *physics, def.timeStep, def.subSteps ) )
+            return luaL_error( L, "configure physics.setFixedStepMode before creating a soft world" );
+    }
     // The physics scheduler is the sole clock. Optional historical fields may
     // assert its configuration, but must never select an independent soft clock.
-    double dt = Value( L, 1, "timeStep", def.timeStep, 0, 1 );
-    double subs = Value( L, 1, "substeps", def.subSteps, 1, 128 );
-    double iterations = Value( L, 1, "iterations", 8, 1, 32 );
+    double dt = Value( L, options, "timeStep", def.timeStep, 0, 1 );
+    double subs = Value( L, options, "substeps", def.subSteps, 1, 128 );
+    double iterations = Value( L, options, "iterations", 8, 1, 32 );
     if ( float( dt ) != def.timeStep || subs != def.subSteps )
         return luaL_error( L, "configure timeStep and subSteps with physics.setFixedStepMode" );
     if ( iterations != 8 )
         return luaL_error( L, "soft constraint iterations must be 8" );
-    double bodies = Value( L, 1, "maxBodies", 32, 1, 32 ), joints = Value( L, 1, "maxJoints", 64, 0, 64 ),
-           touches = Value( L, 1, "maxTouches", 1, 0, 64 );
+    double bodies = Value( L, options, "maxBodies", 32, 1, 32 ), joints = Value( L, options, "maxJoints", 64, 0, 64 ),
+           touches = Value( L, options, "maxTouches", 1, 0, 64 );
     if ( bodies != std::floor( bodies ) || joints != std::floor( joints ) || touches != std::floor( touches ) )
         return luaL_error( L, "soft capacities must be integers" );
-    double nodes = Value( L, 1, "maxNodes", 512, 3, std::numeric_limits<int>::max() / 4 - 4 );
-    double rows = Value( L, 1, "maxSoftContactRows", 512, 1, std::numeric_limits<int>::max() );
-    double springs = Value( L, 1, "maxInternalSprings", 2048, 0, std::numeric_limits<int>::max() / 64 );
+    double nodes = Value( L, options, "maxNodes", 512, 3, std::numeric_limits<int>::max() / 4 - 4 );
+    double rows = Value( L, options, "maxSoftContactRows", 512, 1, std::numeric_limits<int>::max() );
+    double springs = Value( L, options, "maxInternalSprings", 2048, 0, std::numeric_limits<int>::max() / 64 );
     if ( nodes != std::floor( nodes ) || rows != std::floor( rows ) || springs != std::floor( springs ) )
         return luaL_error( L, "soft node, contact and internal spring capacities must be integers" );
     def.maxNodes = int( nodes );
@@ -965,15 +996,15 @@ static int New( lua_State* L )
     def.maxJoints = int( joints );
     def.maxTouches = int( touches );
     SoftBody::Box2DCouplingDef box;
-    box.world = physics.GetWorldId();
+    box.world = independent ? independent->id : physics->GetWorldId();
     box.flipY = true;
     box.profile = profile;
     box.enableDynamicContacts = dynamicContacts;
-    double rigidJoints = Value( L, 1, "maxRigidJoints", 64, 0, 64 );
+    double rigidJoints = Value( L, options, "maxRigidJoints", 64, 0, 64 );
     if ( rigidJoints != std::floor( rigidJoints ) )
         return luaL_error( L, "maxRigidJoints must be an integer" );
     box.maxRigidJoints = int( rigidJoints );
-    double chainSegments = Value( L, 1, "maxChainSegments", 256, 1, 4096 );
+    double chainSegments = Value( L, options, "maxChainSegments", 256, 1, 4096 );
     if ( chainSegments != std::floor( chainSegments ) )
         return luaL_error( L, "maxChainSegments must be an integer" );
     box.maxChainSegments = int( chainSegments );
@@ -985,7 +1016,7 @@ static int New( lua_State* L )
     if ( !h->instance )
         return luaL_error( L, "cannot allocate soft simulation" );
     auto& s = *h->instance;
-    s.scale = physics.GetPixelsPerMeter();
+    s.scale = independent ? independent->scale : physics->GetPixelsPerMeter();
     if ( !s.coupling.ready() )
     {
         const char* error = s.coupling.lastError();
@@ -993,14 +1024,44 @@ static int New( lua_State* L )
         h->instance = nullptr;
         return luaL_error( L, "%s", error );
     }
+    if ( independent )
+    {
+        s.independent = *independent;
+        lua_newtable( L );
+        lua_pushvalue( L, 1 );
+        lua_setfield( L, -2, "physicsWorld" );
+        lua_setfenv( L, -2 );
+        return 1;
+    }
     FixedStepScheduler::Client client = { &s, Prepare, nullptr, Invalidate, Advance, Retain, Release };
-    if ( const char* error = FixedStepScheduler::Attach( physics, client, def.timeStep, def.subSteps ) )
+    if ( const char* error = FixedStepScheduler::Attach( *physics, client, def.timeStep, def.subSteps ) )
     {
         delete h->instance;
         h->instance = nullptr;
         return luaL_error( L, "%s", error );
     }
-    s.physics = &physics;
+    s.physics = physics;
+    return 1;
+}
+static int New( lua_State* L )
+{
+    return Create( L );
+}
+static const char* PrepareIndependent( void* owner )
+{
+    auto& s = *static_cast<Instance*>( owner );
+    return s.coupling.prepare() ? nullptr : s.coupling.lastError();
+}
+static const char* AdvanceIndependent( void* owner, bool& entered )
+{
+    auto& s = *static_cast<Instance*>( owner );
+    return s.coupling.advance( &entered ) ? nullptr : s.coupling.lastError();
+}
+int NewIndependent( lua_State* L, const IndependentHost& host, IndependentClient& client )
+{
+    Create( L, &host );
+    auto* handle = static_cast<Handle*>( lua_touserdata( L, -1 ) );
+    client = { handle->instance, PrepareIndependent, AdvanceIndependent, Invalidate, Retain, Release };
     return 1;
 }
 static void Register( lua_State* L )
