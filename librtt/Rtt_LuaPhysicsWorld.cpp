@@ -364,6 +364,16 @@ int ShapeValid( lua_State *L )
     lua_pushboolean( L, ValidShape( *(ShapeHandle *)luaL_checkudata( L, 1, kShape ) ) );
     return 1;
 }
+int ShapeTestPoint( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    World &w = *h.world;
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    b2Pos point = { (float)( Number( L, 2 ) / w.scale ), (float)( Number( L, 3 ) / w.scale ) };
+    lua_pushboolean( L, b2Shape_TestPoint( h.id, point ) );
+    return 1;
+}
 int ShapeIndex( lua_State *L )
 {
     // isValid remains callable after destruction.
@@ -1332,6 +1342,8 @@ bool Contacts( lua_State *L, World &w, int wi )
         lua_createtable( L, 0, 9 );
         lua_pushliteral( L, "collision" );
         lua_setfield( L, -2, "name" );
+        lua_pushvalue( L, wi );
+        lua_setfield( L, -2, "world" );
         lua_pushstring( L, e.began ? "began" : "ended" );
         lua_setfield( L, -2, "phase" );
         Bool( L, "isSensor", e.sensor );
@@ -1529,6 +1541,111 @@ int WorldState( lua_State *L )
     }
     return 1;
 }
+struct QueryOptions
+{
+    b2QueryFilter filter = { UINT32_MAX, UINT32_MAX };
+    bool includeSensors = true;
+    int bodyType = -1;
+};
+QueryOptions ReadQueryOptions( lua_State *L, int index )
+{
+    QueryOptions options;
+    if ( lua_isnoneornil( L, index ) )
+        return options;
+    luaL_checktype( L, index, LUA_TTABLE );
+    Options( L, index, { "categoryBits", "maskBits", "includeSensors", "bodyType" } );
+    options.filter.categoryBits =
+        (uint64_t)IntegerOption( L, index, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
+    options.filter.maskBits = (uint64_t)IntegerOption( L, index, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    options.includeSensors = Flag( L, index, "includeSensors", true );
+    lua_getfield( L, index, "bodyType" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        const char *type = luaL_checkstring( L, -1 );
+        if ( !strcmp( type, "static" ) )
+            options.bodyType = b2_staticBody;
+        else if ( !strcmp( type, "kinematic" ) )
+            options.bodyType = b2_kinematicBody;
+        else if ( !strcmp( type, "dynamic" ) )
+            options.bodyType = b2_dynamicBody;
+        else
+            luaL_error( L, "unknown query body type" );
+    }
+    lua_pop( L, 1 );
+    return options;
+}
+bool QueryAccepts( b2ShapeId id, const QueryOptions &options )
+{
+    return ( options.includeSensors || !b2Shape_IsSensor( id ) ) &&
+           ( options.bodyType < 0 || b2Body_GetType( b2Shape_GetBody( id ) ) == options.bodyType );
+}
+struct OverlapQuery
+{
+    QueryOptions options;
+    b2Pos point;
+    bool exactPoint;
+    std::vector<b2ShapeId> shapes;
+};
+bool CollectOverlap( b2ShapeId id, void *context )
+{
+    auto &query = *(OverlapQuery *)context;
+    if ( QueryAccepts( id, query.options ) && ( !query.exactPoint || b2Shape_TestPoint( id, query.point ) ) )
+        query.shapes.push_back( id );
+    return true;
+}
+int WorldOverlap( lua_State *L, bool exactPoint )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
+    float x2 = exactPoint ? x : (float)( Number( L, 4 ) / w.scale );
+    float y2 = exactPoint ? y : (float)( Number( L, 5 ) / w.scale );
+    if ( x2 < x || y2 < y )
+        return luaL_error( L, "query region bounds must be ordered" );
+    QueryOptions options = ReadQueryOptions( L, exactPoint ? 4 : 6 );
+    OverlapQuery query = { options, { x, y }, exactPoint, {} };
+    // The tree supplies candidates. Only point queries refine to actual geometry;
+    // region queries intentionally keep the broadphase AABB contract.
+    b2World_OverlapAABB( w.id, b2Pos_zero, { { x, y }, { x2, y2 } }, options.filter, CollectOverlap, &query );
+    // Never call Lua inside a native query. Return the existing, retained handles.
+    lua_createtable( L, (int)query.shapes.size(), 0 );
+    int index = 0;
+    for ( b2ShapeId id : query.shapes )
+    {
+        auto *shape = (Shape *)b2Shape_GetUserData( id );
+        PushHandle( L, 1, "shapes", shape->serial );
+        lua_rawseti( L, -2, ++index );
+    }
+    return 1;
+}
+int WorldQueryPoint( lua_State *L )
+{
+    return WorldOverlap( L, true );
+}
+int WorldQueryRegion( lua_State *L )
+{
+    return WorldOverlap( L, false );
+}
+struct RayQuery
+{
+    QueryOptions options;
+    b2RayResult result = {};
+};
+float CollectRay( b2ShapeId id, b2Pos point, b2Vec2 normal, float fraction, void *context )
+{
+    auto &query = *(RayQuery *)context;
+    if ( !QueryAccepts( id, query.options ) )
+        return -1;
+    if ( !query.result.hit || fraction < query.result.fraction )
+    {
+        query.result.hit = true;
+        query.result.shapeId = id;
+        query.result.point = point;
+        query.result.normal = normal;
+        query.result.fraction = fraction;
+    }
+    return query.result.fraction;
+}
 int WorldRay( lua_State *L )
 {
     World &w = GetWorld( L );
@@ -1536,16 +1653,10 @@ int WorldRay( lua_State *L )
         return luaL_error( L, "world is locked" );
     float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
     b2Vec2 end = { (float)( Number( L, 4 ) / w.scale ), (float)( Number( L, 5 ) / w.scale ) };
-    b2QueryFilter filter = b2DefaultQueryFilter();
-    filter.maskBits = UINT32_MAX;
-    if ( !lua_isnoneornil( L, 6 ) )
-    {
-        luaL_checktype( L, 6, LUA_TTABLE );
-        Options( L, 6, { "categoryBits", "maskBits" } );
-        filter.categoryBits = (uint64_t)IntegerOption( L, 6, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
-        filter.maskBits = (uint64_t)IntegerOption( L, 6, "maskBits", UINT32_MAX, 0, UINT32_MAX );
-    }
-    b2RayResult result = b2World_CastRayClosest( w.id, { x, y }, { end.x - x, end.y - y }, filter );
+    RayQuery query;
+    query.options = ReadQueryOptions( L, 6 );
+    b2World_CastRay( w.id, { x, y }, { end.x - x, end.y - y }, query.options.filter, CollectRay, &query );
+    const b2RayResult &result = query.result;
     if ( !result.hit )
     {
         lua_pushnil( L );
@@ -1703,11 +1814,17 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "setSimulationSpeed", WorldSpeed },
                                       { "getState", WorldState },
                                       { "rayCast", WorldRay },
+                                      { "queryPoint", WorldQueryPoint },
+                                      { "queryRegion", WorldQueryRegion },
                                       { "destroy", WorldDestroy },
                                       { NULL, NULL } };
-    const luaL_Reg shapeMethods[] = { { "__index", ShapeIndex },   { "__newindex", ShapeNewIndex },
-                                      { "destroy", ShapeDestroy }, { "removeSelf", ShapeDestroy },
-                                      { "isValid", ShapeValid },   { NULL, NULL } };
+    const luaL_Reg shapeMethods[] = { { "__index", ShapeIndex },
+                                      { "__newindex", ShapeNewIndex },
+                                      { "destroy", ShapeDestroy },
+                                      { "removeSelf", ShapeDestroy },
+                                      { "isValid", ShapeValid },
+                                      { "testPoint", ShapeTestPoint },
+                                      { NULL, NULL } };
     const luaL_Reg chainMethods[] = { { "getSegments", ChainSegments }, { "getBody", ChainBody },
                                       { "setFilter", ChainFilter },     { "setMaterial", ChainMaterial },
                                       { "destroy", ChainDestroy },      { "removeSelf", ChainDestroy },
