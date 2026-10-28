@@ -1520,6 +1520,8 @@ int WorldState( lua_State *L )
     Field( L, "activeBindings", w.active.size() );
     Field( L, "viewUpdates", w.lastViewUpdates );
     Field( L, "pixelsPerMeter", w.scale );
+    if ( w.alive )
+        Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
     if ( w.faulted )
     {
         lua_pushstring( L, w.error.c_str() );
@@ -1651,7 +1653,8 @@ int LuaPhysicsWorld::New( lua_State *L )
     def.enableSleep = Flag( L, 1, "sleepingEnabled", true );
     def.enableContinuous = Flag( L, 1, "continuous", true );
     def.workerCount = (int)workers;
-    double recycle = Option( L, 1, "contactRecycleDistance", 0 );
+    // Keep Box2D's native contact reuse unless the caller explicitly overrides it.
+    double recycle = Option( L, 1, "contactRecycleDistance", B2_CONTACT_RECYCLE_DISTANCE * scale );
     if ( recycle < 0 )
         return luaL_error( L, "negative contact recycle distance" );
     const luaL_Reg bodyMethods[] = { { "__index", BodyIndex },
