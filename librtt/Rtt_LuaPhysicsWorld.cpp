@@ -8,6 +8,7 @@
 #include "Rtt_LuaContext.h"
 #include "Rtt_Runtime.h"
 #include "Rtt_PhysicsWorld.h"
+#include "Rtt_PhysicsCompoundEdges.h"
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Display/Rtt_DisplayObject.h"
@@ -67,6 +68,12 @@ struct Chain
     unsigned int element = 0;
     std::vector<size_t> segments;
 };
+struct CompoundEdge
+{
+    b2BodyId bodyId;
+    b2ShapeId shapeId;
+    b2Vec2 point1, point2, normal;
+};
 struct World
 {
     b2WorldId id = b2_nullWorldId;
@@ -75,6 +82,8 @@ struct World
     unsigned long long index = 0, interruption = 0;
     float scale = 30, dt = 1.0f / 60;
     int subSteps = 8, cap = 8;
+    bool compoundInternalEdgeSuppression = false;
+    std::vector<CompoundEdge> compoundEdges;
     double speed = 1, budget = 0, renderTime = 0;
     size_t lastViewUpdates = 0, bindingCount = 0;
     std::string error;
@@ -87,6 +96,44 @@ struct World
     std::vector<Body *> active;
     SoftSimulationLua::IndependentClient soft{};
 };
+// Independent worlds own these flags; there is no Lua preCollision callback.
+// Geometry changes rebuild only this body's entries, outside the locked step.
+void RefreshCompoundEdges( World &w, b2BodyId bodyId, bool rebuild = true )
+{
+    if ( !w.compoundInternalEdgeSuppression )
+        return;
+    auto &edges = w.compoundEdges;
+    edges.erase( std::remove_if( edges.begin(), edges.end(), [&]( const CompoundEdge &edge ) {
+                     return B2_ID_EQUALS( edge.bodyId, bodyId );
+                 } ), edges.end() );
+    if ( !rebuild )
+        return;
+    std::vector<b2ShapeId> shapes( b2Body_GetShapeCount( bodyId ) );
+    b2Body_GetShapes( bodyId, shapes.data(), (int)shapes.size() );
+    for ( b2ShapeId shape : shapes )
+        b2Shape_EnablePreSolveEvents( shape, false );
+    PhysicsCompoundEdges::Build( bodyId, edges, []( b2ShapeId shape ) {
+        b2Shape_EnablePreSolveEvents( shape, true );
+    } );
+}
+bool CompoundPreContinuous( b2ShapeId a, b2ShapeId b, b2Vec2 point, b2Vec2 normal, void *context )
+{
+    return !PhysicsCompoundEdges::Suppress( static_cast<World *>( context )->compoundEdges, a, b,
+                                           point, normal );
+}
+void CompoundPreSolve( b2ShapeId a, b2ShapeId b, b2Manifold *manifold, void *context )
+{
+    if ( manifold->pointCount == 0 )
+        return;
+    int deepest = 0;
+    for ( int i = 1; i < manifold->pointCount; ++i )
+        if ( manifold->points[i].separation < manifold->points[deepest].separation )
+            deepest = i;
+    b2Vec2 origin = b2Body_GetPosition( b2Shape_GetBody( a ) );
+    if ( !CompoundPreContinuous( a, b, b2Add( origin, manifold->points[deepest].anchorA ),
+                                manifold->normal, context ) )
+        manifold->pointCount = 0;
+}
 struct Handle
 {
     World *world;
@@ -359,6 +406,7 @@ int ReturnShape( lua_State *L, World &w, Body &b, b2ShapeId id )
         return luaL_error( L, "shape creation failed" );
     PushWorld( L, 1 );
     RegisterShape( L, w, b, lua_gettop( L ), id, ++b.fixtureCount );
+    RefreshCompoundEdges( w, b.id );
     return 1;
 }
 int ShapeValid( lua_State *L )
@@ -459,7 +507,9 @@ int ShapeDestroy( lua_State *L )
     Mutable( L, *h.world );
     if ( h.world->shapes[h.index]->chain != kInactive )
         return luaL_error( L, "destroy the owning chain, not an individual segment" );
+    b2BodyId bodyId = b2Shape_GetBody( h.id );
     b2DestroyShape( h.id, true );
+    RefreshCompoundEdges( *h.world, bodyId );
     PushWorld( L, 1 );
     ReleaseShape( L, *h.world, lua_gettop( L ), h.index );
     return 0;
@@ -817,6 +867,7 @@ int BodyDestroy( lua_State *L )
         ReleaseChain( L, w, wi, b.chains.back() );
     while ( !b.shapes.empty() )
         ReleaseShape( L, w, wi, b.shapes.back() );
+    RefreshCompoundEdges( w, b.id, false );
     b2DestroyBody( b.id );
     b.id = b2_nullBodyId;
     b.fixtureCount = 0;
@@ -1579,6 +1630,7 @@ int WorldState( lua_State *L )
         Bool( L, "continuous", b2World_IsContinuousEnabled( w.id ) );
         Bool( L, "sleepingEnabled", b2World_IsSleepingEnabled( w.id ) );
         Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
+        Bool( L, "compoundInternalEdgeSuppression", w.compoundInternalEdgeSuppression );
         Bool( L, "seamContactFilter", b2World_IsSeamContactFilterEnabled( w.id ) );
         Bool( L, "weldRestitution", b2World_IsWeldRestitutionEnabled( w.id ) );
         Field( L, "restitutionIterations", b2World_GetRestitutionIterations( w.id ) );
@@ -1759,6 +1811,7 @@ void Destroy( lua_State *L, World &w, int wi )
     w.joints.clear();
     w.shapes.clear();
     w.chains.clear();
+    w.compoundEdges.clear();
     w.freeShapes.clear();
     w.freeChains.clear();
     w.active.clear();
@@ -1858,7 +1911,7 @@ int LuaPhysicsWorld::New( lua_State *L )
     Options( L, 1,
              { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount",
                "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance",
-               "seamContactFilter", "weldRestitution",
+               "compoundInternalEdgeSuppression", "seamContactFilter", "weldRestitution",
                "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed" } );
     double scale = Option( L, 1, "pixelsPerMeter", 30 ), dt = Option( L, 1, "timeStep", 1.0 / 60 );
     double sub = Option( L, 1, "subSteps", 8 ), cap = Option( L, 1, "maxStepsPerFrame", 8 ),
@@ -1880,6 +1933,7 @@ int LuaPhysicsWorld::New( lua_State *L )
     double recycle = Option( L, 1, "contactRecycleDistance", B2_CONTACT_RECYCLE_DISTANCE * scale );
     if ( recycle < 0 )
         return luaL_error( L, "negative contact recycle distance" );
+    bool compound = Flag( L, 1, "compoundInternalEdgeSuppression", false );
     bool seam = Flag( L, 1, "seamContactFilter", false );
     bool weld = Flag( L, 1, "weldRestitution", false );
     double iterations = Option( L, 1, "restitutionIterations", def.restitutionIterations );
@@ -2003,6 +2057,9 @@ int LuaPhysicsWorld::New( lua_State *L )
     b2World_SetContactRecycleDistance( w.id, (float)( recycle / scale ) );
     b2World_EnableSeamContactFilter( w.id, seam );
     b2World_EnableWeldRestitution( w.id, weld );
+    w.compoundInternalEdgeSuppression = compound;
+    if ( compound )
+        b2World_SetPreSolveCallback( w.id, CompoundPreSolve, CompoundPreContinuous, &w );
     return 1;
 }
 } // namespace Rtt
