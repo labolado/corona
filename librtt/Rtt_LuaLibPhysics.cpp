@@ -4498,7 +4498,11 @@ SetSpeculativeCornerPassThroughEnabled( lua_State *L )
 		return 0;
 	}
 
-	bool result = ! LuaLibPhysics::IsWorldLocked( L, "physics.setSpeculativeCornerPassThroughEnabled()" );
+	// This native policy is process-global. Independent worlds do not require
+	// physics.start(); preserve the lock guard when the default world exists.
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	bool result = ! physics.IsWorldValid() ||
+		! LuaLibPhysics::IsWorldLocked( L, "physics.setSpeculativeCornerPassThroughEnabled()" );
 	if ( result )
 	{
 		b2SetSpeculativeCornerPassThrough( lua_toboolean( L, 1 ) );

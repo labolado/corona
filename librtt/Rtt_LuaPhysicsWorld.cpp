@@ -1571,8 +1571,23 @@ int WorldState( lua_State *L )
     Field( L, "activeBindings", w.active.size() );
     Field( L, "viewUpdates", w.lastViewUpdates );
     Field( L, "pixelsPerMeter", w.scale );
+    // This one native policy is process-global, including the default world.
+    Bool( L, "speculativeCornerPassThrough", b2GetSpeculativeCornerPassThrough() );
     if ( w.alive )
+    {
+        Field( L, "workerCount", b2World_GetWorkerCount( w.id ) );
+        Bool( L, "continuous", b2World_IsContinuousEnabled( w.id ) );
+        Bool( L, "sleepingEnabled", b2World_IsSleepingEnabled( w.id ) );
         Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
+        Bool( L, "seamContactFilter", b2World_IsSeamContactFilterEnabled( w.id ) );
+        Bool( L, "weldRestitution", b2World_IsWeldRestitutionEnabled( w.id ) );
+        Field( L, "restitutionIterations", b2World_GetRestitutionIterations( w.id ) );
+        float hertz, damping, speed;
+        b2World_GetContactTuning( w.id, &hertz, &damping, &speed );
+        Field( L, "contactHertz", hertz );
+        Field( L, "contactDampingRatio", damping );
+        Field( L, "contactPushSpeed", speed * w.scale );
+    }
     if ( w.faulted )
     {
         lua_pushstring( L, w.error.c_str() );
@@ -1842,7 +1857,9 @@ int LuaPhysicsWorld::New( lua_State *L )
     luaL_checktype( L, 1, LUA_TTABLE );
     Options( L, 1,
              { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount",
-               "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance" } );
+               "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance",
+               "seamContactFilter", "weldRestitution",
+               "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed" } );
     double scale = Option( L, 1, "pixelsPerMeter", 30 ), dt = Option( L, 1, "timeStep", 1.0 / 60 );
     double sub = Option( L, 1, "subSteps", 8 ), cap = Option( L, 1, "maxStepsPerFrame", 8 ),
            speed = Option( L, 1, "speed", 1 );
@@ -1863,6 +1880,19 @@ int LuaPhysicsWorld::New( lua_State *L )
     double recycle = Option( L, 1, "contactRecycleDistance", B2_CONTACT_RECYCLE_DISTANCE * scale );
     if ( recycle < 0 )
         return luaL_error( L, "negative contact recycle distance" );
+    bool seam = Flag( L, 1, "seamContactFilter", false );
+    bool weld = Flag( L, 1, "weldRestitution", false );
+    double iterations = Option( L, 1, "restitutionIterations", def.restitutionIterations );
+    double hertz = Option( L, 1, "contactHertz", def.contactHertz );
+    double damping = Option( L, 1, "contactDampingRatio", def.contactDampingRatio );
+    double pushSpeed = Option( L, 1, "contactPushSpeed", def.contactSpeed * scale ) / scale;
+    if ( iterations < 0 || iterations > B2_MAX_RESTITUTION_ITERATIONS || iterations != floor( iterations ) ||
+         hertz < 0 || damping < 0 || pushSpeed < 0 )
+        return luaL_error( L, "invalid restitution iterations or contact tuning" );
+    def.restitutionIterations = (int)iterations;
+    def.contactHertz = (float)hertz;
+    def.contactDampingRatio = (float)damping;
+    def.contactSpeed = (float)pushSpeed;
     const luaL_Reg bodyMethods[] = { { "__index", BodyIndex },
                                      { "__newindex", BodyNewIndex },
                                      { "addCircle", BodyCircle },
@@ -1971,6 +2001,8 @@ int LuaPhysicsWorld::New( lua_State *L )
         return luaL_error( L, "cannot allocate another Box2D world" );
     }
     b2World_SetContactRecycleDistance( w.id, (float)( recycle / scale ) );
+    b2World_EnableSeamContactFilter( w.id, seam );
+    b2World_EnableWeldRestitution( w.id, weld );
     return 1;
 }
 } // namespace Rtt
