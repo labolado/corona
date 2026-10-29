@@ -261,6 +261,7 @@ int JointIndex( lua_State *L )
                            : type == b2_weldJoint     ? "weld"
                            : type == b2_distanceJoint ? "distance"
                            : type == b2_wheelJoint    ? "wheel"
+                           : type == b2_filterJoint   ? "fake"
                                                       : "touch" );
     else if ( !strcmp( key, "referenceAngle" ) && ( type == b2_revoluteJoint || type == b2_weldJoint ) )
         lua_pushnumber( L, b2RelativeAngle( b2Joint_GetLocalFrameB( id ).q, b2Joint_GetLocalFrameA( id ).q ) /
@@ -375,6 +376,8 @@ int WorldJoint( lua_State *L )
         type = b2_distanceJoint;
     else if ( !strcmp( name, "wheel" ) )
         type = b2_wheelJoint;
+    else if ( !strcmp( name, "fake" ) )
+        type = b2_filterJoint;
     else if ( !strcmp( name, "touch" ) )
         type = b2_motorJoint;
     else
@@ -387,10 +390,12 @@ int WorldJoint( lua_State *L )
     if ( touch && b2Body_GetType( b.id ) != b2_dynamicBody )
         return luaL_error( L, "touch requires a dynamic body" );
     int first = touch ? 4 : 5;
-    b2Pos anchorA = { (float)( Number( L, first ) / w.scale ), (float)( Number( L, first + 1 ) / w.scale ) };
+    b2Pos anchorA = { 0, 0 };
+    if ( type != b2_filterJoint )
+        anchorA = { (float)( Number( L, first ) / w.scale ), (float)( Number( L, first + 1 ) / w.scale ) };
     b2Pos anchorB = anchorA;
     b2Rot axis = b2Rot_identity;
-    int options = first + 2;
+    int options = type == b2_filterJoint ? 5 : first + 2;
     if ( type == b2_distanceJoint )
     {
         anchorB = { (float)( Number( L, 7 ) / w.scale ), (float)( Number( L, 8 ) / w.scale ) };
@@ -470,6 +475,12 @@ int WorldJoint( lua_State *L )
         b2WheelJointDef d = b2DefaultWheelJointDef();
         d.base = base;
         id = b2CreateWheelJoint( w.id, &d );
+    }
+    else if ( type == b2_filterJoint )
+    {
+        b2FilterJointDef d = b2DefaultFilterJointDef();
+        d.base = base;
+        id = b2CreateFilterJoint( w.id, &d );
     }
     else
     {
