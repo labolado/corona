@@ -463,6 +463,7 @@ int ShapeIndex( lua_State *L )
     {
         b2ShapeType type = b2Shape_GetType( h.id );
         lua_pushstring( L, type == b2_circleShape         ? "circle"
+                           : type == b2_capsuleShape      ? "capsule"
                            : type == b2_chainSegmentShape ? "chainSegment"
                                                           : "polygon" );
     }
@@ -908,6 +909,41 @@ int BodyCircle( lua_State *L )
         { (float)( Option( L, 2, "x", 0 ) / w.scale ), (float)( Option( L, 2, "y", 0 ) / w.scale ) }, r };
     return ReturnShape( L, w, b, b2CreateCircleShape( b.id, &d, &c ) );
 }
+int BodyCapsule( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    Options( L, 2, { "x1", "y1", "x2", "y2", "radius", "density", "friction", "bounce",
+                    "isSensor", "filter" } );
+    b2ShapeDef d = ShapeOptions( L, 2 );
+    b2Capsule c = {
+        { (float)( Option( L, 2, "x1", 0 ) / w.scale ), (float)( Option( L, 2, "y1", 0 ) / w.scale ) },
+        { (float)( Option( L, 2, "x2", 0 ) / w.scale ), (float)( Option( L, 2, "y2", 0 ) / w.scale ) },
+        (float)( Option( L, 2, "radius", 0 ) / w.scale ) };
+    if ( c.radius <= 0 )
+        return luaL_error( L, "radius must be positive" );
+    float lengthSquared = b2DistanceSquared( c.center1, c.center2 );
+    if ( !std::isfinite( lengthSquared ) || lengthSquared <= B2_LINEAR_SLOP * B2_LINEAR_SLOP )
+        return luaL_error( L,
+                           "capsule centerline must exceed Box2D linear slop; use addCircle for a disk" );
+    return ReturnShape( L, w, b, b2CreateCapsuleShape( b.id, &d, &c ) );
+}
+float PolygonRadius( lua_State *L, const World &w )
+{
+    lua_getfield( L, 2, "radius" );
+    lua_getfield( L, 2, "roundness" );
+    if ( !lua_isnil( L, -2 ) && !lua_isnil( L, -1 ) )
+        luaL_error( L, "specify radius or roundness, not both" );
+    double value = !lua_isnil( L, -2 )   ? Number( L, -2 )
+                   : !lua_isnil( L, -1 ) ? Number( L, -1 )
+                                          : 0;
+    lua_pop( L, 2 );
+    if ( value < 0 )
+        luaL_error( L, "polygon radius must be nonnegative" );
+    return (float)( value / w.scale );
+}
 int BodyBox( lua_State *L )
 {
     Body &b = GetBody( L );
@@ -915,9 +951,10 @@ int BodyBox( lua_State *L )
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
-             { "halfWidth", "halfHeight", "x", "y", "angle", "density", "friction", "bounce", "isSensor",
-               "filter" } );
+             { "halfWidth", "halfHeight", "x", "y", "angle", "radius", "roundness", "density",
+               "friction", "bounce", "isSensor", "filter" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
+    float radius = PolygonRadius( L, w );
     float hx = (float)( Option( L, 2, "halfWidth", 0 ) / w.scale ),
           hy = (float)( Option( L, 2, "halfHeight", 0 ) / w.scale );
     if ( hx <= 0 || hy <= 0 )
@@ -926,6 +963,7 @@ int BodyBox( lua_State *L )
                       (float)( Option( L, 2, "y", 0 ) / w.scale ) };
     b2Polygon p =
         b2MakeOffsetBox( hx, hy, center, b2MakeRot( (float)( Option( L, 2, "angle", 0 ) * kRad ) ) );
+    p.radius = radius;
     return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &p ) );
 }
 int BodyPolygon( lua_State *L )
@@ -934,8 +972,10 @@ int BodyPolygon( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "shape", "density", "friction", "bounce", "isSensor", "filter" } );
+    Options( L, 2,
+             { "shape", "radius", "roundness", "density", "friction", "bounce", "isSensor", "filter" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
+    float radius = PolygonRadius( L, w );
     lua_getfield( L, 2, "shape" );
     luaL_checktype( L, -1, LUA_TTABLE );
     size_t length = lua_objlen( L, -1 );
@@ -954,7 +994,7 @@ int BodyPolygon( lua_State *L )
     b2Hull hull = b2ComputeHull( vertices, (int)length / 2 );
     if ( hull.count < 3 || !b2ValidateHull( &hull ) )
         return luaL_error( L, "degenerate polygon hull" );
-    b2Polygon polygon = b2MakePolygon( &hull, 0 );
+    b2Polygon polygon = b2MakePolygon( &hull, radius );
     return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &polygon ) );
 }
 int ChainBody( lua_State *L )
@@ -1950,6 +1990,7 @@ int LuaPhysicsWorld::New( lua_State *L )
     const luaL_Reg bodyMethods[] = { { "__index", BodyIndex },
                                      { "__newindex", BodyNewIndex },
                                      { "addCircle", BodyCircle },
+                                     { "addCapsule", BodyCapsule },
                                      { "addBox", BodyBox },
                                      { "addPolygon", BodyPolygon },
                                      { "addChain", BodyChain },
