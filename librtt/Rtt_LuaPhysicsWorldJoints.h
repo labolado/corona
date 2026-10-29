@@ -32,6 +32,33 @@ struct JointFlagProperty
     bool ( *get )( b2JointId );
     void ( *set )( b2JointId, bool );
 };
+float ConstraintFrequency( b2JointId id )
+{
+    float hertz, damping;
+    b2Joint_GetConstraintTuning( id, &hertz, &damping );
+    return hertz;
+}
+float ConstraintDamping( b2JointId id )
+{
+    float hertz, damping;
+    b2Joint_GetConstraintTuning( id, &hertz, &damping );
+    return damping;
+}
+void SetConstraintFrequency( b2JointId id, float value )
+{
+    b2Joint_SetConstraintTuning( id, value, ConstraintDamping( id ) );
+}
+void SetConstraintDamping( b2JointId id, float value )
+{
+    b2Joint_SetConstraintTuning( id, ConstraintFrequency( id ), value );
+}
+// These tune constraint correction, not a weld's optional soft spring.
+const JointNumberProperty kConstraintNumbers[] = {
+    { "constraintFrequency", b2_weldJoint, ConstraintFrequency, SetConstraintFrequency,
+      JointUnit::SI, JointRange::Nonnegative },
+    { "constraintDampingRatio", b2_weldJoint, ConstraintDamping, SetConstraintDamping,
+      JointUnit::SI, JointRange::Nonnegative },
+};
 const JointNumberProperty kJointNumbers[] = {
     { "motorSpeed", b2_revoluteJoint, b2RevoluteJoint_GetTargetMotorSpeed,
       b2RevoluteJoint_SetTargetMotorSpeed, JointUnit::Degrees, JointRange::Signed },
@@ -83,6 +110,7 @@ const JointNumberProperty kJointNumbers[] = {
       JointUnit::SI, JointRange::Nonnegative },
 };
 const JointFlagProperty kJointFlags[] = {
+    { "blockSolve", b2_weldJoint, b2WeldJoint_IsBlockSolveEnabled, b2WeldJoint_EnableBlockSolve },
     { "isMotorEnabled", b2_revoluteJoint, b2RevoluteJoint_IsMotorEnabled, b2RevoluteJoint_EnableMotor },
     { "isLimitEnabled", b2_revoluteJoint, b2RevoluteJoint_IsLimitEnabled, b2RevoluteJoint_EnableLimit },
     { "isSpringEnabled", b2_revoluteJoint, b2RevoluteJoint_IsSpringEnabled, b2RevoluteJoint_EnableSpring },
@@ -95,6 +123,10 @@ const JointFlagProperty kJointFlags[] = {
 };
 const JointNumberProperty *JointNumber( b2JointType type, const char *key )
 {
+    if ( type != b2_filterJoint )
+        for ( const auto &p : kConstraintNumbers )
+            if ( !strcmp( p.name, key ) )
+                return &p;
     for ( const auto &p : kJointNumbers )
         if ( p.type == type && !strcmp( p.name, key ) )
             return &p;
