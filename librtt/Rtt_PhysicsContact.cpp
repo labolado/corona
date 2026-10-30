@@ -20,8 +20,11 @@
 #include "Rtt_Runtime.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Rtt_LuaContext.h"
+#include "Rtt_PhysicsWorld.h"
 
 #include "box2d/box2d.h"
+#include <cmath>
+#include <cfloat>
 
 // ----------------------------------------------------------------------------
 
@@ -65,6 +68,43 @@ PhysicsContact::GetContact( lua_State *L, int index )
 	return result;
 }
 
+// The native material is borrowed only during discrete pre-solve. In particular,
+// pre-continuous uses the same Lua event but has no contact material to edit.
+static bool
+GetContactMaterial( lua_State *L, float& friction, float& bounce )
+{
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	return physics.IsWorldValid()
+		&& b2World_GetPreSolveMaterial( physics.GetWorldId(), &friction, &bounce );
+}
+
+static int
+SetContactMaterial( lua_State *L, bool setFriction )
+{
+	float friction, bounce;
+	if ( ! GetContactMaterial( L, friction, bounce ) )
+	{
+		return luaL_error( L, "contact material is only writable during discrete preCollision; check contact.isMaterialEditable" );
+	}
+	luaL_checktype( L, 3, LUA_TNUMBER );
+	lua_Number value = lua_tonumber( L, 3 );
+	if ( ! std::isfinite( value ) || value < 0 || value > FLT_MAX )
+	{
+		return luaL_error( L, "contact material must be a finite nonnegative float" );
+	}
+	if ( setFriction )
+	{
+		friction = (float)value;
+	}
+	else
+	{
+		bounce = (float)value;
+	}
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	b2World_SetPreSolveMaterial( physics.GetWorldId(), friction, bounce );
+	return 0;
+}
+
 int
 PhysicsContact::ValueForKey( lua_State *L )
 {
@@ -93,11 +133,27 @@ PhysicsContact::ValueForKey( lua_State *L )
 		}
 		else if ( 0 == strcmp( "friction", key ) )
 		{
-			// lua_pushnumber( L, contact->GetFriction() );
+			float friction, bounce;
+			if ( GetContactMaterial( L, friction, bounce ) )
+			{
+				lua_pushnumber( L, friction );
+				result = 1;
+			}
 		}
 		else if ( 0 == strcmp( "bounce", key ) )
 		{
-			// lua_pushnumber( L, contact->GetRestitution() );
+			float friction, bounce;
+			if ( GetContactMaterial( L, friction, bounce ) )
+			{
+				lua_pushnumber( L, bounce );
+				result = 1;
+			}
+		}
+		else if ( 0 == strcmp( "isMaterialEditable", key ) )
+		{
+			float friction, bounce;
+			lua_pushboolean( L, GetContactMaterial( L, friction, bounce ) );
+			result = 1;
 		}
 		else if ( 0 == strcmp( "tangentSpeed", key ) )
 		{
@@ -128,11 +184,11 @@ PhysicsContact::SetValueForKey( lua_State *L )
 		}
 		else if ( 0 == strcmp( "friction", key ) )
 		{
-			// contact->SetFriction( lua_tonumber( L, 3 ) );
+			return SetContactMaterial( L, true );
 		}
 		else if ( 0 == strcmp( "bounce", key ) )
 		{
-			// contact->SetRestitution( lua_tonumber( L, 3 ) );
+			return SetContactMaterial( L, false );
 		}
 		else if ( 0 == strcmp( "tangentSpeed", key ) )
 		{
