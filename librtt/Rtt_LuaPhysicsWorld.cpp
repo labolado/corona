@@ -461,6 +461,12 @@ int ShapeIndex( lua_State *L )
         lua_pushnumber( L, b2Shape_GetRestitution( h.id ) );
     else if ( !strcmp( key, "isSensor" ) )
         lua_pushboolean( L, b2Shape_IsSensor( h.id ) );
+    else if ( !strcmp( key, "enableSensorEvents" ) )
+        lua_pushboolean( L, b2Shape_AreSensorEventsEnabled( h.id ) );
+    else if ( !strcmp( key, "enableContactEvents" ) )
+        lua_pushboolean( L, b2Shape_AreContactEventsEnabled( h.id ) );
+    else if ( !strcmp( key, "enableHitEvents" ) )
+        lua_pushboolean( L, b2Shape_AreHitEventsEnabled( h.id ) );
     else if ( !strcmp( key, "filter" ) )
         PushFilter( L, b2Shape_GetFilter( h.id ) );
     else if ( !strcmp( key, "body" ) || !strcmp( key, "chain" ) )
@@ -500,6 +506,19 @@ int ShapeNewIndex( lua_State *L )
     const char *key = luaL_checkstring( L, 2 );
     if ( !strcmp( key, "filter" ) )
         b2Shape_SetFilter( h.id, ReadFilter( L, 3 ) );
+    else if ( !strcmp( key, "enableSensorEvents" ) )
+    {
+        luaL_checktype( L, 3, LUA_TBOOLEAN );
+        b2Shape_EnableSensorEvents( h.id, lua_toboolean( L, 3 ) != 0 );
+    }
+    else if ( !strcmp( key, "enableContactEvents" ) )
+        return luaL_error( L, "enableContactEvents is creation-only; existing contacts retain their event flag" );
+    else if ( !strcmp( key, "enableHitEvents" ) )
+    {
+        luaL_checktype( L, 3, LUA_TBOOLEAN );
+        if ( lua_toboolean( L, 3 ) )
+            return luaL_error( L, "independent worlds do not support hit events" );
+    }
     else if ( !strcmp( key, "density" ) || !strcmp( key, "friction" ) || !strcmp( key, "bounce" ) )
     {
         double v = Number( L, 3 );
@@ -930,6 +949,13 @@ int BodyDestroy( lua_State *L )
     lua_rawseti( L, -2, (int)b.serial + 1 );
     return 0;
 }
+void CheckHitEvents( lua_State *L, int ti )
+{
+    // No independent hit listener yet. Accept an explicit false when mapping
+    // legacy fixture definitions, but never silently accept an undeliverable event.
+    if ( Flag( L, ti, "enableHitEvents", false ) )
+        luaL_error( L, "independent worlds do not support hit events" );
+}
 b2ShapeDef ShapeOptions( lua_State *L, int ti )
 {
     b2ShapeDef d = b2DefaultShapeDef();
@@ -941,8 +967,9 @@ b2ShapeDef ShapeOptions( lua_State *L, int ti )
          d.material.restitution > 1 )
         luaL_error( L, "invalid density, friction or bounce" );
     d.isSensor = Flag( L, ti, "isSensor", false );
-    d.enableContactEvents = true;
-    d.enableSensorEvents = true;
+    d.enableContactEvents = Flag( L, ti, "enableContactEvents", true );
+    d.enableSensorEvents = Flag( L, ti, "enableSensorEvents", true );
+    CheckHitEvents( L, ti );
     d.filter = FilterOption( L, ti );
     return d;
 }
@@ -952,7 +979,8 @@ int BodyCircle( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "isSensor", "filter" } );
+    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "isSensor", "filter",
+                    "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
     float r = (float)( Option( L, 2, "radius", 0 ) / w.scale );
     if ( r <= 0 )
@@ -968,7 +996,7 @@ int BodyCapsule( lua_State *L )
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2, { "x1", "y1", "x2", "y2", "radius", "density", "friction", "bounce",
-                    "isSensor", "filter" } );
+                    "isSensor", "filter", "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
     b2Capsule c = {
         { (float)( Option( L, 2, "x1", 0 ) / w.scale ), (float)( Option( L, 2, "y1", 0 ) / w.scale ) },
@@ -1000,7 +1028,8 @@ int BodyBox( lua_State *L )
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
              { "halfWidth", "halfHeight", "x", "y", "angle", "radius", "roundness", "density",
-               "friction", "bounce", "isSensor", "filter" } );
+               "friction", "bounce", "isSensor", "filter", "enableSensorEvents", "enableContactEvents",
+               "enableHitEvents" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
     float radius = PolygonRadius( L, w );
     float hx = (float)( Option( L, 2, "halfWidth", 0 ) / w.scale ),
@@ -1021,7 +1050,8 @@ int BodyPolygon( lua_State *L )
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
-             { "shape", "radius", "roundness", "density", "friction", "bounce", "isSensor", "filter" } );
+             { "shape", "radius", "roundness", "density", "friction", "bounce", "isSensor", "filter",
+               "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
     b2ShapeDef d = ShapeOptions( L, 2 );
     float radius = PolygonRadius( L, w );
     lua_getfield( L, 2, "shape" );
@@ -1101,11 +1131,15 @@ int BodyChain( lua_State *L )
     if ( b2Body_GetType( b.id ) != b2_staticBody )
         return luaL_error( L, "chains require a static body" );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "points", "isLoop", "ghost1", "ghost2", "friction", "bounce", "filter" } );
+    Options( L, 2, { "points", "isLoop", "ghost1", "ghost2", "friction", "bounce", "filter",
+                    "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
     b2ChainDef def = b2DefaultChainDef();
     def.isLoop = Flag( L, 2, "isLoop", false );
     def.filter = FilterOption( L, 2 );
-    def.enableSensorEvents = true;
+    def.enableSensorEvents = Flag( L, 2, "enableSensorEvents", true );
+    // Keep the existing native chain default; explicit values apply to every segment.
+    bool contactEvents = Flag( L, 2, "enableContactEvents", false );
+    CheckHitEvents( L, 2 );
     b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
     material.friction = (float)Option( L, 2, "friction", .3 );
     material.restitution = (float)Option( L, 2, "bounce", 0 );
@@ -1186,6 +1220,7 @@ int BodyChain( lua_State *L )
     int wi = lua_gettop( L );
     for ( int i = 0; i < segments; ++i )
     {
+        b2Shape_EnableContactEvents( ids[i], contactEvents );
         RegisterShape( L, w, b, wi, ids[i], chain->element, chain->serial, i + 1 );
         chain->segments.push_back( b.shapes.back() );
         lua_pop( L, 1 );
