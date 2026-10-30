@@ -36,6 +36,12 @@ const char *kChain = "Solar2D.physicsWorld.chain";
 const char *kBinding = "_physicsWorldBinding";
 const double kRad = 0.017453292519943295;
 const size_t kInactive = (size_t)-1;
+enum class Interpolation
+{
+    Auto,
+    On,
+    Off
+};
 struct Pose
 {
     float x, y, angle;
@@ -43,7 +49,6 @@ struct Pose
 struct Binding
 {
     LuaProxy *proxy = NULL; // The proxy userdata is retained even after removeSelf().
-    bool interpolate = true;
     Pose previous, current;
 };
 struct Body
@@ -86,6 +91,10 @@ struct World
     bool compoundInternalEdgeSuppression = false;
     std::vector<CompoundEdge> compoundEdges;
     double speed = 1, budget = 0, renderTime = 0;
+    Interpolation interpolation = Interpolation::Auto;
+    bool interpolating = false;
+    double frameInterval = 1.0 / 60, viewAlpha = 1;
+    size_t poseHistoryCopies = 0;
     size_t lastViewUpdates = 0, bindingCount = 0;
     std::string error;
     std::vector<std::unique_ptr<Body>> bodies;
@@ -622,9 +631,39 @@ void ResetPose( World &w, Body &b )
 {
     if ( b.binding )
     {
-        b.binding->previous = b.binding->current = ReadPose( w, b );
+        b.binding->current = ReadPose( w, b );
+        if ( w.interpolating )
+            b.binding->previous = b.binding->current;
         Activate( w, b );
     }
+}
+Interpolation ReadInterpolation( lua_State *L, int index )
+{
+    if ( lua_isboolean( L, index ) )
+        return lua_toboolean( L, index ) ? Interpolation::On : Interpolation::Off;
+    if ( lua_type( L, index ) == LUA_TSTRING && !strcmp( lua_tostring( L, index ), "auto" ) )
+        return Interpolation::Auto;
+    luaL_error( L, "world interpolation must be 'auto', true or false" );
+    return Interpolation::Auto;
+}
+void UpdateInterpolation( World &w )
+{
+    double rate = w.frameInterval / w.dt * w.speed;
+    // Test the cadence, not this frame's alpha: a half-speed frame with zero
+    // remainder still needs history for the following zero-step render frame.
+    bool aligned = rate >= 1 && rate == std::floor( rate ) && w.budget == std::floor( w.budget );
+    bool enabled = w.interpolation == Interpolation::On ||
+        ( w.interpolation == Interpolation::Auto && rate <= w.cap && !aligned );
+    if ( enabled == w.interpolating )
+        return;
+    w.interpolating = enabled;
+    w.poseHistoryCopies = 0;
+    if ( enabled )
+        for ( const auto &body : w.bodies )
+            if ( body->binding )
+                body->binding->previous = body->binding->current;
+    if ( w.soft.owner )
+        w.soft.setInterpolation( w.soft.owner, enabled );
 }
 int BodyUnbind( lua_State *L )
 {
@@ -658,12 +697,14 @@ int BodyBind( lua_State *L )
     lua_pop( L, 1 );
     if ( claimed )
         return luaL_error( L, "view is already bound; unbind it first" );
-    bool interpolate = true;
     if ( !lua_isnoneornil( L, 3 ) )
     {
         luaL_checktype( L, 3, LUA_TTABLE );
-        Options( L, 3, { "interpolation" } );
-        interpolate = Flag( L, 3, "interpolation", true );
+        lua_getfield( L, 3, "interpolation" );
+        if ( !lua_isnil( L, -1 ) )
+            return luaL_error( L, "configure interpolation on the physics world, not bindView" );
+        lua_pop( L, 1 );
+        Options( L, 3, {} );
     }
     ClearBinding( L, w, b, 1 );
     lua_getfenv( L, 1 );
@@ -679,16 +720,18 @@ int BodyBind( lua_State *L )
     b.binding.reset( new Binding );
     ++w.bindingCount;
     b.binding->proxy = proxy;
-    b.binding->interpolate = interpolate;
     ResetPose( w, b );
     return 0;
 }
 void SyncViews( lua_State *L, World &w, int wi, double alpha )
 {
+    if ( !w.interpolating )
+        alpha = 1;
     // Visual time never runs backwards after manual sync, cap saturation or pause.
     const double target = w.index ? (double)w.index - 1 + alpha : 0;
     w.renderTime = std::max( w.renderTime, target );
     alpha = w.index ? std::max( 0.0, std::min( 1.0, w.renderTime - ( (double)w.index - 1 ) ) ) : 1;
+    w.viewAlpha = alpha;
     w.lastViewUpdates = 0;
     w.syncing = true;
     for ( size_t i = 0; i < w.active.size(); )
@@ -703,15 +746,14 @@ void SyncViews( lua_State *L, World &w, int wi, double alpha )
             lua_pop( L, 1 );
             continue;
         }
-        const Pose &a = binding.previous;
         const Pose &z = binding.current;
-        double t = binding.interpolate ? alpha : 1;
-        float angleDelta = b2UnwindAngle( z.angle - a.angle );
+        const Pose &a = w.interpolating ? binding.previous : z;
+        double t = alpha;
         // Preserve exact endpoints; interpolation must not introduce subtract/add
         // restoration drift when presenting the completed physical pose.
         double x = t == 1 ? z.x : a.x + ( (double)z.x - a.x ) * t;
         double y = t == 1 ? z.y : a.y + ( (double)z.y - a.y ) * t;
-        double angle = t == 1 ? z.angle : a.angle + angleDelta * t;
+        double angle = t == 1 ? z.angle : a.angle + b2UnwindAngle( z.angle - a.angle ) * t;
         o->SetGeometricProperty( kOriginX, (Real)x );
         o->SetGeometricProperty( kOriginY, (Real)y );
         o->SetGeometricProperty( kRotation, (Real)( angle / kRad ) );
@@ -1482,8 +1524,13 @@ bool OneStep( lua_State *L, World &w, int wi )
             ++w.interruption;
             return false;
         }
-    for ( Body *b : w.active )
-        b->binding->previous = b->binding->current;
+    w.poseHistoryCopies = 0;
+    if ( w.interpolating )
+        for ( Body *b : w.active )
+        {
+            b->binding->previous = b->binding->current;
+            ++w.poseHistoryCopies;
+        }
     bool entered = true;
     if ( w.soft.owner )
     {
@@ -1549,6 +1596,7 @@ int WorldStep( lua_State *L )
     Busy busy( w );
     RuntimeGuard guard( *LuaContext::GetRuntime( L ) );
     const auto before = w.index;
+    UpdateInterpolation( w );
     OneStep( L, w, 1 );
     lua_pushinteger( L, w.index > before ? 1 : 0 );
     return 1;
@@ -1564,6 +1612,8 @@ int WorldAdvance( lua_State *L )
         interval = (float)Number( L, 2 );
     if ( interval <= 0 || interval > 1 )
         return luaL_error( L, "nominal frame interval must be in (0,1]" );
+    w.frameInterval = interval;
+    UpdateInterpolation( w );
     Busy busy( w );
     RuntimeGuard guard( *LuaContext::GetRuntime( L ) );
     int count = 0;
@@ -1608,6 +1658,7 @@ int WorldSync( lua_State *L )
     double alpha = lua_isnoneornil( L, 2 ) ? 1 : Number( L, 2 );
     if ( alpha < 0 || alpha > 1 )
         return luaL_error( L, "alpha must be in [0,1]" );
+    UpdateInterpolation( w );
     Busy busy( w );
     SyncViews( L, w, 1, alpha );
     return 0;
@@ -1637,6 +1688,17 @@ int WorldSpeed( lua_State *L )
     if ( speed <= 0 || speed > 64 )
         return luaL_error( L, "speed must be in (0,64]" );
     w.speed = speed;
+    if ( !w.busy )
+        UpdateInterpolation( w );
+    return 0;
+}
+int WorldInterpolation( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    w.interpolation = ReadInterpolation( L, 2 );
+    if ( !w.busy )
+        UpdateInterpolation( w );
     return 0;
 }
 int WorldState( lua_State *L )
@@ -1659,6 +1721,14 @@ int WorldState( lua_State *L )
     Field( L, "pendingSteps", w.budget );
     Field( L, "activeBindings", w.active.size() );
     Field( L, "viewUpdates", w.lastViewUpdates );
+    if ( w.interpolation == Interpolation::Auto )
+        lua_pushliteral( L, "auto" );
+    else
+        lua_pushboolean( L, w.interpolation == Interpolation::On );
+    lua_setfield( L, -2, "interpolation" );
+    Bool( L, "interpolationActive", w.interpolating );
+    Field( L, "viewAlpha", w.viewAlpha );
+    Field( L, "poseHistoryCopies", w.poseHistoryCopies );
     Field( L, "pixelsPerMeter", w.scale );
     // This one native policy is process-global, including the default world.
     Bool( L, "speculativeCornerPassThrough", b2GetSpeculativeCornerPassThrough() );
@@ -1912,6 +1982,7 @@ int WorldNewSoft( lua_State *L )
     SoftSimulationLua::IndependentHost host = { &w,        w.id, w.scale, w.dt, w.subSteps, ValidateSoftHost,
                                                 DetachSoft };
     SoftSimulationLua::NewIndependent( L, host, w.soft );
+    w.soft.setInterpolation( w.soft.owner, w.interpolating );
     lua_getfenv( L, 1 );
     lua_pushvalue( L, -2 );
     lua_setfield( L, -2, "softSystem" );
@@ -1947,13 +2018,16 @@ int LuaPhysicsWorld::New( lua_State *L )
     }
     luaL_checktype( L, 1, LUA_TTABLE );
     Options( L, 1,
-             { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount",
+             { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount", "interpolation",
                "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance",
                "compoundInternalEdgeSuppression", "seamContactFilter", "weldRestitution",
                "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed" } );
     double scale = Option( L, 1, "pixelsPerMeter", 30 ), dt = Option( L, 1, "timeStep", 1.0 / 60 );
     double sub = Option( L, 1, "subSteps", 8 ), cap = Option( L, 1, "maxStepsPerFrame", 8 ),
            speed = Option( L, 1, "speed", 1 );
+    lua_getfield( L, 1, "interpolation" );
+    Interpolation interpolation = lua_isnil( L, -1 ) ? Interpolation::Auto : ReadInterpolation( L, -1 );
+    lua_pop( L, 1 );
     double workers =
         Option( L, 1, "workerCount", LuaContext::GetRuntime( L )->GetPhysicsWorld().GetWorkerCount() );
     if ( scale < 1e-6 || scale > 1e9 || dt <= 0 || dt > 1 || (float)dt <= 0 || sub < 1 || sub > 128 ||
@@ -2030,6 +2104,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "pause", WorldPause },
                                       { "resume", WorldResume },
                                       { "setSimulationSpeed", WorldSpeed },
+                                      { "setInterpolation", WorldInterpolation },
                                       { "getState", WorldState },
                                       { "newSoftSystem", WorldNewSoft },
                                       { "rayCast", WorldRay },
@@ -2087,6 +2162,9 @@ int LuaPhysicsWorld::New( lua_State *L )
     w.subSteps = (int)sub;
     w.cap = (int)cap;
     w.speed = speed;
+    w.interpolation = interpolation;
+    w.frameInterval = LuaContext::GetRuntime( L )->GetFrameInterval();
+    UpdateInterpolation( w );
     w.id = b2CreateWorld( &def );
     if ( !b2World_IsValid( w.id ) )
     {

@@ -31,7 +31,6 @@ struct MeshBinding
 {
     SoftBody::ObjectId body;
     LuaProxy* proxy = nullptr; // Retained by the body userdata environment.
-    bool interpolate = true;
     std::vector<int> nodes;
     std::vector<SoftBody::Point> previous;
     SoftBody::SoftBodyState current; // Reused buffers; only bound bodies have history.
@@ -55,6 +54,8 @@ struct Instance
     bool invalidated = false, removePending = false;
     std::vector<std::unique_ptr<MeshBinding>> meshes;
     size_t meshUpdates = 0;
+    bool interpolate = false;
+    size_t meshHistoryCopies = 0;
     Instance( const SoftBody::SimulationDef& def, const SoftBody::Box2DCouplingDef& box )
         : simulation( def ), coupling( simulation, box ), timeStep( def.timeStep ), subSteps( def.subSteps )
     {
@@ -318,16 +319,12 @@ static int BindMesh( lua_State* L )
     lua_pushnil( L );
     while ( lua_next( L, 3 ) )
     {
-        if ( lua_type( L, -2 ) != LUA_TSTRING ||
-             ( strcmp( lua_tostring( L, -2 ), "interpolation" ) && strcmp( lua_tostring( L, -2 ), "nodeMap" ) ) )
+        if ( lua_type( L, -2 ) == LUA_TSTRING && !strcmp( lua_tostring( L, -2 ), "interpolation" ) )
+            return luaL_error( L, "configure interpolation on the physics world, not bindMesh" );
+        if ( lua_type( L, -2 ) != LUA_TSTRING || strcmp( lua_tostring( L, -2 ), "nodeMap" ) )
             return luaL_error( L, "unknown mesh binding option" );
         lua_pop( L, 1 );
     }
-    Field( L, 3, "interpolation" );
-    if ( !lua_isnil( L, -1 ) && !lua_isboolean( L, -1 ) )
-        return luaL_error( L, "interpolation must be boolean" );
-    bool interpolate = lua_isnil( L, -1 ) || lua_toboolean( L, -1 );
-    lua_pop( L, 1 );
     int count = static_cast<TesselatorMesh*>( path->GetTesselator() )->GetMesh().Length();
     int nodes = s.simulation.getBodyNodeCount( e->id );
     Field( L, 3, "nodeMap" );
@@ -354,7 +351,6 @@ static int BindMesh( lua_State* L )
     std::unique_ptr<MeshBinding> binding( new MeshBinding );
     binding->body = e->id;
     binding->proxy = proxy;
-    binding->interpolate = interpolate;
     binding->nodes.resize( count );
     for ( int i = 0; i < count; ++i )
     {
@@ -368,7 +364,8 @@ static int BindMesh( lua_State* L )
         }
     }
     s.simulation.getBodyState( e->id, binding->current );
-    binding->previous = binding->current.vertices;
+    if ( s.interpolate )
+        binding->previous = binding->current.vertices;
     lua_getfenv( L, 1 );
     lua_pushvalue( L, 2 );
     lua_setfield( L, -2, "mesh" );
@@ -405,13 +402,13 @@ static void SyncMeshes( lua_State* L, void* owner, int systemIndex, double alpha
         auto* object = path->GetObserver();
         const auto offset = tess->GetVertexOffset();
         auto* vertices = tess->GetMesh().WriteAccess();
-        double t = binding.interpolate ? alpha : 1;
+        double t = alpha;
         bool changed = false;
         for ( size_t v = 0; v < binding.nodes.size(); ++v )
         {
             int n = binding.nodes[v];
-            const auto& a = binding.previous[n];
             const auto& b = binding.current.vertices[n];
+            const auto& a = s.interpolate ? binding.previous[n] : b;
             Real x = (Real)( ( t == 1 ? b[0] : a[0] + ( double( b[0] ) - a[0] ) * t ) * s.scale ) - offset.x;
             Real y = (Real)( -( t == 1 ? b[1] : a[1] + ( double( b[1] ) - a[1] ) * t ) * s.scale ) - offset.y;
             changed |= vertices[v].x != x || vertices[v].y != y;
@@ -1034,6 +1031,7 @@ static int State( lua_State* L )
     Number( L, "pixelsPerMeter", s->scale );
     Number( L, "meshBindings", s->meshes.size() );
     Number( L, "meshUpdates", s->meshUpdates );
+    Number( L, "meshHistoryCopies", s->meshHistoryCopies );
     size_t historyNodes = 0;
     for ( const auto& mesh : s->meshes )
         historyNodes += mesh->previous.size();
@@ -1306,19 +1304,40 @@ static const char* PrepareIndependent( void* owner )
 static const char* AdvanceIndependent( void* owner, bool& entered )
 {
     auto& s = *static_cast<Instance*>( owner );
-    for ( auto& mesh : s.meshes )
-        mesh->previous = mesh->current.vertices;
+    s.meshHistoryCopies = 0;
+    if ( s.interpolate )
+        for ( auto& mesh : s.meshes )
+        {
+            mesh->previous = mesh->current.vertices;
+            s.meshHistoryCopies += mesh->previous.size();
+        }
     bool success = s.coupling.advance( &entered );
     if ( entered )
         for ( auto& mesh : s.meshes )
             s.simulation.getBodyState( mesh->body, mesh->current );
     return success ? nullptr : s.coupling.lastError();
 }
+static void SetInterpolation( void* owner, bool enabled )
+{
+    auto& s = *static_cast<Instance*>( owner );
+    if ( s.interpolate == enabled )
+        return;
+    s.interpolate = enabled;
+    s.meshHistoryCopies = 0;
+    for ( auto& mesh : s.meshes )
+    {
+        if ( enabled )
+            mesh->previous = mesh->current.vertices;
+        else
+            mesh->previous.clear(); // Retain capacity to avoid allocations on every speed switch.
+    }
+}
 int NewIndependent( lua_State* L, const IndependentHost& host, IndependentClient& client )
 {
     Create( L, &host );
     auto* handle = static_cast<Handle*>( lua_touserdata( L, -1 ) );
-    client = { handle->instance, PrepareIndependent, AdvanceIndependent, Invalidate, Retain, Release, SyncMeshes, ClearMeshes };
+    client = { handle->instance, PrepareIndependent, AdvanceIndependent, Invalidate, Retain, Release,
+               SyncMeshes, ClearMeshes, SetInterpolation };
     return 1;
 }
 static void Register( lua_State* L )
