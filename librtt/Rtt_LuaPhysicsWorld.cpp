@@ -516,8 +516,7 @@ int ShapeNewIndex( lua_State *L )
     else if ( !strcmp( key, "enableHitEvents" ) )
     {
         luaL_checktype( L, 3, LUA_TBOOLEAN );
-        if ( lua_toboolean( L, 3 ) )
-            return luaL_error( L, "independent worlds do not support hit events" );
+        b2Shape_EnableHitEvents( h.id, lua_toboolean( L, 3 ) != 0 );
     }
     else if ( !strcmp( key, "density" ) || !strcmp( key, "friction" ) || !strcmp( key, "bounce" ) )
     {
@@ -949,13 +948,6 @@ int BodyDestroy( lua_State *L )
     lua_rawseti( L, -2, (int)b.serial + 1 );
     return 0;
 }
-void CheckHitEvents( lua_State *L, int ti )
-{
-    // No independent hit listener yet. Accept an explicit false when mapping
-    // legacy fixture definitions, but never silently accept an undeliverable event.
-    if ( Flag( L, ti, "enableHitEvents", false ) )
-        luaL_error( L, "independent worlds do not support hit events" );
-}
 b2ShapeDef ShapeOptions( lua_State *L, int ti )
 {
     b2ShapeDef d = b2DefaultShapeDef();
@@ -969,7 +961,7 @@ b2ShapeDef ShapeOptions( lua_State *L, int ti )
     d.isSensor = Flag( L, ti, "isSensor", false );
     d.enableContactEvents = Flag( L, ti, "enableContactEvents", true );
     d.enableSensorEvents = Flag( L, ti, "enableSensorEvents", true );
-    CheckHitEvents( L, ti );
+    d.enableHitEvents = Flag( L, ti, "enableHitEvents", false );
     d.filter = FilterOption( L, ti );
     return d;
 }
@@ -1139,7 +1131,7 @@ int BodyChain( lua_State *L )
     def.enableSensorEvents = Flag( L, 2, "enableSensorEvents", true );
     // Keep the existing native chain default; explicit values apply to every segment.
     bool contactEvents = Flag( L, 2, "enableContactEvents", false );
-    CheckHitEvents( L, 2 );
+    bool hitEvents = Flag( L, 2, "enableHitEvents", false );
     b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
     material.friction = (float)Option( L, 2, "friction", .3 );
     material.restitution = (float)Option( L, 2, "bounce", 0 );
@@ -1221,6 +1213,7 @@ int BodyChain( lua_State *L )
     for ( int i = 0; i < segments; ++i )
     {
         b2Shape_EnableContactEvents( ids[i], contactEvents );
+        b2Shape_EnableHitEvents( ids[i], hitEvents );
         RegisterShape( L, w, b, wi, ids[i], chain->element, chain->serial, i + 1 );
         chain->segments.push_back( b.shapes.back() );
         lua_pop( L, 1 );
@@ -1435,7 +1428,7 @@ int WorldListener( lua_State *L )
 {
     World &w = GetWorld( L );
     Mutable( L, w );
-    const char *key = lua_toboolean( L, lua_upvalueindex( 1 ) ) ? "collisionListener" : "stepListener";
+    const char *key = lua_tostring( L, lua_upvalueindex( 1 ) );
     if ( !lua_isnil( L, 2 ) )
         luaL_checktype( L, 2, LUA_TFUNCTION );
     lua_getfenv( L, 1 );
@@ -1488,33 +1481,58 @@ struct Contact
     b2ShapeId a, b;
     bool began, sensor;
 };
+void PushEventShapes( lua_State *L, int wi, b2ShapeId idA, b2ShapeId idB )
+{
+    Body *a = (Body *)b2Body_GetUserData( b2Shape_GetBody( idA ) ),
+         *b = (Body *)b2Body_GetUserData( b2Shape_GetBody( idB ) );
+    auto *sa = (Shape *)b2Shape_GetUserData( idA );
+    auto *sb = (Shape *)b2Shape_GetUserData( idB );
+    PushHandle( L, wi, "bodies", a->serial );
+    lua_setfield( L, -2, "body1" );
+    PushHandle( L, wi, "bodies", b->serial );
+    lua_setfield( L, -2, "body2" );
+    Field( L, "element1", sa->element );
+    Field( L, "element2", sb->element );
+    PushHandle( L, wi, "shapes", sa->serial );
+    lua_setfield( L, -2, "shape1" );
+    PushHandle( L, wi, "shapes", sb->serial );
+    lua_setfield( L, -2, "shape2" );
+}
 bool Contacts( lua_State *L, World &w, int wi )
 {
     // Copies are needed only when Lua observes events. Callbacks may delete bodies/world.
     lua_getfenv( L, wi );
     lua_getfield( L, -1, "collisionListener" );
     bool listens = lua_isfunction( L, -1 );
+    lua_pop( L, 1 );
+    lua_getfield( L, -1, "hitListener" );
+    bool listensToHits = lua_isfunction( L, -1 );
     lua_pop( L, 2 );
-    if ( !listens )
+    if ( !listens && !listensToHits )
         return true;
     std::vector<Contact> list;
+    std::vector<b2ContactHitEvent> hits;
     b2ContactEvents c = b2World_GetContactEvents( w.id );
-    b2SensorEvents s = b2World_GetSensorEvents( w.id );
-    list.reserve( c.beginCount + c.endCount + s.beginCount + s.endCount );
-    for ( int i = 0; i < c.beginCount; ++i )
-        list.push_back( { c.beginEvents[i].shapeIdA, c.beginEvents[i].shapeIdB, true, false } );
-    for ( int i = 0; i < c.endCount; ++i )
-        list.push_back( { c.endEvents[i].shapeIdA, c.endEvents[i].shapeIdB, false, false } );
-    for ( int i = 0; i < s.beginCount; ++i )
-        list.push_back( { s.beginEvents[i].sensorShapeId, s.beginEvents[i].visitorShapeId, true, true } );
-    for ( int i = 0; i < s.endCount; ++i )
-        list.push_back( { s.endEvents[i].sensorShapeId, s.endEvents[i].visitorShapeId, false, true } );
+    if ( listens )
+    {
+        b2SensorEvents s = b2World_GetSensorEvents( w.id );
+        list.reserve( c.beginCount + c.endCount + s.beginCount + s.endCount );
+        for ( int i = 0; i < c.beginCount; ++i )
+            list.push_back( { c.beginEvents[i].shapeIdA, c.beginEvents[i].shapeIdB, true, false } );
+        for ( int i = 0; i < c.endCount; ++i )
+            list.push_back( { c.endEvents[i].shapeIdA, c.endEvents[i].shapeIdB, false, false } );
+        for ( int i = 0; i < s.beginCount; ++i )
+            list.push_back( { s.beginEvents[i].sensorShapeId, s.beginEvents[i].visitorShapeId, true, true } );
+        for ( int i = 0; i < s.endCount; ++i )
+            list.push_back( { s.endEvents[i].sensorShapeId, s.endEvents[i].visitorShapeId, false, true } );
+    }
+    // Snapshot hits before any Lua callback can destroy shapes or their world.
+    if ( listensToHits && c.hitCount > 0 )
+        hits.assign( c.hitEvents, c.hitEvents + c.hitCount );
     for ( const Contact &e : list )
     {
         if ( !b2Shape_IsValid( e.a ) || !b2Shape_IsValid( e.b ) )
             continue;
-        Body *a = (Body *)b2Body_GetUserData( b2Shape_GetBody( e.a ) ),
-             *b = (Body *)b2Body_GetUserData( b2Shape_GetBody( e.b ) );
         int top = lua_gettop( L );
         lua_getfenv( L, wi );
         lua_getfield( L, -1, "collisionListener" );
@@ -1522,7 +1540,7 @@ bool Contacts( lua_State *L, World &w, int wi )
         if ( !lua_isfunction( L, -1 ) )
         {
             lua_settop( L, top );
-            return true;
+            break;
         }
         lua_createtable( L, 0, 9 );
         lua_pushliteral( L, "collision" );
@@ -1534,18 +1552,37 @@ bool Contacts( lua_State *L, World &w, int wi )
         Bool( L, "isSensor", e.sensor );
         Field( L, "stepIndex", (double)w.index );
         Field( L, "simulationTime", w.index * (double)w.dt );
-        PushHandle( L, wi, "bodies", a->serial );
-        lua_setfield( L, -2, "body1" );
-        PushHandle( L, wi, "bodies", b->serial );
-        lua_setfield( L, -2, "body2" );
-        auto *sa = (Shape *)b2Shape_GetUserData( e.a );
-        auto *sb = (Shape *)b2Shape_GetUserData( e.b );
-        Field( L, "element1", sa->element );
-        Field( L, "element2", sb->element );
-        PushHandle( L, wi, "shapes", sa->serial );
-        lua_setfield( L, -2, "shape1" );
-        PushHandle( L, wi, "shapes", sb->serial );
-        lua_setfield( L, -2, "shape2" );
+        PushEventShapes( L, wi, e.a, e.b );
+        if ( !Call( L, w, top ) )
+            return false;
+    }
+    for ( const b2ContactHitEvent &e : hits )
+    {
+        if ( !b2Shape_IsValid( e.shapeIdA ) || !b2Shape_IsValid( e.shapeIdB ) )
+            continue;
+        int top = lua_gettop( L );
+        lua_getfenv( L, wi );
+        lua_getfield( L, -1, "hitListener" );
+        lua_remove( L, -2 );
+        if ( !lua_isfunction( L, -1 ) )
+        {
+            lua_settop( L, top );
+            break;
+        }
+        lua_createtable( L, 0, 16 );
+        lua_pushliteral( L, "hitCollision" );
+        lua_setfield( L, -2, "name" );
+        lua_pushvalue( L, wi );
+        lua_setfield( L, -2, "world" );
+        Bool( L, "isSensor", false );
+        Field( L, "stepIndex", (double)w.index );
+        Field( L, "simulationTime", w.index * (double)w.dt );
+        Field( L, "x", e.point.x * w.scale );
+        Field( L, "y", e.point.y * w.scale );
+        Field( L, "normalX", e.normal.x );
+        Field( L, "normalY", e.normal.y );
+        Field( L, "approachSpeed", e.approachSpeed * w.scale );
+        PushEventShapes( L, wi, e.shapeIdA, e.shapeIdB );
         if ( !Call( L, w, top ) )
             return false;
     }
@@ -1751,6 +1788,16 @@ int WorldInterpolation( lua_State *L )
         UpdateInterpolation( w );
     return 0;
 }
+int WorldHitThreshold( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double speed = Number( L, 2 );
+    if ( speed < 0 )
+        return luaL_error( L, "hitEventThreshold must be nonnegative" );
+    b2World_SetHitEventThreshold( w.id, (float)( speed / w.scale ) );
+    return 0;
+}
 int WorldState( lua_State *L )
 {
     World &w = GetWorld( L, 1, false );
@@ -1790,6 +1837,7 @@ int WorldState( lua_State *L )
         Bool( L, "continuous", b2World_IsContinuousEnabled( w.id ) );
         Bool( L, "sleepingEnabled", b2World_IsSleepingEnabled( w.id ) );
         Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
+        Field( L, "hitEventThreshold", b2World_GetHitEventThreshold( w.id ) * w.scale );
         Bool( L, "compoundInternalEdgeSuppression", w.compoundInternalEdgeSuppression );
         Bool( L, "seamContactFilter", b2World_IsSeamContactFilterEnabled( w.id ) );
         Bool( L, "weldRestitution", b2World_IsWeldRestitutionEnabled( w.id ) );
@@ -2076,7 +2124,8 @@ int LuaPhysicsWorld::New( lua_State *L )
              { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount", "interpolation",
                "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance",
                "compoundInternalEdgeSuppression", "seamContactFilter", "weldRestitution",
-               "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed" } );
+               "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed",
+               "hitEventThreshold" } );
     double scale = Option( L, 1, "pixelsPerMeter", 30 ), dt = Option( L, 1, "timeStep", 1.0 / 60 );
     double sub = Option( L, 1, "subSteps", 8 ), cap = Option( L, 1, "maxStepsPerFrame", 8 ),
            speed = Option( L, 1, "speed", 1 );
@@ -2096,6 +2145,10 @@ int LuaPhysicsWorld::New( lua_State *L )
     def.enableSleep = Flag( L, 1, "sleepingEnabled", true );
     def.enableContinuous = Flag( L, 1, "continuous", true );
     def.workerCount = (int)workers;
+    double hitThreshold = Option( L, 1, "hitEventThreshold", def.hitEventThreshold * scale );
+    if ( hitThreshold < 0 )
+        return luaL_error( L, "hitEventThreshold must be nonnegative" );
+    def.hitEventThreshold = (float)( hitThreshold / scale );
     // Keep Box2D's native contact reuse unless the caller explicitly overrides it.
     double recycle = Option( L, 1, "contactRecycleDistance", B2_CONTACT_RECYCLE_DISTANCE * scale );
     if ( recycle < 0 )
@@ -2163,6 +2216,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "getState", WorldState },
                                       { "newSoftSystem", WorldNewSoft },
                                       { "setContactPolicy", WorldContactPolicy },
+                                      { "setHitEventThreshold", WorldHitThreshold },
                                       { "rayCast", WorldRay },
                                       { "queryPoint", WorldQueryPoint },
                                       { "queryRegion", WorldQueryRegion },
@@ -2191,12 +2245,15 @@ int LuaPhysicsWorld::New( lua_State *L )
     luaL_getmetatable( L, kWorld );
     lua_pushvalue( L, -1 );
     lua_setfield( L, -2, "__index" );
-    lua_pushboolean( L, 0 );
+    lua_pushliteral( L, "stepListener" );
     lua_pushcclosure( L, WorldListener, 1 );
     lua_setfield( L, -2, "setStepListener" );
-    lua_pushboolean( L, 1 );
+    lua_pushliteral( L, "collisionListener" );
     lua_pushcclosure( L, WorldListener, 1 );
     lua_setfield( L, -2, "setCollisionListener" );
+    lua_pushliteral( L, "hitListener" );
+    lua_pushcclosure( L, WorldListener, 1 );
+    lua_setfield( L, -2, "setHitListener" );
     lua_pop( L, 1 );
     World **p = (World **)lua_newuserdata( L, sizeof( World * ) );
     *p = new World;
