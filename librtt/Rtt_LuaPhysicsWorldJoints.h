@@ -102,6 +102,14 @@ const JointNumberProperty kJointNumbers[] = {
       JointUnit::SI, JointRange::Nonnegative },
     { "jointTranslation", b2_wheelJoint, b2WheelJoint_GetJointTranslation, NULL, JointUnit::Pixels,
       JointRange::Signed },
+    { "motorSpeed", b2_prismaticJoint, b2PrismaticJoint_GetTargetMotorSpeed,
+      b2PrismaticJoint_SetTargetMotorSpeed, JointUnit::Pixels, JointRange::Signed },
+    { "maxMotorForce", b2_prismaticJoint, b2PrismaticJoint_GetMaxMotorForce,
+      b2PrismaticJoint_SetMaxMotorForce, JointUnit::SI, JointRange::Nonnegative },
+    { "jointTranslation", b2_prismaticJoint, b2PrismaticJoint_GetCurrentTranslation, NULL,
+      JointUnit::Pixels, JointRange::Signed },
+    { "jointSpeed", b2_prismaticJoint, b2PrismaticJoint_GetCurrentSpeed, NULL, JointUnit::Pixels,
+      JointRange::Signed },
     { "frequency", b2_motorJoint, b2MotorJoint_GetLinearHertz, b2MotorJoint_SetLinearHertz, JointUnit::SI,
       JointRange::Nonnegative },
     { "dampingRatio", b2_motorJoint, b2MotorJoint_GetLinearDampingRatio, b2MotorJoint_SetLinearDampingRatio,
@@ -120,6 +128,8 @@ const JointFlagProperty kJointFlags[] = {
     { "isMotorEnabled", b2_wheelJoint, b2WheelJoint_IsMotorEnabled, b2WheelJoint_EnableMotor },
     { "isLimitEnabled", b2_wheelJoint, b2WheelJoint_IsLimitEnabled, b2WheelJoint_EnableLimit },
     { "isSpringEnabled", b2_wheelJoint, b2WheelJoint_IsSpringEnabled, b2WheelJoint_EnableSpring },
+    { "isMotorEnabled", b2_prismaticJoint, b2PrismaticJoint_IsMotorEnabled, b2PrismaticJoint_EnableMotor },
+    { "isLimitEnabled", b2_prismaticJoint, b2PrismaticJoint_IsLimitEnabled, b2PrismaticJoint_EnableLimit },
 };
 const JointNumberProperty *JointNumber( b2JointType type, const char *key )
 {
@@ -156,7 +166,7 @@ JointUnit LimitUnit( lua_State *L, b2JointType type )
 {
     if ( type == b2_revoluteJoint )
         return JointUnit::Degrees;
-    if ( type == b2_distanceJoint || type == b2_wheelJoint )
+    if ( type == b2_distanceJoint || type == b2_wheelJoint || type == b2_prismaticJoint )
         return JointUnit::Pixels;
     luaL_error( L, "this joint has no limits" );
     return JointUnit::SI;
@@ -173,6 +183,8 @@ void SetJointLimits( b2JointId id, b2JointType type, float lower, float upper )
         b2RevoluteJoint_SetLimits( id, lower, upper );
     else if ( type == b2_distanceJoint )
         b2DistanceJoint_SetLimits( id, lower, upper );
+    else if ( type == b2_prismaticJoint )
+        b2PrismaticJoint_SetLimits( id, lower, upper );
     else
         b2WheelJoint_SetLimits( id, lower, upper );
 }
@@ -191,6 +203,11 @@ int JointGetLimits( lua_State *L )
     {
         lower = b2DistanceJoint_GetLowerLimit( id );
         upper = b2DistanceJoint_GetUpperLimit( id );
+    }
+    else if ( type == b2_prismaticJoint )
+    {
+        lower = b2PrismaticJoint_GetLowerLimit( id );
+        upper = b2PrismaticJoint_GetUpperLimit( id );
     }
     else
     {
@@ -289,13 +306,15 @@ int JointIndex( lua_State *L )
     else if ( !strcmp( key, "collideConnected" ) )
         lua_pushboolean( L, b2Joint_GetCollideConnected( id ) );
     else if ( !strcmp( key, "type" ) )
-        lua_pushstring( L, type == b2_revoluteJoint   ? "pivot"
-                           : type == b2_weldJoint     ? "weld"
-                           : type == b2_distanceJoint ? "distance"
-                           : type == b2_wheelJoint    ? "wheel"
-                           : type == b2_filterJoint   ? "fake"
-                                                      : "touch" );
-    else if ( !strcmp( key, "referenceAngle" ) && ( type == b2_revoluteJoint || type == b2_weldJoint ) )
+        lua_pushstring( L, type == b2_revoluteJoint    ? "pivot"
+                           : type == b2_weldJoint      ? "weld"
+                           : type == b2_distanceJoint  ? "distance"
+                           : type == b2_wheelJoint     ? "wheel"
+                           : type == b2_prismaticJoint ? "piston"
+                           : type == b2_filterJoint    ? "fake"
+                                                       : "touch" );
+    else if ( !strcmp( key, "referenceAngle" ) &&
+              ( type == b2_revoluteJoint || type == b2_weldJoint || type == b2_prismaticJoint ) )
         lua_pushnumber( L, b2RelativeAngle( b2Joint_GetLocalFrameB( id ).q, b2Joint_GetLocalFrameA( id ).q ) /
                                kRad );
     else if ( !strcmp( key, "bodyA" ) || !strcmp( key, "bodyB" ) )
@@ -408,6 +427,8 @@ int WorldJoint( lua_State *L )
         type = b2_distanceJoint;
     else if ( !strcmp( name, "wheel" ) )
         type = b2_wheelJoint;
+    else if ( !strcmp( name, "piston" ) )
+        type = b2_prismaticJoint;
     else if ( !strcmp( name, "fake" ) )
         type = b2_filterJoint;
     else if ( !strcmp( name, "touch" ) )
@@ -433,12 +454,12 @@ int WorldJoint( lua_State *L )
         anchorB = { (float)( Number( L, 7 ) / w.scale ), (float)( Number( L, 8 ) / w.scale ) };
         options = 9;
     }
-    else if ( type == b2_wheelJoint )
+    else if ( type == b2_wheelJoint || type == b2_prismaticJoint )
     {
         double x = Number( L, 7 ), y = Number( L, 8 );
         double length = std::hypot( x, y );
         if ( length < 1e-12 )
-            return luaL_error( L, "wheel world axis must be nonzero" );
+            return luaL_error( L, "%s world axis must be nonzero", name );
         axis = { (float)( x / length ), (float)( y / length ) };
         options = 9;
     }
@@ -481,7 +502,7 @@ int WorldJoint( lua_State *L )
         }
         else
             base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( b.id ), b2Body_GetRotation( a.id ) );
-        if ( type == b2_wheelJoint )
+        if ( type == b2_wheelJoint || type == b2_prismaticJoint )
         {
             base.localFrameA.q = b2InvMulRot( b2Body_GetRotation( a.id ), axis );
             base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( b.id ), axis );
@@ -515,6 +536,12 @@ int WorldJoint( lua_State *L )
         b2WheelJointDef d = b2DefaultWheelJointDef();
         d.base = base;
         id = b2CreateWheelJoint( w.id, &d );
+    }
+    else if ( type == b2_prismaticJoint )
+    {
+        b2PrismaticJointDef d = b2DefaultPrismaticJointDef();
+        d.base = base;
+        id = b2CreatePrismaticJoint( w.id, &d );
     }
     else if ( type == b2_filterJoint )
     {
