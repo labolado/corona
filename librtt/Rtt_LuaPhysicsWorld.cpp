@@ -883,10 +883,11 @@ int BodyDestroy( lua_State *L )
 b2ShapeDef ShapeOptions( lua_State *L, int ti )
 {
     b2ShapeDef d = b2DefaultShapeDef();
-    d.density = (float)Option( L, ti, "density", 1 );
+    double density = Option( L, ti, "density", 1 );
+    d.density = (float)density;
     d.material.friction = (float)Option( L, ti, "friction", 0.3 );
     d.material.restitution = (float)Option( L, ti, "bounce", 0 );
-    if ( d.density < 0 || d.material.friction < 0 || d.material.restitution < 0 ||
+    if ( density < 0 || d.material.friction < 0 || d.material.restitution < 0 ||
          d.material.restitution > 1 )
         luaL_error( L, "invalid density, friction or bounce" );
     d.isSensor = Flag( L, ti, "isSensor", false );

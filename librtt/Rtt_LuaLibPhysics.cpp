@@ -47,6 +47,8 @@
 #include "SoftBody/Rtt_LuaSoftSimulation.h"
 
 #include <list>
+#include <cfloat>
+#include <cmath>
 
 # define ENABLE_DEBUG_PRINT	( 0 )
 #
@@ -1457,23 +1459,17 @@ static void
 InitializeShapeFromLua( lua_State *L,
 							b2ShapeDef &outShapeDef,
 							int lua_arg_index,
-							float meter_per_pixels_scale )
+							float meter_per_pixels_scale,
+							float density )
 {
 	InitializeShapePhysicsDefaults( outShapeDef );
+	outShapeDef.density = density;
 
 	if( ! lua_istable( L, lua_arg_index ) )
 	{
 		// Nothing to do.
 		return;
 	}
-
-	lua_getfield( L, lua_arg_index, "density" );
-	float density = (float) lua_tonumber( L, -1 );
-	if ( density > 0.0f )
-	{
-		outShapeDef.density = density;
-	}
-	lua_pop( L, 1 );
 
 	// If not supplied, we assume a default of 0
 	lua_getfield( L, lua_arg_index, "friction" );
@@ -2242,7 +2238,8 @@ InitializeFixtureUsing_Rectangle( lua_State *L,
 									b2Vec2 &center_in_pixels,
 									DisplayObject *display_object,
 									b2BodyId bodyId,
-									float meter_per_pixels_scale )
+									float meter_per_pixels_scale,
+									float density )
 {
 	DEBUG_PRINT( "%s\n", __FUNCTION__ );
 
@@ -2267,7 +2264,7 @@ InitializeFixtureUsing_Rectangle( lua_State *L,
 	InitializeShapeFromLua( L,
 							shapeDef,
 							lua_arg_index,
-							meter_per_pixels_scale );
+							meter_per_pixels_scale, density );
 
 	_ShapeCreator( bodyId,
 					&shapeDef,
@@ -2370,7 +2367,8 @@ InitializeFixtureUsing_StaticLine( lua_State *L,
 									b2Vec2 &center_in_pixels,
 									DisplayObject *display_object,
 									b2BodyId bodyId,
-									float meter_per_pixels_scale )
+									float meter_per_pixels_scale,
+									float density )
 {
 	// This might be a static line.
 
@@ -2412,7 +2410,7 @@ InitializeFixtureUsing_StaticLine( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		// b2ChainShape chainDef;
 		// chainDef.CreateChain( &vertexList[ 0 ],
@@ -2452,7 +2450,8 @@ InitializeFixtureUsing_ArbitraryPolygonalShape( lua_State *L,
 												b2Vec2 &center_in_pixels,
 												DisplayObject *display_object,
 												b2BodyId bodyId,
-												float meter_per_pixels_scale )
+												float meter_per_pixels_scale,
+												float density )
 {
 	// This might be an arbitrary polygonal shape.
 
@@ -2488,7 +2487,7 @@ InitializeFixtureUsing_ArbitraryPolygonalShape( lua_State *L,
 			InitializeShapeFromLua( L,
 									shapeDef,
 									lua_arg_index,
-									meter_per_pixels_scale );
+									meter_per_pixels_scale, density );
 
 			// b2ChainShape chainDef;
 			// chainDef.CreateLoop( &vertexList[ 0 ],
@@ -2668,7 +2667,8 @@ InitializeFixtureUsing_Radius( lua_State *L,
 								b2Vec2 &center_in_pixels,
 								DisplayObject *display_object,
 								b2BodyId bodyId,
-								float meter_per_pixels_scale )
+								float meter_per_pixels_scale,
+								float density )
 {
 	lua_getfield( L, lua_arg_index, "radius" );
 	if ( lua_isnumber( L, -1 ) )
@@ -2696,7 +2696,7 @@ InitializeFixtureUsing_Radius( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		_CircleShapeCreator( bodyId,
 							&shapeDef,
@@ -2718,7 +2718,8 @@ InitializeFixtureUsing_Circle( lua_State *L,
 							b2Vec2 &center_in_pixels,
 							DisplayObject *display_object,
 							b2BodyId bodyId,
-							float meter_per_pixels_scale )
+							float meter_per_pixels_scale,
+							float density )
 {
 	lua_getfield( L, lua_arg_index, "circle" );
 	if ( lua_istable( L, -1 ) )
@@ -2766,7 +2767,7 @@ InitializeFixtureUsing_Circle( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		_CircleShapeCreator( bodyId,
 							&shapeDef,
@@ -2788,7 +2789,8 @@ InitializeFixtureUsing_Chain( lua_State *L,
 								b2Vec2 &center_in_pixels,
 								DisplayObject *display_object,
 								b2BodyId bodyId,
-								float meter_per_pixels_scale )
+								float meter_per_pixels_scale,
+								float density )
 {
 	lua_getfield( L, lua_arg_index, "connectFirstAndLastChainVertex" );
 	bool connectFirstAndLastChainVertex = ( lua_isboolean( L, -1 ) &&
@@ -2832,7 +2834,7 @@ InitializeFixtureUsing_Chain( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		// b2ChainShape chainDef;
 
@@ -2940,7 +2942,8 @@ InitializeFixtureUsing_Box( lua_State *L,
 							b2Vec2 &center_in_pixels,
 							DisplayObject *display_object,
 							b2BodyId bodyId,
-							float meter_per_pixels_scale )
+							float meter_per_pixels_scale,
+							float density )
 {
 	lua_getfield( L, lua_arg_index, "box" );
 	if ( lua_istable( L, -1 ) )
@@ -2996,7 +2999,7 @@ InitializeFixtureUsing_Box( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		_ShapeCreator( bodyId,
 						&shapeDef,
@@ -3018,7 +3021,8 @@ InitializeFixtureUsing_Capsule( lua_State *L,
 							b2Vec2 &center_in_pixels,
 							DisplayObject *display_object,
 							b2BodyId bodyId,
-							float meter_per_pixels_scale )
+							float meter_per_pixels_scale,
+							float density )
 {
 	lua_getfield( L, lua_arg_index, "capsule" );
 	if ( lua_istable( L, -1 ) )
@@ -3059,7 +3063,7 @@ InitializeFixtureUsing_Capsule( lua_State *L,
 		InitializeShapeFromLua( L,
 								shapeDef,
 								lua_arg_index,
-								meter_per_pixels_scale );
+								meter_per_pixels_scale, density );
 
 		if ( !valid || !_CapsuleShapeCreator( bodyId,
 								&shapeDef,
@@ -3087,7 +3091,8 @@ InitializeFixtureUsing_Shape( lua_State *L,
 								b2Vec2 &center_in_pixels,
 								DisplayObject *display_object,
 								b2BodyId bodyId,
-								float meter_per_pixels_scale )
+								float meter_per_pixels_scale,
+								float density )
 {
 	lua_getfield( L, lua_arg_index, "shape" );
 	if ( lua_istable( L, -1 ) )
@@ -3132,7 +3137,7 @@ InitializeFixtureUsing_Shape( lua_State *L,
 			InitializeShapeFromLua( L,
 									shapeDef,
 									lua_arg_index,
-									meter_per_pixels_scale );
+									meter_per_pixels_scale, density );
 
 			_ShapeCreator( bodyId,
 								&shapeDef,
@@ -3153,6 +3158,28 @@ InitializeFixtureUsing_Shape( lua_State *L,
 
 	lua_pop( L, 1 );
 	return false;
+}
+
+static float
+ReadFixtureDensity( lua_State *L, int index )
+{
+	float density = 0.01f; // Preserve the legacy default only for an omitted field.
+	if ( lua_istable( L, index ) )
+	{
+		lua_getfield( L, index, "density" );
+		if ( !lua_isnil( L, -1 ) )
+		{
+			double value = lua_tonumber( L, -1 );
+			if ( !lua_isnumber( L, -1 ) || !std::isfinite( value ) || value < 0 ||
+				 value > FLT_MAX )
+			{
+				luaL_error( L, "fixture density must be finite and nonnegative" );
+			}
+			density = (float)value;
+		}
+		lua_pop( L, 1 );
+	}
+	return density;
 }
 
 static bool
@@ -3195,15 +3222,22 @@ add_b2Body_to_DisplayObject( lua_State *L,
 		center_in_pixels.y += center.y;
 	}
 
-	// b2World *world = physics.GetWorld();
+	int firstFixtureArg = lua_isstring( L, 2 ) ? 3 : 2;
+	// Validate every density before creating a native body or any fixture.
+	// Keep the values on the Lua stack: read getters once and require no C++
+	// cleanup if validation (or a user getter) raises a Lua error.
+	if ( lua_istable( L, firstFixtureArg ) )
+	{
+		luaL_checkstack( L, numArgs - firstFixtureArg + 2, "too many physics fixtures" );
+		for ( int i = firstFixtureArg; i <= numArgs; ++i )
+		{
+			lua_pushnumber( L, ReadFixtureDensity( L, i ) );
+		}
+	}
 	b2BodyId bodyId = CreateBody( physics, display_object );
 
-	int firstFixtureArg = 2;
-
-	if ( lua_isstring( L, 2 ) )
+	if ( firstFixtureArg == 3 )
 	{
-		++firstFixtureArg;
-
 		const char *bodyType = lua_tostring( L, 2 );
 		b2BodyType t = b2_dynamicBody; // default
 		if ( bodyType )
@@ -3282,6 +3316,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 				lua_arg_index <= numArgs;
 				++lua_arg_index )
 		{
+			float density = (float)lua_tonumber( L, numArgs + 1 + lua_arg_index - firstFixtureArg );
 			// Initialize the first type encountered.
 			// The order of these calls is IMPORTANT.
 			( InitializeFixtureUsing_Shape( L,
@@ -3290,42 +3325,42 @@ add_b2Body_to_DisplayObject( lua_State *L,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Box( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Capsule( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Circle( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Chain( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Radius( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				// InitializeFixtureUsing_Outline( L,
 				// 							lua_arg_index,
 				// 							fixtureIndex,
@@ -3339,24 +3374,25 @@ add_b2Body_to_DisplayObject( lua_State *L,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_StaticLine( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) ||
+											meter_per_pixels_scale, density ) ||
 				InitializeFixtureUsing_Rectangle( L,
 											lua_arg_index,
 											fixtureIndex,
 											center_in_pixels,
 											display_object,
 											bodyId,
-											meter_per_pixels_scale ) );
+											meter_per_pixels_scale, density ) );
 		} // end loop over fixtureArgs
 	}
 
+	lua_settop( L, numArgs );
 	if ( display_object->InitializeExtensions( physics.Allocator() ) )
 	{
 		DisplayObjectExtensions *extensions = display_object->GetExtensions();
@@ -3373,7 +3409,7 @@ add_b2Body_to_DisplayObject( lua_State *L,
 // Parameters:
 // 		bodyType is a string: "kinematic", "static", "dynamic"
 // 		bodyElement1 is a table with following properties:
-//			* density: number > 0
+//			* density: finite number >= 0
 //			* friction: number > 0
 //			* bounce: number
 //			* An optional shape definition consisting of one of the following:
