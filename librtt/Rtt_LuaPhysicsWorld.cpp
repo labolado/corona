@@ -36,6 +36,8 @@ const char *kChain = "Solar2D.physicsWorld.chain";
 const char *kBinding = "_physicsWorldBinding";
 const double kRad = 0.017453292519943295;
 const size_t kInactive = (size_t)-1;
+// Contact policies may inspect independent worlds, but cannot mutate any of them.
+thread_local bool sContactPolicyActive = false;
 enum class Interpolation
 {
     Auto,
@@ -105,8 +107,12 @@ struct World
     std::vector<size_t> freeShapes, freeChains;
     std::vector<Body *> active;
     SoftSimulationLua::IndependentClient soft{};
+    bool hasContactPolicy = false;
+    lua_State *policyL = NULL; // Borrowed only for the duration of OneStep.
+    int policyWorldIndex = 0;
+    size_t policyCalls = 0;
 };
-// Independent worlds own these flags; there is no Lua preCollision callback.
+// Independent worlds own these flags; compound suppression precedes Lua policy.
 // Geometry changes rebuild only this body's entries, outside the locked step.
 void RefreshCompoundEdges( World &w, b2BodyId bodyId, bool rebuild = true )
 {
@@ -226,6 +232,8 @@ World &GetWorld( lua_State *L, int i = 1, bool alive = true )
 }
 void Mutable( lua_State *L, World &w )
 {
+    if ( sContactPolicyActive )
+        luaL_error( L, "contact policy cannot mutate physics worlds" );
     if ( !w.alive || w.syncing || b2World_IsLocked( w.id ) )
         luaL_error( L, "physics world is destroyed, locked, or synchronizing views" );
 }
@@ -1438,6 +1446,8 @@ bool StepCallback( lua_State *L, World &w, int wi, const char *phase )
     Field( L, "simulationTime", (double)w.index * w.dt );
     return Call( L, w, top );
 }
+#include "Rtt_LuaPhysicsWorldContactPolicy.h"
+
 struct Contact
 {
     b2ShapeId a, b;
@@ -1532,6 +1542,9 @@ bool OneStep( lua_State *L, World &w, int wi )
             ++w.poseHistoryCopies;
         }
     bool entered = true;
+    w.policyCalls = 0;
+    w.policyL = L;
+    w.policyWorldIndex = wi;
     if ( w.soft.owner )
     {
         // The soft client owns this ONE complete native step, including rigid
@@ -1550,6 +1563,8 @@ bool OneStep( lua_State *L, World &w, int wi )
     }
     else
         b2World_Step( w.id, w.dt, w.subSteps, NULL, NULL );
+    w.policyL = NULL;
+    w.policyWorldIndex = 0;
     if ( entered )
         ++w.index;
     if ( entered && w.bindingCount )
@@ -1729,6 +1744,8 @@ int WorldState( lua_State *L )
     Bool( L, "interpolationActive", w.interpolating );
     Field( L, "viewAlpha", w.viewAlpha );
     Field( L, "poseHistoryCopies", w.poseHistoryCopies );
+    Bool( L, "hasContactPolicy", w.hasContactPolicy );
+    Field( L, "contactPolicyCalls", w.policyCalls );
     Field( L, "pixelsPerMeter", w.scale );
     // This one native policy is process-global, including the default world.
     Bool( L, "speculativeCornerPassThrough", b2GetSpeculativeCornerPassThrough() );
@@ -1920,6 +1937,7 @@ void Destroy( lua_State *L, World &w, int wi )
     w.shapes.clear();
     w.chains.clear();
     w.compoundEdges.clear();
+    w.hasContactPolicy = false;
     w.freeShapes.clear();
     w.freeChains.clear();
     w.active.clear();
@@ -1952,7 +1970,7 @@ int WorldGC( lua_State *L )
 const char *ValidateSoftHost( void *owner )
 {
     World &w = *(World *)owner;
-    return !w.alive || w.syncing || b2World_IsLocked( w.id )
+    return sContactPolicyActive || !w.alive || w.syncing || b2World_IsLocked( w.id )
                ? "physics world is destroyed, locked, or synchronizing views"
                : nullptr;
 }
@@ -2009,6 +2027,8 @@ b2BodyId LuaPhysicsWorld::GetBodyId( lua_State *L, int index, b2WorldId owner )
 
 int LuaPhysicsWorld::New( lua_State *L )
 {
+    if ( sContactPolicyActive )
+        return luaL_error( L, "contact policy cannot create physics worlds" );
     if ( lua_isnone( L, 1 ) )
         lua_newtable( L );
     else if ( lua_isnil( L, 1 ) )
@@ -2107,6 +2127,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "setInterpolation", WorldInterpolation },
                                       { "getState", WorldState },
                                       { "newSoftSystem", WorldNewSoft },
+                                      { "setContactPolicy", WorldContactPolicy },
                                       { "rayCast", WorldRay },
                                       { "queryPoint", WorldQueryPoint },
                                       { "queryRegion", WorldQueryRegion },
@@ -2175,8 +2196,7 @@ int LuaPhysicsWorld::New( lua_State *L )
     b2World_EnableSeamContactFilter( w.id, seam );
     b2World_EnableWeldRestitution( w.id, weld );
     w.compoundInternalEdgeSuppression = compound;
-    if ( compound )
-        b2World_SetPreSolveCallback( w.id, CompoundPreSolve, CompoundPreContinuous, &w );
+    RefreshContactPolicy( w );
     return 1;
 }
 } // namespace Rtt
