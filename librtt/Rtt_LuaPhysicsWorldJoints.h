@@ -472,7 +472,15 @@ int WorldJoint( lua_State *L )
     {
         base.bodyIdA = a.id;
         base.localFrameA.p = b2Body_GetLocalPoint( a.id, anchorA );
-        base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( b.id ), b2Body_GetRotation( a.id ) );
+        if ( type == b2_revoluteJoint || type == b2_weldJoint )
+        {
+            // Match physics.newJoint's reference frame. Moving the inverse
+            // rotation to B is mathematically equivalent, but changes rounding
+            // in the angular constraint and can amplify migration differences.
+            base.localFrameA.q = b2InvMulRot( b2Body_GetRotation( a.id ), b2Body_GetRotation( b.id ) );
+        }
+        else
+            base.localFrameB.q = b2InvMulRot( b2Body_GetRotation( b.id ), b2Body_GetRotation( a.id ) );
         if ( type == b2_wheelJoint )
         {
             base.localFrameA.q = b2InvMulRot( b2Body_GetRotation( a.id ), axis );
