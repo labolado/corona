@@ -9,6 +9,7 @@
 #include "Rtt_Runtime.h"
 #include "Rtt_PhysicsWorld.h"
 #include "Rtt_PhysicsCompoundEdges.h"
+#include "Rtt_PhysicsCapsule.h"
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Display/Rtt_DisplayObject.h"
@@ -924,11 +925,7 @@ int BodyCapsule( lua_State *L )
         (float)( Option( L, 2, "radius", 0 ) / w.scale ) };
     if ( c.radius <= 0 )
         return luaL_error( L, "radius must be positive" );
-    float lengthSquared = b2DistanceSquared( c.center1, c.center2 );
-    if ( !std::isfinite( lengthSquared ) || lengthSquared <= B2_LINEAR_SLOP * B2_LINEAR_SLOP )
-        return luaL_error( L,
-                           "capsule centerline must exceed Box2D linear slop; use addCircle for a disk" );
-    return ReturnShape( L, w, b, b2CreateCapsuleShape( b.id, &d, &c ) );
+    return ReturnShape( L, w, b, PhysicsCapsule::Create( b.id, &d, c ) );
 }
 float PolygonRadius( lua_State *L, const World &w )
 {

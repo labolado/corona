@@ -33,6 +33,7 @@
 #include "Rtt_PhysicsContact.h"
 #include "Rtt_PhysicsJoint.h"
 #include "Rtt_PhysicsTypes.h"
+#include "Rtt_PhysicsCapsule.h"
 #include "Rtt_PhysicsWorld.h"
 #include "Rtt_FixedStepScheduler.h"
 #include "Rtt_LuaPhysicsWorld.h"
@@ -2220,13 +2221,18 @@ static void _GenerateGhostVerticesForSmoothChain( b2Vec2Vector &oldVertexList,
 	newVertexList[ numNewVertices - 1 ] = oldVertexList[ numOldVertices - 1 ] + normal * length;
 }
 
-static void _CapsuleShapeCreator( b2BodyId bodyId,
+static bool _CapsuleShapeCreator( b2BodyId bodyId,
 									b2ShapeDef *shapeDef,
 									b2Capsule *capsule,
 									int &fixtureIndex )
 {
-	shapeDef->userData = (void *)(intptr_t)fixtureIndex++;
-	b2CreateCapsuleShape( bodyId, shapeDef, capsule );
+	shapeDef->userData = (void *)(intptr_t)fixtureIndex;
+	if ( !b2Shape_IsValid( PhysicsCapsule::Create( bodyId, shapeDef, *capsule ) ) )
+	{
+		return false;
+	}
+	++fixtureIndex;
+	return true;
 }
 
 static bool
@@ -3022,22 +3028,27 @@ InitializeFixtureUsing_Capsule( lua_State *L,
 		Real pixels_per_meter_scale = ( 1.0f / meter_per_pixels_scale );
 
 		lua_getfield( L, -1, "x1" );
+		bool valid = lua_isnil( L, -1 ) || lua_isnumber( L, -1 );
 		Real cx1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
 		lua_pop( L, 1 );
 
 		lua_getfield( L, -1, "y1" );
+		valid = valid && ( lua_isnil( L, -1 ) || lua_isnumber( L, -1 ) );
 		Real cy1 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
 		lua_pop( L, 1 );
 
 		lua_getfield( L, -1, "x2" );
+		valid = valid && ( lua_isnil( L, -1 ) || lua_isnumber( L, -1 ) );
 		Real cx2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
 		lua_pop( L, 1 );
 
 		lua_getfield( L, -1, "y2" );
+		valid = valid && ( lua_isnil( L, -1 ) || lua_isnumber( L, -1 ) );
 		Real cy2 = luaL_torealphysics( L, -1, pixels_per_meter_scale );
 		lua_pop( L, 1 );
 
 		lua_getfield( L, -1, "radius" );
+		valid = valid && lua_isnumber( L, -1 );
 		Real radius = luaL_torealphysics( L, -1, pixels_per_meter_scale );
 		lua_pop( L, 1 );
 
@@ -3050,10 +3061,16 @@ InitializeFixtureUsing_Capsule( lua_State *L,
 								lua_arg_index,
 								meter_per_pixels_scale );
 
-		_CapsuleShapeCreator( bodyId,
+		if ( !valid || !_CapsuleShapeCreator( bodyId,
 								&shapeDef,
 								&capsule,
-								fixtureIndex );
+								fixtureIndex ) )
+		{
+			// addBody has not attached this body to the DisplayObject yet.
+			// Roll back earlier fixtures too, so the same object can be retried.
+			b2DestroyBody( bodyId );
+			luaL_error( L, "cannot create capsule: expected finite endpoints and a positive radius" );
+		}
 
 		lua_pop( L, 1 );
 		return true;
