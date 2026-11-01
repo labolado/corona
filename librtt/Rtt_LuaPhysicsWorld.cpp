@@ -260,6 +260,22 @@ b2JointId GetJoint( lua_State *L, int i = 1 )
         luaL_error( L, "physics joint is destroyed" );
     return j;
 }
+int BodyValid( lua_State *L )
+{
+    const auto &h = *(Handle *)luaL_checkudata( L, 1, kBody );
+    lua_pushboolean( L, h.world->alive && h.index < h.world->bodies.size() &&
+                            B2_ID_EQUALS( h.world->bodies[h.index]->id, h.bodyId ) &&
+                            b2Body_IsValid( h.bodyId ) );
+    return 1;
+}
+int JointValid( lua_State *L )
+{
+    const auto &h = *(Handle *)luaL_checkudata( L, 1, kJoint );
+    lua_pushboolean( L, h.world->alive && h.index < h.world->joints.size() &&
+                            B2_ID_EQUALS( h.world->joints[h.index], h.jointId ) &&
+                            b2Joint_IsValid( h.jointId ) );
+    return 1;
+}
 World &Owner( lua_State *L, int i, const char *kind )
 {
     return *GetHandle( L, i, kind ).world;
@@ -1227,9 +1243,15 @@ int BodyChain( lua_State *L )
 }
 int BodyIndex( lua_State *L )
 {
+    // Like shape.isValid, this query remains accessible after destruction.
+    const char *key = luaL_checkstring( L, 2 );
+    if ( !strcmp( key, "isValid" ) )
+    {
+        lua_pushcfunction( L, BodyValid );
+        return 1;
+    }
     Body &b = GetBody( L );
     World &w = Owner( L, 1, kBody );
-    const char *key = luaL_checkstring( L, 2 );
     if ( !strcmp( key, "x" ) || !strcmp( key, "y" ) )
     {
         b2Pos p = b2Body_GetPosition( b.id );
@@ -1360,7 +1382,7 @@ int BodyNewIndex( lua_State *L )
         b2Body_SetAwake( b.id, lua_toboolean( L, 3 ) != 0 );
     }
     else if ( !strcmp( key, "mass" ) || !strcmp( key, "world" ) || !strcmp( key, "view" ) ||
-              !strcmp( key, "proxy" ) )
+              !strcmp( key, "proxy" ) || !strcmp( key, "isValid" ) )
         return luaL_error( L, "read-only/reserved body property" );
     else
     {
@@ -2169,6 +2191,7 @@ int LuaPhysicsWorld::New( lua_State *L )
     def.contactSpeed = (float)pushSpeed;
     const luaL_Reg bodyMethods[] = { { "__index", BodyIndex },
                                      { "__newindex", BodyNewIndex },
+                                     { "isValid", BodyValid },
                                      { "addCircle", BodyCircle },
                                      { "addCapsule", BodyCapsule },
                                      { "addBox", BodyBox },
@@ -2193,6 +2216,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                      { NULL, NULL } };
     const luaL_Reg jointMethods[] = { { "__index", JointIndex },
                                       { "__newindex", JointNewIndex },
+                                      { "isValid", JointValid },
                                       { "destroy", JointDestroy },
                                       { "removeSelf", JointDestroy },
                                       { "getLimits", JointGetLimits },

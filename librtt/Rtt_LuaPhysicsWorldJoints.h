@@ -293,10 +293,16 @@ int JointSetTarget( lua_State *L )
 }
 int JointIndex( lua_State *L )
 {
+    // Do not route the lifetime query through the throwing live-joint getter.
+    const char *key = luaL_checkstring( L, 2 );
+    if ( !strcmp( key, "isValid" ) )
+    {
+        lua_pushcfunction( L, JointValid );
+        return 1;
+    }
     b2JointId id = GetJoint( L );
     World &w = Owner( L, 1, kJoint );
     b2JointType type = b2Joint_GetType( id );
-    const char *key = luaL_checkstring( L, 2 );
     const auto *number = JointNumber( type, key );
     const auto *flag = JointFlag( type, key );
     if ( number )
