@@ -50,8 +50,17 @@ namespace
 {
 // Side storage preserves PhysicsWorld's existing object layout and vtable.
 // Physics/display APIs and this scheduler run on the Runtime's owning thread.
+struct FixedViewPose
+{
+    b2BodyId body;
+    b2Vec2 previous, current;
+    float previousAngle, currentAngle;
+};
+
 struct FixedStepState
 {
+    bool interpolate = false;
+    std::map<uint64_t, FixedViewPose> poses;
     bool enabled = false;
     bool executing = false;
     bool faulted = false;
@@ -83,6 +92,43 @@ FixedStepState& GetFixedStep( PhysicsWorld& physics )
 {
     std::lock_guard<std::mutex> lock( sFixedStepsMutex );
     return sFixedSteps[&physics];
+}
+
+void WriteFixedView( PhysicsWorld& physics, const FixedViewPose& pose, double alpha )
+{
+    if ( !b2Body_IsValid( pose.body ) ) { return; }
+    void *data = b2Body_GetUserData( pose.body );
+    if ( !data || data == LuaLibPhysics::GetGroundBodyUserdata() ) { return; }
+    DisplayObject *object = static_cast<DisplayObject *>(data);
+    if ( object->IsOrphan() ) { return; }
+    object->SetExtensionsLocked( true );
+    if ( alpha == 1.0 )
+    {
+        b2Vec2 position = pose.current;
+        position *= physics.GetPixelsPerMeter();
+        object->SetGeometricProperty( kOriginX, position.x );
+        object->SetGeometricProperty( kOriginY, position.y );
+        object->SetGeometricProperty( kRotation, Rtt_RealRadiansToDegrees(Rtt_FloatToReal(pose.currentAngle)) );
+    }
+    else
+    {
+        const double angle = pose.previousAngle + std::remainder(
+            (double)pose.currentAngle - pose.previousAngle, 2.0 * 3.141592653589793 ) * alpha;
+        const double scale = physics.GetPixelsPerMeter();
+        object->SetGeometricProperty( kOriginX, (pose.previous.x + (pose.current.x - pose.previous.x) * alpha) * scale );
+        object->SetGeometricProperty( kOriginY, (pose.previous.y + (pose.current.y - pose.previous.y) * alpha) * scale );
+        object->SetGeometricProperty( kRotation, angle * 180.0 / 3.141592653589793 );
+    }
+    object->SetExtensionsLocked( false );
+}
+
+void RestoreFixedViews( PhysicsWorld& physics, FixedStepState& state )
+{
+    for ( auto it = state.poses.begin(); it != state.poses.end(); )
+    {
+        if ( !b2Body_IsValid(it->second.body) ) { it = state.poses.erase(it); }
+        else { WriteFixedView(physics, it->second, 1); ++it; }
+    }
 }
 
 PhysicsWorld& FixedPhysics( lua_State *L )
@@ -204,6 +250,11 @@ int FixedStepScheduler::Configure( lua_State *L )
     luaL_checktype( L, 1, LUA_TTABLE );
     if ( previous && previous->faulted && physics.IsWorldValid() )
     { return luaL_error( L, "stop the faulted world before reconfiguring fixed step mode" ); }
+    lua_getfield( L, 1, "interpolate" );
+    if ( !lua_isnil(L, -1) && !lua_isboolean(L, -1) )
+    { return luaL_error(L, "interpolate must be a boolean"); }
+    const bool interpolate = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
     const double dt = FixedOption( L, "timeStep", 1.0 / 60.0 );
     const double subSteps = FixedOption( L, "subSteps", physics.GetSubSteps() );
     const double speed = FixedOption( L, "speed", 1 );
@@ -221,6 +272,7 @@ int FixedStepScheduler::Configure( lua_State *L )
     state.maxSteps = (int)maxSteps;
     state.enabled = true;
     Reset( physics );
+    state.interpolate = interpolate;
     return 0;
 }
 
@@ -264,6 +316,7 @@ int FixedStepScheduler::GetState( lua_State *L )
     FixedNumber( L, "pendingSteps", state ? state->budget : 0 );
     if ( state )
     {
+        lua_pushboolean(L, state->interpolate); lua_setfield(L, -2, "interpolate");
         FixedNumber( L, "timeStep", state->dt );
         FixedNumber( L, "subSteps", state->subSteps );
         FixedNumber( L, "speed", state->speed );
@@ -277,6 +330,8 @@ void FixedStepScheduler::Reset( PhysicsWorld& physics )
 {
     FixedStepState *state = FindFixedStep( physics );
     if ( !state ) { return; }
+    if ( physics.IsWorldValid() ) { RestoreFixedViews(physics, *state); }
+    state->poses.clear();
     ++state->generation;
     ++state->interruption;
     state->index = 0;
@@ -306,6 +361,7 @@ void FixedStepScheduler::SyncDisplay( PhysicsWorld& physics )
     const b2BodyEvents events = b2World_GetBodyEvents( physics.GetWorldId() );
     std::vector<b2BodyMoveEvent> moves;
     if ( events.moveCount ) { moves.assign( events.moveEvents, events.moveEvents + events.moveCount ); }
+    FixedStepState *state = FindFixedStep(physics);
     for ( const auto& event : moves )
     {
         if ( !b2Body_IsValid( event.bodyId ) ) { continue; }
@@ -316,6 +372,22 @@ void FixedStepScheduler::SyncDisplay( PhysicsWorld& physics )
         if ( data == LuaLibPhysics::GetGroundBodyUserdata() ) { continue; }
         DisplayObject *object = static_cast<DisplayObject *>(data);
         if ( object->IsOrphan() ) { continue; }
+        if ( state && state->interpolate )
+        {
+            const uint64_t key = b2StoreBodyId(event.bodyId);
+            auto found = state->poses.find(key);
+            if ( found == state->poses.end() )
+            {
+                FixedViewPose pose = {};
+                pose.body = event.bodyId;
+                pose.previous = { object->GetGeometricProperty(kOriginX) / physics.GetPixelsPerMeter(),
+                    object->GetGeometricProperty(kOriginY) / physics.GetPixelsPerMeter() };
+                pose.previousAngle = Rtt_RealDegreesToRadians(object->GetGeometricProperty(kRotation));
+                found = state->poses.emplace(key, pose).first;
+            }
+            found->second.current = event.transform.p;
+            found->second.currentAngle = b2Rot_GetAngle(event.transform.q);
+        }
         b2Vec2 position = event.transform.p;
         position *= physics.GetPixelsPerMeter();
         Real angle = Rtt_RealRadiansToDegrees( Rtt_FloatToReal( b2Rot_GetAngle(event.transform.q) ) );
@@ -412,6 +484,7 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
             physics.PauseWorld();
             break;
         }
+        RestoreFixedViews(physics, *state);
         const auto next = state->index + 1;
         if ( !FixedCallback( physics, *state, "before", next ) ) { break; }
         if ( state->generation != generation || !physics.IsWorldValid() ) { break; }
@@ -425,6 +498,11 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
             state->error = error;
             physics.PauseWorld();
             break;
+        }
+        for ( auto& entry : state->poses )
+        {
+            entry.second.previous = entry.second.current;
+            entry.second.previousAngle = entry.second.currentAngle;
         }
         bool entered = true;
         if (state->client.wholeStep)
@@ -465,7 +543,23 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
         if ( state->generation != generation || state->interruption != interruption ||
              !physics.IsProperty( PhysicsWorld::kIsWorldRunning ) ) { break; }
     }
+    if ( state->interpolate && state->generation == generation && !state->faulted &&
+         physics.IsWorldValid() && physics.IsProperty(PhysicsWorld::kIsWorldRunning) )
+    {
+        const double alpha = std::fmin(1.0, state->budget);
+        for ( const auto& entry : state->poses ) { WriteFixedView(physics, entry.second, alpha); }
+    }
     return true;
+}
+
+void FixedStepScheduler::RestoreBodyView( PhysicsWorld& physics, b2BodyId body )
+{
+    FixedStepState *state = FindFixedStep(physics);
+    if ( !state || !state->interpolate ) { return; }
+    auto found = state->poses.find(b2StoreBodyId(body));
+    if ( found == state->poses.end() ) { return; }
+    WriteFixedView(physics, found->second, 1);
+    state->poses.erase(found);
 }
 
 // These iterations are reasonable default values. See http://www.box2d.org/forum/viewtopic.php?f=8&t=4396 for discussion.

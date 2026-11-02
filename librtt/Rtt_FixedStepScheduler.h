@@ -1,6 +1,7 @@
 // Internal fixed-step scheduling. Definitions live in Rtt_PhysicsWorld.cpp.
 #ifndef _Rtt_FixedStepScheduler_H__
 #define _Rtt_FixedStepScheduler_H__
+#include "box2d/id.h"
 struct lua_State;
 namespace Rtt
 {
@@ -22,6 +23,7 @@ public:
         void (*retain)(void *);
         void (*release)(void *);
     };
+    static void RestoreBodyView(PhysicsWorld& physics, b2BodyId body);
     static bool GetTiming(PhysicsWorld& physics, float& dt, int& subSteps);
     static const char *Attach(PhysicsWorld& physics, const Client& client, float dt, int subSteps);
     static void Detach(PhysicsWorld& physics, void *owner);

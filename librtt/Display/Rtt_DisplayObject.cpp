@@ -26,6 +26,7 @@
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Rtt_PhysicsWorld.h"
+#include "Rtt_FixedStepScheduler.h"
 #include "Rtt_RenderingStream.h"
 #include "Core/Rtt_StringHash.h"
 #include "Renderer/Rtt_Uniform.h"
@@ -529,6 +530,14 @@ DisplayObject::Translate( Real dx, Real dy )
 
 //    if ( ! IsProperty( kIsTransformLocked ) )
     {
+#ifdef Rtt_PHYSICS
+        if ( fExtensions && !IsProperty(kIsExtensionsLocked) && GetStage() &&
+             b2Body_IsValid(fExtensions->GetBody()) )
+        {
+            FixedStepScheduler::RestoreBodyView(GetStage()->GetDisplay().GetRuntime().GetPhysicsWorld(),
+                fExtensions->GetBody());
+        }
+#endif
         if ( isNewValue )
         {
             fTransform.SetProperty( property, value );
@@ -619,6 +628,14 @@ DisplayObject::Rotate( Real deltaTheta )
     // Relative rotation retains its existing near-zero no-op behavior.
     if ( isNewValue || ! Rtt_RealIsZero( deltaTheta ) )
     {
+#ifdef Rtt_PHYSICS
+        if ( fExtensions && !IsProperty(kIsExtensionsLocked) && GetStage() &&
+             b2Body_IsValid(fExtensions->GetBody()) )
+        {
+            FixedStepScheduler::RestoreBodyView(GetStage()->GetDisplay().GetRuntime().GetPhysicsWorld(),
+                fExtensions->GetBody());
+        }
+#endif
         if ( isNewValue )
         {
             fTransform.SetProperty( property, value );
