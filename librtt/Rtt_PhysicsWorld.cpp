@@ -59,6 +59,7 @@ struct FixedViewPose
 
 struct FixedStepState
 {
+    int interpolation = -1; // -1 auto, 0 off, 1 on
     bool interpolate = false;
     std::map<uint64_t, FixedViewPose> poses;
     bool enabled = false;
@@ -129,6 +130,22 @@ void RestoreFixedViews( PhysicsWorld& physics, FixedStepState& state )
         if ( !b2Body_IsValid(it->second.body) ) { it = state.poses.erase(it); }
         else { WriteFixedView(physics, it->second, 1); ++it; }
     }
+}
+
+void UpdateFixedInterpolation( PhysicsWorld& physics, FixedStepState& state, float frameInterval )
+{
+    const double rate = (double)frameInterval / state.dt * state.speed;
+    // Match independent worlds: cadence and carried budget, not just this frame's alpha.
+    const bool aligned = rate >= 1 && rate == std::floor(rate) && state.budget == std::floor(state.budget);
+    const bool active = state.interpolation == 1 ||
+        (state.interpolation == -1 && rate <= state.maxSteps && !aligned);
+    if ( active == state.interpolate ) { return; }
+    if ( !active )
+    {
+        RestoreFixedViews(physics, state);
+        state.poses.clear();
+    }
+    state.interpolate = active;
 }
 
 PhysicsWorld& FixedPhysics( lua_State *L )
@@ -250,11 +267,17 @@ int FixedStepScheduler::Configure( lua_State *L )
     luaL_checktype( L, 1, LUA_TTABLE );
     if ( previous && previous->faulted && physics.IsWorldValid() )
     { return luaL_error( L, "stop the faulted world before reconfiguring fixed step mode" ); }
-    lua_getfield( L, 1, "interpolate" );
-    if ( !lua_isnil(L, -1) && !lua_isboolean(L, -1) )
-    { return luaL_error(L, "interpolate must be a boolean"); }
-    const bool interpolate = lua_toboolean(L, -1) != 0;
-    lua_pop(L, 1);
+    lua_getfield( L, 1, "interpolation" );
+    lua_getfield( L, 1, "interpolate" ); // Compatibility with the initial opt-in revision.
+    if ( !lua_isnil(L, -1) && !lua_isnil(L, -2) )
+    { return luaL_error(L, "specify interpolation or interpolate, not both"); }
+    if ( lua_isnil(L, -1) ) { lua_pop(L, 1); }
+    int interpolation = -1;
+    if ( lua_isboolean(L, -1) ) { interpolation = lua_toboolean(L, -1) ? 1 : 0; }
+    else if ( !lua_isnil(L, -1) &&
+        !(lua_type(L, -1) == LUA_TSTRING && std::string(lua_tostring(L, -1)) == "auto") )
+    { return luaL_error(L, "interpolation must be 'auto', true or false"); }
+    lua_settop(L, 1);
     const double dt = FixedOption( L, "timeStep", 1.0 / 60.0 );
     const double subSteps = FixedOption( L, "subSteps", physics.GetSubSteps() );
     const double speed = FixedOption( L, "speed", 1 );
@@ -272,7 +295,8 @@ int FixedStepScheduler::Configure( lua_State *L )
     state.maxSteps = (int)maxSteps;
     state.enabled = true;
     Reset( physics );
-    state.interpolate = interpolate;
+    state.interpolation = interpolation;
+    UpdateFixedInterpolation(physics, state, physics.fFrameInterval);
     return 0;
 }
 
@@ -284,6 +308,11 @@ int FixedStepScheduler::SetSpeed( lua_State *L )
     if ( !std::isfinite(speed) || speed <= 0 || speed > 64 )
     { return luaL_error( L, "simulation speed must be finite and in (0,64]" ); }
     state->speed = speed;
+    if ( !state->executing )
+    {
+        PhysicsWorld& physics = FixedPhysics(L);
+        UpdateFixedInterpolation(physics, *state, physics.fFrameInterval);
+    }
     return 0;
 }
 
@@ -316,7 +345,12 @@ int FixedStepScheduler::GetState( lua_State *L )
     FixedNumber( L, "pendingSteps", state ? state->budget : 0 );
     if ( state )
     {
+        if ( state->interpolation == -1 ) { lua_pushliteral(L, "auto"); }
+        else { lua_pushboolean(L, state->interpolation == 1); }
+        lua_setfield(L, -2, "interpolation");
+        lua_pushboolean(L, state->interpolate); lua_setfield(L, -2, "interpolationActive");
         lua_pushboolean(L, state->interpolate); lua_setfield(L, -2, "interpolate");
+        FixedNumber(L, "poseHistoryCount", state->poses.size());
         FixedNumber( L, "timeStep", state->dt );
         FixedNumber( L, "subSteps", state->subSteps );
         FixedNumber( L, "speed", state->speed );
@@ -462,6 +496,7 @@ bool FixedStepScheduler::Step( PhysicsWorld& physics, float frameInterval )
         ExecutionScope(FixedStepState& s) : state(s) { state.executing = true; }
         ~ExecutionScope() { state.executing = false; }
     } execution(*state);
+    UpdateFixedInterpolation(physics, *state, frameInterval);
     const auto generation = state->generation;
     const auto interruption = state->interruption;
     // Render-budget policy: no wall-clock catch-up, fractional and capped whole
