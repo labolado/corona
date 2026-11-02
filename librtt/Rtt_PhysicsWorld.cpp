@@ -268,16 +268,12 @@ int FixedStepScheduler::Configure( lua_State *L )
     if ( previous && previous->faulted && physics.IsWorldValid() )
     { return luaL_error( L, "stop the faulted world before reconfiguring fixed step mode" ); }
     lua_getfield( L, 1, "interpolation" );
-    lua_getfield( L, 1, "interpolate" ); // Compatibility with the initial opt-in revision.
-    if ( !lua_isnil(L, -1) && !lua_isnil(L, -2) )
-    { return luaL_error(L, "specify interpolation or interpolate, not both"); }
-    if ( lua_isnil(L, -1) ) { lua_pop(L, 1); }
     int interpolation = -1;
     if ( lua_isboolean(L, -1) ) { interpolation = lua_toboolean(L, -1) ? 1 : 0; }
     else if ( !lua_isnil(L, -1) &&
         !(lua_type(L, -1) == LUA_TSTRING && std::string(lua_tostring(L, -1)) == "auto") )
     { return luaL_error(L, "interpolation must be 'auto', true or false"); }
-    lua_settop(L, 1);
+    lua_pop(L, 1);
     const double dt = FixedOption( L, "timeStep", 1.0 / 60.0 );
     const double subSteps = FixedOption( L, "subSteps", physics.GetSubSteps() );
     const double speed = FixedOption( L, "speed", 1 );
@@ -349,7 +345,6 @@ int FixedStepScheduler::GetState( lua_State *L )
         else { lua_pushboolean(L, state->interpolation == 1); }
         lua_setfield(L, -2, "interpolation");
         lua_pushboolean(L, state->interpolate); lua_setfield(L, -2, "interpolationActive");
-        lua_pushboolean(L, state->interpolate); lua_setfield(L, -2, "interpolate");
         FixedNumber(L, "poseHistoryCount", state->poses.size());
         FixedNumber( L, "timeStep", state->dt );
         FixedNumber( L, "subSteps", state->subSteps );
