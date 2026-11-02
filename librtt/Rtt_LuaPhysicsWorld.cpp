@@ -13,6 +13,9 @@
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
 #include "Display/Rtt_DisplayObject.h"
+#include "Display/Rtt_GroupObject.h"
+#include "Display/Rtt_Display.h"
+#include "Display/Rtt_StageObject.h"
 #include "SoftBody/Rtt_LuaSoftWorldBridge.h"
 #include "box2d/box2d.h"
 #include "box2d/constants.h"
@@ -48,10 +51,18 @@ struct Pose
 {
     float x, y, angle;
 };
+struct ViewPose
+{
+    double x = 0, y = 0, rotation = 0;
+};
 struct Binding
 {
     LuaProxy *proxy = NULL; // The proxy userdata is retained even after removeSelf().
     Pose previous, current;
+    ViewPose output;
+    double offsetX = 0, offsetY = 0, offsetRotation = 0;
+    double scaleX = 1, scaleY = 1, outputScaleX = 1, outputScaleY = 1;
+    bool authoredStatic = false;
 };
 struct Body
 {
@@ -61,6 +72,7 @@ struct Body
     unsigned int fixtureCount = 0;
     std::vector<size_t> shapes, chains;
     std::unique_ptr<Binding> binding; // No interpolation state for unbound bodies.
+    ViewPose authoredPose; // Display policy only; never used by the solver or physical getters.
 };
 struct Shape
 {
@@ -98,6 +110,7 @@ struct World
     double frameInterval = 1.0 / 60, viewAlpha = 1;
     size_t poseHistoryCopies = 0;
     size_t lastViewUpdates = 0, bindingCount = 0;
+    LuaProxy *viewRoot = NULL; // Retained in the world's Lua environment, like bound views.
     std::string error;
     std::vector<std::unique_ptr<Body>> bodies;
     std::vector<b2JointId> joints;
@@ -715,113 +728,19 @@ int BodyUnbind( lua_State *L )
     ClearBinding( L, w, b, 1 );
     return 0;
 }
-int BodyBind( lua_State *L )
-{
-    Body &b = GetBody( L );
-    World &w = Owner( L, 1, kBody );
-    Mutable( L, w );
-    luaL_checktype( L, 2, LUA_TTABLE );
-    LuaProxy *proxy = LuaProxy::GetProxy( L, 2 );
-    const LuaProxyVTable *v = proxy ? &proxy->Delegate() : NULL;
-    while ( v && v != &LuaDisplayObjectProxyVTable::Constant() )
-    {
-        const LuaProxyVTable *parent = &v->Parent();
-        v = parent == v ? NULL : parent;
-    }
-    if ( !v || !proxy->Object() )
-        return luaL_error( L, "bindView requires a live display object" );
-    DisplayObject *o = static_cast<DisplayObject *>( proxy->Object() );
-    if ( o->GetExtensions() || o->IsOrphan() )
-        return luaL_error( L, "bindView requires an on-stage view without a physics body" );
-    lua_pushstring( L, kBinding );
-    lua_rawget( L, 2 );
-    bool claimed = !lua_isnil( L, -1 );
-    lua_pop( L, 1 );
-    if ( claimed )
-        return luaL_error( L, "view is already bound; unbind it first" );
-    if ( !lua_isnoneornil( L, 3 ) )
-    {
-        luaL_checktype( L, 3, LUA_TTABLE );
-        lua_getfield( L, 3, "interpolation" );
-        if ( !lua_isnil( L, -1 ) )
-            return luaL_error( L, "configure interpolation on the physics world, not bindView" );
-        lua_pop( L, 1 );
-        Options( L, 3, {} );
-    }
-    ClearBinding( L, w, b, 1 );
-    lua_getfenv( L, 1 );
-    lua_pushvalue( L, 2 );
-    lua_setfield( L, -2, "view" );
-    lua_pushliteral( L, "_proxy" );
-    lua_rawget( L, 2 );
-    lua_setfield( L, -2, "proxy" );
-    lua_pop( L, 1 );
-    lua_pushstring( L, kBinding );
-    lua_pushlightuserdata( L, &b );
-    lua_rawset( L, 2 );
-    b.binding.reset( new Binding );
-    ++w.bindingCount;
-    b.binding->proxy = proxy;
-    ResetPose( w, b );
-    return 0;
-}
-void SyncViews( lua_State *L, World &w, int wi, double alpha )
-{
-    if ( !w.interpolating )
-        alpha = 1;
-    // Visual time never runs backwards after manual sync, cap saturation or pause.
-    const double target = w.index ? (double)w.index - 1 + alpha : 0;
-    w.renderTime = std::max( w.renderTime, target );
-    alpha = w.index ? std::max( 0.0, std::min( 1.0, w.renderTime - ( (double)w.index - 1 ) ) ) : 1;
-    w.viewAlpha = alpha;
-    w.lastViewUpdates = 0;
-    w.syncing = true;
-    for ( size_t i = 0; i < w.active.size(); )
-    {
-        Body &b = *w.active[i];
-        Binding &binding = *b.binding;
-        DisplayObject *o = static_cast<DisplayObject *>( binding.proxy->Object() );
-        if ( !o || o->IsOrphan() || o->GetExtensions() )
-        {
-            PushHandle( L, wi, "bodies", b.serial );
-            ClearBinding( L, w, b, -1 );
-            lua_pop( L, 1 );
-            continue;
-        }
-        const Pose &z = binding.current;
-        const Pose &a = w.interpolating ? binding.previous : z;
-        double t = alpha;
-        // Preserve exact endpoints; interpolation must not introduce subtract/add
-        // restoration drift when presenting the completed physical pose.
-        double x = t == 1 ? z.x : a.x + ( (double)z.x - a.x ) * t;
-        double y = t == 1 ? z.y : a.y + ( (double)z.y - a.y ) * t;
-        double angle = t == 1 ? z.angle : a.angle + b2UnwindAngle( z.angle - a.angle ) * t;
-        o->SetGeometricProperty( kOriginX, (Real)x );
-        o->SetGeometricProperty( kOriginY, (Real)y );
-        o->SetGeometricProperty( kRotation, (Real)( angle / kRad ) );
-        ++w.lastViewUpdates;
-        bool same = a.x == z.x && a.y == z.y && a.angle == z.angle;
-        if ( !b2Body_IsAwake( b.id ) && ( t == 1 || same ) )
-            Deactivate( w, b );
-        else
-            ++i;
-    }
-    if ( w.soft.owner )
-    {
-        lua_getfenv( L, wi );
-        lua_getfield( L, -1, "softSystem" );
-        w.soft.syncViews( L, w.soft.owner, lua_gettop( L ), alpha );
-        lua_pop( L, 2 );
-    }
-    w.syncing = false;
-}
+#include "Rtt_LuaPhysicsWorldViews.h"
+
 int BodyTransform( lua_State *L )
 {
     Body &b = GetBody( L );
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
-    float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
-    float angle = (float)( Number( L, 4 ) * kRad );
+    ViewPose authored;
+    authored.x = Number( L, 2 );
+    authored.y = Number( L, 3 );
+    authored.rotation = Number( L, 4 );
+    float x = (float)( authored.x / w.scale ), y = (float)( authored.y / w.scale );
+    float angle = (float)( authored.rotation * kRad );
     if ( !lua_isnoneornil( L, 5 ) )
     {
         luaL_checktype( L, 5, LUA_TTABLE );
@@ -830,6 +749,7 @@ int BodyTransform( lua_State *L )
             return luaL_error( L, "setTransform supports snap=true only" );
     }
     b2Body_SetTransform( b.id, { x, y }, b2MakeRot( angle ) );
+    b.authoredPose = authored;
     ResetPose( w, b );
     return 0;
 }
@@ -1319,6 +1239,12 @@ int BodyNewIndex( lua_State *L )
         else
             q = b2MakeRot( (float)( v * kRad ) );
         b2Body_SetTransform( b.id, p, q );
+        if ( !strcmp( key, "x" ) )
+            b.authoredPose.x = v;
+        else if ( !strcmp( key, "y" ) )
+            b.authoredPose.y = v;
+        else
+            b.authoredPose.rotation = v;
         ResetPose( w, b );
     }
     else if ( !strcmp( key, "angularVelocity" ) )
@@ -1373,6 +1299,14 @@ int BodyNewIndex( lua_State *L )
             return luaL_error( L, "unknown body type" );
         if ( type != b2_staticBody && !b.chains.empty() )
             return luaL_error( L, "chain bodies must remain static" );
+        if ( type == b2_staticBody && b2Body_GetType( b.id ) != b2_staticBody )
+        {
+            // Freeze the current physical pose, not the original spawn pose.
+            Pose p = ReadPose( w, b );
+            b.authoredPose.x = p.x;
+            b.authoredPose.y = p.y;
+            b.authoredPose.rotation = p.angle / kRad;
+        }
         b2Body_SetType( b.id, type );
         ResetPose( w, b );
     }
@@ -1412,8 +1346,12 @@ int WorldBody( lua_State *L )
     else if ( strcmp( type, "dynamic" ) )
         return luaL_error( L, "unknown body type" );
     lua_pop( L, 1 );
-    d.position = { (float)( Option( L, 2, "x", 0 ) / w.scale ), (float)( Option( L, 2, "y", 0 ) / w.scale ) };
-    d.rotation = b2MakeRot( (float)( Option( L, 2, "rotation", 0 ) * kRad ) );
+    ViewPose authored;
+    authored.x = Option( L, 2, "x", 0 );
+    authored.y = Option( L, 2, "y", 0 );
+    authored.rotation = Option( L, 2, "rotation", 0 );
+    d.position = { (float)( authored.x / w.scale ), (float)( authored.y / w.scale ) };
+    d.rotation = b2MakeRot( (float)( authored.rotation * kRad ) );
     d.gravityScale = (float)Option( L, 2, "gravityScale", 1 );
     d.linearDamping = (float)Option( L, 2, "linearDamping", 0 );
     d.angularDamping = (float)Option( L, 2, "angularDamping", 0 );
@@ -1437,6 +1375,7 @@ int WorldBody( lua_State *L )
     }
     d.userData = b;
     b->id = b2CreateBody( w.id, &d );
+    b->authoredPose = authored;
     Handle *h = (Handle *)lua_newuserdata( L, sizeof( Handle ) );
     *h = { &w, b->serial, b->id, b2_nullJointId };
     luaL_getmetatable( L, kBody );
@@ -1723,38 +1662,43 @@ int WorldAdvance( lua_State *L )
         return luaL_error( L, "nominal frame interval must be in (0,1]" );
     w.frameInterval = interval;
     UpdateInterpolation( w );
-    Busy busy( w );
-    RuntimeGuard guard( *LuaContext::GetRuntime( L ) );
+    const char *viewError = NULL;
     int count = 0;
-    const auto interruption = w.interruption;
-    if ( !w.paused )
     {
-        double budget = w.budget + interval / w.dt * w.speed;
-        if ( !std::isfinite( budget ) || budget > 9007199254740991.0 )
+        Busy busy( w );
+        RuntimeGuard guard( *LuaContext::GetRuntime( L ) );
+        const auto interruption = w.interruption;
+        if ( !w.paused )
         {
-            w.faulted = w.paused = true;
-            w.error = "pendingSteps exceeds exact integer range";
-        }
-        else
-            w.budget = budget;
-        while ( !w.faulted && w.budget >= 1 && count < w.cap )
-        {
-            const auto oldIndex = w.index;
-            bool ok = OneStep( L, w, 1 );
-            if ( w.index > oldIndex )
+            double budget = w.budget + interval / w.dt * w.speed;
+            if ( !std::isfinite( budget ) || budget > 9007199254740991.0 )
             {
-                ++count;
-                if ( w.alive )
-                    w.budget -= 1;
+                w.faulted = w.paused = true;
+                w.error = "pendingSteps exceeds exact integer range";
             }
-            if ( !w.alive )
-                break;
-            if ( !ok || w.paused || w.interruption != interruption )
-                break;
+            else
+                w.budget = budget;
+            while ( !w.faulted && w.budget >= 1 && count < w.cap )
+            {
+                const auto oldIndex = w.index;
+                bool ok = OneStep( L, w, 1 );
+                if ( w.index > oldIndex )
+                {
+                    ++count;
+                    if ( w.alive )
+                        w.budget -= 1;
+                }
+                if ( !w.alive )
+                    break;
+                if ( !ok || w.paused || w.interruption != interruption )
+                    break;
+            }
         }
+        if ( w.alive )
+            viewError = SyncViews( L, w, 1, w.paused || w.budget >= 1 ? 1 : w.budget );
     }
-    if ( w.alive )
-        SyncViews( L, w, 1, w.paused || w.budget >= 1 ? 1 : w.budget );
+    if ( viewError )
+        return luaL_error( L, "%s", viewError );
     lua_pushinteger( L, count );
     return 1;
 }
@@ -1768,8 +1712,13 @@ int WorldSync( lua_State *L )
     if ( alpha < 0 || alpha > 1 )
         return luaL_error( L, "alpha must be in [0,1]" );
     UpdateInterpolation( w );
-    Busy busy( w );
-    SyncViews( L, w, 1, alpha );
+    const char *viewError;
+    {
+        Busy busy( w );
+        viewError = SyncViews( L, w, 1, alpha );
+    }
+    if ( viewError )
+        return luaL_error( L, "%s", viewError );
     return 0;
 }
 int WorldPause( lua_State *L )
@@ -2043,6 +1992,7 @@ void Destroy( lua_State *L, World &w, int wi )
     w.chains.clear();
     w.compoundEdges.clear();
     w.hasContactPolicy = false;
+    w.viewRoot = NULL;
     w.freeShapes.clear();
     w.freeChains.clear();
     w.active.clear();
@@ -2233,6 +2183,7 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "step", WorldStep },
                                       { "advanceFrame", WorldAdvance },
                                       { "syncViews", WorldSync },
+                                      { "setViewRoot", WorldViewRoot },
                                       { "pause", WorldPause },
                                       { "resume", WorldResume },
                                       { "setSimulationSpeed", WorldSpeed },
