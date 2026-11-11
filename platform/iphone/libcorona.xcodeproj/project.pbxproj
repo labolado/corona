@@ -811,6 +811,17 @@
 		F5FFCA121CB9EA03006EBD43 /* Rtt_TesselatorMesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5FFCA101CB9EA03006EBD43 /* Rtt_TesselatorMesh.cpp */; };
 		F5FFCA131CB9EA03006EBD43 /* Rtt_TesselatorMesh.h in Headers */ = {isa = PBXBuildFile; fileRef = F5FFCA111CB9EA03006EBD43 /* Rtt_TesselatorMesh.h */; };
 		F8B68E4816F8EFB100CF1EC4 /* shell.lua in Sources */ = {isa = PBXBuildFile; fileRef = F8B68E4716F8EFB100CF1EC4 /* shell.lua */; };
+		2577E2F0A31778A1985495A0 /* soft_body.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02173A8280E2F7A8F2D2037C /* soft_body.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		2467C7F4F5B0D9C3A5D83DDA /* soft_contact.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DEC802BDD1D18D7409F096B0 /* soft_contact.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		04268F1CFA4828FF3BC7EEC2 /* soft_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7BFFC3E01414FA6257418606 /* soft_world.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		0329F4B3B748BD748FEB30FA /* soft_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41BFFF88CC677D4CF1097DC0 /* soft_simulation.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		CB76342471BB0757D3BBC6CD /* soft_box2d_state.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C5498A025254323A5937CF13 /* soft_box2d_state.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		656A19E7B23609B60427D4E5 /* soft_game_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52822ADE54095537295C0B6E /* soft_game_world.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		3644AF0867C51FBEC7B989E7 /* soft_game_geometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4683769342BD09CD2466D698 /* soft_game_geometry.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		66846D1B544166AFD78F1645 /* soft_game_recovery.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94101FD615BFD4F573F24C27 /* soft_game_recovery.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		42949DCBA055C4BBF9CB939C /* soft_game_assembly.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D5ECE1B26079745E48741859 /* soft_game_assembly.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		200F16496C6A3B0770C43646 /* soft_pair_contacts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4D8B355EC1BC2000D3340AEB /* soft_pair_contacts.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		C7475CD36CB206AEF947A47B /* soft_box2d_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3C3A4C9403BE176DBFB8393 /* soft_box2d_simulation.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -1699,6 +1710,17 @@
 		F5FFCA101CB9EA03006EBD43 /* Rtt_TesselatorMesh.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Rtt_TesselatorMesh.cpp; path = Display/Rtt_TesselatorMesh.cpp; sourceTree = "<group>"; };
 		F5FFCA111CB9EA03006EBD43 /* Rtt_TesselatorMesh.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Rtt_TesselatorMesh.h; path = Display/Rtt_TesselatorMesh.h; sourceTree = "<group>"; };
 		F8B68E4716F8EFB100CF1EC4 /* shell.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = shell.lua; sourceTree = "<group>"; };
+		02173A8280E2F7A8F2D2037C /* soft_body.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_body.cpp; sourceTree = "<group>"; };
+		DEC802BDD1D18D7409F096B0 /* soft_contact.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_contact.cpp; sourceTree = "<group>"; };
+		7BFFC3E01414FA6257418606 /* soft_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_world.cpp; sourceTree = "<group>"; };
+		41BFFF88CC677D4CF1097DC0 /* soft_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_simulation.cpp; sourceTree = "<group>"; };
+		C5498A025254323A5937CF13 /* soft_box2d_state.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_state.cpp; sourceTree = "<group>"; };
+		52822ADE54095537295C0B6E /* soft_game_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_world.cpp; sourceTree = "<group>"; };
+		4683769342BD09CD2466D698 /* soft_game_geometry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_geometry.cpp; sourceTree = "<group>"; };
+		94101FD615BFD4F573F24C27 /* soft_game_recovery.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_recovery.cpp; sourceTree = "<group>"; };
+		D5ECE1B26079745E48741859 /* soft_game_assembly.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_assembly.cpp; sourceTree = "<group>"; };
+		4D8B355EC1BC2000D3340AEB /* soft_pair_contacts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_pair_contacts.cpp; sourceTree = "<group>"; };
+		F3C3A4C9403BE176DBFB8393 /* soft_box2d_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_simulation.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2461,6 +2483,7 @@
 		41B9ACE32C5B9B5C000F59B1 /* extern */ = {
 			isa = PBXGroup;
 			children = (
+				A20886D1D594F6D5538CBC66 /* softbody */,
 				417D56F42C8705C0005C9DAD /* liquidfun */,
 			);
 			path = extern;
@@ -2960,6 +2983,24 @@
 				A67E20191797222C0066FF47 /* b2GLESDebugDraw.h */,
 			);
 			name = Box2D;
+			sourceTree = "<group>";
+		};
+		A20886D1D594F6D5538CBC66 /* softbody */ = {
+			isa = PBXGroup;
+			children = (
+				02173A8280E2F7A8F2D2037C /* soft_body.cpp */,
+				DEC802BDD1D18D7409F096B0 /* soft_contact.cpp */,
+				7BFFC3E01414FA6257418606 /* soft_world.cpp */,
+				41BFFF88CC677D4CF1097DC0 /* soft_simulation.cpp */,
+				C5498A025254323A5937CF13 /* soft_box2d_state.cpp */,
+				52822ADE54095537295C0B6E /* soft_game_world.cpp */,
+				4683769342BD09CD2466D698 /* soft_game_geometry.cpp */,
+				94101FD615BFD4F573F24C27 /* soft_game_recovery.cpp */,
+				D5ECE1B26079745E48741859 /* soft_game_assembly.cpp */,
+				4D8B355EC1BC2000D3340AEB /* soft_pair_contacts.cpp */,
+				F3C3A4C9403BE176DBFB8393 /* soft_box2d_simulation.cpp */,
+			);
+			path = softbody;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -3552,6 +3593,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2577E2F0A31778A1985495A0 /* soft_body.cpp in Sources */,
+				2467C7F4F5B0D9C3A5D83DDA /* soft_contact.cpp in Sources */,
+				04268F1CFA4828FF3BC7EEC2 /* soft_world.cpp in Sources */,
+				0329F4B3B748BD748FEB30FA /* soft_simulation.cpp in Sources */,
+				CB76342471BB0757D3BBC6CD /* soft_box2d_state.cpp in Sources */,
+				656A19E7B23609B60427D4E5 /* soft_game_world.cpp in Sources */,
+				3644AF0867C51FBEC7B989E7 /* soft_game_geometry.cpp in Sources */,
+				66846D1B544166AFD78F1645 /* soft_game_recovery.cpp in Sources */,
+				42949DCBA055C4BBF9CB939C /* soft_game_assembly.cpp in Sources */,
+				200F16496C6A3B0770C43646 /* soft_pair_contacts.cpp in Sources */,
+				C7475CD36CB206AEF947A47B /* soft_box2d_simulation.cpp in Sources */,
 				41B9ADC62C5B9B61000F59B1 /* island.c in Sources */,
 				41B9ADB22C5B9B60000F59B1 /* body.c in Sources */,
 				41B9ADCC2C5B9B61000F59B1 /* motor_joint.c in Sources */,
