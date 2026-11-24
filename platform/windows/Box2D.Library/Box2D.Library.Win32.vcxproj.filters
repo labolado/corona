@@ -151,6 +151,45 @@
     <ClInclude Include="..\..\..\external\box2d_v3\extern\liquidfun\particle_assembly.h">
       <Filter>extern\liquidfun</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_body.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_box2d_simulation.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_box2d_state.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_contact.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_assembly.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_geometry.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_recovery.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_world.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_pair_contacts.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_profile.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_simulation.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_simulation_internal.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\extern\softbody\soft_world.h">
+      <Filter>extern\softbody</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\sensor.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -176,6 +215,9 @@
     </Filter>
     <Filter Include="extern\liquidfun">
       <UniqueIdentifier>{a3a0ae87-ca8e-4874-8a77-f05d0b564805}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="extern\softbody">
+      <UniqueIdentifier>{7b1e4001-9c2a-4d7e-8b31-5a6c7d8e9f01}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -340,6 +382,39 @@
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\extern\liquidfun\settings.cpp">
       <Filter>extern\liquidfun</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_body.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_contact.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_world.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_simulation.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_box2d_state.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_world.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_geometry.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_recovery.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_game_assembly.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_pair_contacts.cpp">
+      <Filter>extern\softbody</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\extern\softbody\soft_box2d_simulation.cpp">
+      <Filter>extern\softbody</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\arena_allocator.c">
       <Filter>src</Filter>

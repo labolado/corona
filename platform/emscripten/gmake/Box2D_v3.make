@@ -81,6 +81,17 @@ OBJECTS := \
 	$(OBJDIR)/settings.o \
 	$(OBJDIR)/tracked_block.o \
 	$(OBJDIR)/voronoi_diagram.o \
+	$(OBJDIR)/soft_body.o \
+	$(OBJDIR)/soft_contact.o \
+	$(OBJDIR)/soft_world.o \
+	$(OBJDIR)/soft_simulation.o \
+	$(OBJDIR)/soft_box2d_state.o \
+	$(OBJDIR)/soft_game_world.o \
+	$(OBJDIR)/soft_game_geometry.o \
+	$(OBJDIR)/soft_game_recovery.o \
+	$(OBJDIR)/soft_game_assembly.o \
+	$(OBJDIR)/soft_pair_contacts.o \
+	$(OBJDIR)/soft_box2d_simulation.o \
 	$(OBJDIR)/aabb.o \
 	$(OBJDIR)/arena_allocator.o \
 	$(OBJDIR)/parallel_for.o \
@@ -220,6 +231,39 @@ $(OBJDIR)/tracked_block.o: ../../../external/box2d_v3/extern/liquidfun/tracked_b
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/voronoi_diagram.o: ../../../external/box2d_v3/extern/liquidfun/voronoi_diagram.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_body.o: ../../../external/box2d_v3/extern/softbody/soft_body.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_contact.o: ../../../external/box2d_v3/extern/softbody/soft_contact.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_world.o: ../../../external/box2d_v3/extern/softbody/soft_world.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_simulation.o: ../../../external/box2d_v3/extern/softbody/soft_simulation.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_box2d_state.o: ../../../external/box2d_v3/extern/softbody/soft_box2d_state.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_game_world.o: ../../../external/box2d_v3/extern/softbody/soft_game_world.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_game_geometry.o: ../../../external/box2d_v3/extern/softbody/soft_game_geometry.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_game_recovery.o: ../../../external/box2d_v3/extern/softbody/soft_game_recovery.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_game_assembly.o: ../../../external/box2d_v3/extern/softbody/soft_game_assembly.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_pair_contacts.o: ../../../external/box2d_v3/extern/softbody/soft_pair_contacts.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/soft_box2d_simulation.o: ../../../external/box2d_v3/extern/softbody/soft_box2d_simulation.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/aabb.o: ../../../external/box2d_v3/src/aabb.c

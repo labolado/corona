@@ -787,6 +787,17 @@
 		F5DE5C2729810AC700BE463F /* CoronaMemory.h in Headers */ = {isa = PBXBuildFile; fileRef = F5DE5BEA29810AC600BE463F /* CoronaMemory.h */; };
 		F5DE5C2A29810AD800BE463F /* CoronaMemory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5DE5C2629810AC600BE463F /* CoronaMemory.cpp */; };
 		F5DE5C2B29810AE500BE463F /* CoronaMemory.h in Headers */ = {isa = PBXBuildFile; fileRef = F5DE5BEA29810AC600BE463F /* CoronaMemory.h */; };
+		7B1E40010000000000000001 /* soft_body.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000001 /* soft_body.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000002 /* soft_contact.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000002 /* soft_contact.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000003 /* soft_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000003 /* soft_world.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000004 /* soft_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000004 /* soft_simulation.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000005 /* soft_box2d_state.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000005 /* soft_box2d_state.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000006 /* soft_game_world.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000006 /* soft_game_world.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000007 /* soft_game_geometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000007 /* soft_game_geometry.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000008 /* soft_game_recovery.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000008 /* soft_game_recovery.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E40010000000000000009 /* soft_game_assembly.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E40020000000000000009 /* soft_game_assembly.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E4001000000000000000A /* soft_pair_contacts.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E4002000000000000000A /* soft_pair_contacts.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
+		7B1E4001000000000000000B /* soft_box2d_simulation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B1E4002000000000000000B /* soft_box2d_simulation.cpp */; settings = {COMPILER_FLAGS = "-ffp-contract=off -fno-exceptions"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -2624,6 +2635,17 @@
 		F5C5E20C251E139A00217C19 /* OpenGLES.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = OpenGLES.xcodeproj; path = ../../external/MetalANGLE/ios/xcode/OpenGLES.xcodeproj; sourceTree = "<group>"; };
 		F5DE5BEA29810AC600BE463F /* CoronaMemory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CoronaMemory.h; path = ../../librtt/Corona/CoronaMemory.h; sourceTree = "<group>"; };
 		F5DE5C2629810AC600BE463F /* CoronaMemory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CoronaMemory.cpp; path = ../../librtt/Corona/CoronaMemory.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000001 /* soft_body.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_body.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000002 /* soft_contact.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_contact.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000003 /* soft_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_world.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000004 /* soft_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_simulation.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000005 /* soft_box2d_state.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_state.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000006 /* soft_game_world.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_world.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000007 /* soft_game_geometry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_geometry.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000008 /* soft_game_recovery.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_recovery.cpp; sourceTree = "<group>"; };
+		7B1E40020000000000000009 /* soft_game_assembly.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_game_assembly.cpp; sourceTree = "<group>"; };
+		7B1E4002000000000000000A /* soft_pair_contacts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_pair_contacts.cpp; sourceTree = "<group>"; };
+		7B1E4002000000000000000B /* soft_box2d_simulation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = soft_box2d_simulation.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2857,9 +2879,28 @@
 		41DC1B3C2C9C2D94000E52D2 /* extern */ = {
 			isa = PBXGroup;
 			children = (
+				7B1E40030000000000000001 /* softbody */,
 				41DC1B3B2C9C2D94000E52D2 /* liquidfun */,
 			);
 			path = extern;
+			sourceTree = "<group>";
+		};
+		7B1E40030000000000000001 /* softbody */ = {
+			isa = PBXGroup;
+			children = (
+				7B1E40020000000000000001 /* soft_body.cpp */,
+				7B1E40020000000000000002 /* soft_contact.cpp */,
+				7B1E40020000000000000003 /* soft_world.cpp */,
+				7B1E40020000000000000004 /* soft_simulation.cpp */,
+				7B1E40020000000000000005 /* soft_box2d_state.cpp */,
+				7B1E40020000000000000006 /* soft_game_world.cpp */,
+				7B1E40020000000000000007 /* soft_game_geometry.cpp */,
+				7B1E40020000000000000008 /* soft_game_recovery.cpp */,
+				7B1E40020000000000000009 /* soft_game_assembly.cpp */,
+				7B1E4002000000000000000A /* soft_pair_contacts.cpp */,
+				7B1E4002000000000000000B /* soft_box2d_simulation.cpp */,
+			);
+			path = softbody;
 			sourceTree = "<group>";
 		};
 		41DC1B432C9C2D94000E52D2 /* box2d */ = {
@@ -5606,6 +5647,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B1E40010000000000000001 /* soft_body.cpp in Sources */,
+				7B1E40010000000000000002 /* soft_contact.cpp in Sources */,
+				7B1E40010000000000000003 /* soft_world.cpp in Sources */,
+				7B1E40010000000000000004 /* soft_simulation.cpp in Sources */,
+				7B1E40010000000000000005 /* soft_box2d_state.cpp in Sources */,
+				7B1E40010000000000000006 /* soft_game_world.cpp in Sources */,
+				7B1E40010000000000000007 /* soft_game_geometry.cpp in Sources */,
+				7B1E40010000000000000008 /* soft_game_recovery.cpp in Sources */,
+				7B1E40010000000000000009 /* soft_game_assembly.cpp in Sources */,
+				7B1E4001000000000000000A /* soft_pair_contacts.cpp in Sources */,
+				7B1E4001000000000000000B /* soft_box2d_simulation.cpp in Sources */,
 				41DC1BF42C9C2D94000E52D2 /* core.c in Sources */,
 				41DC1BF52C9C2D94000E52D2 /* distance_joint.c in Sources */,
 				41DC1C072C9C2D94000E52D2 /* table.c in Sources */,
