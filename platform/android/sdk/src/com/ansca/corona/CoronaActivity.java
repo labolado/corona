@@ -55,6 +55,7 @@ public class CoronaActivity extends Activity {
 	private CoronaStatusBarSettings myStatusBarMode;
 	private android.database.ContentObserver fAutoRotateObserver = null;
 	private DisplayCutout fDisplayCutout = null;
+	private FoldStateMonitor fFoldStateMonitor = null;
 	private Integer fNavigationBarColor = null;
 
 	private Controller fController;
@@ -332,6 +333,9 @@ public class CoronaActivity extends Activity {
 		// Set up a dispatcher for sending tasks to the Corona runtime via the EventManager.
 		// This is mostly intended for customers who use the Enterprise version of Corona.
 		myRuntimeTaskDispatcher = new CoronaRuntimeTaskDispatcher(fCoronaRuntime);
+
+		// Watch the posture of foldable devices for the Lua "fold" event and system.getInfo("foldState").
+		fFoldStateMonitor = new FoldStateMonitor(this);
 
 		// Validate the "AndroidManifest.xml" file and display an error if anything is misconfigured.
 		try {
@@ -1215,6 +1219,10 @@ public class CoronaActivity extends Activity {
 		return fDisplayCutout;
 	}
 
+	/** Gets the monitor that tracks the fold of a foldable device. Null before onCreate(). */
+	public FoldStateMonitor getFoldStateMonitor() {
+		return fFoldStateMonitor;
+  }
 	// One listener for the display cutout and, on Android 15+, the navigation bar color.
 	// setNavigationBarColor used to replace this listener, which dropped the cutout.
 	private void ensureWindowInsetsListener() {
@@ -1244,7 +1252,7 @@ public class CoronaActivity extends Activity {
 				getWindow().getDecorView().requestApplyInsets();
 			}
 		});
-	}
+  }
 
 	int getStatusBarHeight() {
 
@@ -1860,6 +1868,10 @@ public class CoronaActivity extends Activity {
 	@Override
 	protected void onStart() {
 		super.onStart();
+
+		if (fFoldStateMonitor != null) {
+			fFoldStateMonitor.start();
+		}
 	}
 
 	/**
@@ -1947,6 +1959,10 @@ public class CoronaActivity extends Activity {
 	@Override
 	protected void onStop() {
 		super.onStop();
+
+		if (fFoldStateMonitor != null) {
+			fFoldStateMonitor.stop();
+		}
 	}
 
 	/**
