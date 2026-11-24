@@ -1288,7 +1288,7 @@ QueryBody( lua_State *L )
 					{
 						b2Capsule capsule = b2Shape_GetCapsule( shapeArray[ i ] );
 						capsule.center1 = b2TransformPoint( transform, capsule.center1 );
-						capsule.center2 = b2TransformPoint( transform, capsule.center1 );
+						capsule.center2 = b2TransformPoint( transform, capsule.center2 );
 						b2ShapeProxy proxy = b2MakeProxy( &capsule.center1, 2, capsule.radius );
 						b2World_OverlapShape( physics.GetWorldId(), b2Pos_zero, &proxy, filter, query_callback, &context );
 						break;
@@ -1334,6 +1334,763 @@ QueryBody( lua_State *L )
 	{
 		return 0;
 	}
+}
+
+namespace
+{
+	DisplayObject*
+	GetDisplayObjectIfValid( lua_State *L, int index )
+	{
+		if ( index < 0 && index > LUA_REGISTRYINDEX )
+		{
+			index = lua_gettop( L ) + index + 1;
+		}
+		if ( ! LuaProxy::IsProxy( L, index ) )
+		{
+			return NULL;
+		}
+		return (DisplayObject*)LuaProxy::GetProxyableObject( L, index );
+	}
+
+	bool
+	GetValidPhysicsBody( lua_State *L, int index, const PhysicsWorld& physics, b2BodyId& outBodyId, DisplayObject** outObject = NULL )
+	{
+		DisplayObject *o = GetDisplayObjectIfValid( L, index );
+		if ( ! o )
+		{
+			return false;
+		}
+		DisplayObjectExtensions *extensions = o->GetExtensions();
+		if ( ! extensions )
+		{
+			return false;
+		}
+		b2BodyId bodyId = extensions->GetBody();
+		if ( ! b2Body_IsValid( bodyId ) ||
+			 b2StoreWorldId( b2Body_GetWorld( bodyId ) ) != b2StoreWorldId( physics.GetWorldId() ) )
+		{
+			return false;
+		}
+		outBodyId = bodyId;
+		if ( outObject )
+		{
+			*outObject = o;
+		}
+		return true;
+	}
+
+	bool
+	IsActualContact( const b2ContactData& contact )
+	{
+		if ( ! b2Shape_IsValid( contact.shapeIdA ) || ! b2Shape_IsValid( contact.shapeIdB ) )
+		{
+			return false;
+		}
+		if ( b2Shape_IsSensor( contact.shapeIdA ) || b2Shape_IsSensor( contact.shapeIdB ) )
+		{
+			return false;
+		}
+		const b2Manifold& manifold = contact.manifold;
+		if ( manifold.pointCount <= 0 )
+		{
+			return false;
+		}
+		const float slop = B2_LINEAR_SLOP;
+		for ( int i = 0; i < manifold.pointCount; ++i )
+		{
+			const b2ManifoldPoint& pt = manifold.points[i];
+			if ( pt.totalNormalImpulse > 0.0f || pt.separation <= slop )
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	struct QueryBoxContext
+	{
+		static const int kStackCapacity = 32;
+
+		DisplayObject *exclude;
+		bool includeSensors;
+		bool deduplicate;
+		int stackCount;
+		DisplayObject *stackHits[kStackCapacity];
+		std::vector<DisplayObject*> heapHits;
+
+		bool Contains( DisplayObject *obj ) const
+		{
+			if ( heapHits.empty() )
+			{
+				for ( int i = 0; i < stackCount; ++i )
+				{
+					if ( stackHits[i] == obj )
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+			for ( size_t i = 0; i < heapHits.size(); ++i )
+			{
+				if ( heapHits[i] == obj )
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		void Add( DisplayObject *obj )
+		{
+			if ( heapHits.empty() )
+			{
+				if ( stackCount < kStackCapacity )
+				{
+					stackHits[stackCount++] = obj;
+					return;
+				}
+				heapHits.reserve( kStackCapacity * 2 );
+				for ( int i = 0; i < stackCount; ++i )
+				{
+					heapHits.push_back( stackHits[i] );
+				}
+			}
+			heapHits.push_back( obj );
+		}
+
+		int Count() const
+		{
+			return heapHits.empty() ? stackCount : (int)heapHits.size();
+		}
+
+		DisplayObject* At( int i ) const
+		{
+			return heapHits.empty() ? stackHits[i] : heapHits[i];
+		}
+	};
+
+	bool
+	query_box_callback( b2ShapeId shapeId, void *context )
+	{
+		QueryBoxContext *ctx = static_cast<QueryBoxContext*>( context );
+		if ( ! b2Shape_IsValid( shapeId ) )
+		{
+			return true;
+		}
+		if ( ! ctx->includeSensors && b2Shape_IsSensor( shapeId ) )
+		{
+			return true;
+		}
+		b2BodyId bodyId = b2Shape_GetBody( shapeId );
+		if ( ! b2Body_IsValid( bodyId ) )
+		{
+			return true;
+		}
+		void *rawUserData = b2Body_GetUserData( bodyId );
+		if ( rawUserData == NULL || rawUserData == LuaLibPhysics::GetGroundBodyUserdata() )
+		{
+			return true;
+		}
+		DisplayObject *obj = static_cast<DisplayObject*>( rawUserData );
+		if ( obj == ctx->exclude || obj->GetProxy() == NULL )
+		{
+			return true;
+		}
+		if ( ctx->deduplicate && ctx->Contains( obj ) )
+		{
+			return true;
+		}
+		ctx->Add( obj );
+		return true;
+	}
+
+	void
+	ReadQueryBoxOptions( lua_State *L, int tableIndex, b2QueryFilter& filter, bool& includeSensors, bool& deduplicate, DisplayObject*& exclude )
+	{
+		if ( tableIndex < 0 && tableIndex > LUA_REGISTRYINDEX )
+		{
+			tableIndex = lua_gettop( L ) + tableIndex + 1;
+		}
+		if ( ! lua_istable( L, tableIndex ) )
+		{
+			return;
+		}
+
+		lua_getfield( L, tableIndex, "filter" );
+		if ( lua_istable( L, -1 ) )
+		{
+			lua_getfield( L, -1, "categoryBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.categoryBits = (uint64_t)lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, -1, "maskBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				filter.maskBits = (uint64_t)lua_tonumber( L, -1 );
+			}
+			lua_pop( L, 1 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, tableIndex, "includeSensors" );
+		if ( ! lua_isnil( L, -1 ) )
+		{
+			includeSensors = ( lua_toboolean( L, -1 ) != 0 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, tableIndex, "deduplicate" );
+		if ( ! lua_isnil( L, -1 ) )
+		{
+			deduplicate = ( lua_toboolean( L, -1 ) != 0 );
+		}
+		lua_pop( L, 1 );
+
+		lua_getfield( L, tableIndex, "exclude" );
+		if ( ! lua_isnil( L, -1 ) )
+		{
+			exclude = GetDisplayObjectIfValid( L, -1 );
+		}
+		lua_pop( L, 1 );
+	}
+} // anonymous namespace
+
+// physics.getClosestPoint( body, wx, wy [, includeSensors] ) -> cx, cy, distance, nx, ny
+static int
+GetClosestPoint( lua_State *L )
+{
+	if ( ! LuaLibPhysics::IsWorldValid( L, "physics.getClosestPoint()" ) )
+	{
+		return 0;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+	b2BodyId bodyId = b2_nullBodyId;
+	if ( ! GetValidPhysicsBody( L, 1, physics, bodyId ) )
+	{
+		return 0;
+	}
+
+	if ( lua_type( L, 2 ) != LUA_TNUMBER || lua_type( L, 3 ) != LUA_TNUMBER )
+	{
+		return 0;
+	}
+
+	const double wx = lua_tonumber( L, 2 );
+	const double wy = lua_tonumber( L, 3 );
+	if ( ! std::isfinite( wx ) || ! std::isfinite( wy ) )
+	{
+		return 0;
+	}
+
+	const bool includeSensors = ( lua_toboolean( L, 4 ) != 0 );
+
+	const int shapeCount = b2Body_GetShapeCount( bodyId );
+	if ( shapeCount <= 0 )
+	{
+		return 0;
+	}
+
+	b2ShapeId stackShapes[16];
+	std::vector<b2ShapeId> heapShapes;
+	b2ShapeId *shapes = stackShapes;
+	if ( shapeCount > 16 )
+	{
+		heapShapes.resize( shapeCount );
+		shapes = heapShapes.data();
+	}
+	const int actualCount = b2Body_GetShapes( bodyId, shapes, shapeCount );
+
+	const double pixelsPerMeter = (double)physics.GetPixelsPerMeter();
+	const double metersPerPixel = 1.0 / pixelsPerMeter;
+	const b2Vec2 targetMeters = { (float)( wx * metersPerPixel ), (float)( wy * metersPerPixel ) };
+	if ( ! std::isfinite( targetMeters.x ) || ! std::isfinite( targetMeters.y ) )
+	{
+		return 0;
+	}
+
+	bool found = false;
+	float bestDistance = FLT_MAX;
+	b2Vec2 bestNormal = b2Vec2_zero;
+
+	for ( int i = 0; i < actualCount; ++i )
+	{
+		b2ShapeId shapeId = shapes[i];
+		if ( ! b2Shape_IsValid( shapeId ) )
+		{
+			continue;
+		}
+		if ( ! includeSensors && b2Shape_IsSensor( shapeId ) )
+		{
+			continue;
+		}
+
+		b2ShapeType shapeType = b2Shape_GetType( shapeId );
+		if ( shapeType != b2_circleShape &&
+			 shapeType != b2_capsuleShape &&
+			 shapeType != b2_polygonShape &&
+			 shapeType != b2_segmentShape &&
+			 shapeType != b2_chainSegmentShape )
+		{
+			continue;
+		}
+
+		float distance = FLT_MAX;
+		b2Vec2 normal = b2Vec2_zero;
+		b2Shape_ComputeDistance( shapeId, targetMeters, &distance, &normal );
+		if ( ! std::isfinite( distance ) || ! std::isfinite( normal.x ) || ! std::isfinite( normal.y ) )
+		{
+			continue;
+		}
+
+		if ( ! found || distance < bestDistance )
+		{
+			found = true;
+			bestDistance = distance;
+			bestNormal = normal;
+		}
+	}
+
+	if ( ! found )
+	{
+		return 0;
+	}
+
+	const double distancePx = (double)bestDistance * pixelsPerMeter;
+	const double nx = (double)bestNormal.x;
+	const double ny = (double)bestNormal.y;
+	const double cx = wx - nx * distancePx;
+	const double cy = wy - ny * distancePx;
+
+	if ( ! std::isfinite( cx ) || ! std::isfinite( cy ) || ! std::isfinite( distancePx ) )
+	{
+		return 0;
+	}
+
+	lua_pushnumber( L, cx );
+	lua_pushnumber( L, cy );
+	lua_pushnumber( L, distancePx );
+	lua_pushnumber( L, nx );
+	lua_pushnumber( L, ny );
+	return 5;
+}
+
+// physics.queryBox( paramsTable ) or
+// physics.queryBox( x, y, halfWidth, halfHeight [, angle [, radius [, options]]] )
+static int
+QueryBox( lua_State *L )
+{
+	if ( LuaLibPhysics::IsWorldLocked( L, "physics.queryBox()" ) )
+	{
+		return 0;
+	}
+
+	double x = 0.0;
+	double y = 0.0;
+	double halfWidth = 0.0;
+	double halfHeight = 0.0;
+	double angleDeg = 0.0;
+	double radius = 0.0;
+	b2QueryFilter filter = b2DefaultQueryFilter();
+	bool includeSensors = false;
+	bool deduplicate = true;
+	DisplayObject *exclude = NULL;
+
+	if ( lua_istable( L, 1 ) )
+	{
+		lua_getfield( L, 1, "x" );
+		bool okX = ( lua_type( L, -1 ) == LUA_TNUMBER );
+		x = okX ? lua_tonumber( L, -1 ) : 0.0;
+		lua_pop( L, 1 );
+
+		lua_getfield( L, 1, "y" );
+		bool okY = ( lua_type( L, -1 ) == LUA_TNUMBER );
+		y = okY ? lua_tonumber( L, -1 ) : 0.0;
+		lua_pop( L, 1 );
+
+		lua_getfield( L, 1, "halfWidth" );
+		bool okHW = ( lua_type( L, -1 ) == LUA_TNUMBER );
+		halfWidth = okHW ? lua_tonumber( L, -1 ) : 0.0;
+		lua_pop( L, 1 );
+
+		lua_getfield( L, 1, "halfHeight" );
+		bool okHH = ( lua_type( L, -1 ) == LUA_TNUMBER );
+		halfHeight = okHH ? lua_tonumber( L, -1 ) : 0.0;
+		lua_pop( L, 1 );
+
+		bool okAngle = true;
+		lua_getfield( L, 1, "angle" );
+		if ( ! lua_isnil( L, -1 ) )
+		{
+			okAngle = ( lua_type( L, -1 ) == LUA_TNUMBER );
+			angleDeg = okAngle ? lua_tonumber( L, -1 ) : 0.0;
+		}
+		lua_pop( L, 1 );
+
+		bool okRadius = true;
+		lua_getfield( L, 1, "radius" );
+		if ( ! lua_isnil( L, -1 ) )
+		{
+			okRadius = ( lua_type( L, -1 ) == LUA_TNUMBER );
+			radius = okRadius ? lua_tonumber( L, -1 ) : 0.0;
+		}
+		lua_pop( L, 1 );
+
+		if ( ! okX || ! okY || ! okHW || ! okHH || ! okAngle || ! okRadius )
+		{
+			CoronaLuaError( L, "physics.queryBox() requires numeric x, y, halfWidth, halfHeight (and optional numeric angle, radius)" );
+			return 0;
+		}
+
+		ReadQueryBoxOptions( L, 1, filter, includeSensors, deduplicate, exclude );
+	}
+	else
+	{
+		if ( lua_type( L, 1 ) != LUA_TNUMBER || lua_type( L, 2 ) != LUA_TNUMBER ||
+			 lua_type( L, 3 ) != LUA_TNUMBER || lua_type( L, 4 ) != LUA_TNUMBER )
+		{
+			CoronaLuaError( L, "physics.queryBox() requires (x, y, halfWidth, halfHeight [, angle [, radius [, options]]]) or a params table" );
+			return 0;
+		}
+
+		x = lua_tonumber( L, 1 );
+		y = lua_tonumber( L, 2 );
+		halfWidth = lua_tonumber( L, 3 );
+		halfHeight = lua_tonumber( L, 4 );
+
+		if ( ! lua_isnoneornil( L, 5 ) )
+		{
+			if ( lua_type( L, 5 ) != LUA_TNUMBER )
+			{
+				CoronaLuaError( L, "physics.queryBox() angle must be a number" );
+				return 0;
+			}
+			angleDeg = lua_tonumber( L, 5 );
+		}
+
+		if ( ! lua_isnoneornil( L, 6 ) )
+		{
+			if ( lua_type( L, 6 ) != LUA_TNUMBER )
+			{
+				CoronaLuaError( L, "physics.queryBox() radius must be a number" );
+				return 0;
+			}
+			radius = lua_tonumber( L, 6 );
+		}
+
+		if ( lua_istable( L, 7 ) )
+		{
+			ReadQueryBoxOptions( L, 7, filter, includeSensors, deduplicate, exclude );
+		}
+	}
+
+	if ( ! std::isfinite( x ) || ! std::isfinite( y ) ||
+		 ! std::isfinite( halfWidth ) || ! std::isfinite( halfHeight ) ||
+		 ! std::isfinite( angleDeg ) || ! std::isfinite( radius ) ||
+		 halfWidth <= 0.0 || halfHeight <= 0.0 || radius < 0.0 )
+	{
+		CoronaLuaError( L, "physics.queryBox() requires finite numbers with halfWidth > 0, halfHeight > 0, radius >= 0" );
+		return 0;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	const double metersPerPixel = 1.0 / (double)physics.GetPixelsPerMeter();
+	const float halfWMeters = (float)( halfWidth * metersPerPixel );
+	const float halfHMeters = (float)( halfHeight * metersPerPixel );
+	const float radiusMeters = (float)( radius * metersPerPixel );
+	const float angleRad = Rtt_RealDegreesToRadians( (Real)angleDeg );
+	const b2Pos origin = { (float)( x * metersPerPixel ), (float)( y * metersPerPixel ) };
+
+	if ( ! std::isfinite( origin.x ) || ! std::isfinite( origin.y ) ||
+		 ! std::isfinite( halfWMeters ) || ! std::isfinite( halfHMeters ) ||
+		 ! std::isfinite( radiusMeters ) || ! std::isfinite( angleRad ) ||
+		 halfWMeters <= 0.0f || halfHMeters <= 0.0f || radiusMeters < 0.0f )
+	{
+		CoronaLuaError( L, "physics.queryBox() dimensions out of valid floating-point range" );
+		return 0;
+	}
+
+	b2Polygon box = b2MakeOffsetRoundedBox( halfWMeters, halfHMeters, b2Vec2_zero, b2MakeRot( angleRad ), radiusMeters );
+	b2ShapeProxy proxy = b2MakeProxy( box.vertices, box.count, box.radius );
+
+	QueryBoxContext context;
+	context.exclude = exclude;
+	context.includeSensors = includeSensors;
+	context.deduplicate = deduplicate;
+	context.stackCount = 0;
+
+	b2World_OverlapShape( physics.GetWorldId(), origin, &proxy, filter, query_box_callback, &context );
+
+	const int hitCount = context.Count();
+	if ( hitCount <= 0 )
+	{
+		return 0;
+	}
+
+	lua_createtable( L, hitCount, 0 );
+	int outIndex = 0;
+	for ( int i = 0; i < hitCount; ++i )
+	{
+		DisplayObject *obj = context.At( i );
+		if ( obj && obj->GetProxy() && obj->GetProxy()->PushTable( L ) )
+		{
+			lua_rawseti( L, -2, ++outIndex );
+		}
+	}
+
+	if ( outIndex == 0 )
+	{
+		lua_pop( L, 1 );
+		return 0;
+	}
+
+	return 1;
+}
+
+// physics.isTouching( bodyA, bodyB ) -> boolean
+static int
+IsTouching( lua_State *L )
+{
+	if ( LuaLibPhysics::IsWorldLocked( L, "physics.isTouching()" ) )
+	{
+		lua_pushboolean( L, false );
+		return 1;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+	b2BodyId bodyIdA = b2_nullBodyId;
+	b2BodyId bodyIdB = b2_nullBodyId;
+	if ( ! GetValidPhysicsBody( L, 1, physics, bodyIdA ) ||
+		 ! GetValidPhysicsBody( L, 2, physics, bodyIdB ) ||
+		 B2_ID_EQUALS( bodyIdA, bodyIdB ) )
+	{
+		lua_pushboolean( L, false );
+		return 1;
+	}
+
+	const int capA = b2Body_GetContactCapacity( bodyIdA );
+	const int capB = b2Body_GetContactCapacity( bodyIdB );
+	if ( capA <= 0 || capB <= 0 )
+	{
+		lua_pushboolean( L, false );
+		return 1;
+	}
+
+	b2BodyId queryBodyId = ( capA <= capB ) ? bodyIdA : bodyIdB;
+	b2BodyId targetBodyId = ( capA <= capB ) ? bodyIdB : bodyIdA;
+	const int capacity = ( capA <= capB ) ? capA : capB;
+
+	b2ContactData stackContacts[16];
+	std::vector<b2ContactData> heapContacts;
+	b2ContactData *contacts = stackContacts;
+	if ( capacity > 16 )
+	{
+		heapContacts.resize( capacity );
+		contacts = heapContacts.data();
+	}
+
+	const int count = b2Body_GetContactData( queryBodyId, contacts, capacity );
+	bool touching = false;
+	for ( int i = 0; i < count; ++i )
+	{
+		const b2ContactData& c = contacts[i];
+		if ( ! b2Shape_IsValid( c.shapeIdA ) || ! b2Shape_IsValid( c.shapeIdB ) )
+		{
+			continue;
+		}
+		b2BodyId bodyA = b2Shape_GetBody( c.shapeIdA );
+		b2BodyId bodyB = b2Shape_GetBody( c.shapeIdB );
+		b2BodyId otherBodyId = B2_ID_EQUALS( bodyA, queryBodyId ) ? bodyB : bodyA;
+		if ( B2_ID_EQUALS( otherBodyId, targetBodyId ) && IsActualContact( c ) )
+		{
+			touching = true;
+			break;
+		}
+	}
+
+	lua_pushboolean( L, touching );
+	return 1;
+}
+
+// physics.getContactBodies( body ) -> deduplicated 1-based array of touching DisplayObjects (or nil if invalid)
+static int
+GetContactBodies( lua_State *L )
+{
+	if ( LuaLibPhysics::IsWorldLocked( L, "physics.getContactBodies()" ) )
+	{
+		return 0;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+	b2BodyId bodyId = b2_nullBodyId;
+	DisplayObject *selfObj = NULL;
+	if ( ! GetValidPhysicsBody( L, 1, physics, bodyId, &selfObj ) )
+	{
+		return 0;
+	}
+
+	const int capacity = b2Body_GetContactCapacity( bodyId );
+	if ( capacity <= 0 )
+	{
+		lua_createtable( L, 0, 0 );
+		return 1;
+	}
+
+	b2ContactData stackContacts[16];
+	std::vector<b2ContactData> heapContacts;
+	b2ContactData *contacts = stackContacts;
+	if ( capacity > 16 )
+	{
+		heapContacts.resize( capacity );
+		contacts = heapContacts.data();
+	}
+
+	const int count = b2Body_GetContactData( bodyId, contacts, capacity );
+	std::vector<DisplayObject*> touchingBodies;
+	touchingBodies.reserve( count );
+
+	for ( int i = 0; i < count; ++i )
+	{
+		const b2ContactData& c = contacts[i];
+		if ( ! IsActualContact( c ) )
+		{
+			continue;
+		}
+		b2BodyId bodyA = b2Shape_GetBody( c.shapeIdA );
+		b2BodyId bodyB = b2Shape_GetBody( c.shapeIdB );
+		b2BodyId otherBodyId = B2_ID_EQUALS( bodyA, bodyId ) ? bodyB : bodyA;
+		if ( ! b2Body_IsValid( otherBodyId ) || B2_ID_EQUALS( otherBodyId, bodyId ) )
+		{
+			continue;
+		}
+		void *rawUserData = b2Body_GetUserData( otherBodyId );
+		if ( rawUserData == NULL || rawUserData == LuaLibPhysics::GetGroundBodyUserdata() )
+		{
+			continue;
+		}
+		DisplayObject *otherObj = static_cast<DisplayObject*>( rawUserData );
+		if ( otherObj == selfObj || otherObj->GetProxy() == NULL )
+		{
+			continue;
+		}
+		bool duplicate = false;
+		for ( size_t j = 0; j < touchingBodies.size(); ++j )
+		{
+			if ( touchingBodies[j] == otherObj )
+			{
+				duplicate = true;
+				break;
+			}
+		}
+		if ( ! duplicate )
+		{
+			touchingBodies.push_back( otherObj );
+		}
+	}
+
+	lua_createtable( L, (int)touchingBodies.size(), 0 );
+	int outIndex = 0;
+	for ( size_t i = 0; i < touchingBodies.size(); ++i )
+	{
+		if ( touchingBodies[i]->GetProxy()->PushTable( L ) )
+		{
+			lua_rawseti( L, -2, ++outIndex );
+		}
+	}
+	return 1;
+}
+
+// physics.getWorldPoint( body, lx, ly ) -> wx, wy
+static int
+GetWorldPoint( lua_State *L )
+{
+	if ( ! LuaLibPhysics::IsWorldValid( L, "physics.getWorldPoint()" ) )
+	{
+		return 0;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+	b2BodyId bodyId = b2_nullBodyId;
+	if ( ! GetValidPhysicsBody( L, 1, physics, bodyId ) )
+	{
+		return 0;
+	}
+
+	if ( lua_type( L, 2 ) != LUA_TNUMBER || lua_type( L, 3 ) != LUA_TNUMBER )
+	{
+		return 0;
+	}
+
+	const double lx = lua_tonumber( L, 2 );
+	const double ly = lua_tonumber( L, 3 );
+	if ( ! std::isfinite( lx ) || ! std::isfinite( ly ) )
+	{
+		return 0;
+	}
+
+	const double pixelsPerMeter = (double)physics.GetPixelsPerMeter();
+	const double metersPerPixel = 1.0 / pixelsPerMeter;
+	const b2Vec2 localPoint = { (float)( lx * metersPerPixel ), (float)( ly * metersPerPixel ) };
+	if ( ! std::isfinite( localPoint.x ) || ! std::isfinite( localPoint.y ) )
+	{
+		return 0;
+	}
+
+	const b2Pos worldPoint = b2Body_GetWorldPoint( bodyId, localPoint );
+	lua_pushnumber( L, (double)worldPoint.x * pixelsPerMeter );
+	lua_pushnumber( L, (double)worldPoint.y * pixelsPerMeter );
+	return 2;
+}
+
+// physics.getLocalPoint( body, wx, wy ) -> lx, ly
+static int
+GetLocalPoint( lua_State *L )
+{
+	if ( ! LuaLibPhysics::IsWorldValid( L, "physics.getLocalPoint()" ) )
+	{
+		return 0;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+
+	b2BodyId bodyId = b2_nullBodyId;
+	if ( ! GetValidPhysicsBody( L, 1, physics, bodyId ) )
+	{
+		return 0;
+	}
+
+	if ( lua_type( L, 2 ) != LUA_TNUMBER || lua_type( L, 3 ) != LUA_TNUMBER )
+	{
+		return 0;
+	}
+
+	const double wx = lua_tonumber( L, 2 );
+	const double wy = lua_tonumber( L, 3 );
+	if ( ! std::isfinite( wx ) || ! std::isfinite( wy ) )
+	{
+		return 0;
+	}
+
+	const double pixelsPerMeter = (double)physics.GetPixelsPerMeter();
+	const double metersPerPixel = 1.0 / pixelsPerMeter;
+	const b2Pos worldPoint = { (float)( wx * metersPerPixel ), (float)( wy * metersPerPixel ) };
+	if ( ! std::isfinite( worldPoint.x ) || ! std::isfinite( worldPoint.y ) )
+	{
+		return 0;
+	}
+
+	const b2Vec2 localPoint = b2Body_GetLocalPoint( bodyId, worldPoint );
+	lua_pushnumber( L, (double)localPoint.x * pixelsPerMeter );
+	lua_pushnumber( L, (double)localPoint.y * pixelsPerMeter );
+	return 2;
 }
 
 static int
@@ -4854,6 +5611,12 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "queryRegion", QueryRegion },
 		{ "queryCircle", QueryCircle },
 		{ "queryBody", QueryBody },
+		{ "queryBox", QueryBox },
+		{ "getClosestPoint", GetClosestPoint },
+		{ "isTouching", IsTouching },
+		{ "getContactBodies", GetContactBodies },
+		{ "getWorldPoint", GetWorldPoint },
+		{ "getLocalPoint", GetLocalPoint },
 		{ "setAverageCollisionPositions", SetAverageCollisionPositions },
 		{ "getAverageCollisionPositions", GetAverageCollisionPositions },
 		{ "setScale", setScale },
