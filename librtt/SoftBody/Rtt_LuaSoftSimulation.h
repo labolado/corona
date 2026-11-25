@@ -1,6 +1,11 @@
 #pragma once
 // Lua/lifetime adapter for the native simulation API. No solver storage or
 // contact-cache access belongs here. Only the assembly runtime is registered.
+#if defined( _MSC_VER ) && defined( remove )
+#pragma push_macro( "remove" )
+#undef remove
+#define Rtt_RESTORE_REMOVE_MACRO
+#endif
 #include "../../external/box2d_v3/extern/softbody/soft_simulation.h"
 #include "../../external/box2d_v3/extern/softbody/soft_box2d_simulation.h"
 #include "Rtt_FixedStepScheduler.h"
@@ -1387,3 +1392,7 @@ static void Register( lua_State* L )
 }
 }
 }
+#ifdef Rtt_RESTORE_REMOVE_MACRO
+#pragma pop_macro( "remove" )
+#undef Rtt_RESTORE_REMOVE_MACRO
+#endif

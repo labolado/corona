@@ -390,7 +390,9 @@ void ForgetHandle( lua_State *L, int wi, const char *kind, size_t slot )
 }
 void EraseSlot( std::vector<size_t> &slots, size_t slot )
 {
-    slots.erase( std::remove( slots.begin(), slots.end(), slot ), slots.end() );
+    slots.erase( std::remove_if( slots.begin(), slots.end(),
+                                 [slot]( size_t candidate ) { return candidate == slot; } ),
+                 slots.end() );
 }
 void ReleaseShape( lua_State *L, World &w, int wi, size_t slot, bool unlinkBody = true )
 {
