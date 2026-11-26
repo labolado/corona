@@ -67,6 +67,13 @@ class DisplayObjectExtensions : public LuaProxyVTable
 		static int wakeTouching( lua_State* L );
 		static int setSleepThreshold( lua_State* L );
 		static int getSleepThreshold( lua_State* L );
+		static int setUserMaterialId( lua_State* L );
+		static int getUserMaterialId( lua_State* L );
+		static int setTangentSpeed( lua_State* L );
+		static int getTangentSpeed( lua_State* L );
+		static int setOneWaySurface( lua_State* L );
+		static int getOneWaySurface( lua_State* L );
+		static int isPreSolveEventsEnabled( lua_State* L );
 
 #endif // Rtt_PHYSICS
 

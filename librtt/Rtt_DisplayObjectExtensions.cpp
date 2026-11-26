@@ -14,6 +14,7 @@
 #include "Core/Rtt_StringHash.h"
 #include "Display/Rtt_GroupObject.h"
 #include "Display/Rtt_DisplayObject.h"
+#include "Corona/CoronaLua.h"
 #include "Rtt_Lua.h"
 #include "Rtt_LuaContext.h"
 #include "Rtt_LuaLibPhysics.h"
@@ -22,6 +23,7 @@
 #include "Rtt_Runtime.h"
 
 #include "box2d/box2d.h"
+#include <cmath>
 
 // ----------------------------------------------------------------------------
 
@@ -601,6 +603,352 @@ DisplayObjectExtensions::getSleepThreshold( lua_State *L )
 	return 1;
 }
 
+int
+DisplayObjectExtensions::setUserMaterialId( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( ! physics.IsWorldValid() || ! b2Body_IsValid( bodyId ) )
+		{
+			return 0;
+		}
+		if ( b2World_IsLocked( physics.GetWorldId() ) )
+		{
+			CoronaLuaError( L, "body:setUserMaterialId() cannot be called when the world is locked" );
+			return 0;
+		}
+
+		uint32_t userId = 0;
+		if ( ! lua_isnoneornil( L, 2 ) )
+		{
+			double v = lua_tonumber( L, 2 );
+			if ( ! lua_isnumber( L, 2 ) || ! std::isfinite( v ) || v < 0.0 || v > 4294967295.0 || v != std::floor( v ) )
+			{
+				CoronaLuaError( L, "body:setUserMaterialId() requires a nonnegative 32-bit integer or nil" );
+				return 0;
+			}
+			userId = (uint32_t)v;
+		}
+
+		uint64_t encoded = PhysicsFastContact::EncodeUserMaterialId( physics.GetWorldId(), userId );
+		int count = b2Body_GetShapeCount( bodyId );
+		int shapeIndexStart = 0;
+		int shapeIndexEnd = count;
+		if ( lua_isnumber( L, 3 ) )
+		{
+			shapeIndexStart = b2MaxInt( (int)lua_tointeger( L, 3 ) - 1, 0 );
+		}
+		if ( lua_isnumber( L, 4 ) )
+		{
+			shapeIndexEnd = b2MinInt( (int)lua_tointeger( L, 4 ), count );
+		}
+		if ( count > 0 && shapeIndexStart < shapeIndexEnd )
+		{
+			std::vector<b2ShapeId> shapeArray( count );
+			b2Body_GetShapes( bodyId, shapeArray.data(), count );
+			for ( int i = shapeIndexStart; i < shapeIndexEnd; ++i )
+			{
+				b2Shape_SetUserMaterial( shapeArray[i], encoded );
+			}
+			if ( b2Body_GetType( bodyId ) == b2_dynamicBody )
+			{
+				b2Body_SetAwake( bodyId, true );
+			}
+			b2Body_WakeTouching( bodyId );
+		}
+	}
+	return 0;
+}
+
+int
+DisplayObjectExtensions::getUserMaterialId( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			int count = b2Body_GetShapeCount( bodyId );
+			int index = lua_isnumber( L, 2 ) ? (int)lua_tointeger( L, 2 ) - 1 : 0;
+			if ( index >= 0 && index < count )
+			{
+				std::vector<b2ShapeId> shapeArray( count );
+				b2Body_GetShapes( bodyId, shapeArray.data(), count );
+				uint32_t userId = PhysicsFastContact::DecodeUserMaterialId( b2Shape_GetUserMaterial( shapeArray[index] ) );
+				lua_pushnumber( L, (lua_Number)userId );
+				return 1;
+			}
+		}
+	}
+	lua_pushnil( L );
+	return 1;
+}
+
+int
+DisplayObjectExtensions::setTangentSpeed( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( ! physics.IsWorldValid() || ! b2Body_IsValid( bodyId ) )
+		{
+			return 0;
+		}
+		if ( b2World_IsLocked( physics.GetWorldId() ) )
+		{
+			CoronaLuaError( L, "body:setTangentSpeed() cannot be called when the world is locked" );
+			return 0;
+		}
+
+		double speedPx = lua_tonumber( L, 2 );
+		if ( ! lua_isnumber( L, 2 ) || ! std::isfinite( speedPx ) )
+		{
+			CoronaLuaError( L, "body:setTangentSpeed() requires a finite number" );
+			return 0;
+		}
+
+		float speedMeters = (float)( speedPx * physics.GetMetersPerPixel() );
+		int count = b2Body_GetShapeCount( bodyId );
+		int shapeIndexStart = 0;
+		int shapeIndexEnd = count;
+		if ( lua_isnumber( L, 3 ) )
+		{
+			shapeIndexStart = b2MaxInt( (int)lua_tointeger( L, 3 ) - 1, 0 );
+		}
+		if ( lua_isnumber( L, 4 ) )
+		{
+			shapeIndexEnd = b2MinInt( (int)lua_tointeger( L, 4 ), count );
+		}
+		if ( count > 0 && shapeIndexStart < shapeIndexEnd )
+		{
+			std::vector<b2ShapeId> shapeArray( count );
+			b2Body_GetShapes( bodyId, shapeArray.data(), count );
+			for ( int i = shapeIndexStart; i < shapeIndexEnd; ++i )
+			{
+				b2SurfaceMaterial material = b2Shape_GetSurfaceMaterial( shapeArray[i] );
+				material.tangentSpeed = speedMeters;
+				b2Shape_SetSurfaceMaterial( shapeArray[i], &material );
+			}
+			b2Body_WakeTouching( bodyId );
+		}
+	}
+	return 0;
+}
+
+int
+DisplayObjectExtensions::getTangentSpeed( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			int count = b2Body_GetShapeCount( bodyId );
+			int index = lua_isnumber( L, 2 ) ? (int)lua_tointeger( L, 2 ) - 1 : 0;
+			if ( index >= 0 && index < count )
+			{
+				std::vector<b2ShapeId> shapeArray( count );
+				b2Body_GetShapes( bodyId, shapeArray.data(), count );
+				b2SurfaceMaterial material = b2Shape_GetSurfaceMaterial( shapeArray[index] );
+				lua_pushnumber( L, material.tangentSpeed * physics.GetPixelsPerMeter() );
+				return 1;
+			}
+		}
+	}
+	lua_pushnil( L );
+	return 1;
+}
+
+int
+DisplayObjectExtensions::setOneWaySurface( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( ! physics.IsWorldValid() || ! b2Body_IsValid( bodyId ) )
+		{
+			return 0;
+		}
+		if ( b2World_IsLocked( physics.GetWorldId() ) )
+		{
+			CoronaLuaError( L, "body:setOneWaySurface() cannot be called when the world is locked" );
+			return 0;
+		}
+
+		int count = b2Body_GetShapeCount( bodyId );
+		if ( count <= 0 )
+		{
+			return 0;
+		}
+		std::vector<b2ShapeId> shapeArray( count );
+		b2Body_GetShapes( bodyId, shapeArray.data(), count );
+
+		if ( lua_isnoneornil( L, 2 ) )
+		{
+			int shapeIndexStart = lua_isnumber( L, 3 ) ? b2MaxInt( (int)lua_tointeger( L, 3 ) - 1, 0 ) : 0;
+			int shapeIndexEnd = lua_isnumber( L, 4 ) ? b2MinInt( (int)lua_tointeger( L, 4 ), count ) : count;
+			for ( int i = shapeIndexStart; i < shapeIndexEnd; ++i )
+			{
+				physics.ClearOneWaySurface( shapeArray[i] );
+			}
+			return 0;
+		}
+
+		if ( ! lua_isnumber( L, 2 ) || ! lua_isnumber( L, 3 ) )
+		{
+			CoronaLuaError( L, "body:setOneWaySurface() requires (normalX, normalY [, options, shapeIndexStart, shapeIndexEnd]) or nil" );
+			return 0;
+		}
+
+		double nx = lua_tonumber( L, 2 );
+		double ny = lua_tonumber( L, 3 );
+		double len = std::sqrt( nx * nx + ny * ny );
+		if ( ! std::isfinite( nx ) || ! std::isfinite( ny ) || ! std::isfinite( len ) || len <= 1e-6 )
+		{
+			CoronaLuaError( L, "body:setOneWaySurface() requires a non-zero finite normal vector" );
+			return 0;
+		}
+		b2Vec2 localNormal = { (float)( nx / len ), (float)( ny / len ) };
+		float minDot = 0.5f;
+		uint64_t maskBits = UINT64_MAX;
+		bool requireFullExit = false;
+		int rangeArgBase = 4;
+		if ( lua_istable( L, 4 ) )
+		{
+			rangeArgBase = 5;
+			lua_getfield( L, 4, "minDot" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				double md = lua_tonumber( L, -1 );
+				if ( std::isfinite( md ) && md >= -1.0 && md <= 1.0 )
+				{
+					minDot = (float)md;
+				}
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 4, "maskBits" );
+			if ( lua_isnumber( L, -1 ) )
+			{
+				double mb = lua_tonumber( L, -1 );
+				if ( std::isfinite( mb ) && mb >= 0.0 && mb <= 9007199254740991.0 )
+				{
+					maskBits = (uint64_t)mb;
+				}
+			}
+			lua_pop( L, 1 );
+
+			lua_getfield( L, 4, "requireFullExit" );
+			if ( ! lua_isnil( L, -1 ) )
+			{
+				if ( ! lua_isboolean( L, -1 ) )
+				{
+					lua_pop( L, 1 );
+					CoronaLuaError( L, "body:setOneWaySurface() requireFullExit must be a boolean" );
+					return 0;
+				}
+				requireFullExit = lua_toboolean( L, -1 ) != 0;
+			}
+			lua_pop( L, 1 );
+		}
+
+		int shapeIndexStart = lua_isnumber( L, rangeArgBase ) ? b2MaxInt( (int)lua_tointeger( L, rangeArgBase ) - 1, 0 ) : 0;
+		int shapeIndexEnd = lua_isnumber( L, rangeArgBase + 1 ) ? b2MinInt( (int)lua_tointeger( L, rangeArgBase + 1 ), count ) : count;
+		for ( int i = shapeIndexStart; i < shapeIndexEnd; ++i )
+		{
+			physics.SetOneWaySurface( bodyId, shapeArray[i], localNormal, minDot, maskBits, requireFullExit );
+		}
+	}
+	return 0;
+}
+
+int
+DisplayObjectExtensions::getOneWaySurface( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			int count = b2Body_GetShapeCount( bodyId );
+			int index = lua_isnumber( L, 2 ) ? (int)lua_tointeger( L, 2 ) - 1 : 0;
+			if ( index >= 0 && index < count )
+			{
+				std::vector<b2ShapeId> shapeArray( count );
+				b2Body_GetShapes( bodyId, shapeArray.data(), count );
+				PhysicsFastContact::OneWaySurface rule;
+				if ( physics.GetOneWaySurface( shapeArray[index], rule ) )
+				{
+					lua_createtable( L, 0, 5 );
+					lua_pushnumber( L, rule.localNormal.x );
+					lua_setfield( L, -2, "normalX" );
+					lua_pushnumber( L, rule.localNormal.y );
+					lua_setfield( L, -2, "normalY" );
+					lua_pushnumber( L, rule.minDot );
+					lua_setfield( L, -2, "minDot" );
+					lua_pushnumber( L, (lua_Number)rule.maskBits );
+					lua_setfield( L, -2, "maskBits" );
+					lua_pushboolean( L, rule.requireFullExit ? 1 : 0 );
+					lua_setfield( L, -2, "requireFullExit" );
+					return 1;
+				}
+			}
+		}
+	}
+	lua_pushnil( L );
+	return 1;
+}
+
+int
+DisplayObjectExtensions::isPreSolveEventsEnabled( lua_State *L )
+{
+	DisplayObject* o = (DisplayObject*)LuaProxy::GetProxyableObject( L, 1 );
+	Rtt_WARN_SIM_PROXY_TYPE( L, 1, DisplayObject );
+
+	if ( o && o->GetExtensions() )
+	{
+		b2BodyId bodyId = o->GetExtensions()->GetBody();
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			int count = b2Body_GetShapeCount( bodyId );
+			int index = lua_isnumber( L, 2 ) ? (int)lua_tointeger( L, 2 ) - 1 : 0;
+			if ( index >= 0 && index < count )
+			{
+				std::vector<b2ShapeId> shapeArray( count );
+				b2Body_GetShapes( bodyId, shapeArray.data(), count );
+				lua_pushboolean( L, b2Shape_ArePreSolveEventsEnabled( shapeArray[index] ) );
+				return 1;
+			}
+		}
+	}
+	lua_pushboolean( L, 0 );
+	return 1;
+}
+
 #endif // Rtt_PHYSICS
 
 
@@ -660,9 +1008,16 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			"jointCount",                       // 35
 			"isContactRecycling",               // 36
 			"isSeamContactFilterEnabled",       // 37
+			"setUserMaterialId",                // 38
+			"getUserMaterialId",                // 39
+			"setTangentSpeed",                  // 40
+			"getTangentSpeed",                  // 41
+			"setOneWaySurface",                 // 42
+			"getOneWaySurface",                 // 43
+			"isPreSolveEventsEnabled",          // 44
 		};
 		static const int numKeys = sizeof( keys ) / sizeof( const char * );
-		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 38, 31, 14, __FILE__, __LINE__ );
+		static StringHash sHash( *LuaContext::GetAllocator( L ), keys, numKeys, 45, 31, 17, __FILE__, __LINE__ );
 		StringHash *hash = &sHash;
 
 		int index = hash->Lookup( key );
@@ -868,6 +1223,41 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 		case 37:
 			{
 				lua_pushboolean( L, b2Body_IsSeamContactFilterEnabled(fBodyId) );
+			}
+			break;
+		case 38:
+			{
+				lua_pushcfunction( L, Self::setUserMaterialId );
+			}
+			break;
+		case 39:
+			{
+				lua_pushcfunction( L, Self::getUserMaterialId );
+			}
+			break;
+		case 40:
+			{
+				lua_pushcfunction( L, Self::setTangentSpeed );
+			}
+			break;
+		case 41:
+			{
+				lua_pushcfunction( L, Self::getTangentSpeed );
+			}
+			break;
+		case 42:
+			{
+				lua_pushcfunction( L, Self::setOneWaySurface );
+			}
+			break;
+		case 43:
+			{
+				lua_pushcfunction( L, Self::getOneWaySurface );
+			}
+			break;
+		case 44:
+			{
+				lua_pushcfunction( L, Self::isPreSolveEventsEnabled );
 			}
 			break;
 		default:

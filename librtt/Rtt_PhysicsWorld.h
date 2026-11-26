@@ -14,6 +14,7 @@
 
 #include "box2d/box2d.h"
 #include "liquid_world.h"
+#include "Rtt_PhysicsFastContact.h"
 
 #include <vector>
 
@@ -94,6 +95,20 @@ class PhysicsWorld
 		bool GetCompoundInternalEdgeSuppressionEnabled() const { return fCompoundInternalEdgeSuppressionEnabled; }
 		bool ShouldSuppressCompoundInternalEdge( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point,
 										 b2Vec2 normal ) const;
+
+		void SetMaterialPair( uint32_t idA, uint32_t idB, bool hasFriction, float friction,
+							  bool hasRestitution, float restitution );
+		void RemoveMaterialPair( uint32_t idA, uint32_t idB );
+		bool GetMaterialPair( uint32_t idA, uint32_t idB, PhysicsFastContact::MaterialPairEntry& outEntry ) const;
+		void ClearMaterialPairs();
+		size_t GetMaterialPairCount() const;
+
+		void SetOneWaySurface( b2BodyId bodyId, b2ShapeId shapeId, b2Vec2 localNormal, float minDot,
+							   uint64_t maskBits, bool requireFullExit = false );
+		void ClearOneWaySurface( b2ShapeId shapeId );
+		bool GetOneWaySurface( b2ShapeId shapeId, PhysicsFastContact::OneWaySurface& outRule ) const;
+		size_t GetOneWaySurfaceCount() const;
+		int GetPreSolveShapeCount() const;
 
 		// Default is 30 (content) pixels per meter so the range [3, 300] pixels
 		// maps to [0.1, 10] meters (the optimal length scale range for Box2D)

@@ -11,6 +11,7 @@
 
 #include "Rtt_PhysicsWorld.h"
 #include "Rtt_PhysicsCompoundEdges.h"
+#include "Rtt_PhysicsFastContact.h"
 #include "Rtt_ParticleSystemObject.h"
 #include "Rtt_FixedStepScheduler.h"
 #include "Rtt_LuaContext.h"
@@ -81,6 +82,128 @@ struct FixedStepState
 };
 std::map<PhysicsWorld *, FixedStepState> sFixedSteps;
 std::mutex sFixedStepsMutex;
+
+struct ParallelPreSolveContext
+{
+	const PhysicsWorld* physics;
+	const std::vector<PhysicsFastContact::OneWaySurface>* oneWaySurfaces;
+};
+
+// Side storage for fast-track one-way surfaces preserves PhysicsWorld's ABI layout.
+struct FastContactState
+{
+    std::vector<PhysicsFastContact::OneWaySurface> oneWaySurfaces;
+    ParallelPreSolveContext parallelContext = { NULL, NULL };
+};
+std::map<const PhysicsWorld *, FastContactState> sFastContacts;
+std::mutex sFastContactsMutex;
+
+FastContactState *FindFastContact( const PhysicsWorld& physics )
+{
+    std::lock_guard<std::mutex> lock( sFastContactsMutex );
+    auto it = sFastContacts.find( &physics );
+    return it == sFastContacts.end() ? NULL : &it->second;
+}
+
+FastContactState& GetFastContact( const PhysicsWorld& physics )
+{
+    std::lock_guard<std::mutex> lock( sFastContactsMutex );
+    return sFastContacts[&physics];
+}
+
+void ForgetFastContact( const PhysicsWorld& physics )
+{
+    std::lock_guard<std::mutex> lock( sFastContactsMutex );
+    sFastContacts.erase( &physics );
+}
+
+// Per-world lock-free material pair table indexed by b2WorldId::index1 [1..B2_MAX_WORLDS].
+// Only mutated while the owning world is unlocked; read concurrently by Box2D worker threads.
+std::vector<PhysicsFastContact::MaterialPairEntry> gMaterialPairs[B2_MAX_WORLDS + 1];
+
+static float FastFrictionCallback( float frictionA, uint64_t rawA, float frictionB, uint64_t rawB )
+{
+    if ( ( rawA | rawB ) == 0ULL )
+    {
+        return sqrtf( frictionA * frictionB );
+    }
+
+    uint16_t slot = (uint16_t)( ( rawA ? rawA : rawB ) >> 32 );
+    if ( slot >= 1 && slot <= B2_MAX_WORLDS )
+    {
+        uint32_t a = PhysicsFastContact::DecodeUserMaterialId( rawA );
+        uint32_t b = PhysicsFastContact::DecodeUserMaterialId( rawB );
+        if ( a > b )
+        {
+            uint32_t tmp = a;
+            a = b;
+            b = tmp;
+        }
+
+        const std::vector<PhysicsFastContact::MaterialPairEntry>& pairs = gMaterialPairs[slot];
+        for ( size_t i = 0; i < pairs.size(); ++i )
+        {
+            if ( pairs[i].idA == a && pairs[i].idB == b )
+            {
+                if ( pairs[i].hasFriction )
+                {
+                    return pairs[i].friction;
+                }
+                break;
+            }
+        }
+    }
+
+    return sqrtf( frictionA * frictionB );
+}
+
+static float FastRestitutionCallback( float restitutionA, uint64_t rawA, float restitutionB, uint64_t rawB )
+{
+    if ( ( rawA | rawB ) == 0ULL )
+    {
+        return restitutionA > restitutionB ? restitutionA : restitutionB;
+    }
+
+    uint16_t slot = (uint16_t)( ( rawA ? rawA : rawB ) >> 32 );
+    if ( slot >= 1 && slot <= B2_MAX_WORLDS )
+    {
+        uint32_t a = PhysicsFastContact::DecodeUserMaterialId( rawA );
+        uint32_t b = PhysicsFastContact::DecodeUserMaterialId( rawB );
+        if ( a > b )
+        {
+            uint32_t tmp = a;
+            a = b;
+            b = tmp;
+        }
+
+        const std::vector<PhysicsFastContact::MaterialPairEntry>& pairs = gMaterialPairs[slot];
+        for ( size_t i = 0; i < pairs.size(); ++i )
+        {
+            if ( pairs[i].idA == a && pairs[i].idB == b )
+            {
+                if ( pairs[i].hasRestitution )
+                {
+                    return pairs[i].restitution;
+                }
+                break;
+            }
+        }
+    }
+
+    return restitutionA > restitutionB ? restitutionA : restitutionB;
+}
+
+static void SyncWorldMaterialCallbacks( b2WorldId worldId )
+{
+    if ( ! b2World_IsValid( worldId ) || worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+    {
+        return;
+    }
+
+    bool active = ! gMaterialPairs[worldId.index1].empty();
+    b2World_SetFrictionCallback( worldId, active ? FastFrictionCallback : NULL );
+    b2World_SetRestitutionCallback( worldId, active ? FastRestitutionCallback : NULL );
+}
 
 FixedStepState *FindFixedStep( PhysicsWorld& physics )
 {
@@ -838,6 +961,7 @@ PhysicsWorld::~PhysicsWorld()
 	// }
 
 	StopWorld();
+	ForgetFastContact( *this );
 	FixedStepScheduler::Forget( *this );
 }
 
@@ -942,6 +1066,12 @@ PhysicsWorld::StartWorld( Runtime& runtime, bool noSleep )
 		// b2CreateSegmentShape( fMouseBodyId, &shapeDef, &segment );
 
 		b2World_SetPreSolveCallback( fWorld->GetWorldId(), PreSolveCallbackFunction, PreContinuousCallbackFunction, fWorldContactListener );
+		PhysicsFastContact::ClearMaterialPairs( fWorld->GetWorldId() );
+		if ( FastContactState* fast = FindFastContact( *this ) )
+		{
+			fast->oneWaySurfaces.clear();
+		}
+		b2World_SetParallelPreSolveCallback( fWorld->GetWorldId(), NULL, NULL, NULL );
 	}
 
 	SetProperty( kIsWorldRunning, true );
@@ -989,6 +1119,12 @@ PhysicsWorld::StopWorld()
 		// LiquidFun queries the world lock while destroying its particle systems.
 		// Keep the Box2D world alive until that cleanup has completed.
 		const b2WorldId worldId = fWorld->GetWorldId();
+		PhysicsFastContact::ClearMaterialPairs( worldId );
+		if ( FastContactState* fast = FindFastContact( *this ) )
+		{
+			fast->oneWaySurfaces.clear();
+		}
+		b2World_SetParallelPreSolveCallback( worldId, NULL, NULL, NULL );
 		Rtt_DELETE( fWorld );
 		fWorld = NULL;
 		b2DestroyWorld( worldId );
@@ -1051,6 +1187,7 @@ PhysicsWorld::RegisterPhysicsBody( b2BodyId bodyId )
 void
 PhysicsWorld::RemoveCompoundInternalEdges( b2BodyId bodyId, bool disablePreSolveEvents )
 {
+	std::vector<b2ShapeId> affectedShapes;
 	size_t writeIndex = 0;
 	for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
 	{
@@ -1059,7 +1196,7 @@ PhysicsWorld::RemoveCompoundInternalEdges( b2BodyId bodyId, bool disablePreSolve
 		{
 			if ( disablePreSolveEvents && b2Shape_IsValid( entry.shapeId ) )
 			{
-				b2Shape_EnablePreSolveEvents( entry.shapeId, false );
+				affectedShapes.push_back( entry.shapeId );
 			}
 		}
 		else
@@ -1079,6 +1216,24 @@ PhysicsWorld::RemoveCompoundInternalEdges( b2BodyId bodyId, bool disablePreSolve
 		}
 	}
 	fCompoundInternalEdges.resize( writeIndex );
+
+	FastContactState* fast = FindFastContact( *this );
+	for ( size_t i = 0; i < affectedShapes.size(); ++i )
+	{
+		bool keepParallel = fast != NULL &&
+			PhysicsFastContact::FindOneWayForShape( fast->oneWaySurfaces, affectedShapes[i] ) != NULL;
+		b2Shape_EnableParallelPreSolveEvents( affectedShapes[i], keepParallel );
+	}
+
+	if ( IsWorldValid() )
+	{
+		bool active = ( fCompoundInternalEdgeSuppressionEnabled && ! fCompoundInternalEdges.empty() ) ||
+			( fast != NULL && ! fast->oneWaySurfaces.empty() );
+		if ( ! active )
+		{
+			b2World_SetParallelPreSolveCallback( fWorld->GetWorldId(), NULL, NULL, NULL );
+		}
+	}
 }
 
 void
@@ -1093,6 +1248,11 @@ PhysicsWorld::UnregisterPhysicsBody( b2BodyId bodyId )
 		}
 	}
 	fPhysicsBodies.resize( writeIndex );
+
+	if ( FastContactState* fast = FindFastContact( *this ) )
+	{
+		PhysicsFastContact::RemoveOneWayForBody( fast->oneWaySurfaces, bodyId );
+	}
 
 	RemoveCompoundInternalEdges( bodyId, true );
 }
@@ -1162,30 +1322,122 @@ PhysicsWorld::RefreshCompoundInternalEdges( b2BodyId bodyId )
 	}
 }
 
-void
-PhysicsWorld::ReleaseCompoundInternalEdgePreSolveOwnership( b2ShapeId shapeId )
+static void
+ParallelPreSolveCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, bool* latched, void* context )
 {
-	size_t writeIndex = 0;
-	for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
+	const ParallelPreSolveContext* ctx = static_cast<const ParallelPreSolveContext*>( context );
+	if ( ! ctx || ! ctx->physics || manifold->pointCount == 0 )
 	{
-		const CompoundInternalEdgePreSolveShape& entry = fCompoundInternalEdgePreSolveShapes[i];
-		if ( B2_ID_EQUALS( entry.shapeId, shapeId ) == false )
+		if ( latched != NULL )
 		{
-			fCompoundInternalEdgePreSolveShapes[writeIndex++] = entry;
+			*latched = false;
+		}
+		return;
+	}
+
+	int deepest = 0;
+	for ( int i = 1; i < manifold->pointCount; ++i )
+	{
+		if ( manifold->points[i].separation < manifold->points[deepest].separation )
+		{
+			deepest = i;
 		}
 	}
-	fCompoundInternalEdgePreSolveShapes.resize( writeIndex );
+
+	const b2ManifoldPoint& mp = manifold->points[deepest];
+	if ( ctx->physics->GetCompoundInternalEdgeSuppressionEnabled() )
+	{
+		b2Vec2 originA = b2Body_GetPosition( b2Shape_GetBody( shapeIdA ) );
+		if ( ctx->physics->ShouldSuppressCompoundInternalEdge( shapeIdA, shapeIdB, b2Add( originA, mp.anchorA ), manifold->normal ) )
+		{
+			manifold->pointCount = 0;
+			return;
+		}
+	}
+
+	if ( ctx->oneWaySurfaces && ! ctx->oneWaySurfaces->empty() &&
+		 PhysicsFastContact::ShouldSuppressOneWay( *ctx->oneWaySurfaces, shapeIdA, shapeIdB,
+												   manifold->normal, mp.separation, true, latched ) )
+	{
+		manifold->pointCount = 0;
+	}
+	else if ( ( ! ctx->oneWaySurfaces || ctx->oneWaySurfaces->empty() ) && latched != NULL )
+	{
+		*latched = false;
+	}
+}
+
+static bool
+ParallelPreContinuousCallbackFunction( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Vec2 point, b2Vec2 normal, void* context )
+{
+	const ParallelPreSolveContext* ctx = static_cast<const ParallelPreSolveContext*>( context );
+	if ( ! ctx || ! ctx->physics )
+	{
+		return true;
+	}
+
+	if ( ctx->physics->GetCompoundInternalEdgeSuppressionEnabled() &&
+		 ctx->physics->ShouldSuppressCompoundInternalEdge( shapeIdA, shapeIdB, point, normal ) )
+	{
+		return false;
+	}
+
+	if ( ctx->oneWaySurfaces && ! ctx->oneWaySurfaces->empty() &&
+		 PhysicsFastContact::ShouldSuppressOneWay( *ctx->oneWaySurfaces, shapeIdA, shapeIdB, normal, 0.0f, false ) )
+	{
+		return false;
+	}
+
+	return true;
+}
+
+static void
+RefreshWorldParallelPreSolve( PhysicsWorld& physics, bool hasCompoundEdges )
+{
+	if ( ! physics.IsWorldValid() )
+	{
+		return;
+	}
+
+	FastContactState* fast = FindFastContact( physics );
+	bool hasOneWay = fast != NULL && ! fast->oneWaySurfaces.empty();
+	bool active = hasCompoundEdges || hasOneWay;
+	if ( active )
+	{
+		FastContactState& state = fast ? *fast : GetFastContact( physics );
+		state.parallelContext.physics = &physics;
+		state.parallelContext.oneWaySurfaces = &state.oneWaySurfaces;
+		b2World_SetParallelPreSolveCallback( physics.GetWorldId(),
+											 ParallelPreSolveCallbackFunction,
+											 ParallelPreContinuousCallbackFunction,
+											 &state.parallelContext );
+	}
+	else
+	{
+		b2World_SetParallelPreSolveCallback( physics.GetWorldId(), NULL, NULL, NULL );
+	}
+}
+
+void
+PhysicsWorld::ReleaseCompoundInternalEdgePreSolveOwnership( b2ShapeId )
+{
+	// Compound internal edge suppression now uses Box2D's parallel pre-solve flag
+	// instead of Lua preSolve events; kept as a no-op for ABI compatibility.
 }
 
 void
 PhysicsWorld::EnableCompoundInternalEdgePreSolve( b2BodyId bodyId, b2ShapeId shapeId )
 {
-	if ( b2Shape_ArePreSolveEventsEnabled( shapeId ) )
+	for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
 	{
-		return;
+		if ( B2_ID_EQUALS( fCompoundInternalEdgePreSolveShapes[i].shapeId, shapeId ) )
+		{
+			b2Shape_EnableParallelPreSolveEvents( shapeId, true );
+			return;
+		}
 	}
 
-	b2Shape_EnablePreSolveEvents( shapeId, true );
+	b2Shape_EnableParallelPreSolveEvents( shapeId, true );
 	CompoundInternalEdgePreSolveShape entry = { bodyId, shapeId };
 	fCompoundInternalEdgePreSolveShapes.push_back( entry );
 }
@@ -1196,6 +1448,7 @@ PhysicsWorld::BuildCompoundInternalEdges( b2BodyId bodyId )
 	PhysicsCompoundEdges::Build( bodyId, fCompoundInternalEdges, [this, bodyId]( b2ShapeId shapeId ) {
 		EnableCompoundInternalEdgePreSolve( bodyId, shapeId );
 	} );
+	RefreshWorldParallelPreSolve( *this, fCompoundInternalEdgeSuppressionEnabled && ! fCompoundInternalEdges.empty() );
 }
 
 void
@@ -1227,18 +1480,23 @@ PhysicsWorld::SetCompoundInternalEdgeSuppressionEnabled( bool enabled )
 	}
 	else
 	{
+		FastContactState* fast = FindFastContact( *this );
 		for ( size_t i = 0; i < fCompoundInternalEdgePreSolveShapes.size(); ++i )
 		{
 			b2ShapeId shapeId = fCompoundInternalEdgePreSolveShapes[i].shapeId;
 			if ( b2Shape_IsValid( shapeId ) )
 			{
-				b2Shape_EnablePreSolveEvents( shapeId, false );
+				bool keepParallel = fast != NULL &&
+					PhysicsFastContact::FindOneWayForShape( fast->oneWaySurfaces, shapeId ) != NULL;
+				b2Shape_EnableParallelPreSolveEvents( shapeId, keepParallel );
 			}
 		}
 
 		fCompoundInternalEdgePreSolveShapes.clear();
 		fCompoundInternalEdges.clear();
 	}
+
+	RefreshWorldParallelPreSolve( *this, fCompoundInternalEdgeSuppressionEnabled && ! fCompoundInternalEdges.empty() );
 }
 
 bool
@@ -1247,6 +1505,276 @@ PhysicsWorld::ShouldSuppressCompoundInternalEdge( b2ShapeId shapeIdA, b2ShapeId 
 	return fCompoundInternalEdgeSuppressionEnabled &&
 		PhysicsCompoundEdges::Suppress( fCompoundInternalEdges, shapeIdA, shapeIdB, point, normal );
 }
+
+static void
+RefreshContactsForMaterialChange( const std::vector<b2BodyId>& bodies, uint32_t filterA, uint32_t filterB, bool matchAll )
+{
+	for ( size_t i = 0; i < bodies.size(); ++i )
+	{
+		b2BodyId bodyId = bodies[i];
+		if ( ! b2Body_IsValid( bodyId ) )
+		{
+			continue;
+		}
+		int shapeCount = b2Body_GetShapeCount( bodyId );
+		if ( shapeCount <= 0 )
+		{
+			continue;
+		}
+		std::vector<b2ShapeId> shapes( shapeCount );
+		b2Body_GetShapes( bodyId, shapes.data(), shapeCount );
+		bool touched = false;
+		for ( int s = 0; s < shapeCount; ++s )
+		{
+			uint64_t raw = b2Shape_GetUserMaterial( shapes[s] );
+			uint32_t uid = PhysicsFastContact::DecodeUserMaterialId( raw );
+			if ( matchAll || uid == filterA || uid == filterB )
+			{
+				b2Shape_SetUserMaterial( shapes[s], raw );
+				touched = true;
+			}
+		}
+		if ( touched )
+		{
+			if ( b2Body_GetType( bodyId ) == b2_dynamicBody )
+			{
+				b2Body_SetAwake( bodyId, true );
+			}
+			b2Body_WakeTouching( bodyId );
+		}
+	}
+}
+
+void
+PhysicsWorld::SetMaterialPair( uint32_t idA, uint32_t idB, bool hasFriction, float friction,
+							   bool hasRestitution, float restitution )
+{
+	if ( ! IsWorldValid() )
+	{
+		return;
+	}
+	PhysicsFastContact::SetMaterialPair( fWorld->GetWorldId(), idA, idB, hasFriction, friction, hasRestitution, restitution );
+	RefreshContactsForMaterialChange( fPhysicsBodies, idA, idB, false );
+}
+
+void
+PhysicsWorld::RemoveMaterialPair( uint32_t idA, uint32_t idB )
+{
+	if ( ! IsWorldValid() )
+	{
+		return;
+	}
+	PhysicsFastContact::RemoveMaterialPair( fWorld->GetWorldId(), idA, idB );
+	RefreshContactsForMaterialChange( fPhysicsBodies, idA, idB, false );
+}
+
+bool
+PhysicsWorld::GetMaterialPair( uint32_t idA, uint32_t idB, PhysicsFastContact::MaterialPairEntry& outEntry ) const
+{
+	if ( ! IsWorldValid() )
+	{
+		return false;
+	}
+	return PhysicsFastContact::GetMaterialPair( fWorld->GetWorldId(), idA, idB, outEntry );
+}
+
+void
+PhysicsWorld::ClearMaterialPairs()
+{
+	if ( ! IsWorldValid() )
+	{
+		return;
+	}
+	PhysicsFastContact::ClearMaterialPairs( fWorld->GetWorldId() );
+	RefreshContactsForMaterialChange( fPhysicsBodies, 0, 0, true );
+}
+
+size_t
+PhysicsWorld::GetMaterialPairCount() const
+{
+	if ( ! IsWorldValid() )
+	{
+		return 0;
+	}
+	return PhysicsFastContact::GetMaterialPairCount( fWorld->GetWorldId() );
+}
+
+void
+PhysicsWorld::SetOneWaySurface( b2BodyId bodyId, b2ShapeId shapeId, b2Vec2 localNormal, float minDot,
+								uint64_t maskBits, bool requireFullExit )
+{
+	if ( ! IsWorldValid() || ! b2Body_IsValid( bodyId ) || ! b2Shape_IsValid( shapeId ) )
+	{
+		return;
+	}
+
+	FastContactState& fast = GetFastContact( *this );
+	PhysicsFastContact::OneWaySurface rule = { bodyId, shapeId, localNormal, minDot, maskBits, requireFullExit };
+	PhysicsFastContact::SetOrUpdateOneWay( fast.oneWaySurfaces, rule );
+	b2Shape_ClearParallelPreSolveLatch( shapeId );
+	b2Shape_EnableParallelPreSolveEvents( shapeId, true );
+	RefreshWorldParallelPreSolve( *this, fCompoundInternalEdgeSuppressionEnabled && ! fCompoundInternalEdges.empty() );
+	b2Body_WakeTouching( bodyId );
+}
+
+void
+PhysicsWorld::ClearOneWaySurface( b2ShapeId shapeId )
+{
+	if ( ! IsWorldValid() )
+	{
+		return;
+	}
+
+	FastContactState* fast = FindFastContact( *this );
+	if ( fast )
+	{
+		PhysicsFastContact::RemoveOneWayForShape( fast->oneWaySurfaces, shapeId );
+	}
+	if ( b2Shape_IsValid( shapeId ) )
+	{
+		b2Shape_ClearParallelPreSolveLatch( shapeId );
+		bool keepParallel = fCompoundInternalEdgeSuppressionEnabled &&
+			PhysicsFastContact::HasCompoundEdgeForShape( fCompoundInternalEdges, shapeId );
+		b2Shape_EnableParallelPreSolveEvents( shapeId, keepParallel );
+		b2BodyId bodyId = b2Shape_GetBody( shapeId );
+		if ( b2Body_IsValid( bodyId ) )
+		{
+			b2Body_WakeTouching( bodyId );
+		}
+	}
+	RefreshWorldParallelPreSolve( *this, fCompoundInternalEdgeSuppressionEnabled && ! fCompoundInternalEdges.empty() );
+}
+
+bool
+PhysicsWorld::GetOneWaySurface( b2ShapeId shapeId, PhysicsFastContact::OneWaySurface& outRule ) const
+{
+	FastContactState* fast = FindFastContact( *this );
+	if ( ! fast )
+	{
+		return false;
+	}
+	const PhysicsFastContact::OneWaySurface* found = PhysicsFastContact::FindOneWayForShape( fast->oneWaySurfaces, shapeId );
+	if ( ! found )
+	{
+		return false;
+	}
+	outRule = *found;
+	return true;
+}
+
+size_t
+PhysicsWorld::GetOneWaySurfaceCount() const
+{
+	FastContactState* fast = FindFastContact( *this );
+	return fast ? fast->oneWaySurfaces.size() : 0;
+}
+
+int
+PhysicsWorld::GetPreSolveShapeCount() const
+{
+	return IsWorldValid() ? b2World_GetPreSolveShapeCount( fWorld->GetWorldId() ) : 0;
+}
+
+namespace PhysicsFastContact
+{
+
+void ClearMaterialPairs( b2WorldId worldId )
+{
+	if ( worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+	{
+		return;
+	}
+	gMaterialPairs[worldId.index1].clear();
+	SyncWorldMaterialCallbacks( worldId );
+}
+
+void SetMaterialPair( b2WorldId worldId, uint32_t idA, uint32_t idB,
+					  bool hasFriction, float friction,
+					  bool hasRestitution, float restitution )
+{
+	if ( ! b2World_IsValid( worldId ) || worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+	{
+		return;
+	}
+	if ( idA > idB )
+	{
+		uint32_t tmp = idA;
+		idA = idB;
+		idB = tmp;
+	}
+	std::vector<MaterialPairEntry>& pairs = gMaterialPairs[worldId.index1];
+	MaterialPairEntry entry = { idA, idB, hasFriction, friction, hasRestitution, restitution };
+	for ( size_t i = 0; i < pairs.size(); ++i )
+	{
+		if ( pairs[i].idA == idA && pairs[i].idB == idB )
+		{
+			pairs[i] = entry;
+			SyncWorldMaterialCallbacks( worldId );
+			return;
+		}
+	}
+	pairs.push_back( entry );
+	SyncWorldMaterialCallbacks( worldId );
+}
+
+void RemoveMaterialPair( b2WorldId worldId, uint32_t idA, uint32_t idB )
+{
+	if ( worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+	{
+		return;
+	}
+	if ( idA > idB )
+	{
+		uint32_t tmp = idA;
+		idA = idB;
+		idB = tmp;
+	}
+	std::vector<MaterialPairEntry>& pairs = gMaterialPairs[worldId.index1];
+	for ( size_t i = 0; i < pairs.size(); ++i )
+	{
+		if ( pairs[i].idA == idA && pairs[i].idB == idB )
+		{
+			pairs.erase( pairs.begin() + i );
+			break;
+		}
+	}
+	SyncWorldMaterialCallbacks( worldId );
+}
+
+bool GetMaterialPair( b2WorldId worldId, uint32_t idA, uint32_t idB, MaterialPairEntry& outEntry )
+{
+	if ( worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+	{
+		return false;
+	}
+	if ( idA > idB )
+	{
+		uint32_t tmp = idA;
+		idA = idB;
+		idB = tmp;
+	}
+	const std::vector<MaterialPairEntry>& pairs = gMaterialPairs[worldId.index1];
+	for ( size_t i = 0; i < pairs.size(); ++i )
+	{
+		if ( pairs[i].idA == idA && pairs[i].idB == idB )
+		{
+			outEntry = pairs[i];
+			return true;
+		}
+	}
+	return false;
+}
+
+size_t GetMaterialPairCount( b2WorldId worldId )
+{
+	if ( worldId.index1 < 1 || worldId.index1 > B2_MAX_WORLDS )
+	{
+		return 0;
+	}
+	return gMaterialPairs[worldId.index1].size();
+}
+
+} // namespace PhysicsFastContact
 
 void
 PhysicsWorld::SetTimeStep( float newValue )

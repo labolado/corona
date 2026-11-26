@@ -116,8 +116,8 @@ void EvaluateContactPolicy( World &w, ContactPolicyEvent &decision )
 bool PolicyPreContinuous( b2ShapeId a, b2ShapeId b, b2Vec2 point, b2Vec2 normal, void *context )
 {
     World &w = *(World *)context;
-    if ( w.compoundInternalEdgeSuppression && !CompoundPreContinuous( a, b, point, normal, context ) )
-        return false;
+    if ( !w.hasContactPolicy )
+        return true;
     ContactPolicyEvent decision;
     decision.a = a;
     decision.b = b;
@@ -130,8 +130,6 @@ bool PolicyPreContinuous( b2ShapeId a, b2ShapeId b, b2Vec2 point, b2Vec2 normal,
 void PolicyPreSolve( b2ShapeId a, b2ShapeId b, b2Manifold *manifold, void *context )
 {
     World &w = *(World *)context;
-    if ( w.compoundInternalEdgeSuppression )
-        CompoundPreSolve( a, b, manifold, context );
     if ( manifold->pointCount == 0 || !w.hasContactPolicy )
         return;
     int deepest = 0;
@@ -153,10 +151,10 @@ void PolicyPreSolve( b2ShapeId a, b2ShapeId b, b2Manifold *manifold, void *conte
 }
 void RefreshContactPolicy( World &w )
 {
-    bool enabled = w.hasContactPolicy || w.compoundInternalEdgeSuppression;
+    bool enabled = w.hasContactPolicy;
     b2World_SetPreSolveCallback( w.id, enabled ? PolicyPreSolve : NULL,
                                 enabled ? PolicyPreContinuous : NULL, enabled ? &w : NULL );
-    b2World_EnableGlobalPreSolveEvents( w.id, w.hasContactPolicy );
+    b2World_EnableGlobalPreSolveEvents( w.id, w.hasContactPolicy && w.contactPolicyGlobal );
 }
 int WorldContactPolicy( lua_State *L )
 {
@@ -164,11 +162,19 @@ int WorldContactPolicy( lua_State *L )
     Mutable( L, w );
     if ( !lua_isnil( L, 2 ) )
         luaL_checktype( L, 2, LUA_TFUNCTION );
+    bool globalMode = true;
+    if ( !lua_isnoneornil( L, 3 ) )
+    {
+        luaL_checktype( L, 3, LUA_TTABLE );
+        Options( L, 3, { "global" } );
+        globalMode = Flag( L, 3, "global", true );
+    }
     lua_getfenv( L, 1 );
     lua_pushvalue( L, 2 );
     lua_setfield( L, -2, "contactPolicy" );
     bool hadPolicy = w.hasContactPolicy;
     w.hasContactPolicy = !lua_isnil( L, 2 );
+    w.contactPolicyGlobal = w.hasContactPolicy ? globalMode : true;
     RefreshContactPolicy( w );
     // Sleeping contacts must revisit their material/enable decisions after a change.
     if ( hadPolicy || w.hasContactPolicy )

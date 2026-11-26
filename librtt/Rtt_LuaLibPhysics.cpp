@@ -2290,6 +2290,33 @@ InitializeShapeFromLua( lua_State *L,
 	}
 	lua_pop( L, 1 );
 
+	lua_getfield( L, lua_arg_index, "userMaterialId" );
+	if ( lua_isnumber( L, -1 ) )
+	{
+		double v = lua_tonumber( L, -1 );
+		if ( std::isfinite( v ) && v >= 0.0 && v <= 4294967295.0 && v == std::floor( v ) )
+		{
+			const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+			if ( physics.IsWorldValid() )
+			{
+				outShapeDef.material.userMaterialId =
+					PhysicsFastContact::EncodeUserMaterialId( physics.GetWorldId(), (uint32_t)v );
+			}
+		}
+	}
+	lua_pop( L, 1 );
+
+	lua_getfield( L, lua_arg_index, "tangentSpeed" );
+	if ( lua_isnumber( L, -1 ) )
+	{
+		double v = lua_tonumber( L, -1 );
+		if ( std::isfinite( v ) )
+		{
+			outShapeDef.material.tangentSpeed = (float)( v * meter_per_pixels_scale );
+		}
+	}
+	lua_pop( L, 1 );
+
 	lua_getfield( L, lua_arg_index, "filter" );
 	if ( lua_istable( L, -1 ) )
 	{
@@ -4238,6 +4265,70 @@ addBody( lua_State *L )
 
 			PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
 			physics.RegisterPhysicsBody( bodyId );
+
+			// Optional declarative one-way surface on single-table addBody() calls.
+			int oneWayTableArg = 0;
+			int tableArgCount = 0;
+			for ( int a = 2; a <= numArgs; ++a )
+			{
+				if ( lua_istable( L, a ) )
+				{
+					++tableArgCount;
+					oneWayTableArg = a;
+				}
+			}
+			if ( tableArgCount == 1 )
+			{
+				lua_getfield( L, oneWayTableArg, "oneWay" );
+				if ( lua_istable( L, -1 ) )
+				{
+					lua_getfield( L, -1, "normalX" );
+					double nx = lua_isnumber( L, -1 ) ? lua_tonumber( L, -1 ) : 0.0;
+					lua_pop( L, 1 );
+					lua_getfield( L, -1, "normalY" );
+					double ny = lua_isnumber( L, -1 ) ? lua_tonumber( L, -1 ) : 0.0;
+					lua_pop( L, 1 );
+					double len = std::sqrt( nx * nx + ny * ny );
+					if ( std::isfinite( nx ) && std::isfinite( ny ) && std::isfinite( len ) && len > 1e-6 )
+					{
+						b2Vec2 localNormal = { (float)( nx / len ), (float)( ny / len ) };
+						float minDot = 0.5f;
+						uint64_t maskBits = UINT64_MAX;
+						bool requireFullExit = false;
+						lua_getfield( L, -1, "minDot" );
+						if ( lua_isnumber( L, -1 ) )
+						{
+							double md = lua_tonumber( L, -1 );
+							if ( std::isfinite( md ) && md >= -1.0 && md <= 1.0 ) { minDot = (float)md; }
+						}
+						lua_pop( L, 1 );
+						lua_getfield( L, -1, "maskBits" );
+						if ( lua_isnumber( L, -1 ) )
+						{
+							double mb = lua_tonumber( L, -1 );
+							if ( std::isfinite( mb ) && mb >= 0.0 && mb <= 9007199254740991.0 ) { maskBits = (uint64_t)mb; }
+						}
+						lua_pop( L, 1 );
+						lua_getfield( L, -1, "requireFullExit" );
+						if ( lua_isboolean( L, -1 ) )
+						{
+							requireFullExit = lua_toboolean( L, -1 ) != 0;
+						}
+						lua_pop( L, 1 );
+						int shapeCount = b2Body_GetShapeCount( bodyId );
+						if ( shapeCount > 0 )
+						{
+							std::vector<b2ShapeId> shapeIds( shapeCount );
+							b2Body_GetShapes( bodyId, shapeIds.data(), shapeCount );
+							for ( int i = 0; i < shapeCount; ++i )
+							{
+								physics.SetOneWaySurface( bodyId, shapeIds[i], localNormal, minDot, maskBits, requireFullExit );
+							}
+						}
+					}
+				}
+				lua_pop( L, 1 );
+			}
 		}
 	}
 
@@ -5359,6 +5450,148 @@ GetCompoundInternalEdgeSuppressionEnabled( lua_State *L )
 	return 1;
 }
 
+// physics.setMaterialPair(idA, idB, { friction = ..., bounce = ... } | nil)
+static int
+SetMaterialPair( lua_State *L )
+{
+	if ( ! lua_isnumber( L, 1 ) || ! lua_isnumber( L, 2 ) )
+	{
+		CoronaLuaError( L, "physics.setMaterialPair() requires (idA, idB, optionsOrNil)" );
+		return 0;
+	}
+	double a = lua_tonumber( L, 1 );
+	double b = lua_tonumber( L, 2 );
+	if ( ! std::isfinite( a ) || ! std::isfinite( b ) || a < 0.0 || b < 0.0 ||
+		 a > 4294967295.0 || b > 4294967295.0 || a != std::floor( a ) || b != std::floor( b ) ||
+		 ( a == 0.0 && b == 0.0 ) )
+	{
+		CoronaLuaError( L, "physics.setMaterialPair() requires nonnegative 32-bit material IDs (not both 0)" );
+		return 0;
+	}
+	if ( LuaLibPhysics::IsWorldLocked( L, "physics.setMaterialPair()" ) )
+	{
+		return 0;
+	}
+
+	PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	uint32_t idA = (uint32_t)a;
+	uint32_t idB = (uint32_t)b;
+
+	if ( lua_isnoneornil( L, 3 ) )
+	{
+		physics.RemoveMaterialPair( idA, idB );
+		return 0;
+	}
+	if ( ! lua_istable( L, 3 ) )
+	{
+		CoronaLuaError( L, "physics.setMaterialPair() 3rd parameter must be a table or nil" );
+		return 0;
+	}
+
+	bool hasFriction = false;
+	float friction = 0.0f;
+	lua_getfield( L, 3, "friction" );
+	if ( ! lua_isnil( L, -1 ) )
+	{
+		double v = lua_tonumber( L, -1 );
+		if ( ! lua_isnumber( L, -1 ) || ! std::isfinite( v ) || v < 0.0 )
+		{
+			lua_pop( L, 1 );
+			CoronaLuaError( L, "physics.setMaterialPair() friction must be a nonnegative finite number" );
+			return 0;
+		}
+		hasFriction = true;
+		friction = (float)v;
+	}
+	lua_pop( L, 1 );
+
+	bool hasRestitution = false;
+	float restitution = 0.0f;
+	lua_getfield( L, 3, "bounce" );
+	if ( ! lua_isnil( L, -1 ) )
+	{
+		double v = lua_tonumber( L, -1 );
+		if ( ! lua_isnumber( L, -1 ) || ! std::isfinite( v ) || v < 0.0 )
+		{
+			lua_pop( L, 1 );
+			CoronaLuaError( L, "physics.setMaterialPair() bounce must be a nonnegative finite number" );
+			return 0;
+		}
+		hasRestitution = true;
+		restitution = (float)v;
+	}
+	lua_pop( L, 1 );
+
+	if ( ! hasFriction && ! hasRestitution )
+	{
+		physics.RemoveMaterialPair( idA, idB );
+		return 0;
+	}
+
+	physics.SetMaterialPair( idA, idB, hasFriction, friction, hasRestitution, restitution );
+	return 0;
+}
+
+// physics.getMaterialPair(idA, idB)
+static int
+GetMaterialPair( lua_State *L )
+{
+	if ( ! lua_isnumber( L, 1 ) || ! lua_isnumber( L, 2 ) )
+	{
+		lua_pushnil( L );
+		return 1;
+	}
+	double a = lua_tonumber( L, 1 );
+	double b = lua_tonumber( L, 2 );
+	if ( ! std::isfinite( a ) || ! std::isfinite( b ) || a < 0.0 || b < 0.0 ||
+		 a > 4294967295.0 || b > 4294967295.0 || a != std::floor( a ) || b != std::floor( b ) )
+	{
+		lua_pushnil( L );
+		return 1;
+	}
+
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	PhysicsFastContact::MaterialPairEntry entry;
+	if ( physics.GetMaterialPair( (uint32_t)a, (uint32_t)b, entry ) )
+	{
+		lua_createtable( L, 0, 2 );
+		if ( entry.hasFriction )
+		{
+			lua_pushnumber( L, entry.friction );
+			lua_setfield( L, -2, "friction" );
+		}
+		if ( entry.hasRestitution )
+		{
+			lua_pushnumber( L, entry.restitution );
+			lua_setfield( L, -2, "bounce" );
+		}
+		return 1;
+	}
+	lua_pushnil( L );
+	return 1;
+}
+
+// physics.clearMaterialPairs()
+static int
+ClearMaterialPairs( lua_State *L )
+{
+	if ( ! LuaLibPhysics::IsWorldLocked( L, "physics.clearMaterialPairs()" ) )
+	{
+		PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+		physics.ClearMaterialPairs();
+	}
+	return 0;
+}
+
+// physics.getPreSolveShapeCount()
+static int
+GetPreSolveShapeCount( lua_State *L )
+{
+	const PhysicsWorld& physics = LuaContext::GetRuntime( L )->GetPhysicsWorld();
+	lua_pushinteger( L, physics.GetPreSolveShapeCount() );
+	return 1;
+}
+
 // physics.setSeamContactFilterEnabled(enabled)
 // Discard short approaching two point contacts at flush seams (ghost collisions). Disabled by default.
 // The setting belongs to the current world, so it is reset after physics.stop() destroys the world.
@@ -5653,6 +5886,10 @@ LuaLibPhysics::Open( lua_State *L )
 		{ "getSpeculativeCornerPassThroughEnabled", GetSpeculativeCornerPassThroughEnabled },
 		{ "setCompoundInternalEdgeSuppressionEnabled", SetCompoundInternalEdgeSuppressionEnabled },
 		{ "getCompoundInternalEdgeSuppressionEnabled", GetCompoundInternalEdgeSuppressionEnabled },
+		{ "setMaterialPair", SetMaterialPair },
+		{ "getMaterialPair", GetMaterialPair },
+		{ "clearMaterialPairs", ClearMaterialPairs },
+		{ "getPreSolveShapeCount", GetPreSolveShapeCount },
 		{ "setSeamContactFilterEnabled", SetSeamContactFilterEnabled },
 		{ "getSeamContactFilterEnabled", GetSeamContactFilterEnabled },
 		{ "setMaximumLinearSpeed", SetMaximumLinearSpeed },

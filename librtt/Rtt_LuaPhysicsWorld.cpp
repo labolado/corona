@@ -9,6 +9,7 @@
 #include "Rtt_Runtime.h"
 #include "Rtt_PhysicsWorld.h"
 #include "Rtt_PhysicsCompoundEdges.h"
+#include "Rtt_PhysicsFastContact.h"
 #include "Rtt_PhysicsCapsule.h"
 #include "Rtt_LuaProxy.h"
 #include "Rtt_LuaProxyVTable.h"
@@ -105,6 +106,7 @@ struct World
     int subSteps = 8, cap = 8;
     bool compoundInternalEdgeSuppression = false;
     std::vector<CompoundEdge> compoundEdges;
+    std::vector<PhysicsFastContact::OneWaySurface> oneWaySurfaces;
     double speed = 1, budget = 0, renderTime = 0;
     Interpolation interpolation = Interpolation::Auto;
     bool interpolating = false;
@@ -122,11 +124,33 @@ struct World
     std::vector<Body *> active;
     SoftSimulationLua::IndependentClient soft{};
     bool hasContactPolicy = false;
+    bool contactPolicyGlobal = true;
     lua_State *policyL = NULL; // Borrowed only for the duration of OneStep.
     int policyWorldIndex = 0;
     size_t policyCalls = 0;
 };
-// Independent worlds own these flags; compound suppression precedes Lua policy.
+bool ParallelPreContinuous( b2ShapeId a, b2ShapeId b, b2Vec2 point, b2Vec2 normal, void *context )
+{
+    const World &w = *static_cast<const World *>( context );
+    return PhysicsFastContact::EvaluateParallelPreContinuous(
+        w.compoundInternalEdgeSuppression, w.compoundEdges, w.oneWaySurfaces, a, b, point, normal );
+}
+void ParallelPreSolve( b2ShapeId a, b2ShapeId b, b2Manifold *manifold, bool *latched, void *context )
+{
+    const World &w = *static_cast<const World *>( context );
+    PhysicsFastContact::EvaluateParallelPreSolve(
+        w.compoundInternalEdgeSuppression, w.compoundEdges, w.oneWaySurfaces, a, b, manifold, latched );
+}
+void RefreshParallelPreSolve( World &w )
+{
+    if ( !w.alive || !b2World_IsValid( w.id ) )
+        return;
+    bool active = ( w.compoundInternalEdgeSuppression && !w.compoundEdges.empty() ) || !w.oneWaySurfaces.empty();
+    b2World_SetParallelPreSolveCallback( w.id, active ? ParallelPreSolve : NULL,
+                                         active ? ParallelPreContinuous : NULL, active ? &w : NULL );
+}
+// Independent worlds own these flags; compound suppression and one-way rules run on Box2D's
+// thread-safe parallel pre-solve hook so they never force Pass 2 or serialize bullet CCD.
 // Geometry changes rebuild only this body's entries, outside the locked step.
 void RefreshCompoundEdges( World &w, b2BodyId bodyId, bool rebuild = true )
 {
@@ -137,32 +161,21 @@ void RefreshCompoundEdges( World &w, b2BodyId bodyId, bool rebuild = true )
                      return B2_ID_EQUALS( edge.bodyId, bodyId );
                  } ), edges.end() );
     if ( !rebuild )
+    {
+        RefreshParallelPreSolve( w );
         return;
+    }
     std::vector<b2ShapeId> shapes( b2Body_GetShapeCount( bodyId ) );
     b2Body_GetShapes( bodyId, shapes.data(), (int)shapes.size() );
     for ( b2ShapeId shape : shapes )
-        b2Shape_EnablePreSolveEvents( shape, false );
+    {
+        bool keepParallel = PhysicsFastContact::FindOneWayForShape( w.oneWaySurfaces, shape ) != NULL;
+        b2Shape_EnableParallelPreSolveEvents( shape, keepParallel );
+    }
     PhysicsCompoundEdges::Build( bodyId, edges, []( b2ShapeId shape ) {
-        b2Shape_EnablePreSolveEvents( shape, true );
+        b2Shape_EnableParallelPreSolveEvents( shape, true );
     } );
-}
-bool CompoundPreContinuous( b2ShapeId a, b2ShapeId b, b2Vec2 point, b2Vec2 normal, void *context )
-{
-    return !PhysicsCompoundEdges::Suppress( static_cast<World *>( context )->compoundEdges, a, b,
-                                           point, normal );
-}
-void CompoundPreSolve( b2ShapeId a, b2ShapeId b, b2Manifold *manifold, void *context )
-{
-    if ( manifold->pointCount == 0 )
-        return;
-    int deepest = 0;
-    for ( int i = 1; i < manifold->pointCount; ++i )
-        if ( manifold->points[i].separation < manifold->points[deepest].separation )
-            deepest = i;
-    b2Vec2 origin = b2Body_GetPosition( b2Shape_GetBody( a ) );
-    if ( !CompoundPreContinuous( a, b, b2Add( origin, manifold->points[deepest].anchorA ),
-                                manifold->normal, context ) )
-        manifold->pointCount = 0;
+    RefreshParallelPreSolve( w );
 }
 struct Handle
 {
@@ -575,6 +588,12 @@ int ShapeIndex( lua_State *L )
         lua_pushboolean( L, b2Shape_AreContactEventsEnabled( h.id ) );
     else if ( !strcmp( key, "enableHitEvents" ) )
         lua_pushboolean( L, b2Shape_AreHitEventsEnabled( h.id ) );
+    else if ( !strcmp( key, "enablePreSolveEvents" ) )
+        lua_pushboolean( L, b2Shape_ArePreSolveEventsEnabled( h.id ) );
+    else if ( !strcmp( key, "userMaterialId" ) )
+        lua_pushnumber( L, (lua_Number)PhysicsFastContact::DecodeUserMaterialId( b2Shape_GetUserMaterial( h.id ) ) );
+    else if ( !strcmp( key, "tangentSpeed" ) )
+        lua_pushnumber( L, b2Shape_GetSurfaceMaterial( h.id ).tangentSpeed * h.world->scale );
     else if ( !strcmp( key, "filter" ) )
         PushFilter( L, b2Shape_GetFilter( h.id ) );
     else if ( !strcmp( key, "body" ) || !strcmp( key, "chain" ) )
@@ -626,6 +645,40 @@ int ShapeNewIndex( lua_State *L )
         luaL_checktype( L, 3, LUA_TBOOLEAN );
         b2Shape_EnableHitEvents( h.id, lua_toboolean( L, 3 ) != 0 );
     }
+    else if ( !strcmp( key, "enablePreSolveEvents" ) )
+    {
+        luaL_checktype( L, 3, LUA_TBOOLEAN );
+        b2Shape_EnablePreSolveEvents( h.id, lua_toboolean( L, 3 ) != 0 );
+    }
+    else if ( !strcmp( key, "userMaterialId" ) )
+    {
+        uint32_t userId = 0;
+        if ( !lua_isnil( L, 3 ) )
+        {
+            double v = Number( L, 3 );
+            if ( v < 0 || v > UINT32_MAX || v != std::floor( v ) )
+                return luaL_error( L, "userMaterialId must be a nonnegative 32-bit integer" );
+            userId = (uint32_t)v;
+        }
+        b2Shape_SetUserMaterial( h.id, PhysicsFastContact::EncodeUserMaterialId( h.world->id, userId ) );
+        b2BodyId bodyId = b2Shape_GetBody( h.id );
+        if ( b2Body_IsValid( bodyId ) )
+        {
+            if ( b2Body_GetType( bodyId ) == b2_dynamicBody )
+                b2Body_SetAwake( bodyId, true );
+            b2Body_WakeTouching( bodyId );
+        }
+    }
+    else if ( !strcmp( key, "tangentSpeed" ) )
+    {
+        double speedPx = Number( L, 3 );
+        b2SurfaceMaterial material = b2Shape_GetSurfaceMaterial( h.id );
+        material.tangentSpeed = (float)( speedPx / h.world->scale );
+        b2Shape_SetSurfaceMaterial( h.id, &material );
+        b2BodyId bodyId = b2Shape_GetBody( h.id );
+        if ( b2Body_IsValid( bodyId ) )
+            b2Body_WakeTouching( bodyId );
+    }
     else if ( !strcmp( key, "density" ) || !strcmp( key, "friction" ) || !strcmp( key, "bounce" ) )
     {
         double v = Number( L, 3 );
@@ -646,6 +699,119 @@ int ShapeNewIndex( lua_State *L )
         return luaL_error( L, "unknown or read-only shape property; recreate to change sensor state" );
     return 0;
 }
+void SetShapeOneWay( World &w, b2BodyId bodyId, b2ShapeId shapeId, b2Vec2 localNormal, float minDot,
+                     uint64_t maskBits, bool requireFullExit )
+{
+    PhysicsFastContact::OneWaySurface rule = { bodyId, shapeId, localNormal, minDot, maskBits, requireFullExit };
+    PhysicsFastContact::SetOrUpdateOneWay( w.oneWaySurfaces, rule );
+    b2Shape_ClearParallelPreSolveLatch( shapeId );
+    b2Shape_EnableParallelPreSolveEvents( shapeId, true );
+    RefreshParallelPreSolve( w );
+    if ( b2Body_IsValid( bodyId ) )
+        b2Body_WakeTouching( bodyId );
+}
+void ClearShapeOneWay( World &w, b2ShapeId shapeId )
+{
+    PhysicsFastContact::RemoveOneWayForShape( w.oneWaySurfaces, shapeId );
+    if ( b2Shape_IsValid( shapeId ) )
+    {
+        b2Shape_ClearParallelPreSolveLatch( shapeId );
+        bool keepParallel = w.compoundInternalEdgeSuppression &&
+                            PhysicsFastContact::HasCompoundEdgeForShape( w.compoundEdges, shapeId );
+        b2Shape_EnableParallelPreSolveEvents( shapeId, keepParallel );
+        b2BodyId bodyId = b2Shape_GetBody( shapeId );
+        if ( b2Body_IsValid( bodyId ) )
+            b2Body_WakeTouching( bodyId );
+    }
+    RefreshParallelPreSolve( w );
+}
+bool ReadOneWayTable( lua_State *L, int ti, b2Vec2 &outNormal, float &outMinDot, uint64_t &outMaskBits,
+                      bool &outRequireFullExit )
+{
+    luaL_checktype( L, ti, LUA_TTABLE );
+    Options( L, ti, { "normalX", "normalY", "minDot", "maskBits", "requireFullExit" } );
+    double nx = Option( L, ti, "normalX", 0 );
+    double ny = Option( L, ti, "normalY", 0 );
+    double len = std::sqrt( nx * nx + ny * ny );
+    if ( !std::isfinite( len ) || len <= 1e-6 )
+        luaL_error( L, "oneWay requires a non-zero finite normalX/normalY" );
+    outNormal = { (float)( nx / len ), (float)( ny / len ) };
+    double minDot = Option( L, ti, "minDot", 0.5 );
+    if ( minDot < -1.0 || minDot > 1.0 )
+        luaL_error( L, "oneWay minDot must be in [-1, 1]" );
+    outMinDot = (float)minDot;
+    outMaskBits = UINT64_MAX;
+    lua_getfield( L, ti, "maskBits" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double mb = Number( L, -1 );
+        if ( mb < 0 || mb > UINT32_MAX || mb != std::floor( mb ) )
+            luaL_error( L, "oneWay maskBits must be a nonnegative 32-bit integer" );
+        outMaskBits = (uint64_t)mb;
+    }
+    lua_pop( L, 1 );
+    outRequireFullExit = Flag( L, ti, "requireFullExit", false );
+    return true;
+}
+int ShapeSetOneWaySurface( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    World &w = *h.world;
+    Mutable( L, w );
+    if ( lua_isnoneornil( L, 2 ) )
+    {
+        ClearShapeOneWay( w, h.id );
+        return 0;
+    }
+    double nx = Number( L, 2 );
+    double ny = Number( L, 3 );
+    double len = std::sqrt( nx * nx + ny * ny );
+    if ( !std::isfinite( len ) || len <= 1e-6 )
+        return luaL_error( L, "oneWay requires a non-zero finite normal vector" );
+    b2Vec2 localNormal = { (float)( nx / len ), (float)( ny / len ) };
+    float minDot = 0.5f;
+    uint64_t maskBits = UINT64_MAX;
+    bool requireFullExit = false;
+    if ( !lua_isnoneornil( L, 4 ) )
+    {
+        luaL_checktype( L, 4, LUA_TTABLE );
+        Options( L, 4, { "minDot", "maskBits", "requireFullExit" } );
+        double md = Option( L, 4, "minDot", 0.5 );
+        if ( md < -1.0 || md > 1.0 )
+            return luaL_error( L, "oneWay minDot must be in [-1, 1]" );
+        minDot = (float)md;
+        lua_getfield( L, 4, "maskBits" );
+        if ( !lua_isnil( L, -1 ) )
+        {
+            double mb = Number( L, -1 );
+            if ( mb < 0 || mb > UINT32_MAX || mb != std::floor( mb ) )
+                return luaL_error( L, "oneWay maskBits must be a nonnegative 32-bit integer" );
+            maskBits = (uint64_t)mb;
+        }
+        lua_pop( L, 1 );
+        requireFullExit = Flag( L, 4, "requireFullExit", false );
+    }
+    SetShapeOneWay( w, b2Shape_GetBody( h.id ), h.id, localNormal, minDot, maskBits, requireFullExit );
+    return 0;
+}
+int ShapeGetOneWaySurface( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    const PhysicsFastContact::OneWaySurface *rule =
+        PhysicsFastContact::FindOneWayForShape( h.world->oneWaySurfaces, h.id );
+    if ( !rule )
+    {
+        lua_pushnil( L );
+        return 1;
+    }
+    lua_createtable( L, 0, 5 );
+    Field( L, "normalX", rule->localNormal.x );
+    Field( L, "normalY", rule->localNormal.y );
+    Field( L, "minDot", rule->minDot );
+    Field( L, "maskBits", (double)rule->maskBits );
+    Bool( L, "requireFullExit", rule->requireFullExit );
+    return 1;
+}
 int ShapeDestroy( lua_State *L )
 {
     ShapeHandle &h = GetShape( L );
@@ -653,8 +819,10 @@ int ShapeDestroy( lua_State *L )
     if ( h.world->shapes[h.index]->chain != kInactive )
         return luaL_error( L, "destroy the owning chain, not an individual segment" );
     b2BodyId bodyId = b2Shape_GetBody( h.id );
+    PhysicsFastContact::RemoveOneWayForShape( h.world->oneWaySurfaces, h.id );
     b2DestroyShape( h.id, true );
     RefreshCompoundEdges( *h.world, bodyId );
+    RefreshParallelPreSolve( *h.world );
     PushWorld( L, 1 );
     ReleaseShape( L, *h.world, lua_gettop( L ), h.index );
     return 0;
@@ -1199,7 +1367,9 @@ int BodyDestroy( lua_State *L )
         ReleaseChain( L, w, wi, b.chains.back() );
     while ( !b.shapes.empty() )
         ReleaseShape( L, w, wi, b.shapes.back() );
+    PhysicsFastContact::RemoveOneWayForBody( w.oneWaySurfaces, b.id );
     RefreshCompoundEdges( w, b.id, false );
+    RefreshParallelPreSolve( w );
     b2DestroyBody( b.id );
     b.id = b2_nullBodyId;
     b.fixtureCount = 0;
@@ -1210,7 +1380,7 @@ int BodyDestroy( lua_State *L )
     lua_rawseti( L, -2, (int)b.serial + 1 );
     return 0;
 }
-b2ShapeDef ShapeOptions( lua_State *L, int ti )
+b2ShapeDef ShapeOptions( lua_State *L, const World &w, int ti )
 {
     b2ShapeDef d = b2DefaultShapeDef();
     double density = Option( L, ti, "density", 1 );
@@ -1220,12 +1390,36 @@ b2ShapeDef ShapeOptions( lua_State *L, int ti )
     if ( density < 0 || d.material.friction < 0 || d.material.restitution < 0 ||
          d.material.restitution > 1 )
         luaL_error( L, "invalid density, friction or bounce" );
+    d.material.tangentSpeed = (float)( Option( L, ti, "tangentSpeed", 0 ) / w.scale );
+    lua_getfield( L, ti, "userMaterialId" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double uid = Number( L, -1 );
+        if ( uid < 0 || uid > UINT32_MAX || uid != std::floor( uid ) )
+            luaL_error( L, "userMaterialId must be a nonnegative 32-bit integer" );
+        d.material.userMaterialId = PhysicsFastContact::EncodeUserMaterialId( w.id, (uint32_t)uid );
+    }
+    lua_pop( L, 1 );
     d.isSensor = Flag( L, ti, "isSensor", false );
     d.enableContactEvents = Flag( L, ti, "enableContactEvents", true );
     d.enableSensorEvents = Flag( L, ti, "enableSensorEvents", true );
     d.enableHitEvents = Flag( L, ti, "enableHitEvents", false );
+    d.enablePreSolveEvents = Flag( L, ti, "enablePreSolveEvents", false );
     d.filter = FilterOption( L, ti );
     return d;
+}
+bool ReadOptionalOneWay( lua_State *L, int ti, b2Vec2 &outNormal, float &outMinDot, uint64_t &outMaskBits,
+                         bool &outRequireFullExit )
+{
+    lua_getfield( L, ti, "oneWay" );
+    if ( lua_isnil( L, -1 ) )
+    {
+        lua_pop( L, 1 );
+        return false;
+    }
+    ReadOneWayTable( L, lua_gettop( L ), outNormal, outMinDot, outMaskBits, outRequireFullExit );
+    lua_pop( L, 1 );
+    return true;
 }
 int BodyCircle( lua_State *L )
 {
@@ -1233,15 +1427,25 @@ int BodyCircle( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "isSensor", "filter",
-                    "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
-    b2ShapeDef d = ShapeOptions( L, 2 );
+    Options( L, 2, { "radius", "x", "y", "density", "friction", "bounce", "userMaterialId", "tangentSpeed",
+                    "oneWay", "isSensor", "filter", "enableSensorEvents", "enableContactEvents",
+                    "enableHitEvents", "enablePreSolveEvents" } );
+    b2ShapeDef d = ShapeOptions( L, w, 2 );
+    b2Vec2 owNormal = b2Vec2_zero;
+    float owMinDot = 0.5f;
+    uint64_t owMaskBits = UINT64_MAX;
+    bool owRequireFullExit = false;
+    bool hasOneWay = ReadOptionalOneWay( L, 2, owNormal, owMinDot, owMaskBits, owRequireFullExit );
     float r = (float)( Option( L, 2, "radius", 0 ) / w.scale );
     if ( r <= 0 )
         return luaL_error( L, "radius must be positive" );
     b2Circle c = {
         { (float)( Option( L, 2, "x", 0 ) / w.scale ), (float)( Option( L, 2, "y", 0 ) / w.scale ) }, r };
-    return ReturnShape( L, w, b, b2CreateCircleShape( b.id, &d, &c ) );
+    b2ShapeId sid = b2CreateCircleShape( b.id, &d, &c );
+    int ret = ReturnShape( L, w, b, sid );
+    if ( hasOneWay )
+        SetShapeOneWay( w, b.id, sid, owNormal, owMinDot, owMaskBits, owRequireFullExit );
+    return ret;
 }
 int BodyCapsule( lua_State *L )
 {
@@ -1249,16 +1453,26 @@ int BodyCapsule( lua_State *L )
     World &w = Owner( L, 1, kBody );
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "x1", "y1", "x2", "y2", "radius", "density", "friction", "bounce",
-                    "isSensor", "filter", "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
-    b2ShapeDef d = ShapeOptions( L, 2 );
+    Options( L, 2, { "x1", "y1", "x2", "y2", "radius", "density", "friction", "bounce", "userMaterialId",
+                    "tangentSpeed", "oneWay", "isSensor", "filter", "enableSensorEvents",
+                    "enableContactEvents", "enableHitEvents", "enablePreSolveEvents" } );
+    b2ShapeDef d = ShapeOptions( L, w, 2 );
+    b2Vec2 owNormal = b2Vec2_zero;
+    float owMinDot = 0.5f;
+    uint64_t owMaskBits = UINT64_MAX;
+    bool owRequireFullExit = false;
+    bool hasOneWay = ReadOptionalOneWay( L, 2, owNormal, owMinDot, owMaskBits, owRequireFullExit );
     b2Capsule c = {
         { (float)( Option( L, 2, "x1", 0 ) / w.scale ), (float)( Option( L, 2, "y1", 0 ) / w.scale ) },
         { (float)( Option( L, 2, "x2", 0 ) / w.scale ), (float)( Option( L, 2, "y2", 0 ) / w.scale ) },
         (float)( Option( L, 2, "radius", 0 ) / w.scale ) };
     if ( c.radius <= 0 )
         return luaL_error( L, "radius must be positive" );
-    return ReturnShape( L, w, b, PhysicsCapsule::Create( b.id, &d, c ) );
+    b2ShapeId sid = PhysicsCapsule::Create( b.id, &d, c );
+    int ret = ReturnShape( L, w, b, sid );
+    if ( hasOneWay )
+        SetShapeOneWay( w, b.id, sid, owNormal, owMinDot, owMaskBits, owRequireFullExit );
+    return ret;
 }
 float PolygonRadius( lua_State *L, const World &w )
 {
@@ -1282,9 +1496,14 @@ int BodyBox( lua_State *L )
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
              { "halfWidth", "halfHeight", "x", "y", "angle", "radius", "roundness", "density",
-               "friction", "bounce", "isSensor", "filter", "enableSensorEvents", "enableContactEvents",
-               "enableHitEvents" } );
-    b2ShapeDef d = ShapeOptions( L, 2 );
+               "friction", "bounce", "userMaterialId", "tangentSpeed", "oneWay", "isSensor", "filter",
+               "enableSensorEvents", "enableContactEvents", "enableHitEvents", "enablePreSolveEvents" } );
+    b2ShapeDef d = ShapeOptions( L, w, 2 );
+    b2Vec2 owNormal = b2Vec2_zero;
+    float owMinDot = 0.5f;
+    uint64_t owMaskBits = UINT64_MAX;
+    bool owRequireFullExit = false;
+    bool hasOneWay = ReadOptionalOneWay( L, 2, owNormal, owMinDot, owMaskBits, owRequireFullExit );
     float radius = PolygonRadius( L, w );
     float hx = (float)( Option( L, 2, "halfWidth", 0 ) / w.scale ),
           hy = (float)( Option( L, 2, "halfHeight", 0 ) / w.scale );
@@ -1295,7 +1514,11 @@ int BodyBox( lua_State *L )
     b2Polygon p =
         b2MakeOffsetBox( hx, hy, center, b2MakeRot( (float)( Option( L, 2, "angle", 0 ) * kRad ) ) );
     p.radius = radius;
-    return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &p ) );
+    b2ShapeId sid = b2CreatePolygonShape( b.id, &d, &p );
+    int ret = ReturnShape( L, w, b, sid );
+    if ( hasOneWay )
+        SetShapeOneWay( w, b.id, sid, owNormal, owMinDot, owMaskBits, owRequireFullExit );
+    return ret;
 }
 int BodyPolygon( lua_State *L )
 {
@@ -1304,9 +1527,15 @@ int BodyPolygon( lua_State *L )
     Mutable( L, w );
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
-             { "shape", "radius", "roundness", "density", "friction", "bounce", "isSensor", "filter",
-               "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
-    b2ShapeDef d = ShapeOptions( L, 2 );
+             { "shape", "radius", "roundness", "density", "friction", "bounce", "userMaterialId",
+               "tangentSpeed", "oneWay", "isSensor", "filter", "enableSensorEvents", "enableContactEvents",
+               "enableHitEvents", "enablePreSolveEvents" } );
+    b2ShapeDef d = ShapeOptions( L, w, 2 );
+    b2Vec2 owNormal = b2Vec2_zero;
+    float owMinDot = 0.5f;
+    uint64_t owMaskBits = UINT64_MAX;
+    bool owRequireFullExit = false;
+    bool hasOneWay = ReadOptionalOneWay( L, 2, owNormal, owMinDot, owMaskBits, owRequireFullExit );
     float radius = PolygonRadius( L, w );
     lua_getfield( L, 2, "shape" );
     luaL_checktype( L, -1, LUA_TTABLE );
@@ -1327,7 +1556,11 @@ int BodyPolygon( lua_State *L )
     if ( hull.count < 3 || !b2ValidateHull( &hull ) )
         return luaL_error( L, "degenerate polygon hull" );
     b2Polygon polygon = b2MakePolygon( &hull, radius );
-    return ReturnShape( L, w, b, b2CreatePolygonShape( b.id, &d, &polygon ) );
+    b2ShapeId sid = b2CreatePolygonShape( b.id, &d, &polygon );
+    int ret = ReturnShape( L, w, b, sid );
+    if ( hasOneWay )
+        SetShapeOneWay( w, b.id, sid, owNormal, owMinDot, owMaskBits, owRequireFullExit );
+    return ret;
 }
 int ChainBody( lua_State *L )
 {
@@ -1350,12 +1583,22 @@ int ChainMaterial( lua_State *L )
     ChainHandle &h = GetChain( L );
     Mutable( L, *h.world );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "friction", "bounce" } );
+    Options( L, 2, { "friction", "bounce", "userMaterialId", "tangentSpeed" } );
     b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
     material.friction = (float)Option( L, 2, "friction", .3 );
     material.restitution = (float)Option( L, 2, "bounce", 0 );
     if ( material.friction < 0 || material.restitution < 0 || material.restitution > 1 )
         return luaL_error( L, "invalid chain material" );
+    material.tangentSpeed = (float)( Option( L, 2, "tangentSpeed", 0 ) / h.world->scale );
+    lua_getfield( L, 2, "userMaterialId" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double uid = Number( L, -1 );
+        if ( uid < 0 || uid > UINT32_MAX || uid != std::floor( uid ) )
+            return luaL_error( L, "userMaterialId must be a nonnegative 32-bit integer" );
+        material.userMaterialId = PhysicsFastContact::EncodeUserMaterialId( h.world->id, (uint32_t)uid );
+    }
+    lua_pop( L, 1 );
     b2Chain_SetAllSurfaceMaterials( h.id, &material );
     return 0;
 }
@@ -1385,8 +1628,8 @@ int BodyChain( lua_State *L )
     if ( b2Body_GetType( b.id ) != b2_staticBody )
         return luaL_error( L, "chains require a static body" );
     luaL_checktype( L, 2, LUA_TTABLE );
-    Options( L, 2, { "points", "isLoop", "ghost1", "ghost2", "friction", "bounce", "filter",
-                    "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
+    Options( L, 2, { "points", "isLoop", "ghost1", "ghost2", "friction", "bounce", "userMaterialId",
+                    "tangentSpeed", "filter", "enableSensorEvents", "enableContactEvents", "enableHitEvents" } );
     b2ChainDef def = b2DefaultChainDef();
     def.isLoop = Flag( L, 2, "isLoop", false );
     def.filter = FilterOption( L, 2 );
@@ -1399,6 +1642,16 @@ int BodyChain( lua_State *L )
     material.restitution = (float)Option( L, 2, "bounce", 0 );
     if ( material.friction < 0 || material.restitution < 0 || material.restitution > 1 )
         return luaL_error( L, "invalid chain material" );
+    material.tangentSpeed = (float)( Option( L, 2, "tangentSpeed", 0 ) / w.scale );
+    lua_getfield( L, 2, "userMaterialId" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double uid = Number( L, -1 );
+        if ( uid < 0 || uid > UINT32_MAX || uid != std::floor( uid ) )
+            return luaL_error( L, "userMaterialId must be a nonnegative 32-bit integer" );
+        material.userMaterialId = PhysicsFastContact::EncodeUserMaterialId( w.id, (uint32_t)uid );
+    }
+    lua_pop( L, 1 );
     lua_getfield( L, 2, "points" );
     luaL_checktype( L, -1, LUA_TTABLE );
     int table = lua_gettop( L );
@@ -2241,6 +2494,204 @@ int WorldContinuous( lua_State *L )
     b2World_EnableContinuous( w.id, lua_toboolean( L, 2 ) != 0 );
     return 0;
 }
+void RefreshIndependentWorldMaterials( World &w, uint32_t filterA, uint32_t filterB, bool matchAll )
+{
+    for ( const auto &body : w.bodies )
+    {
+        if ( !body || !b2Body_IsValid( body->id ) )
+            continue;
+        bool touched = false;
+        for ( size_t slot : body->shapes )
+        {
+            if ( slot >= w.shapes.size() || !w.shapes[slot] || !b2Shape_IsValid( w.shapes[slot]->id ) )
+                continue;
+            uint64_t raw = b2Shape_GetUserMaterial( w.shapes[slot]->id );
+            uint32_t uid = PhysicsFastContact::DecodeUserMaterialId( raw );
+            if ( matchAll || uid == filterA || uid == filterB )
+            {
+                b2Shape_SetUserMaterial( w.shapes[slot]->id, raw );
+                touched = true;
+            }
+        }
+        if ( touched )
+        {
+            if ( b2Body_GetType( body->id ) == b2_dynamicBody )
+                b2Body_SetAwake( body->id, true );
+            b2Body_WakeTouching( body->id );
+        }
+    }
+}
+int BodySetPreSolveEventsEnabled( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    bool flag = lua_toboolean( L, 2 ) != 0;
+    for ( size_t slot : b.shapes )
+        if ( slot < w.shapes.size() && w.shapes[slot] && b2Shape_IsValid( w.shapes[slot]->id ) )
+            b2Shape_EnablePreSolveEvents( w.shapes[slot]->id, flag );
+    return 0;
+}
+int BodySetUserMaterialId( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    uint32_t userId = 0;
+    if ( !lua_isnoneornil( L, 2 ) )
+    {
+        double v = Number( L, 2 );
+        if ( v < 0 || v > UINT32_MAX || v != std::floor( v ) )
+            return luaL_error( L, "userMaterialId must be a nonnegative 32-bit integer" );
+        userId = (uint32_t)v;
+    }
+    uint64_t encoded = PhysicsFastContact::EncodeUserMaterialId( w.id, userId );
+    for ( size_t slot : b.shapes )
+        if ( slot < w.shapes.size() && w.shapes[slot] && b2Shape_IsValid( w.shapes[slot]->id ) )
+            b2Shape_SetUserMaterial( w.shapes[slot]->id, encoded );
+    if ( b2Body_GetType( b.id ) == b2_dynamicBody )
+        b2Body_SetAwake( b.id, true );
+    b2Body_WakeTouching( b.id );
+    return 0;
+}
+int BodySetTangentSpeed( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    float speedMeters = (float)( Number( L, 2 ) / w.scale );
+    for ( size_t slot : b.shapes )
+        if ( slot < w.shapes.size() && w.shapes[slot] && b2Shape_IsValid( w.shapes[slot]->id ) )
+        {
+            b2SurfaceMaterial material = b2Shape_GetSurfaceMaterial( w.shapes[slot]->id );
+            material.tangentSpeed = speedMeters;
+            b2Shape_SetSurfaceMaterial( w.shapes[slot]->id, &material );
+        }
+    b2Body_WakeTouching( b.id );
+    return 0;
+}
+int BodySetOneWaySurface( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    Mutable( L, w );
+    if ( lua_isnoneornil( L, 2 ) )
+    {
+        for ( size_t slot : b.shapes )
+            if ( slot < w.shapes.size() && w.shapes[slot] && b2Shape_IsValid( w.shapes[slot]->id ) )
+                ClearShapeOneWay( w, w.shapes[slot]->id );
+        return 0;
+    }
+    double nx = Number( L, 2 );
+    double ny = Number( L, 3 );
+    double len = std::sqrt( nx * nx + ny * ny );
+    if ( !std::isfinite( len ) || len <= 1e-6 )
+        return luaL_error( L, "oneWay requires a non-zero finite normal vector" );
+    b2Vec2 localNormal = { (float)( nx / len ), (float)( ny / len ) };
+    float minDot = 0.5f;
+    uint64_t maskBits = UINT64_MAX;
+    bool requireFullExit = false;
+    if ( !lua_isnoneornil( L, 4 ) )
+    {
+        luaL_checktype( L, 4, LUA_TTABLE );
+        Options( L, 4, { "minDot", "maskBits", "requireFullExit" } );
+        double md = Option( L, 4, "minDot", 0.5 );
+        if ( md < -1.0 || md > 1.0 )
+            return luaL_error( L, "oneWay minDot must be in [-1, 1]" );
+        minDot = (float)md;
+        lua_getfield( L, 4, "maskBits" );
+        if ( !lua_isnil( L, -1 ) )
+        {
+            double mb = Number( L, -1 );
+            if ( mb < 0 || mb > UINT32_MAX || mb != std::floor( mb ) )
+                return luaL_error( L, "oneWay maskBits must be a nonnegative 32-bit integer" );
+            maskBits = (uint64_t)mb;
+        }
+        lua_pop( L, 1 );
+        requireFullExit = Flag( L, 4, "requireFullExit", false );
+    }
+    for ( size_t slot : b.shapes )
+        if ( slot < w.shapes.size() && w.shapes[slot] && b2Shape_IsValid( w.shapes[slot]->id ) )
+            SetShapeOneWay( w, b.id, w.shapes[slot]->id, localNormal, minDot, maskBits, requireFullExit );
+    return 0;
+}
+int WorldSetMaterialPair( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double a = Number( L, 2 ), b = Number( L, 3 );
+    if ( a < 0 || b < 0 || a > UINT32_MAX || b > UINT32_MAX || a != std::floor( a ) || b != std::floor( b ) ||
+         ( a == 0 && b == 0 ) )
+        return luaL_error( L, "material pair IDs must be nonnegative 32-bit integers (not both 0)" );
+    uint32_t idA = (uint32_t)a, idB = (uint32_t)b;
+    if ( lua_isnoneornil( L, 4 ) )
+    {
+        PhysicsFastContact::RemoveMaterialPair( w.id, idA, idB );
+        RefreshIndependentWorldMaterials( w, idA, idB, false );
+        return 0;
+    }
+    luaL_checktype( L, 4, LUA_TTABLE );
+    Options( L, 4, { "friction", "bounce" } );
+    bool hasFriction = false, hasRestitution = false;
+    float friction = 0.0f, restitution = 0.0f;
+    lua_getfield( L, 4, "friction" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double v = Number( L, -1 );
+        if ( v < 0 )
+            return luaL_error( L, "material pair friction must be nonnegative" );
+        hasFriction = true;
+        friction = (float)v;
+    }
+    lua_pop( L, 1 );
+    lua_getfield( L, 4, "bounce" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        double v = Number( L, -1 );
+        if ( v < 0 )
+            return luaL_error( L, "material pair bounce must be nonnegative" );
+        hasRestitution = true;
+        restitution = (float)v;
+    }
+    lua_pop( L, 1 );
+    if ( !hasFriction && !hasRestitution )
+        PhysicsFastContact::RemoveMaterialPair( w.id, idA, idB );
+    else
+        PhysicsFastContact::SetMaterialPair( w.id, idA, idB, hasFriction, friction, hasRestitution, restitution );
+    RefreshIndependentWorldMaterials( w, idA, idB, false );
+    return 0;
+}
+int WorldGetMaterialPair( lua_State *L )
+{
+    World &w = GetWorld( L );
+    double a = Number( L, 2 ), b = Number( L, 3 );
+    if ( a < 0 || b < 0 || a > UINT32_MAX || b > UINT32_MAX || a != std::floor( a ) || b != std::floor( b ) )
+    {
+        lua_pushnil( L );
+        return 1;
+    }
+    PhysicsFastContact::MaterialPairEntry entry;
+    if ( !PhysicsFastContact::GetMaterialPair( w.id, (uint32_t)a, (uint32_t)b, entry ) )
+    {
+        lua_pushnil( L );
+        return 1;
+    }
+    lua_createtable( L, 0, 2 );
+    if ( entry.hasFriction )
+        Field( L, "friction", entry.friction );
+    if ( entry.hasRestitution )
+        Field( L, "bounce", entry.restitution );
+    return 1;
+}
+int WorldClearMaterialPairs( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    PhysicsFastContact::ClearMaterialPairs( w.id );
+    RefreshIndependentWorldMaterials( w, 0, 0, true );
+    return 0;
+}
 int WorldAwakeBodyCount( lua_State *L )
 {
     World &w = GetWorld( L );
@@ -2318,6 +2769,7 @@ int WorldState( lua_State *L )
     Field( L, "viewAlpha", w.viewAlpha );
     Field( L, "poseHistoryCopies", w.poseHistoryCopies );
     Bool( L, "hasContactPolicy", w.hasContactPolicy );
+    Bool( L, "contactPolicyGlobal", w.contactPolicyGlobal );
     Field( L, "contactPolicyCalls", w.policyCalls );
     Field( L, "pixelsPerMeter", w.scale );
     // This one native policy is process-global, including the default world.
@@ -2331,6 +2783,9 @@ int WorldState( lua_State *L )
         Bool( L, "continuous", b2World_IsContinuousEnabled( w.id ) );
         Bool( L, "sleepingEnabled", b2World_IsSleepingEnabled( w.id ) );
         Field( L, "awakeBodyCount", b2World_GetAwakeBodyCount( w.id ) );
+        Field( L, "preSolveShapeCount", b2World_GetPreSolveShapeCount( w.id ) );
+        Field( L, "materialPairCount", PhysicsFastContact::GetMaterialPairCount( w.id ) );
+        Field( L, "oneWaySurfaceCount", w.oneWaySurfaces.size() );
         Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
         Field( L, "hitEventThreshold", b2World_GetHitEventThreshold( w.id ) * w.scale );
         Field( L, "restitutionThreshold", b2World_GetRestitutionThreshold( w.id ) * w.scale );
@@ -2961,7 +3416,11 @@ void Destroy( lua_State *L, World &w, int wi )
             lua_pop( L, 1 );
         }
     if ( w.alive )
+    {
+        PhysicsFastContact::ClearMaterialPairs( w.id );
+        b2World_SetParallelPreSolveCallback( w.id, NULL, NULL, NULL );
         b2DestroyWorld( w.id );
+    }
     w.alive = false;
     w.id = b2_nullWorldId;
     w.budget = 0;
@@ -2971,7 +3430,9 @@ void Destroy( lua_State *L, World &w, int wi )
     w.shapes.clear();
     w.chains.clear();
     w.compoundEdges.clear();
+    w.oneWaySurfaces.clear();
     w.hasContactPolicy = false;
+    w.contactPolicyGlobal = true;
     w.viewRoot = NULL;
     w.freeShapes.clear();
     w.freeChains.clear();
@@ -3153,6 +3614,10 @@ int LuaPhysicsWorld::New( lua_State *L )
                                      { "isTouching", BodyIsTouching },
                                      { "getContactBodies", BodyContactBodies },
                                      { "wakeTouching", BodyWakeTouching },
+                                     { "setPreSolveEventsEnabled", BodySetPreSolveEventsEnabled },
+                                     { "setUserMaterialId", BodySetUserMaterialId },
+                                     { "setTangentSpeed", BodySetTangentSpeed },
+                                     { "setOneWaySurface", BodySetOneWaySurface },
                                      { "bindView", BodyBind },
                                      { "unbindView", BodyUnbind },
                                      { "destroy", BodyDestroy },
@@ -3188,6 +3653,9 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "getAwakeBodyCount", WorldAwakeBodyCount },
                                       { "newSoftSystem", WorldNewSoft },
                                       { "setContactPolicy", WorldContactPolicy },
+                                      { "setMaterialPair", WorldSetMaterialPair },
+                                      { "getMaterialPair", WorldGetMaterialPair },
+                                      { "clearMaterialPairs", WorldClearMaterialPairs },
                                       { "setHitEventThreshold", WorldHitThreshold },
                                       { "setContactTuning", WorldContactTuning },
                                       { "setContactRecycleDistance", WorldContactRecycleDistance },
@@ -3219,6 +3687,8 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "getClosestPoint", ShapeClosestPoint },
                                       { "getBounds", ShapeBounds },
                                       { "getSensorOverlaps", ShapeSensorOverlaps },
+                                      { "setOneWaySurface", ShapeSetOneWaySurface },
+                                      { "getOneWaySurface", ShapeGetOneWaySurface },
                                       { NULL, NULL } };
     const luaL_Reg chainMethods[] = { { "getSegments", ChainSegments }, { "getBody", ChainBody },
                                       { "setFilter", ChainFilter },     { "setMaterial", ChainMaterial },
@@ -3279,7 +3749,9 @@ int LuaPhysicsWorld::New( lua_State *L )
     b2World_EnableSeamContactFilter( w.id, seam );
     b2World_EnableWeldRestitution( w.id, weld );
     w.compoundInternalEdgeSuppression = compound;
+    PhysicsFastContact::ClearMaterialPairs( w.id );
     RefreshContactPolicy( w );
+    RefreshParallelPreSolve( w );
     return 1;
 }
 } // namespace Rtt
