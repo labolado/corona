@@ -20,6 +20,7 @@
 #include "box2d/box2d.h"
 #include "box2d/constants.h"
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -473,6 +474,82 @@ int ShapeTestPoint( lua_State *L )
     lua_pushboolean( L, b2Shape_TestPoint( h.id, point ) );
     return 1;
 }
+int ShapeClosestPoint( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    World &w = *h.world;
+    double wx = Number( L, 2 ), wy = Number( L, 3 );
+    b2Vec2 target = { (float)( wx / w.scale ), (float)( wy / w.scale ) };
+    if ( !std::isfinite( target.x ) || !std::isfinite( target.y ) )
+        return 0;
+    float distance = FLT_MAX;
+    b2Vec2 normal = b2Vec2_zero;
+    b2Shape_ComputeDistance( h.id, target, &distance, &normal );
+    if ( !std::isfinite( distance ) || !std::isfinite( normal.x ) || !std::isfinite( normal.y ) )
+        return 0;
+    double distancePx = (double)distance * w.scale;
+    double nx = (double)normal.x;
+    double ny = (double)normal.y;
+    double cx = wx - nx * distancePx;
+    double cy = wy - ny * distancePx;
+    if ( !std::isfinite( cx ) || !std::isfinite( cy ) || !std::isfinite( distancePx ) )
+        return 0;
+    lua_pushnumber( L, cx );
+    lua_pushnumber( L, cy );
+    lua_pushnumber( L, distancePx );
+    lua_pushnumber( L, nx );
+    lua_pushnumber( L, ny );
+    return 5;
+}
+int ShapeBounds( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    World &w = *h.world;
+    b2AABB aabb = b2Shape_GetBounds( h.id );
+    lua_pushnumber( L, aabb.lowerBound.x * w.scale );
+    lua_pushnumber( L, aabb.lowerBound.y * w.scale );
+    lua_pushnumber( L, aabb.upperBound.x * w.scale );
+    lua_pushnumber( L, aabb.upperBound.y * w.scale );
+    return 4;
+}
+int ShapeSensorOverlaps( lua_State *L )
+{
+    ShapeHandle &h = GetShape( L );
+    World &w = *h.world;
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    int cap = b2Shape_GetSensorCapacity( h.id );
+    if ( cap <= 0 )
+    {
+        lua_createtable( L, 0, 0 );
+        return 1;
+    }
+    b2ShapeId stackVisitors[16];
+    std::vector<b2ShapeId> heapVisitors;
+    b2ShapeId *visitors = stackVisitors;
+    if ( cap > 16 )
+    {
+        heapVisitors.resize( (size_t)cap );
+        visitors = heapVisitors.data();
+    }
+    int count = b2Shape_GetSensorData( h.id, visitors, cap );
+    PushWorld( L, 1 );
+    int wi = lua_gettop( L );
+    lua_createtable( L, count, 0 );
+    int out = 0;
+    for ( int i = 0; i < count; ++i )
+    {
+        if ( !b2Shape_IsValid( visitors[i] ) )
+            continue;
+        auto *shape = (Shape *)b2Shape_GetUserData( visitors[i] );
+        if ( !shape )
+            continue;
+        PushHandle( L, wi, "shapes", shape->serial );
+        lua_rawseti( L, -2, ++out );
+    }
+    lua_remove( L, wi );
+    return 1;
+}
 int ShapeIndex( lua_State *L )
 {
     // isValid remains callable after destruction.
@@ -846,6 +923,253 @@ int BodyLocalPoint( lua_State *L )
     lua_pushnumber( L, result.y * w.scale );
     return 2;
 }
+int BodyWorldVector( lua_State *L )
+{
+    Body &b = GetBody( L );
+    b2Vec2 v = { (float)Number( L, 2 ), (float)Number( L, 3 ) };
+    b2Vec2 result = b2Body_GetWorldVector( b.id, v );
+    lua_pushnumber( L, result.x );
+    lua_pushnumber( L, result.y );
+    return 2;
+}
+int BodyLocalVector( lua_State *L )
+{
+    Body &b = GetBody( L );
+    b2Vec2 v = { (float)Number( L, 2 ), (float)Number( L, 3 ) };
+    b2Vec2 result = b2Body_GetLocalVector( b.id, v );
+    lua_pushnumber( L, result.x );
+    lua_pushnumber( L, result.y );
+    return 2;
+}
+int BodyVelocityFromWorldPoint( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2Pos p = { (float)( Number( L, 2 ) / w.scale ), (float)( Number( L, 3 ) / w.scale ) };
+    b2Vec2 v = b2Body_GetWorldPointVelocity( b.id, p );
+    lua_pushnumber( L, v.x * w.scale );
+    lua_pushnumber( L, v.y * w.scale );
+    return 2;
+}
+int BodyVelocityFromLocalPoint( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2Vec2 p = { (float)( Number( L, 2 ) / w.scale ), (float)( Number( L, 3 ) / w.scale ) };
+    b2Vec2 v = b2Body_GetLocalPointVelocity( b.id, p );
+    lua_pushnumber( L, v.x * w.scale );
+    lua_pushnumber( L, v.y * w.scale );
+    return 2;
+}
+int BodyBounds( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    b2AABB aabb = b2Body_ComputeBounds( b.id );
+    lua_pushnumber( L, aabb.lowerBound.x * w.scale );
+    lua_pushnumber( L, aabb.lowerBound.y * w.scale );
+    lua_pushnumber( L, aabb.upperBound.x * w.scale );
+    lua_pushnumber( L, aabb.upperBound.y * w.scale );
+    return 4;
+}
+int BodyWakeTouching( lua_State *L )
+{
+    Body &b = GetBody( L );
+    Mutable( L, Owner( L, 1, kBody ) );
+    b2Body_WakeTouching( b.id );
+    return 0;
+}
+int BodyResetMassData( lua_State *L )
+{
+    Body &b = GetBody( L );
+    Mutable( L, Owner( L, 1, kBody ) );
+    b2Body_UpdateMassFromShapes( b.id );
+    return 0;
+}
+int BodyClosestPoint( lua_State *L )
+{
+    Body &b = GetBody( L );
+    World &w = Owner( L, 1, kBody );
+    double wx = Number( L, 2 ), wy = Number( L, 3 );
+    bool includeSensors = false;
+    if ( !lua_isnoneornil( L, 4 ) )
+    {
+        luaL_checktype( L, 4, LUA_TBOOLEAN );
+        includeSensors = lua_toboolean( L, 4 ) != 0;
+    }
+    int shapeCount = b2Body_GetShapeCount( b.id );
+    if ( shapeCount <= 0 )
+        return 0;
+    b2ShapeId stackShapes[16];
+    std::vector<b2ShapeId> heapShapes;
+    b2ShapeId *shapes = stackShapes;
+    if ( shapeCount > 16 )
+    {
+        heapShapes.resize( (size_t)shapeCount );
+        shapes = heapShapes.data();
+    }
+    int actualCount = b2Body_GetShapes( b.id, shapes, shapeCount );
+    b2Vec2 target = { (float)( wx / w.scale ), (float)( wy / w.scale ) };
+    if ( !std::isfinite( target.x ) || !std::isfinite( target.y ) )
+        return 0;
+    bool found = false;
+    float bestDistance = FLT_MAX;
+    b2Vec2 bestNormal = b2Vec2_zero;
+    for ( int i = 0; i < actualCount; ++i )
+    {
+        b2ShapeId shapeId = shapes[i];
+        if ( !b2Shape_IsValid( shapeId ) )
+            continue;
+        if ( !includeSensors && b2Shape_IsSensor( shapeId ) )
+            continue;
+        float distance = FLT_MAX;
+        b2Vec2 normal = b2Vec2_zero;
+        b2Shape_ComputeDistance( shapeId, target, &distance, &normal );
+        if ( !std::isfinite( distance ) || !std::isfinite( normal.x ) || !std::isfinite( normal.y ) )
+            continue;
+        if ( !found || distance < bestDistance )
+        {
+            found = true;
+            bestDistance = distance;
+            bestNormal = normal;
+        }
+    }
+    if ( !found )
+        return 0;
+    double distancePx = (double)bestDistance * w.scale;
+    double nx = (double)bestNormal.x;
+    double ny = (double)bestNormal.y;
+    double cx = wx - nx * distancePx;
+    double cy = wy - ny * distancePx;
+    if ( !std::isfinite( cx ) || !std::isfinite( cy ) || !std::isfinite( distancePx ) )
+        return 0;
+    lua_pushnumber( L, cx );
+    lua_pushnumber( L, cy );
+    lua_pushnumber( L, distancePx );
+    lua_pushnumber( L, nx );
+    lua_pushnumber( L, ny );
+    return 5;
+}
+bool IsActualContact( const b2ContactData &contact )
+{
+    if ( !b2Shape_IsValid( contact.shapeIdA ) || !b2Shape_IsValid( contact.shapeIdB ) )
+        return false;
+    if ( b2Shape_IsSensor( contact.shapeIdA ) || b2Shape_IsSensor( contact.shapeIdB ) )
+        return false;
+    const b2Manifold &manifold = contact.manifold;
+    if ( manifold.pointCount <= 0 )
+        return false;
+    const float slop = B2_LINEAR_SLOP;
+    for ( int i = 0; i < manifold.pointCount; ++i )
+    {
+        const b2ManifoldPoint &pt = manifold.points[i];
+        if ( pt.totalNormalImpulse > 0.0f || pt.separation <= slop )
+            return true;
+    }
+    return false;
+}
+int BodyIsTouching( lua_State *L )
+{
+    Body &a = GetBody( L, 1 );
+    World &w = Owner( L, 1, kBody );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    Body &b = GetBody( L, 2 );
+    if ( &Owner( L, 2, kBody ) != &w )
+        return luaL_error( L, "bodies must belong to the same physics world" );
+    if ( &a == &b )
+    {
+        lua_pushboolean( L, false );
+        return 1;
+    }
+    int capA = b2Body_GetContactCapacity( a.id );
+    int capB = b2Body_GetContactCapacity( b.id );
+    if ( capA <= 0 || capB <= 0 )
+    {
+        lua_pushboolean( L, false );
+        return 1;
+    }
+    b2BodyId queryId = capA <= capB ? a.id : b.id;
+    b2BodyId targetId = capA <= capB ? b.id : a.id;
+    int cap = capA <= capB ? capA : capB;
+    b2ContactData stackContacts[16];
+    std::vector<b2ContactData> heapContacts;
+    b2ContactData *contacts = stackContacts;
+    if ( cap > 16 )
+    {
+        heapContacts.resize( (size_t)cap );
+        contacts = heapContacts.data();
+    }
+    int count = b2Body_GetContactData( queryId, contacts, cap );
+    bool touching = false;
+    for ( int i = 0; i < count; ++i )
+    {
+        const b2ContactData &c = contacts[i];
+        if ( !b2Shape_IsValid( c.shapeIdA ) || !b2Shape_IsValid( c.shapeIdB ) )
+            continue;
+        b2BodyId bodyA = b2Shape_GetBody( c.shapeIdA );
+        b2BodyId bodyB = b2Shape_GetBody( c.shapeIdB );
+        b2BodyId otherId = B2_ID_EQUALS( bodyA, queryId ) ? bodyB : bodyA;
+        if ( B2_ID_EQUALS( otherId, targetId ) && IsActualContact( c ) )
+        {
+            touching = true;
+            break;
+        }
+    }
+    lua_pushboolean( L, touching );
+    return 1;
+}
+int BodyContactBodies( lua_State *L )
+{
+    Body &b = GetBody( L, 1 );
+    World &w = Owner( L, 1, kBody );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    int cap = b2Body_GetContactCapacity( b.id );
+    if ( cap <= 0 )
+    {
+        lua_createtable( L, 0, 0 );
+        return 1;
+    }
+    b2ContactData stackContacts[16];
+    std::vector<b2ContactData> heapContacts;
+    b2ContactData *contacts = stackContacts;
+    if ( cap > 16 )
+    {
+        heapContacts.resize( (size_t)cap );
+        contacts = heapContacts.data();
+    }
+    int count = b2Body_GetContactData( b.id, contacts, cap );
+    std::vector<size_t> serials;
+    serials.reserve( (size_t)count );
+    for ( int i = 0; i < count; ++i )
+    {
+        const b2ContactData &c = contacts[i];
+        if ( !IsActualContact( c ) )
+            continue;
+        b2BodyId bodyA = b2Shape_GetBody( c.shapeIdA );
+        b2BodyId bodyB = b2Shape_GetBody( c.shapeIdB );
+        b2BodyId otherId = B2_ID_EQUALS( bodyA, b.id ) ? bodyB : bodyA;
+        if ( !b2Body_IsValid( otherId ) || B2_ID_EQUALS( otherId, b.id ) )
+            continue;
+        Body *other = (Body *)b2Body_GetUserData( otherId );
+        if ( !other || other == &b )
+            continue;
+        if ( std::find( serials.begin(), serials.end(), other->serial ) == serials.end() )
+            serials.push_back( other->serial );
+    }
+    PushWorld( L, 1 );
+    int wi = lua_gettop( L );
+    lua_createtable( L, (int)serials.size(), 0 );
+    int out = 0;
+    for ( size_t serial : serials )
+    {
+        PushHandle( L, wi, "bodies", serial );
+        lua_rawseti( L, -2, ++out );
+    }
+    lua_remove( L, wi );
+    return 1;
+}
 void ReleaseJoint( lua_State *L, World &w, int wi, b2JointId joint )
 {
     size_t slot = (size_t)(uintptr_t)b2Joint_GetUserData( joint ) - 1;
@@ -1185,6 +1509,12 @@ int BodyIndex( lua_State *L )
         lua_pushnumber( L, b2Body_GetAngularVelocity( b.id ) / kRad );
     else if ( !strcmp( key, "mass" ) )
         lua_pushnumber( L, b2Body_GetMass( b.id ) );
+    else if ( !strcmp( key, "inertia" ) )
+        lua_pushnumber( L, b2Body_GetRotationalInertia( b.id ) );
+    else if ( !strcmp( key, "shapeCount" ) )
+        lua_pushinteger( L, b2Body_GetShapeCount( b.id ) );
+    else if ( !strcmp( key, "jointCount" ) )
+        lua_pushinteger( L, b2Body_GetJointCount( b.id ) );
     else if ( !strcmp( key, "isAwake" ) )
         lua_pushboolean( L, b2Body_IsAwake( b.id ) );
     else if ( !strcmp( key, "gravityScale" ) )
@@ -1193,8 +1523,16 @@ int BodyIndex( lua_State *L )
         lua_pushnumber( L, b2Body_GetLinearDamping( b.id ) );
     else if ( !strcmp( key, "angularDamping" ) )
         lua_pushnumber( L, b2Body_GetAngularDamping( b.id ) );
+    else if ( !strcmp( key, "sleepThreshold" ) )
+        lua_pushnumber( L, b2Body_GetSleepThreshold( b.id ) * w.scale );
     else if ( !strcmp( key, "isBullet" ) )
         lua_pushboolean( L, b2Body_IsBullet( b.id ) );
+    else if ( !strcmp( key, "allowFastRotation" ) )
+        lua_pushboolean( L, b2Body_AllowFastRotation( b.id ) );
+    else if ( !strcmp( key, "isContactRecycling" ) )
+        lua_pushboolean( L, b2Body_IsContactRecyclingEnabled( b.id ) );
+    else if ( !strcmp( key, "isSeamContactFilterEnabled" ) )
+        lua_pushboolean( L, b2Body_IsSeamContactFilterEnabled( b.id ) );
     else if ( !strcmp( key, "isSleepingAllowed" ) )
         lua_pushboolean( L, b2Body_IsSleepingEnabled( b.id ) );
     else if ( !strcmp( key, "isFixedRotation" ) )
@@ -1263,13 +1601,28 @@ int BodyNewIndex( lua_State *L )
         else
             b2Body_SetAngularDamping( b.id, value );
     }
+    else if ( !strcmp( key, "sleepThreshold" ) )
+    {
+        double value = Number( L, 3 );
+        if ( value < 0 )
+            return luaL_error( L, "sleepThreshold must be nonnegative" );
+        b2Body_SetSleepThreshold( b.id, (float)( value / w.scale ) );
+    }
     else if ( !strcmp( key, "isBullet" ) || !strcmp( key, "isSleepingAllowed" ) ||
-              !strcmp( key, "isFixedRotation" ) || !strcmp( key, "isActive" ) )
+              !strcmp( key, "isFixedRotation" ) || !strcmp( key, "isActive" ) ||
+              !strcmp( key, "allowFastRotation" ) || !strcmp( key, "isContactRecycling" ) ||
+              !strcmp( key, "isSeamContactFilterEnabled" ) )
     {
         luaL_checktype( L, 3, LUA_TBOOLEAN );
         bool value = lua_toboolean( L, 3 ) != 0;
         if ( !strcmp( key, "isBullet" ) )
             b2Body_SetBullet( b.id, value );
+        else if ( !strcmp( key, "allowFastRotation" ) )
+            b2Body_SetAllowFastRotation( b.id, value );
+        else if ( !strcmp( key, "isContactRecycling" ) )
+            b2Body_EnableContactRecycling( b.id, value );
+        else if ( !strcmp( key, "isSeamContactFilterEnabled" ) )
+            b2Body_EnableSeamContactFilter( b.id, value );
         else if ( !strcmp( key, "isSleepingAllowed" ) )
             b2Body_EnableSleeping( b.id, value );
         else if ( !strcmp( key, "isFixedRotation" ) )
@@ -1317,7 +1670,8 @@ int BodyNewIndex( lua_State *L )
         luaL_checktype( L, 3, LUA_TBOOLEAN );
         b2Body_SetAwake( b.id, lua_toboolean( L, 3 ) != 0 );
     }
-    else if ( !strcmp( key, "mass" ) || !strcmp( key, "world" ) || !strcmp( key, "view" ) ||
+    else if ( !strcmp( key, "mass" ) || !strcmp( key, "inertia" ) || !strcmp( key, "shapeCount" ) ||
+              !strcmp( key, "jointCount" ) || !strcmp( key, "world" ) || !strcmp( key, "view" ) ||
               !strcmp( key, "proxy" ) || !strcmp( key, "isValid" ) )
         return luaL_error( L, "read-only/reserved body property" );
     else
@@ -1336,7 +1690,8 @@ int WorldBody( lua_State *L )
     luaL_checktype( L, 2, LUA_TTABLE );
     Options( L, 2,
              { "x", "y", "rotation", "type", "gravityScale", "linearDamping", "angularDamping",
-               "isSleepingAllowed", "isAwake", "isFixedRotation", "isBullet" } );
+               "isSleepingAllowed", "isAwake", "isFixedRotation", "isBullet", "allowFastRotation",
+               "isContactRecycling", "isSeamContactFilterEnabled", "sleepThreshold" } );
     b2BodyDef d = b2DefaultBodyDef();
     d.type = b2_dynamicBody;
     lua_getfield( L, 2, "type" );
@@ -1359,10 +1714,17 @@ int WorldBody( lua_State *L )
     d.angularDamping = (float)Option( L, 2, "angularDamping", 0 );
     if ( d.linearDamping < 0 || d.angularDamping < 0 )
         return luaL_error( L, "negative damping" );
+    double sleepThreshold = Option( L, 2, "sleepThreshold", d.sleepThreshold * w.scale );
+    if ( sleepThreshold < 0 )
+        return luaL_error( L, "sleepThreshold must be nonnegative" );
+    d.sleepThreshold = (float)( sleepThreshold / w.scale );
     d.enableSleep = Flag( L, 2, "isSleepingAllowed", true );
     d.isAwake = Flag( L, 2, "isAwake", true );
     d.motionLocks.angularZ = Flag( L, 2, "isFixedRotation", false );
     d.isBullet = Flag( L, 2, "isBullet", false );
+    d.allowFastRotation = Flag( L, 2, "allowFastRotation", false );
+    d.enableContactRecycling = Flag( L, 2, "isContactRecycling", true );
+    bool seamFilter = Flag( L, 2, "isSeamContactFilterEnabled", false );
     Body *b;
     if ( w.freeBodies.empty() )
     {
@@ -1377,6 +1739,8 @@ int WorldBody( lua_State *L )
     }
     d.userData = b;
     b->id = b2CreateBody( w.id, &d );
+    if ( seamFilter )
+        b2Body_EnableSeamContactFilter( b->id, true );
     b->authoredPose = authored;
     Handle *h = (Handle *)lua_newuserdata( L, sizeof( Handle ) );
     *h = { &w, b->serial, b->id, b2_nullJointId };
@@ -1771,10 +2135,168 @@ int WorldHitThreshold( lua_State *L )
     b2World_SetHitEventThreshold( w.id, (float)( speed / w.scale ) );
     return 0;
 }
+int WorldGetGravity( lua_State *L )
+{
+    World &w = GetWorld( L );
+    b2Vec2 g = b2World_GetGravity( w.id );
+    lua_pushnumber( L, g.x );
+    lua_pushnumber( L, g.y );
+    return 2;
+}
+int WorldSetGravity( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    b2Vec2 g = { (float)Number( L, 2 ), (float)Number( L, 3 ) };
+    b2World_SetGravity( w.id, g );
+    return 0;
+}
+int WorldContactTuning( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double hertz = Number( L, 2 ), damping = Number( L, 3 ), pushSpeed = Number( L, 4 );
+    if ( hertz < 0 || damping < 0 || pushSpeed < 0 )
+        return luaL_error( L, "contact tuning parameters must be nonnegative" );
+    b2World_SetContactTuning( w.id, (float)hertz, (float)damping, (float)( pushSpeed / w.scale ) );
+    return 0;
+}
+int WorldContactRecycleDistance( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double distance = Number( L, 2 );
+    if ( distance < 0 )
+        return luaL_error( L, "contactRecycleDistance must be nonnegative" );
+    b2World_SetContactRecycleDistance( w.id, (float)( distance / w.scale ) );
+    return 0;
+}
+int WorldSeamContactFilter( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    b2World_EnableSeamContactFilter( w.id, lua_toboolean( L, 2 ) != 0 );
+    return 0;
+}
+int WorldWeldRestitution( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    b2World_EnableWeldRestitution( w.id, lua_toboolean( L, 2 ) != 0 );
+    return 0;
+}
+int WorldRestitutionIterations( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double iterations = Number( L, 2 );
+    if ( iterations < 0 || iterations > B2_MAX_RESTITUTION_ITERATIONS || iterations != std::floor( iterations ) )
+        return luaL_error( L, "restitutionIterations must be an integer in [0, %d]", B2_MAX_RESTITUTION_ITERATIONS );
+    b2World_SetRestitutionIterations( w.id, (int)iterations );
+    return 0;
+}
+int WorldRestitutionThreshold( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double speed = Number( L, 2 );
+    if ( speed < 0 )
+        return luaL_error( L, "restitutionThreshold must be nonnegative" );
+    b2World_SetRestitutionThreshold( w.id, (float)( speed / w.scale ) );
+    return 0;
+}
+int WorldGetRestitutionThreshold( lua_State *L )
+{
+    World &w = GetWorld( L );
+    lua_pushnumber( L, b2World_GetRestitutionThreshold( w.id ) * w.scale );
+    return 1;
+}
+int WorldMaxLinearSpeed( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    double speed = Number( L, 2 );
+    if ( speed <= 0 )
+        return luaL_error( L, "maximumLinearSpeed must be positive" );
+    b2World_SetMaxLinearSpeed( w.id, (float)( speed / w.scale ) );
+    return 0;
+}
+int WorldGetMaxLinearSpeed( lua_State *L )
+{
+    World &w = GetWorld( L );
+    lua_pushnumber( L, b2World_GetMaxLinearSpeed( w.id ) * w.scale );
+    return 1;
+}
+int WorldSleepingEnabled( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    b2World_EnableSleeping( w.id, lua_toboolean( L, 2 ) != 0 );
+    return 0;
+}
+int WorldContinuous( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    b2World_EnableContinuous( w.id, lua_toboolean( L, 2 ) != 0 );
+    return 0;
+}
+int WorldAwakeBodyCount( lua_State *L )
+{
+    World &w = GetWorld( L );
+    lua_pushinteger( L, b2World_GetAwakeBodyCount( w.id ) );
+    return 1;
+}
+int WorldExplode( lua_State *L )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    b2ExplosionDef def = b2DefaultExplosionDef();
+    double x = 0, y = 0, radius = 0, falloff = 0, impulsePerLength = 0;
+    uint64_t maskBits = UINT32_MAX;
+    if ( lua_istable( L, 2 ) )
+    {
+        Options( L, 2, { "x", "y", "radius", "falloff", "impulsePerLength", "maskBits" } );
+        x = Option( L, 2, "x", 0 );
+        y = Option( L, 2, "y", 0 );
+        radius = Option( L, 2, "radius", 0 );
+        falloff = Option( L, 2, "falloff", 0 );
+        impulsePerLength = Option( L, 2, "impulsePerLength", 0 );
+        maskBits = (uint64_t)IntegerOption( L, 2, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    }
+    else
+    {
+        x = Number( L, 2 );
+        y = Number( L, 3 );
+        radius = Number( L, 4 );
+        falloff = Number( L, 5 );
+        impulsePerLength = Number( L, 6 );
+        if ( !lua_isnoneornil( L, 7 ) )
+        {
+            double m = Number( L, 7 );
+            if ( m < 0 || m > UINT32_MAX || m != std::floor( m ) )
+                return luaL_error( L, "maskBits requires an integer in the supported range" );
+            maskBits = (uint64_t)m;
+        }
+    }
+    if ( radius < 0 || falloff < 0 )
+        return luaL_error( L, "explode radius and falloff must be nonnegative" );
+    def.position = { (float)( x / w.scale ), (float)( y / w.scale ) };
+    def.radius = (float)( radius / w.scale );
+    def.falloff = (float)( falloff / w.scale );
+    def.impulsePerLength = (float)impulsePerLength;
+    def.maskBits = maskBits;
+    b2World_Explode( w.id, &def );
+    return 0;
+}
 int WorldState( lua_State *L )
 {
     World &w = GetWorld( L, 1, false );
-    lua_createtable( L, 0, 13 );
+    lua_createtable( L, 0, 36 );
     Bool( L, "destroyed", !w.alive );
     Bool( L, "paused", w.paused );
     Bool( L, "faulted", w.faulted );
@@ -1806,11 +2328,17 @@ int WorldState( lua_State *L )
     Bool( L, "speculativeCornerPassThrough", b2GetSpeculativeCornerPassThrough() );
     if ( w.alive )
     {
+        b2Vec2 gravity = b2World_GetGravity( w.id );
+        Field( L, "gravityX", gravity.x );
+        Field( L, "gravityY", gravity.y );
         Field( L, "workerCount", b2World_GetWorkerCount( w.id ) );
         Bool( L, "continuous", b2World_IsContinuousEnabled( w.id ) );
         Bool( L, "sleepingEnabled", b2World_IsSleepingEnabled( w.id ) );
+        Field( L, "awakeBodyCount", b2World_GetAwakeBodyCount( w.id ) );
         Field( L, "contactRecycleDistance", b2World_GetContactRecycleDistance( w.id ) * w.scale );
         Field( L, "hitEventThreshold", b2World_GetHitEventThreshold( w.id ) * w.scale );
+        Field( L, "restitutionThreshold", b2World_GetRestitutionThreshold( w.id ) * w.scale );
+        Field( L, "maximumLinearSpeed", b2World_GetMaxLinearSpeed( w.id ) * w.scale );
         Bool( L, "compoundInternalEdgeSuppression", w.compoundInternalEdgeSuppression );
         Bool( L, "seamContactFilter", b2World_IsSeamContactFilterEnabled( w.id ) );
         Bool( L, "weldRestitution", b2World_IsWeldRestitutionEnabled( w.id ) );
@@ -1828,22 +2356,73 @@ int WorldState( lua_State *L )
     }
     return 1;
 }
+enum class CastBehavior
+{
+    Closest,
+    Any,
+    Unsorted,
+    Sorted
+};
 struct QueryOptions
 {
     b2QueryFilter filter = { UINT32_MAX, UINT32_MAX };
     bool includeSensors = true;
     int bodyType = -1;
+    const Body *exclude = NULL;
+    const Body *excludeSecondary = NULL;
+    bool bodiesOnly = false;
 };
-QueryOptions ReadQueryOptions( lua_State *L, int index )
+void ReadQueryFilterFields( lua_State *L, int index, b2QueryFilter &filter )
 {
-    QueryOptions options;
-    if ( lua_isnoneornil( L, index ) )
-        return options;
-    luaL_checktype( L, index, LUA_TTABLE );
-    Options( L, index, { "categoryBits", "maskBits", "includeSensors", "bodyType" } );
-    options.filter.categoryBits =
-        (uint64_t)IntegerOption( L, index, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
-    options.filter.maskBits = (uint64_t)IntegerOption( L, index, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    lua_getfield( L, index, "filter" );
+    bool hasFilterTable = !lua_isnil( L, -1 );
+    if ( hasFilterTable )
+    {
+        int ft = lua_gettop( L );
+        luaL_checktype( L, ft, LUA_TTABLE );
+        Options( L, ft, { "categoryBits", "maskBits" } );
+        filter.categoryBits = (uint64_t)IntegerOption( L, ft, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
+        filter.maskBits = (uint64_t)IntegerOption( L, ft, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    }
+    lua_pop( L, 1 );
+    lua_getfield( L, index, "categoryBits" );
+    bool hasTopCat = !lua_isnil( L, -1 );
+    lua_pop( L, 1 );
+    lua_getfield( L, index, "maskBits" );
+    bool hasTopMask = !lua_isnil( L, -1 );
+    lua_pop( L, 1 );
+    if ( hasFilterTable && ( hasTopCat || hasTopMask ) )
+        luaL_error( L, "specify filter table or top-level categoryBits/maskBits, not both" );
+    if ( !hasFilterTable )
+    {
+        filter.categoryBits = (uint64_t)IntegerOption( L, index, "categoryBits", UINT32_MAX, 0, UINT32_MAX );
+        filter.maskBits = (uint64_t)IntegerOption( L, index, "maskBits", UINT32_MAX, 0, UINT32_MAX );
+    }
+}
+CastBehavior ReadCastBehavior( lua_State *L, int index )
+{
+    CastBehavior behavior = CastBehavior::Closest;
+    lua_getfield( L, index, "behavior" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        const char *name = luaL_checkstring( L, -1 );
+        if ( !strcmp( name, "closest" ) )
+            behavior = CastBehavior::Closest;
+        else if ( !strcmp( name, "any" ) )
+            behavior = CastBehavior::Any;
+        else if ( !strcmp( name, "unsorted" ) )
+            behavior = CastBehavior::Unsorted;
+        else if ( !strcmp( name, "sorted" ) )
+            behavior = CastBehavior::Sorted;
+        else
+            luaL_error( L, "unknown cast behavior '%s'", name );
+    }
+    lua_pop( L, 1 );
+    return behavior;
+}
+void ReadCommonQueryFields( lua_State *L, int index, const World &w, QueryOptions &options, bool allowResultType )
+{
+    ReadQueryFilterFields( L, index, options.filter );
     options.includeSensors = Flag( L, index, "includeSensors", true );
     lua_getfield( L, index, "bodyType" );
     if ( !lua_isnil( L, -1 ) )
@@ -1859,42 +2438,107 @@ QueryOptions ReadQueryOptions( lua_State *L, int index )
             luaL_error( L, "unknown query body type" );
     }
     lua_pop( L, 1 );
+    lua_getfield( L, index, "exclude" );
+    if ( !lua_isnil( L, -1 ) )
+    {
+        int ei = lua_gettop( L );
+        Body &excluded = GetBody( L, ei );
+        if ( &Owner( L, ei, kBody ) != &w )
+            luaL_error( L, "excluded body belongs to another physics world" );
+        options.exclude = &excluded;
+    }
+    lua_pop( L, 1 );
+    if ( allowResultType )
+    {
+        lua_getfield( L, index, "resultType" );
+        if ( !lua_isnil( L, -1 ) )
+        {
+            const char *rt = luaL_checkstring( L, -1 );
+            if ( !strcmp( rt, "shapes" ) )
+                options.bodiesOnly = false;
+            else if ( !strcmp( rt, "bodies" ) )
+                options.bodiesOnly = true;
+            else
+                luaL_error( L, "resultType must be 'shapes' or 'bodies'" );
+        }
+        lua_pop( L, 1 );
+    }
+}
+QueryOptions ReadQueryOptions( lua_State *L, int index, const World &w, bool allowResultType = true )
+{
+    QueryOptions options;
+    if ( lua_isnoneornil( L, index ) )
+        return options;
+    luaL_checktype( L, index, LUA_TTABLE );
+    if ( allowResultType )
+        Options( L, index,
+                 { "categoryBits", "maskBits", "filter", "includeSensors", "bodyType", "exclude", "resultType" } );
+    else
+        Options( L, index, { "categoryBits", "maskBits", "filter", "includeSensors", "bodyType", "exclude" } );
+    ReadCommonQueryFields( L, index, w, options, allowResultType );
     return options;
 }
 bool QueryAccepts( b2ShapeId id, const QueryOptions &options )
 {
-    return ( options.includeSensors || !b2Shape_IsSensor( id ) ) &&
-           ( options.bodyType < 0 || b2Body_GetType( b2Shape_GetBody( id ) ) == options.bodyType );
+    if ( !b2Shape_IsValid( id ) )
+        return false;
+    if ( !options.includeSensors && b2Shape_IsSensor( id ) )
+        return false;
+    b2BodyId bodyId = b2Shape_GetBody( id );
+    if ( options.bodyType >= 0 && b2Body_GetType( bodyId ) != options.bodyType )
+        return false;
+    Body *body = (Body *)b2Body_GetUserData( bodyId );
+    if ( !body || body == options.exclude || body == options.excludeSecondary )
+        return false;
+    if ( !b2Shape_GetUserData( id ) )
+        return false;
+    return true;
 }
 struct OverlapQuery
 {
     QueryOptions options;
     b2Pos point;
     bool exactPoint;
+    bool deduplicateShapes;
     std::vector<b2ShapeId> shapes;
 };
 bool CollectOverlap( b2ShapeId id, void *context )
 {
     auto &query = *(OverlapQuery *)context;
     if ( QueryAccepts( id, query.options ) && ( !query.exactPoint || b2Shape_TestPoint( id, query.point ) ) )
+    {
+        if ( query.deduplicateShapes )
+        {
+            for ( b2ShapeId existing : query.shapes )
+                if ( B2_ID_EQUALS( existing, id ) )
+                    return true;
+        }
         query.shapes.push_back( id );
+    }
     return true;
 }
-int WorldOverlap( lua_State *L, bool exactPoint )
+int PushOverlapResults( lua_State *L, const OverlapQuery &query )
 {
-    World &w = GetWorld( L );
-    Mutable( L, w );
-    float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
-    float x2 = exactPoint ? x : (float)( Number( L, 4 ) / w.scale );
-    float y2 = exactPoint ? y : (float)( Number( L, 5 ) / w.scale );
-    if ( x2 < x || y2 < y )
-        return luaL_error( L, "query region bounds must be ordered" );
-    QueryOptions options = ReadQueryOptions( L, exactPoint ? 4 : 6 );
-    OverlapQuery query = { options, { x, y }, exactPoint, {} };
-    // The tree supplies candidates. Only point queries refine to actual geometry;
-    // region queries intentionally keep the broadphase AABB contract.
-    b2World_OverlapAABB( w.id, b2Pos_zero, { { x, y }, { x2, y2 } }, options.filter, CollectOverlap, &query );
     // Never call Lua inside a native query. Return the existing, retained handles.
+    if ( query.options.bodiesOnly )
+    {
+        std::vector<size_t> serials;
+        serials.reserve( query.shapes.size() );
+        for ( b2ShapeId id : query.shapes )
+        {
+            auto *shape = (Shape *)b2Shape_GetUserData( id );
+            if ( shape && std::find( serials.begin(), serials.end(), shape->body ) == serials.end() )
+                serials.push_back( shape->body );
+        }
+        lua_createtable( L, (int)serials.size(), 0 );
+        int index = 0;
+        for ( size_t serial : serials )
+        {
+            PushHandle( L, 1, "bodies", serial );
+            lua_rawseti( L, -2, ++index );
+        }
+        return 1;
+    }
     lua_createtable( L, (int)query.shapes.size(), 0 );
     int index = 0;
     for ( b2ShapeId id : query.shapes )
@@ -1905,6 +2549,22 @@ int WorldOverlap( lua_State *L, bool exactPoint )
     }
     return 1;
 }
+int WorldOverlap( lua_State *L, bool exactPoint )
+{
+    World &w = GetWorld( L );
+    Mutable( L, w );
+    float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
+    float x2 = exactPoint ? x : (float)( Number( L, 4 ) / w.scale );
+    float y2 = exactPoint ? y : (float)( Number( L, 5 ) / w.scale );
+    if ( x2 < x || y2 < y )
+        return luaL_error( L, "query region bounds must be ordered" );
+    QueryOptions options = ReadQueryOptions( L, exactPoint ? 4 : 6, w );
+    OverlapQuery query = { options, { x, y }, exactPoint, false, {} };
+    // The tree supplies candidates. Only point queries refine to actual geometry;
+    // region queries intentionally keep the broadphase AABB contract.
+    b2World_OverlapAABB( w.id, b2Pos_zero, { { x, y }, { x2, y2 } }, options.filter, CollectOverlap, &query );
+    return PushOverlapResults( L, query );
+}
 int WorldQueryPoint( lua_State *L )
 {
     return WorldOverlap( L, true );
@@ -1913,25 +2573,233 @@ int WorldQueryRegion( lua_State *L )
 {
     return WorldOverlap( L, false );
 }
-struct RayQuery
+int WorldQueryCircle( lua_State *L )
+{
+    World &w = GetWorld( L );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    double x = Number( L, 2 ), y = Number( L, 3 ), radius = Number( L, 4 );
+    if ( radius <= 0 )
+        return luaL_error( L, "queryCircle radius must be positive" );
+    QueryOptions options = ReadQueryOptions( L, 5, w );
+    b2Pos origin = { (float)( x / w.scale ), (float)( y / w.scale ) };
+    b2Vec2 zero = b2Vec2_zero;
+    b2ShapeProxy proxy = b2MakeProxy( &zero, 1, (float)( radius / w.scale ) );
+    OverlapQuery query = { options, origin, false, false, {} };
+    b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+    return PushOverlapResults( L, query );
+}
+int WorldQueryBox( lua_State *L )
+{
+    World &w = GetWorld( L );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    double x = 0, y = 0, halfWidth = 0, halfHeight = 0, angle = 0, radius = 0;
+    QueryOptions options;
+    if ( lua_istable( L, 2 ) )
+    {
+        Options( L, 2,
+                 { "x", "y", "halfWidth", "halfHeight", "angle", "radius", "categoryBits", "maskBits",
+                   "filter", "includeSensors", "bodyType", "exclude", "resultType" } );
+        x = Option( L, 2, "x", 0 );
+        y = Option( L, 2, "y", 0 );
+        halfWidth = Option( L, 2, "halfWidth", 0 );
+        halfHeight = Option( L, 2, "halfHeight", 0 );
+        angle = Option( L, 2, "angle", 0 );
+        radius = Option( L, 2, "radius", 0 );
+        ReadCommonQueryFields( L, 2, w, options, true );
+    }
+    else
+    {
+        x = Number( L, 2 );
+        y = Number( L, 3 );
+        halfWidth = Number( L, 4 );
+        halfHeight = Number( L, 5 );
+        if ( !lua_isnoneornil( L, 6 ) )
+            angle = Number( L, 6 );
+        if ( !lua_isnoneornil( L, 7 ) )
+            radius = Number( L, 7 );
+        options = ReadQueryOptions( L, 8, w );
+    }
+    if ( halfWidth <= 0 || halfHeight <= 0 || radius < 0 )
+        return luaL_error( L, "queryBox requires positive halfWidth/halfHeight and nonnegative radius" );
+    b2Pos origin = { (float)( x / w.scale ), (float)( y / w.scale ) };
+    b2Polygon box = b2MakeOffsetRoundedBox( (float)( halfWidth / w.scale ), (float)( halfHeight / w.scale ),
+                                            b2Vec2_zero, b2MakeRot( (float)( angle * kRad ) ),
+                                            (float)( radius / w.scale ) );
+    b2ShapeProxy proxy = b2MakeProxy( box.vertices, box.count, box.radius );
+    OverlapQuery query = { options, origin, false, false, {} };
+    b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+    return PushOverlapResults( L, query );
+}
+int WorldQueryBody( lua_State *L )
+{
+    World &w = GetWorld( L );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    Body &b = GetBody( L, 2 );
+    if ( &Owner( L, 2, kBody ) != &w )
+        return luaL_error( L, "body belongs to another physics world" );
+    QueryOptions options;
+    double offsetX = 0, offsetY = 0;
+    bool excludeSelf = true;
+    if ( !lua_isnoneornil( L, 3 ) )
+    {
+        luaL_checktype( L, 3, LUA_TTABLE );
+        Options( L, 3,
+                 { "x", "y", "excludeSelf", "categoryBits", "maskBits", "filter", "includeSensors",
+                   "bodyType", "exclude", "resultType" } );
+        offsetX = Option( L, 3, "x", 0 );
+        offsetY = Option( L, 3, "y", 0 );
+        excludeSelf = Flag( L, 3, "excludeSelf", true );
+        ReadCommonQueryFields( L, 3, w, options, true );
+    }
+    if ( excludeSelf )
+        options.excludeSecondary = &b;
+    int shapeCount = b2Body_GetShapeCount( b.id );
+    if ( shapeCount <= 0 )
+    {
+        lua_createtable( L, 0, 0 );
+        return 1;
+    }
+    b2ShapeId stackShapes[16];
+    std::vector<b2ShapeId> heapShapes;
+    b2ShapeId *shapes = stackShapes;
+    if ( shapeCount > 16 )
+    {
+        heapShapes.resize( (size_t)shapeCount );
+        shapes = heapShapes.data();
+    }
+    int actualCount = b2Body_GetShapes( b.id, shapes, shapeCount );
+    b2WorldTransform xf = b2Body_GetTransform( b.id );
+    b2Pos origin = b2OffsetPos( xf.p, { (float)( offsetX / w.scale ), (float)( offsetY / w.scale ) } );
+    OverlapQuery query = { options, origin, false, actualCount > 1, {} };
+    for ( int i = 0; i < actualCount; ++i )
+    {
+        b2ShapeId sid = shapes[i];
+        if ( !b2Shape_IsValid( sid ) )
+            continue;
+        b2ShapeType st = b2Shape_GetType( sid );
+        if ( st == b2_circleShape )
+        {
+            b2Circle c = b2Shape_GetCircle( sid );
+            b2Vec2 pt = b2RotateVector( xf.q, c.center );
+            b2ShapeProxy proxy = b2MakeProxy( &pt, 1, c.radius );
+            b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+        }
+        else if ( st == b2_capsuleShape )
+        {
+            b2Capsule cap = b2Shape_GetCapsule( sid );
+            b2Vec2 pts[2] = { b2RotateVector( xf.q, cap.center1 ), b2RotateVector( xf.q, cap.center2 ) };
+            b2ShapeProxy proxy = b2MakeProxy( pts, 2, cap.radius );
+            b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+        }
+        else if ( st == b2_polygonShape )
+        {
+            b2Polygon poly = b2Shape_GetPolygon( sid );
+            b2Vec2 pts[B2_MAX_POLYGON_VERTICES];
+            for ( int j = 0; j < poly.count; ++j )
+                pts[j] = b2RotateVector( xf.q, poly.vertices[j] );
+            b2ShapeProxy proxy = b2MakeProxy( pts, poly.count, poly.radius );
+            b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+        }
+        else if ( st == b2_segmentShape )
+        {
+            b2Segment seg = b2Shape_GetSegment( sid );
+            b2Vec2 pts[2] = { b2RotateVector( xf.q, seg.point1 ), b2RotateVector( xf.q, seg.point2 ) };
+            b2ShapeProxy proxy = b2MakeProxy( pts, 2, 0.0f );
+            b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+        }
+        else if ( st == b2_chainSegmentShape )
+        {
+            b2ChainSegment cs = b2Shape_GetChainSegment( sid );
+            b2Vec2 pts[2] = { b2RotateVector( xf.q, cs.segment.point1 ),
+                              b2RotateVector( xf.q, cs.segment.point2 ) };
+            b2ShapeProxy proxy = b2MakeProxy( pts, 2, 0.0f );
+            b2World_OverlapShape( w.id, origin, &proxy, options.filter, CollectOverlap, &query );
+        }
+    }
+    return PushOverlapResults( L, query );
+}
+struct CastHit
+{
+    b2ShapeId shapeId;
+    b2Pos point;
+    b2Vec2 normal;
+    float fraction;
+};
+struct CastQuery
 {
     QueryOptions options;
-    b2RayResult result = {};
+    CastBehavior behavior = CastBehavior::Closest;
+    bool hasBest = false;
+    CastHit best = {};
+    std::vector<CastHit> hits;
 };
-float CollectRay( b2ShapeId id, b2Pos point, b2Vec2 normal, float fraction, void *context )
+float CollectCast( b2ShapeId id, b2Pos point, b2Vec2 normal, float fraction, void *context )
 {
-    auto &query = *(RayQuery *)context;
+    auto &query = *(CastQuery *)context;
     if ( !QueryAccepts( id, query.options ) )
-        return -1;
-    if ( !query.result.hit || fraction < query.result.fraction )
+        return -1.0f;
+    if ( query.behavior == CastBehavior::Any )
     {
-        query.result.hit = true;
-        query.result.shapeId = id;
-        query.result.point = point;
-        query.result.normal = normal;
-        query.result.fraction = fraction;
+        query.hasBest = true;
+        query.best = { id, point, normal, fraction };
+        return 0.0f;
     }
-    return query.result.fraction;
+    if ( query.behavior == CastBehavior::Unsorted || query.behavior == CastBehavior::Sorted )
+    {
+        query.hits.push_back( { id, point, normal, fraction } );
+        return 1.0f;
+    }
+    if ( !query.hasBest || fraction < query.best.fraction )
+    {
+        query.hasBest = true;
+        query.best = { id, point, normal, fraction };
+    }
+    return query.best.fraction;
+}
+void PushCastHit( lua_State *L, int wi, const World &w, const CastHit &hit )
+{
+    Body *b = (Body *)b2Body_GetUserData( b2Shape_GetBody( hit.shapeId ) );
+    auto *shape = (Shape *)b2Shape_GetUserData( hit.shapeId );
+    lua_createtable( L, 0, 8 );
+    PushHandle( L, wi, "bodies", b->serial );
+    lua_setfield( L, -2, "body" );
+    PushHandle( L, wi, "shapes", shape->serial );
+    lua_setfield( L, -2, "shape" );
+    Field( L, "element", shape->element );
+    Field( L, "x", hit.point.x * w.scale );
+    Field( L, "y", hit.point.y * w.scale );
+    Field( L, "normalX", hit.normal.x );
+    Field( L, "normalY", hit.normal.y );
+    Field( L, "fraction", hit.fraction );
+}
+int PushCastResults( lua_State *L, const World &w, CastQuery &query )
+{
+    if ( query.behavior == CastBehavior::Unsorted || query.behavior == CastBehavior::Sorted )
+    {
+        if ( query.behavior == CastBehavior::Sorted )
+        {
+            std::stable_sort( query.hits.begin(), query.hits.end(),
+                              []( const CastHit &a, const CastHit &b ) { return a.fraction < b.fraction; } );
+        }
+        lua_createtable( L, (int)query.hits.size(), 0 );
+        int index = 0;
+        for ( const CastHit &hit : query.hits )
+        {
+            PushCastHit( L, 1, w, hit );
+            lua_rawseti( L, -2, ++index );
+        }
+        return 1;
+    }
+    if ( !query.hasBest )
+    {
+        lua_pushnil( L );
+        return 1;
+    }
+    PushCastHit( L, 1, w, query.best );
+    return 1;
 }
 int WorldRay( lua_State *L )
 {
@@ -1940,29 +2808,143 @@ int WorldRay( lua_State *L )
         return luaL_error( L, "world is locked" );
     float x = (float)( Number( L, 2 ) / w.scale ), y = (float)( Number( L, 3 ) / w.scale );
     b2Vec2 end = { (float)( Number( L, 4 ) / w.scale ), (float)( Number( L, 5 ) / w.scale ) };
-    RayQuery query;
-    query.options = ReadQueryOptions( L, 6 );
-    b2World_CastRay( w.id, { x, y }, { end.x - x, end.y - y }, query.options.filter, CollectRay, &query );
-    const b2RayResult &result = query.result;
-    if ( !result.hit )
+    CastQuery query;
+    if ( !lua_isnoneornil( L, 6 ) )
     {
-        lua_pushnil( L );
-        return 1;
+        luaL_checktype( L, 6, LUA_TTABLE );
+        Options( L, 6,
+                 { "categoryBits", "maskBits", "filter", "includeSensors", "bodyType", "exclude", "behavior" } );
+        ReadCommonQueryFields( L, 6, w, query.options, false );
+        query.behavior = ReadCastBehavior( L, 6 );
     }
-    Body *b = (Body *)b2Body_GetUserData( b2Shape_GetBody( result.shapeId ) );
-    lua_createtable( L, 0, 6 );
-    PushHandle( L, 1, "bodies", b->serial );
-    lua_setfield( L, -2, "body" );
-    auto *shape = (Shape *)b2Shape_GetUserData( result.shapeId );
-    PushHandle( L, 1, "shapes", shape->serial );
-    lua_setfield( L, -2, "shape" );
-    Field( L, "element", shape->element );
-    Field( L, "x", result.point.x * w.scale );
-    Field( L, "y", result.point.y * w.scale );
-    Field( L, "normalX", result.normal.x );
-    Field( L, "normalY", result.normal.y );
-    Field( L, "fraction", result.fraction );
-    return 1;
+    b2World_CastRay( w.id, { x, y }, { end.x - x, end.y - y }, query.options.filter, CollectCast, &query );
+    return PushCastResults( L, w, query );
+}
+int WorldShapeCast( lua_State *L )
+{
+    World &w = GetWorld( L );
+    if ( w.syncing || b2World_IsLocked( w.id ) )
+        return luaL_error( L, "world is locked" );
+    luaL_checktype( L, 2, LUA_TTABLE );
+    Options( L, 2,
+             { "shape", "translation", "behavior", "categoryBits", "maskBits", "filter", "includeSensors",
+               "bodyType", "exclude" } );
+    CastQuery query;
+    ReadCommonQueryFields( L, 2, w, query.options, false );
+    query.behavior = ReadCastBehavior( L, 2 );
+    lua_getfield( L, 2, "translation" );
+    if ( !lua_istable( L, -1 ) )
+        return luaL_error( L, "shapeCast requires a translation table { x, y }" );
+    int ti = lua_gettop( L );
+    Options( L, ti, { "x", "y" } );
+    b2Vec2 translation = { (float)( Option( L, ti, "x", 0 ) / w.scale ),
+                           (float)( Option( L, ti, "y", 0 ) / w.scale ) };
+    lua_pop( L, 1 );
+    lua_getfield( L, 2, "shape" );
+    if ( !lua_istable( L, -1 ) )
+        return luaL_error( L, "shapeCast requires a shape table" );
+    int si = lua_gettop( L );
+    lua_getfield( L, si, "type" );
+    const char *shapeType = luaL_checkstring( L, -1 );
+    lua_pop( L, 1 );
+    b2Pos origin = b2Pos_zero;
+    b2ShapeProxy proxy = {};
+    if ( !strcmp( shapeType, "circle" ) )
+    {
+        Options( L, si, { "type", "x", "y", "radius" } );
+        double r = Option( L, si, "radius", 0 );
+        if ( r <= 0 )
+            return luaL_error( L, "shapeCast circle radius must be positive" );
+        origin = { (float)( Option( L, si, "x", 0 ) / w.scale ),
+                   (float)( Option( L, si, "y", 0 ) / w.scale ) };
+        b2Vec2 zero = b2Vec2_zero;
+        proxy = b2MakeProxy( &zero, 1, (float)( r / w.scale ) );
+    }
+    else if ( !strcmp( shapeType, "box" ) )
+    {
+        Options( L, si, { "type", "x", "y", "halfWidth", "halfHeight", "angle", "radius" } );
+        double hw = Option( L, si, "halfWidth", 0 ), hh = Option( L, si, "halfHeight", 0 );
+        double r = Option( L, si, "radius", 0 );
+        if ( hw <= 0 || hh <= 0 || r < 0 )
+            return luaL_error( L, "shapeCast box requires positive halfWidth/halfHeight and nonnegative radius" );
+        origin = { (float)( Option( L, si, "x", 0 ) / w.scale ),
+                   (float)( Option( L, si, "y", 0 ) / w.scale ) };
+        b2Polygon box = b2MakeOffsetRoundedBox( (float)( hw / w.scale ), (float)( hh / w.scale ),
+                                                b2Vec2_zero,
+                                                b2MakeRot( (float)( Option( L, si, "angle", 0 ) * kRad ) ),
+                                                (float)( r / w.scale ) );
+        proxy = b2MakeProxy( box.vertices, box.count, box.radius );
+    }
+    else if ( !strcmp( shapeType, "capsule" ) )
+    {
+        Options( L, si, { "type", "x1", "y1", "x2", "y2", "radius" } );
+        double r = Option( L, si, "radius", 0 );
+        if ( r <= 0 )
+            return luaL_error( L, "shapeCast capsule radius must be positive" );
+        double x1 = Option( L, si, "x1", 0 ), y1 = Option( L, si, "y1", 0 );
+        double x2 = Option( L, si, "x2", 0 ), y2 = Option( L, si, "y2", 0 );
+        origin = { (float)( x1 / w.scale ), (float)( y1 / w.scale ) };
+        b2Vec2 pts[2] = { b2Vec2_zero, { (float)( ( x2 - x1 ) / w.scale ), (float)( ( y2 - y1 ) / w.scale ) } };
+        proxy = b2MakeProxy( pts, 2, (float)( r / w.scale ) );
+    }
+    else if ( !strcmp( shapeType, "segment" ) )
+    {
+        Options( L, si, { "type", "x1", "y1", "x2", "y2", "radius" } );
+        double r = Option( L, si, "radius", 0 );
+        if ( r < 0 )
+            return luaL_error( L, "shapeCast segment radius must be nonnegative" );
+        double x1 = Option( L, si, "x1", 0 ), y1 = Option( L, si, "y1", 0 );
+        double x2 = Option( L, si, "x2", 0 ), y2 = Option( L, si, "y2", 0 );
+        origin = { (float)( x1 / w.scale ), (float)( y1 / w.scale ) };
+        b2Vec2 pts[2] = { b2Vec2_zero, { (float)( ( x2 - x1 ) / w.scale ), (float)( ( y2 - y1 ) / w.scale ) } };
+        proxy = b2MakeProxy( pts, 2, (float)( r / w.scale ) );
+    }
+    else if ( !strcmp( shapeType, "polygon" ) )
+    {
+        Options( L, si, { "type", "vertices", "shape", "radius" } );
+        double r = Option( L, si, "radius", 0 );
+        if ( r < 0 )
+            return luaL_error( L, "shapeCast polygon radius must be nonnegative" );
+        lua_getfield( L, si, "vertices" );
+        lua_getfield( L, si, "shape" );
+        if ( !lua_isnil( L, -2 ) && !lua_isnil( L, -1 ) )
+            return luaL_error( L, "specify vertices or shape for shapeCast polygon, not both" );
+        int vi = !lua_isnil( L, -2 ) ? lua_gettop( L ) - 1 : lua_gettop( L );
+        luaL_checktype( L, vi, LUA_TTABLE );
+        size_t length = lua_objlen( L, vi );
+        if ( length < 6 || length > 2 * B2_MAX_POLYGON_VERTICES || length % 2 )
+            return luaL_error( L, "shapeCast polygon requires 3..B2_MAX_POLYGON_VERTICES x/y pairs" );
+        b2Vec2 vertices[B2_MAX_POLYGON_VERTICES];
+        double baseX = 0, baseY = 0;
+        for ( size_t i = 0; i < length / 2; ++i )
+        {
+            lua_rawgeti( L, vi, (int)i * 2 + 1 );
+            double vx = Number( L, -1 );
+            lua_pop( L, 1 );
+            lua_rawgeti( L, vi, (int)i * 2 + 2 );
+            double vy = Number( L, -1 );
+            lua_pop( L, 1 );
+            if ( i == 0 )
+            {
+                baseX = vx;
+                baseY = vy;
+            }
+            vertices[i].x = (float)( ( vx - baseX ) / w.scale );
+            vertices[i].y = (float)( ( vy - baseY ) / w.scale );
+        }
+        lua_pop( L, 2 );
+        b2Hull hull = b2ComputeHull( vertices, (int)length / 2 );
+        if ( hull.count < 3 || !b2ValidateHull( &hull ) )
+            return luaL_error( L, "degenerate shapeCast polygon hull" );
+        origin = { (float)( baseX / w.scale ), (float)( baseY / w.scale ) };
+        b2Polygon polygon = b2MakePolygon( &hull, (float)( r / w.scale ) );
+        proxy = b2MakeProxy( polygon.vertices, polygon.count, polygon.radius );
+    }
+    else
+        return luaL_error( L, "unsupported shapeCast shape type '%s'", shapeType );
+    lua_pop( L, 1 );
+    b2World_CastShape( w.id, origin, &proxy, translation, query.options.filter, CollectCast, &query );
+    return PushCastResults( L, w, query );
 }
 void Destroy( lua_State *L, World &w, int wi )
 {
@@ -2098,8 +3080,8 @@ int LuaPhysicsWorld::New( lua_State *L )
              { "pixelsPerMeter", "timeStep", "subSteps", "maxStepsPerFrame", "speed", "workerCount", "interpolation",
                "gravityX", "gravityY", "sleepingEnabled", "continuous", "contactRecycleDistance",
                "compoundInternalEdgeSuppression", "seamContactFilter", "weldRestitution",
-               "restitutionIterations", "contactHertz", "contactDampingRatio", "contactPushSpeed",
-               "hitEventThreshold" } );
+               "restitutionIterations", "restitutionThreshold", "maximumLinearSpeed", "contactHertz",
+               "contactDampingRatio", "contactPushSpeed", "hitEventThreshold" } );
     double scale = Option( L, 1, "pixelsPerMeter", 30 ), dt = Option( L, 1, "timeStep", 1.0 / 60 );
     double sub = Option( L, 1, "subSteps", 8 ), cap = Option( L, 1, "maxStepsPerFrame", 8 ),
            speed = Option( L, 1, "speed", 1 );
@@ -2120,9 +3102,13 @@ int LuaPhysicsWorld::New( lua_State *L )
     def.enableContinuous = Flag( L, 1, "continuous", true );
     def.workerCount = (int)workers;
     double hitThreshold = Option( L, 1, "hitEventThreshold", def.hitEventThreshold * scale );
-    if ( hitThreshold < 0 )
-        return luaL_error( L, "hitEventThreshold must be nonnegative" );
+    double restitutionThreshold = Option( L, 1, "restitutionThreshold", def.restitutionThreshold * scale );
+    double maxLinearSpeed = Option( L, 1, "maximumLinearSpeed", def.maximumLinearSpeed * scale );
+    if ( hitThreshold < 0 || restitutionThreshold < 0 || maxLinearSpeed <= 0 )
+        return luaL_error( L, "invalid hitEventThreshold, restitutionThreshold or maximumLinearSpeed" );
     def.hitEventThreshold = (float)( hitThreshold / scale );
+    def.restitutionThreshold = (float)( restitutionThreshold / scale );
+    def.maximumLinearSpeed = (float)( maxLinearSpeed / scale );
     // Keep Box2D's native contact reuse unless the caller explicitly overrides it.
     double recycle = Option( L, 1, "contactRecycleDistance", B2_CONTACT_RECYCLE_DISTANCE * scale );
     if ( recycle < 0 )
@@ -2151,16 +3137,26 @@ int LuaPhysicsWorld::New( lua_State *L )
                                      { "addChain", BodyChain },
                                      { "getShapes", BodyShapes },
                                      { "getMassData", BodyMass },
+                                     { "resetMassData", BodyResetMassData },
                                      { "getPosition", BodyPosition },
                                      { "setTransform", BodyTransform },
+                                     { "getBounds", BodyBounds },
                                      { "getLinearVelocity", BodyVelocity },
                                      { "setLinearVelocity", BodySetVelocity },
+                                     { "getLinearVelocityFromWorldPoint", BodyVelocityFromWorldPoint },
+                                     { "getLinearVelocityFromLocalPoint", BodyVelocityFromLocalPoint },
                                      { "applyForce", BodyForce },
                                      { "applyLinearImpulse", BodyImpulse },
                                      { "applyTorque", BodyTorque },
                                      { "applyAngularImpulse", BodyAngularImpulse },
                                      { "getWorldPoint", BodyWorldPoint },
                                      { "getLocalPoint", BodyLocalPoint },
+                                     { "getWorldVector", BodyWorldVector },
+                                     { "getLocalVector", BodyLocalVector },
+                                     { "getClosestPoint", BodyClosestPoint },
+                                     { "isTouching", BodyIsTouching },
+                                     { "getContactBodies", BodyContactBodies },
+                                     { "wakeTouching", BodyWakeTouching },
                                      { "bindView", BodyBind },
                                      { "unbindView", BodyUnbind },
                                      { "destroy", BodyDestroy },
@@ -2188,15 +3184,34 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "setViewRoot", WorldViewRoot },
                                       { "pause", WorldPause },
                                       { "resume", WorldResume },
+                                      { "getGravity", WorldGetGravity },
+                                      { "setGravity", WorldSetGravity },
                                       { "setSimulationSpeed", WorldSpeed },
                                       { "setInterpolation", WorldInterpolation },
                                       { "getState", WorldState },
+                                      { "getAwakeBodyCount", WorldAwakeBodyCount },
                                       { "newSoftSystem", WorldNewSoft },
                                       { "setContactPolicy", WorldContactPolicy },
                                       { "setHitEventThreshold", WorldHitThreshold },
+                                      { "setContactTuning", WorldContactTuning },
+                                      { "setContactRecycleDistance", WorldContactRecycleDistance },
+                                      { "setSeamContactFilter", WorldSeamContactFilter },
+                                      { "setWeldRestitution", WorldWeldRestitution },
+                                      { "setRestitutionIterations", WorldRestitutionIterations },
+                                      { "setRestitutionThreshold", WorldRestitutionThreshold },
+                                      { "getRestitutionThreshold", WorldGetRestitutionThreshold },
+                                      { "setMaximumLinearSpeed", WorldMaxLinearSpeed },
+                                      { "getMaximumLinearSpeed", WorldGetMaxLinearSpeed },
+                                      { "setSleepingEnabled", WorldSleepingEnabled },
+                                      { "setContinuous", WorldContinuous },
+                                      { "explode", WorldExplode },
                                       { "rayCast", WorldRay },
+                                      { "shapeCast", WorldShapeCast },
                                       { "queryPoint", WorldQueryPoint },
                                       { "queryRegion", WorldQueryRegion },
+                                      { "queryCircle", WorldQueryCircle },
+                                      { "queryBox", WorldQueryBox },
+                                      { "queryBody", WorldQueryBody },
                                       { "destroy", WorldDestroy },
                                       { NULL, NULL } };
     const luaL_Reg shapeMethods[] = { { "__index", ShapeIndex },
@@ -2205,6 +3220,9 @@ int LuaPhysicsWorld::New( lua_State *L )
                                       { "removeSelf", ShapeDestroy },
                                       { "isValid", ShapeValid },
                                       { "testPoint", ShapeTestPoint },
+                                      { "getClosestPoint", ShapeClosestPoint },
+                                      { "getBounds", ShapeBounds },
+                                      { "getSensorOverlaps", ShapeSensorOverlaps },
                                       { NULL, NULL } };
     const luaL_Reg chainMethods[] = { { "getSegments", ChainSegments }, { "getBody", ChainBody },
                                       { "setFilter", ChainFilter },     { "setMaterial", ChainMaterial },
