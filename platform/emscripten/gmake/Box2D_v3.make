@@ -105,6 +105,7 @@ OBJECTS := \
 	$(OBJDIR)/replay.o \
 	$(OBJDIR)/snapshot.o \
 	$(OBJDIR)/broad_phase.o \
+	$(OBJDIR)/chain_builder.o \
 	$(OBJDIR)/constraint_graph.o \
 	$(OBJDIR)/contact.o \
 	$(OBJDIR)/contact_solver.o \
@@ -122,6 +123,7 @@ OBJECTS := \
 	$(OBJDIR)/joint.o \
 	$(OBJDIR)/manifold.o \
 	$(OBJDIR)/math_functions.o \
+	$(OBJDIR)/motion_lock_joint.o \
 	$(OBJDIR)/motor_joint.o \
 	$(OBJDIR)/prismatic_joint.o \
 	$(OBJDIR)/revolute_joint.o \
@@ -305,6 +307,9 @@ $(OBJDIR)/snapshot.o: ../../../external/box2d_v3/src/snapshot.c
 $(OBJDIR)/broad_phase.o: ../../../external/box2d_v3/src/broad_phase.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/chain_builder.o: ../../../external/box2d_v3/src/chain_builder.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/constraint_graph.o: ../../../external/box2d_v3/src/constraint_graph.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
@@ -354,6 +359,9 @@ $(OBJDIR)/manifold.o: ../../../external/box2d_v3/src/manifold.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/math_functions.o: ../../../external/box2d_v3/src/math_functions.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/motion_lock_joint.o: ../../../external/box2d_v3/src/motion_lock_joint.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/motor_joint.o: ../../../external/box2d_v3/src/motor_joint.c

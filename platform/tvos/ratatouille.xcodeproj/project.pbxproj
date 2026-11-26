@@ -30,6 +30,8 @@
 		414D6BC42D8D53CC008B70EF /* arena_allocator.c in Sources */ = {isa = PBXBuildFile; fileRef = 414D6BBE2D8D53CC008B70EF /* arena_allocator.c */; };
 		41617A062FCFEE250084DB15 /* scheduler.c in Sources */ = {isa = PBXBuildFile; fileRef = 41617A052FCFEE250084DB15 /* scheduler.c */; };
 		41617A072FCFEE250084DB15 /* parallel_for.c in Sources */ = {isa = PBXBuildFile; fileRef = 41617A032FCFEE250084DB15 /* parallel_for.c */; };
+		41B2D2010000000000000001 /* chain_builder.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D2010000000000000011 /* chain_builder.c */; };
+		41B2D2010000000000000002 /* motion_lock_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D2010000000000000012 /* motion_lock_joint.c */; };
 		41DC1BC82C9C2D94000E52D2 /* block_allocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B1C2C9C2D94000E52D2 /* block_allocator.cpp */; };
 		41DC1BC92C9C2D94000E52D2 /* free_list.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B1E2C9C2D94000E52D2 /* free_list.cpp */; };
 		41DC1BCA2C9C2D94000E52D2 /* liquid_callbacks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41DC1B222C9C2D94000E52D2 /* liquid_callbacks.cpp */; };
@@ -1610,6 +1612,10 @@
 		41617A012FCFEE250084DB15 /* container.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = container.h; sourceTree = "<group>"; };
 		41617A022FCFEE250084DB15 /* parallel_for.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parallel_for.h; sourceTree = "<group>"; };
 		41617A032FCFEE250084DB15 /* parallel_for.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parallel_for.c; sourceTree = "<group>"; };
+		41B2D2010000000000000011 /* chain_builder.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = chain_builder.c; sourceTree = "<group>"; };
+		41B2D2010000000000000012 /* motion_lock_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_lock_joint.c; sourceTree = "<group>"; };
+		41B2D2010000000000000013 /* qsort.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = qsort.h; sourceTree = "<group>"; };
+		41B2D2010000000000000014 /* verstable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = verstable.h; sourceTree = "<group>"; };
 		41617A042FCFEE250084DB15 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = scheduler.h; sourceTree = "<group>"; };
 		41617A052FCFEE250084DB15 /* scheduler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = scheduler.c; sourceTree = "<group>"; };
 		41DC1B1C2C9C2D94000E52D2 /* block_allocator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = block_allocator.cpp; sourceTree = "<group>"; };
@@ -2931,6 +2937,10 @@
 				41617A012FCFEE250084DB15 /* container.h */,
 				41617A022FCFEE250084DB15 /* parallel_for.h */,
 				41617A032FCFEE250084DB15 /* parallel_for.c */,
+				41B2D2010000000000000011 /* chain_builder.c */,
+				41B2D2010000000000000012 /* motion_lock_joint.c */,
+				41B2D2010000000000000013 /* qsort.h */,
+				41B2D2010000000000000014 /* verstable.h */,
 				41617A042FCFEE250084DB15 /* scheduler.h */,
 				41617A052FCFEE250084DB15 /* scheduler.c */,
 				41FC45E42DB5FB6000383E06 /* mover.c */,
@@ -5669,6 +5679,8 @@
 				41DC1C082C9C2D94000E52D2 /* timer.c in Sources */,
 				41617A062FCFEE250084DB15 /* scheduler.c in Sources */,
 				41617A072FCFEE250084DB15 /* parallel_for.c in Sources */,
+				41B2D2010000000000000001 /* chain_builder.c in Sources */,
+				41B2D2010000000000000002 /* motion_lock_joint.c in Sources */,
 				41DC1BD42C9C2D94000E52D2 /* voronoi_diagram.cpp in Sources */,
 				41DC1C092C9C2D94000E52D2 /* types.c in Sources */,
 				41DC1BFB2C9C2D94000E52D2 /* island.c in Sources */,

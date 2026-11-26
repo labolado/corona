@@ -79,6 +79,8 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\replay.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\snapshot.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\table.h" />
+    <ClInclude Include="..\..\..\external\box2d_v3\src\qsort.h" />
+    <ClInclude Include="..\..\..\external\box2d_v3\src\verstable.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\scheduler.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\parallel_for.h" />
     <ClInclude Include="..\..\..\external\box2d_v3\src\physics_world.h" />
@@ -119,6 +121,7 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\replay.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\snapshot.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\broad_phase.c" />
+    <ClCompile Include="..\..\..\external\box2d_v3\src\chain_builder.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\constraint_graph.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\contact.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\contact_solver.c" />
@@ -138,6 +141,7 @@
     <ClCompile Include="..\..\..\external\box2d_v3\src\joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\manifold.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\math_functions.c" />
+    <ClCompile Include="..\..\..\external\box2d_v3\src\motion_lock_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\motor_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\prismatic_joint.c" />
     <ClCompile Include="..\..\..\external\box2d_v3\src\revolute_joint.c" />

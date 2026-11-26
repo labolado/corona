@@ -374,6 +374,10 @@
 		4161798B2FCED6960084DB15 /* scheduler.h in Headers */ = {isa = PBXBuildFile; fileRef = 416179872FCED6960084DB15 /* scheduler.h */; };
 		4161798C2FCED6960084DB15 /* scheduler.c in Sources */ = {isa = PBXBuildFile; fileRef = 416179882FCED6960084DB15 /* scheduler.c */; };
 		4161798D2FCED6960084DB15 /* parallel_for.c in Sources */ = {isa = PBXBuildFile; fileRef = 416179862FCED6960084DB15 /* parallel_for.c */; };
+		41B2D0010000000000000001 /* chain_builder.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D0010000000000000011 /* chain_builder.c */; };
+		41B2D0010000000000000002 /* motion_lock_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D0010000000000000012 /* motion_lock_joint.c */; };
+		41B2D0010000000000000003 /* qsort.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B2D0010000000000000013 /* qsort.h */; };
+		41B2D0010000000000000004 /* verstable.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B2D0010000000000000014 /* verstable.h */; };
 		41B9AA8C2C5A4469000F59B1 /* base.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B9A9EA2C5A4468000F59B1 /* base.h */; };
 		41B9AA8D2C5A4469000F59B1 /* box2d.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B9A9EB2C5A4468000F59B1 /* box2d.h */; };
 		41B9AA8E2C5A4469000F59B1 /* collision.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B9A9EC2C5A4468000F59B1 /* collision.h */; };
@@ -2822,6 +2826,10 @@
 		416179842FCED6960084DB15 /* container.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = container.h; sourceTree = "<group>"; };
 		416179852FCED6960084DB15 /* parallel_for.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parallel_for.h; sourceTree = "<group>"; };
 		416179862FCED6960084DB15 /* parallel_for.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parallel_for.c; sourceTree = "<group>"; };
+		41B2D0010000000000000011 /* chain_builder.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = chain_builder.c; sourceTree = "<group>"; };
+		41B2D0010000000000000012 /* motion_lock_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_lock_joint.c; sourceTree = "<group>"; };
+		41B2D0010000000000000013 /* qsort.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = qsort.h; sourceTree = "<group>"; };
+		41B2D0010000000000000014 /* verstable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = verstable.h; sourceTree = "<group>"; };
 		416179872FCED6960084DB15 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = scheduler.h; sourceTree = "<group>"; };
 		416179882FCED6960084DB15 /* scheduler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = scheduler.c; sourceTree = "<group>"; };
 		41B9A9EA2C5A4468000F59B1 /* base.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = base.h; sourceTree = "<group>"; };
@@ -4628,6 +4636,10 @@
 				416179842FCED6960084DB15 /* container.h */,
 				416179852FCED6960084DB15 /* parallel_for.h */,
 				416179862FCED6960084DB15 /* parallel_for.c */,
+				41B2D0010000000000000011 /* chain_builder.c */,
+				41B2D0010000000000000012 /* motion_lock_joint.c */,
+				41B2D0010000000000000013 /* qsort.h */,
+				41B2D0010000000000000014 /* verstable.h */,
 				416179872FCED6960084DB15 /* scheduler.h */,
 				416179882FCED6960084DB15 /* scheduler.c */,
 				41FC45D42DB5EAE500383E06 /* mover.c */,
@@ -5770,6 +5782,8 @@
 				4155A6242C6B64CA002F8BBD /* intrusive_list.h in Headers */,
 				41B9AA8E2C5A4469000F59B1 /* collision.h in Headers */,
 				41B9AADF2C5A446A000F59B1 /* table.h in Headers */,
+				41B2D0010000000000000003 /* qsort.h in Headers */,
+				41B2D0010000000000000004 /* verstable.h in Headers */,
 				41B9AAB92C5A4469000F59B1 /* body.h in Headers */,
 				4155A6202C6B64CA002F8BBD /* block_allocator.h in Headers */,
 				41B9AA8F2C5A4469000F59B1 /* id.h in Headers */,
@@ -7353,6 +7367,8 @@
 				41B9AAC62C5A446A000F59B1 /* distance.c in Sources */,
 				4161798C2FCED6960084DB15 /* scheduler.c in Sources */,
 				4161798D2FCED6960084DB15 /* parallel_for.c in Sources */,
+				41B2D0010000000000000001 /* chain_builder.c in Sources */,
+				41B2D0010000000000000002 /* motion_lock_joint.c in Sources */,
 				41B9AAE12C5A446A000F59B1 /* types.c in Sources */,
 				4155A6292C6B64CA002F8BBD /* liquid_world.cpp in Sources */,
 				4E6334F1C34449C9B34F126A /* soft_box2d_state.cpp in Sources */,

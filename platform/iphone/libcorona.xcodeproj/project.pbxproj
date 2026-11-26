@@ -350,6 +350,10 @@
 		414D6BD52D8D54A2008B70EF /* arena_allocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 414D6BCA2D8D54A2008B70EF /* arena_allocator.h */; };
 		416179B22FCFE7DB0084DB15 /* constants.h in Headers */ = {isa = PBXBuildFile; fileRef = 416179B12FCFE7DB0084DB15 /* constants.h */; };
 		416179B82FCFE8230084DB15 /* parallel_for.c in Sources */ = {isa = PBXBuildFile; fileRef = 416179B52FCFE8230084DB15 /* parallel_for.c */; };
+		41B2D1010000000000000001 /* chain_builder.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D1010000000000000011 /* chain_builder.c */; };
+		41B2D1010000000000000002 /* motion_lock_joint.c in Sources */ = {isa = PBXBuildFile; fileRef = 41B2D1010000000000000012 /* motion_lock_joint.c */; };
+		41B2D1010000000000000003 /* qsort.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B2D1010000000000000013 /* qsort.h */; };
+		41B2D1010000000000000004 /* verstable.h in Headers */ = {isa = PBXBuildFile; fileRef = 41B2D1010000000000000014 /* verstable.h */; };
 		416179B92FCFE8230084DB15 /* scheduler.c in Sources */ = {isa = PBXBuildFile; fileRef = 416179B72FCFE8230084DB15 /* scheduler.c */; };
 		416179BA2FCFE8230084DB15 /* parallel_for.h in Headers */ = {isa = PBXBuildFile; fileRef = 416179B42FCFE8230084DB15 /* parallel_for.h */; };
 		416179BB2FCFE8230084DB15 /* scheduler.h in Headers */ = {isa = PBXBuildFile; fileRef = 416179B62FCFE8230084DB15 /* scheduler.h */; };
@@ -1283,6 +1287,10 @@
 		416179B12FCFE7DB0084DB15 /* constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = constants.h; sourceTree = "<group>"; };
 		416179B42FCFE8230084DB15 /* parallel_for.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = parallel_for.h; sourceTree = "<group>"; };
 		416179B52FCFE8230084DB15 /* parallel_for.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = parallel_for.c; sourceTree = "<group>"; };
+		41B2D1010000000000000011 /* chain_builder.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = chain_builder.c; sourceTree = "<group>"; };
+		41B2D1010000000000000012 /* motion_lock_joint.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = motion_lock_joint.c; sourceTree = "<group>"; };
+		41B2D1010000000000000013 /* qsort.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = qsort.h; sourceTree = "<group>"; };
+		41B2D1010000000000000014 /* verstable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = verstable.h; sourceTree = "<group>"; };
 		416179B62FCFE8230084DB15 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = scheduler.h; sourceTree = "<group>"; };
 		416179B72FCFE8230084DB15 /* scheduler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = scheduler.c; sourceTree = "<group>"; };
 		416179BD2FCFE83E0084DB15 /* container.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = container.h; sourceTree = "<group>"; };
@@ -2517,6 +2525,10 @@
 				416179BD2FCFE83E0084DB15 /* container.h */,
 				416179B42FCFE8230084DB15 /* parallel_for.h */,
 				416179B52FCFE8230084DB15 /* parallel_for.c */,
+				41B2D1010000000000000011 /* chain_builder.c */,
+				41B2D1010000000000000012 /* motion_lock_joint.c */,
+				41B2D1010000000000000013 /* qsort.h */,
+				41B2D1010000000000000014 /* verstable.h */,
 				416179B62FCFE8230084DB15 /* scheduler.h */,
 				416179B72FCFE8230084DB15 /* scheduler.c */,
 				41FC45E12DB5FA1200383E06 /* mover.c */,
@@ -3061,6 +3073,8 @@
 				41B9ADD12C5B9B61000F59B1 /* shape.h in Headers */,
 				417D56F92C8705C0005C9DAD /* growable_buffer.h in Headers */,
 				41B9ADD92C5B9B62000F59B1 /* table.h in Headers */,
+				41B2D1010000000000000003 /* qsort.h in Headers */,
+				41B2D1010000000000000004 /* verstable.h in Headers */,
 				41B9AD882C5B9B5E000F59B1 /* collision.h in Headers */,
 				417D56FC2C8705C1005C9DAD /* liquid_shape.h in Headers */,
 				41B9ADBB2C5B9B60000F59B1 /* contact.h in Headers */,
@@ -3627,6 +3641,8 @@
 				3A1CED58E24E44645CDAD77B /* contact_solver_w8.c in Sources */,
 				FAFB250E33D533D5876A96D1 /* simd.c in Sources */,
 				416179B82FCFE8230084DB15 /* parallel_for.c in Sources */,
+				41B2D1010000000000000001 /* chain_builder.c in Sources */,
+				41B2D1010000000000000002 /* motion_lock_joint.c in Sources */,
 				416179B92FCFE8230084DB15 /* scheduler.c in Sources */,
 				41B9ADD42C5B9B61000F59B1 /* solver.c in Sources */,
 				41B9ADC02C5B9B61000F59B1 /* distance.c in Sources */,

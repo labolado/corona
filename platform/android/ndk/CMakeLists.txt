@@ -744,6 +744,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/body.c
 		${CORONA_ROOT}/external/box2d_v3/src/mover.c
 		${CORONA_ROOT}/external/box2d_v3/src/broad_phase.c
+		${CORONA_ROOT}/external/box2d_v3/src/chain_builder.c
 		${CORONA_ROOT}/external/box2d_v3/src/constraint_graph.c
 		${CORONA_ROOT}/external/box2d_v3/src/contact.c
 		${CORONA_ROOT}/external/box2d_v3/src/contact_solver.c
@@ -761,6 +762,7 @@ add_library( corona SHARED
 		${CORONA_ROOT}/external/box2d_v3/src/joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/manifold.c
 		${CORONA_ROOT}/external/box2d_v3/src/math_functions.c
+		${CORONA_ROOT}/external/box2d_v3/src/motion_lock_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/motor_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/prismatic_joint.c
 		${CORONA_ROOT}/external/box2d_v3/src/revolute_joint.c

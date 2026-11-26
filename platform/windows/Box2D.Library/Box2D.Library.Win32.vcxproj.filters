@@ -61,6 +61,12 @@
     <ClInclude Include="..\..\..\external\box2d_v3\src\table.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\src\qsort.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\external\box2d_v3\src\verstable.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\external\box2d_v3\src\scheduler.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -228,6 +234,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\motor_joint.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\src\motion_lock_joint.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\external\box2d_v3\src\chain_builder.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\external\box2d_v3\src\timer.c">

@@ -690,7 +690,7 @@ DisplayObjectExtensions::ValueForKey( lua_State *L, const MLuaProxyable& object,
 			break;
 		case 4:
 			{
-				lua_pushboolean( L, b2Body_GetMotionLocks(fBodyId).angularZ );
+				lua_pushboolean( L, b2Body_IsFixedRotation(fBodyId) );
 			}
 			break;
 		case 5:
@@ -958,7 +958,7 @@ DisplayObjectExtensions::SetValueForKey( lua_State *L, MLuaProxyable &, const ch
 		case 4:
 			{
 				bool isFixedRotation = lua_toboolean( L, valueIndex );
-				b2Body_SetMotionLocks( fBodyId, { false, false, isFixedRotation } );
+				b2Body_SetFixedRotation( fBodyId, isFixedRotation );
 			}
 			break;
 		case 5:

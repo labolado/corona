@@ -1536,7 +1536,7 @@ int BodyIndex( lua_State *L )
     else if ( !strcmp( key, "isSleepingAllowed" ) )
         lua_pushboolean( L, b2Body_IsSleepingEnabled( b.id ) );
     else if ( !strcmp( key, "isFixedRotation" ) )
-        lua_pushboolean( L, b2Body_GetMotionLocks( b.id ).angularZ );
+        lua_pushboolean( L, b2Body_IsFixedRotation( b.id ) );
     else if ( !strcmp( key, "isActive" ) )
         lua_pushboolean( L, b2Body_IsEnabled( b.id ) );
     else if ( !strcmp( key, "bodyType" ) )
@@ -1626,11 +1626,7 @@ int BodyNewIndex( lua_State *L )
         else if ( !strcmp( key, "isSleepingAllowed" ) )
             b2Body_EnableSleeping( b.id, value );
         else if ( !strcmp( key, "isFixedRotation" ) )
-        {
-            b2MotionLocks locks = b2Body_GetMotionLocks( b.id );
-            locks.angularZ = value;
-            b2Body_SetMotionLocks( b.id, locks );
-        }
+            b2Body_SetFixedRotation( b.id, value );
         else
         {
             if ( value )
@@ -1720,7 +1716,7 @@ int WorldBody( lua_State *L )
     d.sleepThreshold = (float)( sleepThreshold / w.scale );
     d.enableSleep = Flag( L, 2, "isSleepingAllowed", true );
     d.isAwake = Flag( L, 2, "isAwake", true );
-    d.motionLocks.angularZ = Flag( L, 2, "isFixedRotation", false );
+    d.fixedRotation = Flag( L, 2, "isFixedRotation", false );
     d.isBullet = Flag( L, 2, "isBullet", false );
     d.allowFastRotation = Flag( L, 2, "allowFastRotation", false );
     d.enableContactRecycling = Flag( L, 2, "isContactRecycling", true );
